@@ -19,7 +19,7 @@
 
 ## Installation
 
-### Setup (初始化)
+### Setup
 
 ```bash
 git clone [https://github.com/cansfakenewsverify/AI-Fake-News-Verification-System.git](https://github.com/cansfakenewsverify/AI-Fake-News-Verification-System.git)
@@ -37,7 +37,7 @@ Frontend
 cd code/frontend
 npm install
 
-Usage
+### Usage
 
 啟動服務流程
 Backend: 執行 uvicorn main:app --reload 啟動 API 伺服器於 8000 埠位。
@@ -53,7 +53,7 @@ AI-Fake-News-Verification-System/
     ├── frontend/                  # React 前端專案原始碼
     └── backend/                   # FastAPI 後端專案原始碼
 
-Authors
+### Authors
 廖晢勛 — 系統架構設計、API 整合、專案時程管理
 石岱勳 — Prompt Engineering、Gemini API 邏輯實作
 廖育翔 — 網頁資料擷取服務開發
