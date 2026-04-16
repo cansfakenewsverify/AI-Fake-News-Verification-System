@@ -19,21 +19,43 @@
 
 ## Installation
 
-### Setup
+### 1. 初次設定與下載專案
 ```bash
-git clone [https://github.com/cansfakenewsverify/AI-Fake-News-Verification-System.git](https://github.com/cansfakenewsverify/AI-Fake-News-Verification-System.git)
+git clone https://github.com/cansfakenewsverify/AI-Fake-News-Verification-System.git
 cd AI-Fake-News-Verification-System
 ```
 
-### Backend
+### 2. 環境變數設定 (.env)
+在啟動後端系統前，您必須建立一個 `.env` 檔案以存放您的 Google Gemini API Key。
+請在 `code/backend/` 目錄下建立 `.env` 檔案，並寫入以下內容：
+```ini
+# (必填) Google Gemini API Key
+GOOGLE_API_KEY=您的_API_KEY
+
+# 關閉成果展示模式以啟用真實 AI 判定
+DEMO_MODE=False
+```
+
+### 3. Backend (後端)
+後端由 FastAPI 所驅動，包含了爬蟲模組與 AI 分析引擎。請務必在**虛擬環境**中安裝依賴。
 ```bash
 cd code/backend
+
+# 建立虛擬環境
 python -m venv venv
-# Windows: .\venv\Scripts\activate
+
+# 啟動虛擬環境 (依據您的作業系統)
+# Windows: 
+.\venv\Scripts\activate
+# macOS/Linux: 
+source venv/bin/activate
+
+# 安裝所有必要套件
 pip install -r requirements.txt
 ```
 
-### Frontend
+### 4. Frontend (前端)
+前端使用 React 與 Vite 打造，需透過 npm 或 yarn 安裝依賴。
 ```bash
 cd code/frontend
 npm install
@@ -42,8 +64,23 @@ npm install
 ## Usage
 
 ### 啟動服務流程
-- **Backend**: 執行 `uvicorn main:app --reload` 啟動 API 伺服器於 8000 埠位。
-- **Frontend**: 執行 `npm run dev` 啟動 React 開發環境於 5173 埠位。
+每次開發或測試時，請開啟**兩個獨立的終端機**分別啟動前後端：
+
+- **啟動 Backend** (在 Terminal 1):
+  ```bash
+  cd code/backend
+  .\venv\Scripts\activate
+  uvicorn main:app
+  ```
+  *(伺服器將執行於 http://localhost:8000)*
+
+- **啟動 Frontend** (在 Terminal 2):
+  ```bash
+  cd code/frontend
+  npm run dev
+  ```
+  *(前端將執行於 http://localhost:5173)*
+
 
 ## Project Structure
 

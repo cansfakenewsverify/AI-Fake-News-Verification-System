@@ -373,9 +373,31 @@ class CrawlerService:
         platform_type, platform_name = CrawlerService.detect_platform(input_data)
         
         if platform_type == 'video':
-            return await CrawlerService.download_video(input_data, platform_name)
+            res = await CrawlerService.download_video(input_data, platform_name)
         elif platform_name == 'closed_platform':
-            return await CrawlerService.crawl_closed_platform(input_data)
+            res = await CrawlerService.crawl_closed_platform(input_data)
         else:
-            return await CrawlerService.crawl_url(input_data)
+            res = await CrawlerService.crawl_url(input_data)
+            
+        # 自動為 URL 結果查找事實查核與網路相關文章
+        if res.get('success') and res.get('title'):
+            # 利用標題去搜尋可能的事實查核文章
+            keyword = f"{res['title']} 事實查核 OR TFC OR MyGoPen"
+            fc_res = await CrawlerService.search_keyword_and_crawl(keyword)
+            
+            # 將搜尋結果整理成 similar_news 陣列
+            sim = []
+            if fc_res.get('url'):
+                sim.append({
+                    'url': fc_res.get('url'), 
+                    'title': fc_res.get('title'), 
+                    'date': fc_res.get('date'), 
+                    'content': fc_res.get('content')
+                })
+            for fallback in fc_res.get('similar_news', []):
+                sim.append(fallback)
+                
+            res['similar_news'] = sim
+            
+        return res
 

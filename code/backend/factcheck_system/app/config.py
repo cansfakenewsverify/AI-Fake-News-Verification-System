@@ -40,9 +40,9 @@ class Settings(BaseSettings):
     SEARCH_RESULTS_LIMIT: int = 5  # 關鍵字搜尋時爬取的相似新聞數量
     
     # AI 設定（gemini-2.5-flash 為 2025 年新模型）
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-1.5-flash"
     GEMINI_MODEL_FALLBACK: str = "gemini-2.5-flash"
-    EMBEDDING_MODEL: str = "models/embedding-001"
+    EMBEDDING_MODEL: str = "models/text-embedding-004"
     
     # 任務隊列設定
     QUEUE_NAME: str = "factcheck_tasks"

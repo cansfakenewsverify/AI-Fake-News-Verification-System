@@ -47,7 +47,93 @@ const initialPosts = [
 ];
 
 export default function App() {
-  const [posts] = useState(initialPosts);
+  const [posts, setPosts] = useState(initialPosts);
+  const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handlePostSubmit = async () => {
+    if (!inputText.trim()) return;
+    setIsLoading(true);
+    
+    try {
+      // 呼叫後端 API
+      const response = await fetch('http://localhost:8000/api/analyze/text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: inputText })
+      });
+      
+      const apiResult = await response.json();
+
+      if (!response.ok) {
+          throw new Error(apiResult.detail || 'API 請求失敗');
+      }
+      
+      const newPostId = Date.now();
+      const newPost = {
+        id: newPostId,
+        author: {
+          name: '目前使用者',
+          avatar: 'https://ui-avatars.com/api/?name=User&background=E0E7FF&color=4F46E5',
+          handle: '@current_user'
+        },
+        time: '剛剛',
+        content: inputText,
+        aiResult: apiResult.task_id ? undefined : apiResult,
+        likes: 0,
+        comments: 0,
+        shares: 0
+      };
+
+      if (apiResult.task_id) {
+          newPost.aiResult = {
+              risk_type: 'UNKNOWN',
+              category: '爬蟲 & 分析中',
+              confidence_score: null,
+              summary: '正在擷取內容與進行雙重事實查核，請稍候...',
+              explanation: `您的任務已進入分析排程，這可能需要幾秒鐘的時間。`,
+              sources: []
+          };
+      }
+      
+      setPosts(prev => [newPost, ...prev]);
+      setInputText('');
+
+      // 若有 task_id，進行輪詢 (Polling) 以獲取最終結果
+      if (apiResult.task_id) {
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await fetch(`http://localhost:8000/api/analyze/task/${apiResult.task_id}/status`);
+            if (!statusRes.ok) return;
+            const statusData = await statusRes.json();
+
+            if (statusData.status === 'completed') {
+              clearInterval(pollInterval);
+              // 獲取最終結果
+              const finalRes = await fetch(`http://localhost:8000/api/analyze/task/${apiResult.task_id}`);
+              const finalData = await finalRes.json();
+              setPosts(prev => prev.map(p => p.id === newPostId ? { ...p, aiResult: finalData } : p));
+            } else if (statusData.status === 'failed') {
+              clearInterval(pollInterval);
+              setPosts(prev => prev.map(p => p.id === newPostId ? { 
+                ...p, aiResult: { ...p.aiResult, category: '分析失敗', summary: 'AI 處理失敗或憑證無效。' } 
+              } : p));
+            }
+          } catch (err) {
+            console.error('Polling error', err);
+          }
+        }, 2000); // 每兩秒查一次
+      }
+
+    } catch (error) {
+      console.error('API Error:', error);
+      alert('連線失敗或伺服器錯誤: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // 根據 risk_type 決定 AI 查證卡片的樣式
   const getAiCardStyle = (riskType) => {
@@ -93,10 +179,17 @@ export default function App() {
             <textarea 
               className="w-full bg-transparent resize-none outline-none text-[16px] placeholder-gray-400 min-h-[60px]"
               placeholder="分享可疑的新聞、連結或截圖..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              disabled={isLoading}
             ></textarea>
             <div className="flex justify-end border-t border-gray-50 pt-3">
-              <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full font-medium transition-colors text-sm shadow-sm flex items-center gap-2">
-                <span>✨</span> 發布並讓 AI 查證
+              <button 
+                onClick={handlePostSubmit} 
+                disabled={!inputText.trim() || isLoading}
+                className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-5 py-2 rounded-full font-medium transition-colors text-sm shadow-sm flex items-center gap-2"
+              >
+                <span>{isLoading ? '⏳' : '✨'}</span> {isLoading ? 'AI 分析中...' : '發布並讓 AI 查證'}
               </button>
             </div>
           </div>
@@ -162,17 +255,32 @@ export default function App() {
                         <div className="pt-3 mt-1 border-t border-black/5">
                           <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">相關參考來源</h4>
                           <div className="flex flex-wrap gap-2 mt-2">
-                            {post.aiResult.sources.map((source, idx) => (
-                              <a 
-                                key={idx} 
-                                href={source} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline inline-flex items-center gap-1 bg-white px-2 py-1 rounded border border-indigo-100 transition-colors shadow-sm"
-                              >
-                                🔗 點此查看來源
-                              </a>
-                            ))}
+                            {post.aiResult.sources.map((source, idx) => {
+                              const isString = typeof source === 'string';
+                              let url = isString ? source : source.url;
+                              const title = isString ? '點此查看來源' : (source.title || '點此查看來源');
+                              
+                              if (!url) return null;
+
+                              // 防止 AI 漏掉 https:// 導致瀏覽器認為是相對路徑而導向 404
+                              if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                                url = 'https://' + url;
+                              }
+
+                              return (
+                                <a 
+                                  key={idx} 
+                                  href={url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-md border border-indigo-100 transition-colors shadow-sm max-w-[200px] sm:max-w-xs overflow-hidden"
+                                  title={title}
+                                >
+                                  <span>🔗</span>
+                                  <span className="truncate">{title}</span>
+                                </a>
+                              );
+                            })}
                           </div>
                         </div>
                       )}

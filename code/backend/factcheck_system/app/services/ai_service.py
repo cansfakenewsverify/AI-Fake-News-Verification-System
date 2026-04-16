@@ -181,7 +181,7 @@ class AIService:
         # 僅使用 REST API（完全繞過 SDK，避免 gemini-1.5-flash 預設）
         last_err = ""
         if HAS_REQUESTS and api_key:
-            for model in ["models/gemini-2.5-flash", "gemini-2.5-flash"]:
+            for model in ["gemini-2.5-flash", "gemini-1.5-flash"]:
                 result, err = self._call_gemini_rest(api_key, model, full_prompt)
                 if result is not None:
                     return result
@@ -239,10 +239,14 @@ class AIService:
         prompt_parts.append(f"【待分析內容】\n{content}\n")
         
         if context:
-            if 'similar_news' in context:
-                prompt_parts.append("【相似新聞時間軸】\n")
+            if 'similar_news' in context and context['similar_news']:
+                prompt_parts.append("【網路事實查核與相關報導參考】")
+                prompt_parts.append("請參考以下由系統擷取的網路相關報導。如果是假訊息，請務必將以下查核文章的標題與網址放入 JSON 的 sources 中：\n")
                 for news in context['similar_news']:
-                    prompt_parts.append(f"- {news.get('title', '')} ({news.get('date', '')})")
+                    prompt_parts.append(f"- 標題：{news.get('title', '無標題')} ({news.get('date', '未知日期')})")
+                    prompt_parts.append(f"  網址：{news.get('url', '')}")
+                    if news.get('content'):
+                        prompt_parts.append(f"  摘要：{news.get('content', '')[:150]}...")
                 prompt_parts.append("")
         
         prompt_parts.append("請根據上述內容進行分析，並回傳標準 JSON 格式。")
@@ -316,7 +320,7 @@ class AIService:
         if url:
             prompt += f"\n來源網址: {url}"
 
-        for model in ["models/gemini-2.5-flash", "gemini-2.5-flash"]:
+        for model in ["gemini-2.5-flash", "gemini-1.5-flash"]:
             api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
             payload = {
                 "contents": [{

@@ -1,52 +1,16 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List
+import sys
+from pathlib import Path
 
-from services.scraper_service import get_text_from_url
-from services.ai_service import analyze_content
+# 將 factcheck_system 目錄加入 Python 路徑，
+# 這樣可以直接載入隊友開發的 `app` 模組，而不必更動他們的程式碼。
+base_dir = Path(__file__).resolve().parent
+factcheck_dir = base_dir / "factcheck_system"
+if str(factcheck_dir) not in sys.path:
+    sys.path.insert(0, str(factcheck_dir))
 
-app = FastAPI(title="Anti-Scam API", version="1.0")
+# 從隊友的 main.py 匯入完整版 FastAPI app
+# 這樣前端原本戳的 API 以及 Uvicorn 啟動都能無縫接軌
+from app.main import app
 
-# CORS 設定
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Pydantic Models 定義
-class AnalyzeRequest(BaseModel):
-    content: str
-
-class SourceItem(BaseModel):
-    title: str
-    url: str
-
-class AnalyzeResponse(BaseModel):
-    is_risk: bool
-    risk_type: str
-    category: str
-    confidence_score: float
-    summary: str
-    explanation: str
-    sources: List[SourceItem]
-
-# Health Check 路由
-@app.get("/")
-def health_check():
-    return {"status": "ok", "message": "Anti-Scam API Phase 1 is running"}
-
-# Mock API 路由
-@app.post("/api/analyze/text", response_model=AnalyzeResponse)
-def analyze_text(request: AnalyzeRequest):
-    # 1. 呼叫 get_text_from_url 傳入前端給的網址
-    scraped_text = get_text_from_url(request.content)
-    
-    # 2. 將爬蟲結果傳給 analyze_content 進行分析
-    analysis_result = analyze_content(scraped_text)
-    
-    # 3. 將分析結果回傳
-    return AnalyzeResponse(**analysis_result)
+# 如果有需要自定義外掛或是針對現有 frontend 維持相容性的臨時路由，可以寫在這裡
+# 目前直接使用隊友的 app 作為進入點
