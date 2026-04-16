@@ -20,30 +20,34 @@
 ## Installation
 
 ### Setup
-
 ```bash
 git clone [https://github.com/cansfakenewsverify/AI-Fake-News-Verification-System.git](https://github.com/cansfakenewsverify/AI-Fake-News-Verification-System.git)
 cd AI-Fake-News-Verification-System
+```
 
-Backend
-
+### Backend
+```bash
 cd code/backend
 python -m venv venv
 # Windows: .\venv\Scripts\activate
 pip install -r requirements.txt
+```
 
-Frontend
-
+### Frontend
+```bash
 cd code/frontend
 npm install
+```
 
 ## Usage
 
-啟動服務流程
-Backend: 執行 uvicorn main:app --reload 啟動 API 伺服器於 8000 埠位。
-Frontend: 執行 npm run dev 啟動 React 開發環境於 5173 埠位。
+### 啟動服務流程
+- **Backend**: 執行 `uvicorn main:app --reload` 啟動 API 伺服器於 8000 埠位。
+- **Frontend**: 執行 `npm run dev` 啟動 React 開發環境於 5173 埠位。
 
-Project Structure
+## Project Structure
+
+```text
 AI-Fake-News-Verification-System/
 ├── README.md                      # 專案主說明文件
 ├── docs/                          # 開發白皮書與需求規格書
@@ -52,10 +56,11 @@ AI-Fake-News-Verification-System/
 └── code/                          # 核心程式碼
     ├── frontend/                  # React 前端專案原始碼
     └── backend/                   # FastAPI 後端專案原始碼
+```
 
 ## Authors
-廖晢勛 — 系統架構設計、API 整合、專案時程管理
-石岱勳 — Prompt Engineering、Gemini API 邏輯實作
-廖育翔 — 網頁資料擷取服務開發
-張宇宏 — 互動介面與非同步數據串接
-姚睿 — 測試案例規劃與環境建置
+- **廖晢勛** — 系統架構設計、API 整合、專案時程管理
+- **石岱勳** — Prompt Engineering、Gemini API 邏輯實作
+- **廖育翔** — 網頁資料擷取服務開發
+- **張宇宏** — 互動介面與非同步數據串接
+- **姚睿** — 測試案例規劃與環境建置
