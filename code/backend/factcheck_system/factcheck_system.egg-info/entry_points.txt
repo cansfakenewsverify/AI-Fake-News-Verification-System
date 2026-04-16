@@ -1,0 +1,2 @@
+[console_scripts]
+factcheck-system-api = factcheck_system.cli:main

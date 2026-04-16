@@ -1,0 +1,16 @@
+# Python 快取檔案
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 虛擬環境目錄
+venv/
+env/
+.venv/
+
+# 環境變數隱藏檔
+.env
+
+# 開發工具設定
+.vscode/
+.idea/

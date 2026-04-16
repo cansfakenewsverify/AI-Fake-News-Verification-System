@@ -1,0 +1,113 @@
+Metadata-Version: 2.4
+Name: factcheck-system
+Version: 0.1.0
+Summary: AI 驅動假訊息驗證系統（後端 + 爬蟲模組）
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.115.0
+Requires-Dist: uvicorn[standard]>=0.32.0
+Requires-Dist: pydantic>=2.9.0
+Requires-Dist: pydantic-settings>=2.6.0
+Requires-Dist: anyio<5.0.0,>=4.8.0
+Requires-Dist: pandas==2.2.0
+Requires-Dist: pyarrow==15.0.0
+Requires-Dist: trafilatura==1.6.3
+Requires-Dist: beautifulsoup4==4.12.2
+Requires-Dist: requests==2.31.0
+Requires-Dist: playwright==1.40.0
+Requires-Dist: yt-dlp==2023.11.16
+Requires-Dist: google-genai>=0.2.0
+Requires-Dist: python-multipart==0.0.6
+Requires-Dist: python-dotenv==1.0.0
+Requires-Dist: Pillow==10.1.0
+Requires-Dist: aiohttp==3.9.1
+Requires-Dist: googlesearch-python>=1.2.0
+
+## Factcheck System（後端 + 爬蟲模組）
+
+本專案已打包成可安裝的 Python 套件，方便與其他系統模組整合。
+
+### 安裝（開發模式）
+
+```bash
+cd c:\Users\user\factcheck_system
+.\.venv\Scripts\python.exe -m pip install -e .
+```
+
+### 啟動後端
+
+```bash
+factcheck-system-api
+```
+
+或指定 host/port：
+
+```bash
+set FACTCHECK_HOST=0.0.0.0
+set FACTCHECK_PORT=8000
+factcheck-system-api
+```
+
+### 給其他系統整合的 import 入口
+
+#### 1) 爬蟲
+
+```python
+from factcheck_system import CrawlerClient
+
+result = await CrawlerClient.crawl_url("https://example.com/news")
+print(result.title, result.screenshot_path)
+```
+
+#### 2) AI 分析
+
+```python
+from factcheck_system import AIClient
+
+ai = AIClient()
+out = ai.analyze_text("要查證的內容", url="https://example.com")
+print(out.is_risk, out.risk_type, out.summary)
+```
+
+# AI 驅動假訊息驗證系統
+
+## 專案概述
+
+本系統為一套高效、精準且具備可解釋性的 AI 驅動假訊息驗證系統，整合大型語言模型（LLM）與向量資料庫技術，提供即時的事實查核服務。
+
+## 快速開始
+
+### 1. 設定環境變數
+
+```bash
+# 已建立 .env 檔案，請編輯填入 API Keys
+# 必須設定：
+# - GOOGLE_API_KEY
+# - DATABASE_URL
+# - REDIS_URL
+```
+
+### 2. 安裝依賴
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. 啟動服務
+
+```bash
+# 啟動 PostgreSQL 和 Redis
+docker-compose up -d postgres redis
+
+# 初始化資料庫
+python scripts/init_db.py
+alembic upgrade head
+
+# 啟動 API 伺服器
+uvicorn app.main:app --reload
+```
+
+## API 文件
+
+訪問: http://localhost:8000/docs
+

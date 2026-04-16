@@ -1,0 +1,7 @@
+/* 只隱藏 Try it out 按鈕（不改變版面結構） */
+.try-out__btn,
+button.try-out__btn,
+.opblock .try-out__btn {
+  display: none !important;
+}
+
