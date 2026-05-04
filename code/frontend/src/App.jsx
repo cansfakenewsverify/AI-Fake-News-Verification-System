@@ -57,7 +57,7 @@ export default function App() {
     
     try {
       // 呼叫後端 API
-      const response = await fetch('http://localhost:8000/api/analyze/text', {
+      const response = await fetch('/api/analyze/text', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,14 +105,14 @@ export default function App() {
       if (apiResult.task_id) {
         const pollInterval = setInterval(async () => {
           try {
-            const statusRes = await fetch(`http://localhost:8000/api/analyze/task/${apiResult.task_id}/status`);
+            const statusRes = await fetch(`/api/analyze/task/${apiResult.task_id}/status`);
             if (!statusRes.ok) return;
             const statusData = await statusRes.json();
 
             if (statusData.status === 'completed') {
               clearInterval(pollInterval);
               // 獲取最終結果
-              const finalRes = await fetch(`http://localhost:8000/api/analyze/task/${apiResult.task_id}`);
+              const finalRes = await fetch(`/api/analyze/task/${apiResult.task_id}`);
               const finalData = await finalRes.json();
               setPosts(prev => prev.map(p => p.id === newPostId ? { ...p, aiResult: finalData } : p));
             } else if (statusData.status === 'failed') {

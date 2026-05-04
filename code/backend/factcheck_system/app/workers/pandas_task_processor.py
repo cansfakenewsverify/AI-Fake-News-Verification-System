@@ -1,6 +1,6 @@
 """
-任務處理器 - 專題規格整合
-支援文字、URL、關鍵字、圖片分析；回傳紅黃綠框與相似新聞
+任務處理器 - 三層快取 + AI 分析
+Layer 0: URL 快取 → Layer 1: Hash 快取 → Layer 2: 向量快取 → Layer 3: AI
 """
 import json
 import os
@@ -17,10 +17,7 @@ from app.services.vector_service import VectorService
 
 def _ai_result_to_frame(ai_result: Dict[str, Any]) -> Tuple[str, str]:
     """
-    依 AI 判定結果映射紅黃綠框（專題規格 F2.x）
-    - 紅：已確認為假訊息
-    - 黃：尚待確認或未知
-    - 綠：此為正確訊息
+    依 AI 判定結果映射紅黃綠框（F2.x）
     """
     is_risk = ai_result.get("is_risk", False)
     conf = float(ai_result.get("confidence_score", 0) or 0)
@@ -31,13 +28,41 @@ def _ai_result_to_frame(ai_result: Dict[str, Any]) -> Tuple[str, str]:
     return "yellow", "尚待確認或未知的信息"
 
 
+def _is_fallback(ai_analysis: Any) -> bool:
+    """判斷是否為 API 失敗的 fallback 結果，不應快取。"""
+    if not isinstance(ai_analysis, dict):
+        return True
+    summary = ai_analysis.get("summary", "")
+    return summary.startswith("AI 分析暫時無法使用") or "服務異常" in summary
+
+
+def _build_result(ai_analysis: Dict[str, Any], similar_news: list, timeline: list, cached: bool) -> Dict[str, Any]:
+    ft, fl = _ai_result_to_frame(ai_analysis)
+    return {
+        "frame_type": ft,
+        "frame_label": fl,
+        "is_risk": bool(ai_analysis.get("is_risk", False)),
+        "risk_type": ai_analysis.get("risk_type", "SAFE"),
+        "category": ai_analysis.get("category", "Irrelevant"),
+        "confidence_score": float(ai_analysis.get("confidence_score", 0.0) or 0.0),
+        "summary": ai_analysis.get("summary", "") or "",
+        "explanation": ai_analysis.get("explanation", "") or "",
+        "sources": ai_analysis.get("sources", []) or [],
+        "similar_news": similar_news,
+        "timeline": timeline,
+        "cached": cached,
+    }
+
+
 async def process_analysis_task_async(
     task_id: str, input_data: str, input_type: str
 ) -> Dict[str, Any]:
     """
-    非同步處理分析任務。
-    - 任務狀態與結果：data/tasks.parquet
-    - 知識庫快取：data/knowledge_base.parquet
+    非同步處理分析任務。三層快取策略：
+      Layer 0: URL 快取（URL 輸入專用）
+      Layer 1: Hash 快取（完全重複）
+      Layer 2: 向量快取（語義相似）
+      Layer 3: AI 分析（全流程）
     """
     task_store = TaskStore()
     pandas_store = PandasStore()
@@ -46,44 +71,39 @@ async def process_analysis_task_async(
     cache_service = CacheService()
     vector_service = VectorService()
 
-    # 狀態：processing
     task_store.update_task(task_id, status="processing")
 
     try:
-        # ===== Layer 1: Hash 快取檢查（跳過 fallback 錯誤結果）=====
+        is_url = input_data.startswith("http://") or input_data.startswith("https://")
+
+        # ── Layer 0: URL 快取 ──────────────────────────────────────────
+        if input_type in ("text", "url") and is_url:
+            url_cached = pandas_store.find_by_url(input_data)
+            if url_cached and not _is_fallback(url_cached.get("ai_analysis")):
+                ai_analysis = url_cached["ai_analysis"]
+                result = _build_result(ai_analysis, [], [], cached=True)
+                task_store.update_task(
+                    task_id, status="completed",
+                    result_data=json.dumps(result, ensure_ascii=False),
+                    completed_at=datetime.utcnow(),
+                )
+                return result
+
+        # ── Layer 1: Hash 快取（對原始輸入做 hash）────────────────────
         content_hash = cache_service.generate_hash(input_data)
-        cached = pandas_store.find_by_hash(content_hash)
-        is_fallback = lambda a: (a or {}).get("summary", "").startswith("AI 分析暫時無法使用") or "服務異常" in (a or {}).get("summary", "")
-        if cached and isinstance(cached.get("ai_analysis"), dict) and not is_fallback(cached.get("ai_analysis")):
-            ai_analysis = cached["ai_analysis"]
-            ft, fl = _ai_result_to_frame(ai_analysis)
-            result = {
-                "frame_type": ft,
-                "frame_label": fl,
-                "is_risk": bool(ai_analysis.get("is_risk", False)),
-                "risk_type": ai_analysis.get("risk_type", "SAFE"),
-                "category": ai_analysis.get("category", "Irrelevant"),
-                "confidence_score": float(
-                    ai_analysis.get("confidence_score", 0.0) or 0.0
-                ),
-                "summary": ai_analysis.get("summary", "") or "",
-                "explanation": ai_analysis.get("explanation", "") or "",
-                "sources": ai_analysis.get("sources", []) or [],
-                "similar_news": [],
-                "timeline": [],
-                "cached": True,
-            }
+        hash_cached = pandas_store.find_by_hash(content_hash)
+        if hash_cached and not _is_fallback(hash_cached.get("ai_analysis")):
+            ai_analysis = hash_cached["ai_analysis"]
+            result = _build_result(ai_analysis, [], [], cached=True)
             task_store.update_task(
-                task_id,
-                status="completed",
+                task_id, status="completed",
                 result_data=json.dumps(result, ensure_ascii=False),
                 completed_at=datetime.utcnow(),
             )
             return result
 
-        # ===== 爬取內容 =====
+        # ── 圖片分析路徑（無快取層）────────────────────────────────────
         if input_type == "image":
-            # 圖片分析：input_data 為暫存檔路徑
             if not os.path.isfile(input_data):
                 raise Exception("圖片檔案不存在")
             ai_result = ai_service.analyze_image(input_data)
@@ -91,66 +111,62 @@ async def process_analysis_task_async(
                 os.remove(input_data)
             except Exception:
                 pass
-            similar_news = []
-            timeline = []
-        elif input_type in ("text", "url"):
-            if input_data.startswith("http://") or input_data.startswith("https://"):
-                crawl_result = await crawler.process_input(input_data, "url")
-            else:
-                # F1.3: 關鍵字搜尋並爬取相似新聞
-                crawl_result = await crawler.process_input(input_data, "keyword")
-            if not crawl_result.get("success"):
-                raise Exception(f"爬取失敗: {crawl_result.get('error')}")
-            content = crawl_result.get("content", input_data) or input_data
-            url = crawl_result.get("url") or input_data
-            similar_news = crawl_result.get("similar_news", [])
+            result = _build_result(ai_result, [], [], cached=False)
+            task_store.update_task(
+                task_id, status="completed",
+                result_data=json.dumps(result, ensure_ascii=False),
+                completed_at=datetime.utcnow(),
+            )
+            return result
 
-            # ===== 向量化 =====
-            content_vector = vector_service.vectorize_content(content)
-
-            # ===== AI 分析 =====
-            context = {"similar_news": similar_news, "crawl_result": crawl_result}
-            ai_result = ai_service.analyze_content(content, url=url, context=context)
-
-            # ===== 寫入知識庫（不儲存 fallback 錯誤結果）=====
-            if not is_fallback(ai_result):
-                pandas_store.save_record(
-                    data_type=input_type.upper(),
-                    raw_content=content,
-                    content_hash=content_hash,
-                    content_vector=content_vector,
-                    ai_result=ai_result,
-                )
-
-            # F2.x: 相似新聞時間軸
-            timeline = [
-                {"title": n.get("title"), "date": n.get("date"), "url": n.get("url"), "source": n.get("source")}
-                for n in similar_news
-            ]
+        # ── 爬取內容（文字 / URL）──────────────────────────────────────
+        if is_url:
+            crawl_result = await crawler.process_input(input_data, "url")
         else:
-            raise Exception("不支援的輸入類型")
+            crawl_result = await crawler.process_input(input_data, "keyword")
 
-        # ===== 紅黃綠框對應（專題規格 F2.x）=====
-        frame_type, frame_label = _ai_result_to_frame(ai_result)
+        if not crawl_result.get("success"):
+            raise Exception(f"爬取失敗: {crawl_result.get('error')}")
 
-        result = {
-            "frame_type": frame_type,
-            "frame_label": frame_label,
-            "is_risk": ai_result.get("is_risk", False),
-            "risk_type": ai_result.get("risk_type", "SAFE"),
-            "category": ai_result.get("category", "Irrelevant"),
-            "confidence_score": ai_result.get("confidence_score", 0.0),
-            "summary": ai_result.get("summary", ""),
-            "explanation": ai_result.get("explanation", ""),
-            "sources": ai_result.get("sources", []),
-            "similar_news": similar_news if input_type != "image" else [],
-            "timeline": timeline if input_type != "image" else [],
-            "cached": False,
-        }
+        content = crawl_result.get("content", input_data) or input_data
+        url = crawl_result.get("url") or (input_data if is_url else None)
+        similar_news = crawl_result.get("similar_news", [])
 
+        # ── Layer 2: 向量快取（語義相似）─────────────────────────────
+        content_vector = vector_service.vectorize_content(content)
+        vector_cached = pandas_store.find_similar_by_vector(content_vector)
+        if vector_cached and not _is_fallback(vector_cached.get("ai_analysis")):
+            ai_analysis = vector_cached["ai_analysis"]
+            result = _build_result(ai_analysis, similar_news, [], cached=True)
+            task_store.update_task(
+                task_id, status="completed",
+                result_data=json.dumps(result, ensure_ascii=False),
+                completed_at=datetime.utcnow(),
+            )
+            return result
+
+        # ── Layer 3: AI 分析（全流程）─────────────────────────────────
+        context = {"similar_news": similar_news, "crawl_result": crawl_result}
+        ai_result = ai_service.analyze_content(content, url=url, context=context)
+
+        if not _is_fallback(ai_result):
+            pandas_store.save_record(
+                data_type=input_type.upper(),
+                raw_content=content,
+                content_hash=content_hash,
+                content_vector=content_vector,
+                ai_result=ai_result,
+                source_url=url,
+            )
+
+        timeline = [
+            {"title": n.get("title"), "date": n.get("date"), "url": n.get("url"), "source": n.get("source")}
+            for n in similar_news
+        ]
+
+        result = _build_result(ai_result, similar_news, timeline, cached=False)
         task_store.update_task(
-            task_id,
-            status="completed",
+            task_id, status="completed",
             result_data=json.dumps(result, ensure_ascii=False),
             completed_at=datetime.utcnow(),
         )
@@ -162,10 +178,6 @@ async def process_analysis_task_async(
 
 
 def process_analysis_task(task_id: str, input_data: str, input_type: str) -> None:
-    """
-    包裝函式：在有 event loop 時，用 create_task 背景執行；
-    沒有 event loop（例如獨立腳本）時，使用 asyncio.run 執行。
-    """
     import asyncio
 
     try:
@@ -177,4 +189,3 @@ def process_analysis_task(task_id: str, input_data: str, input_type: str) -> Non
         loop.create_task(process_analysis_task_async(task_id, input_data, input_type))
     else:
         asyncio.run(process_analysis_task_async(task_id, input_data, input_type))
-
