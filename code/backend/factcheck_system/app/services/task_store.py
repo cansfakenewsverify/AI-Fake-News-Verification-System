@@ -71,8 +71,11 @@ class TaskStore:
         if df.empty:
             df = new_row
         else:
+            # Align columns and drop all-NA cols to avoid FutureWarning in pandas 2.x
             common_cols = df.columns.intersection(new_row.columns)
-            df = pd.concat([df[common_cols], new_row[common_cols]], ignore_index=True)
+            left = df[common_cols].dropna(axis=1, how="all")
+            right = new_row[common_cols].dropna(axis=1, how="all")
+            df = pd.concat([left, right], ignore_index=True)
 
         self._save_tasks(df)
         return task_id

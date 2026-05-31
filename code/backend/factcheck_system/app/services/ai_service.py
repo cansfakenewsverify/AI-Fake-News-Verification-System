@@ -93,10 +93,13 @@ JSON 結構如下：
   "sources": [
     {
       "title": (String, 來源標題),
-      "url": (String, 來源網址。⚠️ 重要規則：
-        1. **必須是具體文章頁面** (Specific Article URL)，例如 `https://tfc-taiwan.org.tw/articles/12345`。
-        2. **嚴禁回傳首頁/根域名** (Root Domain)。例如：`https://tfc-taiwan.org.tw/` 或 `https://www.cna.com.tw/` 是**無效的**。
-        3. 若找不到具體文章連結，該來源請直接留空或不列出，**寧缺勿濫**。)
+      "url": (String, 來源網址。⚠️⚠️⚠️ 絕對禁止違反的規則：
+        1. **嚴禁編造、推測、想像任何 URL**。即使網域看起來合理，也絕對禁止生成不存在的 URL。
+        2. 你**只能引用「網路事實查核與相關報導參考」context 中明確提供給你的 URL**。
+        3. 如果 context 沒有提供任何 URL，sources **必須留空 `[]`**，不可填入任何網址。
+        4. **嚴禁回傳首頁/根域名**（如 `https://tfc-taiwan.org.tw/` 或 `https://www.cna.com.tw/`）。
+        5. 不確定 URL 是否真實存在時，一律不要寫入。**寧缺勿濫**。
+        6. 違反以上規則的回應將被視為錯誤回應。)
     }
   ]
 }
@@ -181,7 +184,7 @@ class AIService:
         # 僅使用 REST API（完全繞過 SDK，避免 gemini-1.5-flash 預設）
         last_err = ""
         if HAS_REQUESTS and api_key:
-            for model in ["gemini-2.5-flash", "gemini-1.5-flash"]:
+            for model in ["gemini-2.5-flash"]:
                 result, err = self._call_gemini_rest(api_key, model, full_prompt)
                 if result is not None:
                     return result
@@ -269,26 +272,34 @@ class AIService:
             result['risk_type'] = 'SAFE'
     
     def generate_embedding(self, text: str) -> List[float]:
-        try:
-            if self.use_new_api and self.client:
-                # 新版 SDK 語法
-                res = self.client.models.embed_content(
-                    model=settings.EMBEDDING_MODEL,
-                    contents=text
-                )
-                return res.embeddings[0].values
-            else:
-                # 舊版 SDK 語法
-                import google.generativeai as legacy_genai
-                result = legacy_genai.embed_content(
-                    model=settings.EMBEDDING_MODEL,
-                    content=text,
-                    task_type="retrieval_document"
-                )
-                return result['embedding']
-        except Exception as e:
-            print(f"⚠️ Embedding 生成失敗: {str(e)}")
-            return [0.0] * settings.VECTOR_DIMENSION
+        # Try multiple model names; SDK API version differences mean some
+        # accept the prefix and some don't.
+        model_candidates = [
+            settings.EMBEDDING_MODEL,  # configured (default: text-embedding-004)
+            "gemini-embedding-001",
+            "models/text-embedding-004",
+        ]
+        # Dedupe while preserving order
+        seen = set()
+        models = [m for m in model_candidates if m and not (m in seen or seen.add(m))]
+
+        last_err = None
+        for m in models:
+            try:
+                if self.use_new_api and self.client:
+                    res = self.client.models.embed_content(model=m, contents=text)
+                    return list(res.embeddings[0].values)
+                else:
+                    import google.generativeai as legacy_genai
+                    result = legacy_genai.embed_content(
+                        model=m, content=text, task_type="retrieval_document"
+                    )
+                    return list(result["embedding"])
+            except Exception as e:
+                last_err = e
+                continue
+        print(f"⚠️ Embedding all models failed: {last_err}")
+        return [0.0] * settings.VECTOR_DIMENSION
     
     def analyze_image(self, image_path: str, url: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -320,7 +331,7 @@ class AIService:
         if url:
             prompt += f"\n來源網址: {url}"
 
-        for model in ["gemini-2.5-flash", "gemini-1.5-flash"]:
+        for model in ["gemini-2.5-flash"]:
             api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
             payload = {
                 "contents": [{

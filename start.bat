@@ -1,5 +1,5 @@
 @echo off
-title AI Fake News Verification System
+title AI Fake News System
 
 echo.
 echo  ========================================
@@ -8,68 +8,87 @@ echo  ========================================
 echo.
 
 :: Check Python
-python --version >nul 2>&1
+echo [1/5] Checking Python...
+python --version
 if errorlevel 1 (
-    echo [ERROR] Python not found. Please install Python 3.11+
-    echo         https://www.python.org/downloads/
+    echo [ERROR] Python not found. Install Python 3.11+ from https://www.python.org/
     pause & exit /b 1
 )
 
 :: Check Node.js
-node --version >nul 2>&1
+echo [2/5] Checking Node.js...
+node --version
 if errorlevel 1 (
-    echo [ERROR] Node.js not found. Please install Node.js 18+
-    echo         https://nodejs.org/
+    echo [ERROR] Node.js not found. Install from https://nodejs.org/
     pause & exit /b 1
 )
 
 :: Paths
-set ROOT=%~dp0
-set BACKEND_DIR=%ROOT%code\backend\factcheck_system
-set FRONTEND_DIR=%ROOT%code\frontend
+set BACKEND_DIR=%~dp0code\backend\factcheck_system
+set FRONTEND_DIR=%~dp0code\frontend
 set VENV=%BACKEND_DIR%\venv
 
-:: Copy .env if not exists
+:: Copy .env
 if not exist "%BACKEND_DIR%\.env" (
-    echo [Setup] Creating .env from .env.example ...
-    copy "%BACKEND_DIR%\.env.example" "%BACKEND_DIR%\.env" >nul
-    echo [Setup] Please fill in GOOGLE_API_KEY in:
-    echo         %BACKEND_DIR%\.env
+    echo [Setup] Copying .env.example to .env ...
+    copy "%BACKEND_DIR%\.env.example" "%BACKEND_DIR%\.env"
+    echo [Setup] Edit %BACKEND_DIR%\.env and fill in GOOGLE_API_KEY
     echo.
 )
 
 :: Create virtualenv
+echo [3/5] Setting up Python virtual environment...
 if not exist "%VENV%" (
-    echo [Backend] Creating Python virtual environment...
     python -m venv "%VENV%"
+    if errorlevel 1 (
+        echo [ERROR] Failed to create virtual environment
+        pause & exit /b 1
+    )
 )
 
-:: Install backend deps
-echo [Backend] Installing/updating packages (first time may take a while)...
+:: Always sync backend deps with requirements.txt
+echo [4/5] Syncing backend packages...
 "%VENV%\Scripts\pip" install -r "%BACKEND_DIR%\requirements.txt" -q --disable-pip-version-check
+if errorlevel 1 (
+    echo [ERROR] pip install failed
+    pause & exit /b 1
+)
 
 :: Install frontend deps
+echo [5/5] Checking frontend packages...
 if not exist "%FRONTEND_DIR%\node_modules" (
-    echo [Frontend] Installing npm packages (first time may take a while)...
+    echo Installing npm packages, this may take a few minutes...
     pushd "%FRONTEND_DIR%"
-    npm install
+    call npm install
+    if errorlevel 1 (
+        echo [ERROR] npm install failed
+        popd & pause & exit /b 1
+    )
     popd
+) else (
+    echo Frontend packages already installed.
 )
 
-:: Start backend in new window
 echo.
-echo [Backend] Starting FastAPI at http://localhost:8000 ...
-start "Backend FastAPI" cmd /k "cd /d "%BACKEND_DIR%" && venv\Scripts\activate && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+echo ============================================
+echo  Opening backend and frontend windows...
+echo ============================================
+echo.
+
+:: Start backend (uses pre-existing helper bat in same folder)
+start "" "%BACKEND_DIR%\_run_backend.bat"
+echo Backend window launched.
 
 timeout /t 3 /nobreak > nul
 
-:: Start frontend in new window
-echo [Frontend] Starting React at http://localhost:5173 ...
-start "Frontend React" cmd /k "cd /d "%FRONTEND_DIR%" && npm run dev"
+:: Start frontend
+start "" "%FRONTEND_DIR%\_run_frontend.bat"
+echo Frontend window launched.
 
-timeout /t 4 /nobreak > nul
+timeout /t 5 /nobreak > nul
 
 :: Open browser
+echo Opening browser at http://localhost:5173 ...
 start "" "http://localhost:5173"
 
 echo.
@@ -80,6 +99,7 @@ echo   Backend  : http://localhost:8000
 echo   API Docs : http://localhost:8000/docs
 echo  ========================================
 echo.
-echo  To stop: close the "Backend FastAPI" and "Frontend React" windows.
+echo  This window can be closed.
+echo  To stop the servers, close the Backend and Frontend windows.
 echo.
 pause

@@ -13,6 +13,7 @@ from app.services.crawler import CrawlerService
 from app.services.ai_service import AIService
 from app.services.cache_service import CacheService
 from app.services.vector_service import VectorService
+from app.utils.url_validator import filter_valid_sources
 
 
 def _ai_result_to_frame(ai_result: Dict[str, Any]) -> Tuple[str, str]:
@@ -36,18 +37,43 @@ def _is_fallback(ai_analysis: Any) -> bool:
     return summary.startswith("AI 分析暫時無法使用") or "服務異常" in summary
 
 
+def _safe_list(val):
+    """Safely convert value to list, handling numpy arrays from parquet."""
+    if val is None:
+        return []
+    if hasattr(val, "tolist"):  # numpy array
+        return val.tolist()
+    if isinstance(val, list):
+        return val
+    try:
+        return list(val)
+    except Exception:
+        return []
+
+
+def _safe_str(val):
+    if val is None:
+        return ""
+    if hasattr(val, "item"):  # numpy scalar
+        try:
+            val = val.item()
+        except Exception:
+            pass
+    return str(val) if val else ""
+
+
 def _build_result(ai_analysis: Dict[str, Any], similar_news: list, timeline: list, cached: bool) -> Dict[str, Any]:
     ft, fl = _ai_result_to_frame(ai_analysis)
     return {
         "frame_type": ft,
         "frame_label": fl,
         "is_risk": bool(ai_analysis.get("is_risk", False)),
-        "risk_type": ai_analysis.get("risk_type", "SAFE"),
-        "category": ai_analysis.get("category", "Irrelevant"),
-        "confidence_score": float(ai_analysis.get("confidence_score", 0.0) or 0.0),
-        "summary": ai_analysis.get("summary", "") or "",
-        "explanation": ai_analysis.get("explanation", "") or "",
-        "sources": ai_analysis.get("sources", []) or [],
+        "risk_type": _safe_str(ai_analysis.get("risk_type")) or "SAFE",
+        "category": _safe_str(ai_analysis.get("category")) or "Irrelevant",
+        "confidence_score": float(ai_analysis.get("confidence_score") or 0.0),
+        "summary": _safe_str(ai_analysis.get("summary")),
+        "explanation": _safe_str(ai_analysis.get("explanation")),
+        "sources": _safe_list(ai_analysis.get("sources")),
         "similar_news": similar_news,
         "timeline": timeline,
         "cached": cached,
@@ -148,6 +174,13 @@ async def process_analysis_task_async(
         # ── Layer 3: AI 分析（全流程）─────────────────────────────────
         context = {"similar_news": similar_news, "crawl_result": crawl_result}
         ai_result = ai_service.analyze_content(content, url=url, context=context)
+
+        # Filter out hallucinated/dead URLs from AI sources
+        if ai_result and ai_result.get("sources"):
+            try:
+                ai_result["sources"] = filter_valid_sources(ai_result["sources"])
+            except Exception as e:
+                print(f"URL validation error: {e}")
 
         if not _is_fallback(ai_result):
             pandas_store.save_record(

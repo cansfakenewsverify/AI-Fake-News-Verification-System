@@ -39,15 +39,24 @@ class Settings(BaseSettings):
     CRAWL_WITH_SCREENSHOT: bool = True  # F1.4: 對爬取新聞擷取原始截圖
     SEARCH_RESULTS_LIMIT: int = 5  # 關鍵字搜尋時爬取的相似新聞數量
     
-    # AI 設定（gemini-2.5-flash 為 2025 年新模型）
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    # AI models
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     GEMINI_MODEL_FALLBACK: str = "gemini-2.5-flash"
-    EMBEDDING_MODEL: str = "models/text-embedding-004"
+    EMBEDDING_MODEL: str = "text-embedding-004"  # no "models/" prefix for new SDK
     
-    # 任務隊列設定
+    # Task queue
     QUEUE_NAME: str = "factcheck_tasks"
 
-    # 成果展示模式（True = 暫停真實 API，回傳紅黃綠框 mock 結果）
+    # SQLite database (for trending records)
+    SQLITE_URL: str = "sqlite:///./data/factcheck.db"
+
+    # Search API (optional - leave empty to use free googlesearch-python)
+    SERPER_API_KEY: str = ""
+
+    # Trending fetch interval in hours
+    TRENDING_FETCH_INTERVAL_HOURS: int = 6
+
+    # Demo mode (True = return mock results, no real API calls)
     DEMO_MODE: bool = True
     
     @property
