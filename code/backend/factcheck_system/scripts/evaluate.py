@@ -45,8 +45,9 @@ def _is_fallback(res: dict) -> bool:
 
 
 def predict_one(ai: AIService, content: str, url: str | None):
-    """回傳 (predicted_label 或 None, confidence)。None 代表本筆分析失敗。"""
-    res = ai.analyze_content(content, url=url or None)
+    """回傳 (predicted_label 或 None, confidence)。None 代表本筆分析失敗。
+    評測刻意關閉 web_search：省點數（便宜 3~7 倍）且結果更可重現。"""
+    res = ai.analyze_content(content, url=url or None, use_web_search=False)
     if _is_fallback(res):
         return None, 0.0
     label = (res.get("risk_type") or "UNKNOWN").upper()

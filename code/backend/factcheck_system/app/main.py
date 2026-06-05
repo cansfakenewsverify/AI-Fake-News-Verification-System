@@ -32,7 +32,8 @@ async def lifespan(app: FastAPI):
     init_sql_db()
 
     scheduler = None
-    if not settings.DEMO_MODE:
+    # 排程預設關閉，避免背景持續呼叫 AI 燒點數；需自動抓新聞時在 .env 設 ENABLE_SCHEDULER=true
+    if settings.ENABLE_SCHEDULER and not settings.DEMO_MODE:
         try:
             from apscheduler.schedulers.asyncio import AsyncIOScheduler
             from app.services.news_fetcher import run_trending_fetch, retry_pending_records

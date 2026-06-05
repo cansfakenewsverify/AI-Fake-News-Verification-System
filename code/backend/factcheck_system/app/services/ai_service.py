@@ -262,12 +262,17 @@ class AIService:
         return _default_fallback_result(last_err or "所有 AI 供應商皆失敗")
 
     # ── 對外：文字 / URL 分析 ────────────────────────────────────
-    def analyze_content(self, content: str, url: Optional[str] = None, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def analyze_content(self, content: str, url: Optional[str] = None,
+                        context: Optional[Dict[str, Any]] = None,
+                        use_web_search: Optional[bool] = None) -> Dict[str, Any]:
         if not self._available:
             return _default_fallback_result("未設定學校 API 金鑰或中繼網址")
+        # use_web_search=None → 依設定（USE_WEB_SEARCH）。web_search 每次貴 3~7 倍。
+        if use_web_search is None:
+            use_web_search = settings.USE_WEB_SEARCH
         prompt = self._build_prompt(content, url, context)
         full_prompt = f"{SYSTEM_PROMPT_V41}\n\n---\n\n{prompt}"
-        return self._run_analysis(full_prompt, image=None, use_web_search=True)
+        return self._run_analysis(full_prompt, image=None, use_web_search=use_web_search)
 
     def _build_prompt(self, content: str, url: Optional[str] = None, context: Optional[Dict[str, Any]] = None) -> str:
         parts = []

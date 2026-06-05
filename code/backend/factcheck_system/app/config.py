@@ -79,8 +79,16 @@ class Settings(BaseSettings):
     # Trending fetch interval in hours
     TRENDING_FETCH_INTERVAL_HOURS: int = 6
 
+    # 自動抓新聞排程：預設「關閉」以免背景持續燒點數。
+    # 想要 24h 自動查證時，才在 .env 設 ENABLE_SCHEDULER=true。
+    ENABLE_SCHEDULER: bool = False
+
+    # 是否在分析時呼叫 web_search 即時佐證。
+    # True 準確但每次貴 3~7 倍；點數吃緊時設 False（仍可正常判斷，只是少了即時引用）。
+    USE_WEB_SEARCH: bool = True
+
     # Demo mode (True = return mock results, no real API calls)
-    # Default False: run REAL Gemini analysis. Only set True via .env for
+    # Default False: run REAL analysis. Only set True via .env for
     # offline presentations where no API key / network is available.
     DEMO_MODE: bool = False
     
