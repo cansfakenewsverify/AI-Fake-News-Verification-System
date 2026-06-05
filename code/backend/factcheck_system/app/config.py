@@ -53,7 +53,8 @@ class Settings(BaseSettings):
 
     # 向量資料庫設定（text-embedding-3-small 原生維度 1536）
     VECTOR_DIMENSION: int = 1536
-    SIMILARITY_THRESHOLD: float = 0.95
+    # 0.88：讓「換句話說的相同謠言」也能命中事實查核快取（0.95 過嚴只抓近乎一字不差）
+    SIMILARITY_THRESHOLD: float = 0.88
     
     # 爬蟲設定
     CRAWLER_TIMEOUT: int = 30

@@ -78,7 +78,7 @@ def run_predictions(df: pd.DataFrame, delay: float, resume: bool) -> pd.DataFram
         ok = (pred == gold)
         status = "OK" if pred else "ERROR(API)"
         print(f"[{i + 1}/{total}] id={rid} gold={gold:7} pred={str(pred):7} "
-              f"conf={conf:.2f} {'✓' if ok else '✗'} {status}")
+              f"conf={conf:.2f} {'[v]' if ok else '[x]'} {status}")
 
         rows.append({
             "id": rid, "gold": gold, "pred": pred if pred else "",
@@ -99,13 +99,13 @@ def compute_metrics(preds: pd.DataFrame):
             confusion_matrix, classification_report, accuracy_score,
         )
     except ImportError:
-        print("\n⚠️ 未安裝 scikit-learn，無法計算指標。請先：pip install scikit-learn")
+        print("\n[!] 未安裝 scikit-learn，無法計算指標。請先：pip install scikit-learn")
         return
 
     valid = preds[~preds["errored"]].copy()
     errored = int(preds["errored"].sum())
     if valid.empty:
-        print(f"\n⚠️ 全部 {errored} 筆都分析失敗（多半是 API 額度/金鑰問題），無法評測。")
+        print(f"\n[!] 全部 {errored} 筆都分析失敗（多半是 API 額度/金鑰問題），無法評測。")
         return
 
     y_true = valid["gold"].tolist()
@@ -167,7 +167,7 @@ def compute_metrics(preds: pd.DataFrame):
                      "recall": round(report["macro avg"]["recall"], 3),
                      "f1": round(report["macro avg"]["f1-score"], 3), "support": len(valid)})
     pd.DataFrame(rep_rows).to_csv(REPORT_PATH, index=False, encoding="utf-8-sig")
-    print(f"\n  ✓ 報告已存：{REPORT_PATH}")
+    print(f"\n  [v] 報告已存：{REPORT_PATH}")
 
     _save_confusion_png(cm)
 
@@ -183,7 +183,7 @@ def _save_confusion_png(cm):
         except ImportError:
             HAS_SNS = False
     except ImportError:
-        print("  ⚠️ 未安裝 matplotlib，略過產生混淆矩陣圖")
+        print("  [!] 未安裝 matplotlib，略過產生混淆矩陣圖")
         return
 
     # 中文字型（Windows 微軟正黑體；找不到就用預設）
@@ -213,7 +213,7 @@ def _save_confusion_png(cm):
     ax.set_title("混淆矩陣 Confusion Matrix")
     fig.tight_layout()
     fig.savefig(CM_PATH, dpi=150)
-    print(f"  ✓ 混淆矩陣圖已存：{CM_PATH}")
+    print(f"  [v] 混淆矩陣圖已存：{CM_PATH}")
 
 
 def main():
@@ -225,7 +225,7 @@ def main():
     args = ap.parse_args()
 
     if not os.path.exists(args.input):
-        print(f"❌ 找不到標註資料：{args.input}")
+        print(f"[ERR] 找不到標註資料：{args.input}")
         sys.exit(1)
 
     df = pd.read_csv(args.input)
@@ -236,7 +236,7 @@ def main():
 
     preds = run_predictions(df, delay=args.delay, resume=args.resume)
     compute_metrics(preds)
-    print("\n🎉 評測完成。")
+    print("\n 評測完成。")
 
 
 if __name__ == "__main__":

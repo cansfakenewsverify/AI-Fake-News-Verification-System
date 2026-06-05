@@ -80,13 +80,16 @@ class PandasStore:
     def find_similar_by_vector(
         self,
         query_vector: List[float],
-        threshold: float = 0.95,
+        threshold: Optional[float] = None,
         top_n: int = 1,
     ) -> Optional[Dict[str, Any]]:
         """
         以 cosine similarity 找出語義相近的快取記錄。
-        只有超過 threshold 才算命中。
+        只有超過 threshold 才算命中。threshold 預設讀取 settings.SIMILARITY_THRESHOLD。
         """
+        if threshold is None:
+            from app.config import settings
+            threshold = settings.SIMILARITY_THRESHOLD
         df = self._load_knowledge_base()
         if df.empty or "content_vector" not in df.columns:
             return None

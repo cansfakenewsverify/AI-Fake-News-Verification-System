@@ -1,0 +1,6 @@
+﻿label,precision,recall,f1,support
+SCAM,1.0,1.0,1.0,10
+MISINFO,1.0,1.0,1.0,10
+SAFE,1.0,1.0,1.0,10
+accuracy,,,1.0,30
+macro_avg,1.0,1.0,1.0,30
