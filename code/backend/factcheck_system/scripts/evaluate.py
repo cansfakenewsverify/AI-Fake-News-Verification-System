@@ -45,18 +45,43 @@ def _is_fallback(res: dict) -> bool:
 
 
 def predict_one(ai: AIService, content: str, url: str | None):
-    """回傳 (predicted_label 或 None, confidence)。None 代表本筆分析失敗。
+    """回傳 (predicted_label 或 None, confidence, full_result)。None 代表本筆分析失敗。
     評測刻意關閉 web_search：省點數（便宜 3~7 倍）且結果更可重現。"""
     res = ai.analyze_content(content, url=url or None, use_web_search=False)
     if _is_fallback(res):
-        return None, 0.0
+        return None, 0.0, res
     label = (res.get("risk_type") or "UNKNOWN").upper()
     conf = float(res.get("confidence_score") or 0.0)
-    return label, conf
+    return label, conf, res
 
 
-def run_predictions(df: pd.DataFrame, delay: float, resume: bool) -> pd.DataFrame:
+def _seed_to_db(store, ai, content: str, gold: str, res: dict):
+    """把一筆「已驗證正確」的查證寫進 knowledge_base，建立可重用的事實查核快取。
+    risk_type 一律用 gold（正確標籤），explanation 沿用 AI 產出的文字。"""
+    from app.services.cache_service import CacheService
+    cs = CacheService()
+    h = cs.generate_hash(content)
+    if store.find_by_hash(h):
+        return False
+    vec = ai.generate_embedding(content)          # CGU 向量（與分析點數不同池）
+    record = dict(res)
+    record["risk_type"] = gold                    # 以 gold 為準，確保快取標籤正確
+    record["is_risk"] = (gold != "SAFE")
+    store.save_record(
+        data_type="TEXT", raw_content=content, content_hash=h,
+        content_vector=vec or None, ai_result=record, source_url=None,
+    )
+    return True
+
+
+def run_predictions(df: pd.DataFrame, delay: float, resume: bool, seed_db: bool = False) -> pd.DataFrame:
     ai = AIService()
+    store = None
+    if seed_db:
+        from app.services.pandas_store import PandasStore
+        store = PandasStore()
+        print("[seed-db] 將把判對的案例寫入 knowledge_base 建立查證快取")
+
     done = {}
     if resume and os.path.exists(PRED_PATH):
         prev = pd.read_csv(PRED_PATH)
@@ -64,6 +89,7 @@ def run_predictions(df: pd.DataFrame, delay: float, resume: bool) -> pd.DataFram
         print(f"[resume] 已載入 {len(done)} 筆先前結果")
 
     rows = []
+    seeded = 0
     total = len(df)
     for i, row in df.iterrows():
         rid = int(row["id"])
@@ -73,11 +99,20 @@ def run_predictions(df: pd.DataFrame, delay: float, resume: bool) -> pd.DataFram
 
         content = str(row["content"])
         url = str(row["url"]) if "url" in df.columns and pd.notna(row.get("url")) else None
-        pred, conf = predict_one(ai, content, url)
+        pred, conf, res = predict_one(ai, content, url)
 
         gold = str(row["gold_label"]).upper()
         ok = (pred == gold)
         status = "OK" if pred else "ERROR(API)"
+
+        # 只把「判對」的案例寫進資料庫，確保快取一致（標籤用 gold）
+        if store is not None and ok:
+            try:
+                if _seed_to_db(store, ai, content, gold, res):
+                    seeded += 1
+            except Exception as e:
+                print(f"   [seed-db] 寫入失敗: {e}")
+
         print(f"[{i + 1}/{total}] id={rid} gold={gold:7} pred={str(pred):7} "
               f"conf={conf:.2f} {'[v]' if ok else '[x]'} {status}")
 
@@ -90,6 +125,9 @@ def run_predictions(df: pd.DataFrame, delay: float, resume: bool) -> pd.DataFram
         pd.DataFrame(rows).to_csv(PRED_PATH, index=False, encoding="utf-8-sig")
         if delay and i + 1 < total:
             time.sleep(delay)
+
+    if store is not None:
+        print(f"[seed-db] 已寫入知識庫 {seeded} 筆")
 
     return pd.DataFrame(rows)
 
@@ -223,6 +261,8 @@ def main():
     ap.add_argument("--limit", type=int, default=0, help="只跑前 N 筆（0=全部）")
     ap.add_argument("--delay", type=float, default=2.0, help="每筆間隔秒數（避免限流）")
     ap.add_argument("--resume", action="store_true", help="從上次中斷處續跑")
+    ap.add_argument("--seed-db", action="store_true",
+                    help="把判對的案例寫入 knowledge_base，建立可重用的查證快取")
     args = ap.parse_args()
 
     if not os.path.exists(args.input):
@@ -233,9 +273,9 @@ def main():
     if args.limit:
         df = df.head(args.limit)
     print(f"載入 {len(df)} 筆標註資料：{args.input}")
-    print(f"（提醒：評測會呼叫真實 Gemini，請確認 .env 的 GOOGLE_API_KEY 已設定且有額度）\n")
+    print(f"（提醒：評測會呼叫真實 AI，請確認 .env 金鑰已設定且有額度/點數）\n")
 
-    preds = run_predictions(df, delay=args.delay, resume=args.resume)
+    preds = run_predictions(df, delay=args.delay, resume=args.resume, seed_db=args.seed_db)
     compute_metrics(preds)
     print("\n 評測完成。")
 
