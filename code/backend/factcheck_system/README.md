@@ -82,7 +82,12 @@ CLAUDE_MODEL=claude-opus-4-8
 OPENAI_RELAY_URL=https://www.myai168.com/cgu/api/openai/v1
 OPENAI_MODEL=gpt-5
 
-# 選填：Gemini 僅供向量 embedding（中繼 API 無此端點，留空則停用 Layer 2）
+# 向量 embedding：CGU LLM Gateway（OpenAI 相容，與 myai168 不同把金鑰）
+EMBED_RELAY_URL=https://air.cgu.edu.tw/cgullmapi/v1
+EMBED_API_KEY=your_cgu_api_key_here
+EMBED_MODEL=text-embedding-3-small
+
+# 選填：Gemini embedding 備援（CGU 失敗時才用，可留空）
 GOOGLE_API_KEY=
 
 DEMO_MODE=false
@@ -90,9 +95,11 @@ TRENDING_FETCH_INTERVAL_HOURS=6
 SIMILARITY_THRESHOLD=0.95
 ```
 
-> **AI 引擎**：分析走學校中繼閘道，主引擎 **Claude Opus**（擅長細緻判斷）、
+> **AI 引擎**：分析走學校 myai168 中繼閘道，主引擎 **Claude Opus**（擅長細緻判斷）、
 > 失敗時自動退到 **OpenAI gpt-5**；兩者皆用 `web_search` 取得真實佐證來源。
 > 影片無字幕時，以 `whisper` 語音轉文字補上逐字稿。
+> **向量 embedding** 走 CGU LLM Gateway（`text-embedding-3-small`，1536 維），
+> 啟用 Layer 2 語義快取；失敗時退到 Gemini，皆無則自動停用向量層。
 
 ---
 
@@ -190,7 +197,7 @@ from factcheck_system import CrawlerClient, AIClient
 ```
 
 對重複查詢，省下最貴的 AI 分析呼叫（學校中繼閘道：Claude 主／OpenAI 備援）。
-（Layer 2 向量層需要 embedding；學校中繼無此端點，未設 `GOOGLE_API_KEY` 時自動略過。）
+（Layer 2 向量層的 embedding 走 CGU LLM Gateway；未設 `EMBED_API_KEY` 時自動略過，URL/Hash 兩層仍正常。）
 
 ---
 

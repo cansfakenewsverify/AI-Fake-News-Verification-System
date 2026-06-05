@@ -334,28 +334,35 @@ class AIService:
             print(f"[AI] 語音轉文字失敗: {e}")
             return ""
 
-    # ── 對外：Embedding（可選；學校中繼無此端點）────────────────
+    # ── 對外：Embedding（CGU LLM Gateway 主、Gemini 備援）────────
     def generate_embedding(self, text: str) -> List[float]:
         """
-        學校中繼無 /embeddings 端點。若 .env 設了 GOOGLE_API_KEY 則用 Gemini 產生向量
-        以啟用 Layer 2 語義快取；否則回傳空陣列（向量層停用，URL/Hash 快取不受影響）。
+        產生文字向量供 Layer 2 語義快取使用。
+        主：CGU LLM Gateway（OpenAI 相容 /embeddings）。
+        備援：Gemini（若有 GOOGLE_API_KEY）。皆無則回傳空陣列（向量層自動停用）。
         """
-        gkey = (settings.GOOGLE_API_KEY or "").strip()
-        if not gkey:
-            return []
-        try:
-            from google import genai
-            client = genai.Client(api_key=gkey)
-            res = client.models.embed_content(model=settings.EMBEDDING_MODEL, contents=text)
-            return list(res.embeddings[0].values)
-        except Exception:
+        base = (settings.EMBED_RELAY_URL or "").rstrip("/")
+        key = (settings.EMBED_API_KEY or "").strip()
+        if base and key:
             try:
-                import google.generativeai as legacy_genai
-                legacy_genai.configure(api_key=gkey)
-                result = legacy_genai.embed_content(
-                    model=settings.EMBEDDING_MODEL, content=text, task_type="retrieval_document"
+                r = requests.post(
+                    f"{base}/embeddings",
+                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                    json={"model": settings.EMBED_MODEL, "input": text},
+                    timeout=60,
                 )
-                return list(result["embedding"])
+                r.raise_for_status()
+                return list(r.json()["data"][0]["embedding"])
             except Exception as e:
-                print(f"[AI] Embedding 產生失敗（向量層停用）：{e}")
-                return []
+                print(f"[AI] CGU embedding 失敗，改用後備：{e}")
+
+        gkey = (settings.GOOGLE_API_KEY or "").strip()
+        if gkey:
+            try:
+                from google import genai
+                client = genai.Client(api_key=gkey)
+                res = client.models.embed_content(model=settings.EMBEDDING_MODEL, contents=text)
+                return list(res.embeddings[0].values)
+            except Exception as e:
+                print(f"[AI] Gemini embedding 失敗（向量層停用）：{e}")
+        return []

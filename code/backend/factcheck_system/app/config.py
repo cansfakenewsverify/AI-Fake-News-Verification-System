@@ -40,14 +40,19 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-5"
     STT_MODEL: str = "whisper-1"    # 影片語音轉文字（無字幕時的後備）
 
-    # 選用：Gemini 僅供向量 embedding（學校中繼無 embeddings 端點）
+    # 向量 embedding：CGU LLM Gateway（OpenAI 相容，有 embeddings 端點，與 myai168 不同把金鑰）
+    EMBED_RELAY_URL: str = "https://air.cgu.edu.tw/cgullmapi/v1"
+    EMBED_API_KEY: str = ""
+    EMBED_MODEL: str = "text-embedding-3-small"
+
+    # 備援 embedding：Gemini（選用；CGU 失敗且有此金鑰時才用）
     GOOGLE_API_KEY: str = ""
-    
+
     # CORS 設定
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
-    
-    # 向量資料庫設定
-    VECTOR_DIMENSION: int = 768
+
+    # 向量資料庫設定（text-embedding-3-small 原生維度 1536）
+    VECTOR_DIMENSION: int = 1536
     SIMILARITY_THRESHOLD: float = 0.95
     
     # 爬蟲設定
