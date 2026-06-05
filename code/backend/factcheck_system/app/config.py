@@ -23,10 +23,23 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     
     # AI API Keys（請在 .env 設定，勿寫入程式碼）
-    # 主要分析引擎：學校 OpenAI 相容中繼 API（myai168 Responses API）
-    OPENAI_API_KEY: str = ""        # 學校開發者金鑰
-    OPENAI_BASE_URL: str = "https://www.myai168.com/cgu/api/openai/v1"
+    # 學校 myai168 中繼閘道：同一把開發者金鑰可呼叫 OpenAI / Claude 等多個中繼。
+    # 注意：刻意「不」用 OPENAI_API_KEY / ANTHROPIC_BASE_URL 這類標準 SDK 名稱，
+    # 以免被系統既有的同名環境變數覆寫（環境變數優先序高於 .env）。
+    MYAI_API_KEY: str = ""          # 學校開發者金鑰（OpenAI 與 Claude 中繼共用）
+
+    # 主分析引擎：claude（推薦，擅長細緻判斷）或 openai；另一個自動作為備援
+    AI_PROVIDER: str = "claude"
+
+    # Claude 中繼（Anthropic Messages API 規格）
+    CLAUDE_RELAY_URL: str = "https://www.myai168.com/cgu/api/anthropic/v1"
+    CLAUDE_MODEL: str = "claude-opus-4-8"
+
+    # OpenAI 中繼（Responses API 規格）
+    OPENAI_RELAY_URL: str = "https://www.myai168.com/cgu/api/openai/v1"
     OPENAI_MODEL: str = "gpt-5"
+    STT_MODEL: str = "whisper-1"    # 影片語音轉文字（無字幕時的後備）
+
     # 選用：Gemini 僅供向量 embedding（學校中繼無 embeddings 端點）
     GOOGLE_API_KEY: str = ""
     

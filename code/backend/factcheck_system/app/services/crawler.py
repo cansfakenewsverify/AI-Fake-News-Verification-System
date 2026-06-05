@@ -270,6 +270,9 @@ class CrawlerService:
 
                 # 關鍵：把「影片裡講的話」轉成逐字稿（之前只抓描述）
                 transcript = CrawlerService._extract_transcript(info)
+                # 無字幕時的後備：下載音軌走 whisper 語音轉文字
+                if not transcript:
+                    transcript = CrawlerService._stt_from_audio(url)
 
                 desc = (info.get('description') or '')[:settings.MAX_CONTENT_LENGTH]
                 title = info.get('title') or ''
@@ -381,6 +384,44 @@ class CrawlerService:
             if not deduped or deduped[-1] != s:
                 deduped.append(s)
         return " ".join(deduped)
+
+    @staticmethod
+    def _stt_from_audio(url: str, max_chars: int = 8000) -> str:
+        """
+        無字幕影片的後備：下載最小音軌，走學校中繼 whisper 語音轉文字。
+        失敗（無 yt-dlp / 下載失敗 / 檔案過大）一律回空字串，不影響主流程。
+        """
+        if yt_dlp is None:
+            return ""
+        import tempfile
+        import os as _os
+
+        tmpl = _os.path.join(tempfile.gettempdir(), "fnv_audio_%(id)s.%(ext)s")
+        opts = {
+            "format": "bestaudio/best",
+            "outtmpl": tmpl,
+            "quiet": True,
+            "no_warnings": True,
+        }
+        path = None
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                path = ydl.prepare_filename(info)
+            # whisper 單檔上限約 25MB，過大則略過（避免長片失敗）
+            if path and _os.path.getsize(path) > 24 * 1024 * 1024:
+                return ""
+            from app.services.ai_service import AIService
+            return (AIService().transcribe_audio(path) or "")[:max_chars]
+        except Exception as e:
+            print(f"[Crawler] 音訊 STT 後備失敗: {e}")
+            return ""
+        finally:
+            if path and _os.path.exists(path):
+                try:
+                    _os.remove(path)
+                except Exception:
+                    pass
     
     @staticmethod
     async def search_keyword_and_crawl(keyword: str) -> Dict[str, Any]:

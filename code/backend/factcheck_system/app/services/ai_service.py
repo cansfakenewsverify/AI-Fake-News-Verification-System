@@ -1,17 +1,19 @@
 """
-AI 分析服務 — 透過學校的 OpenAI 相容中繼 API（myai168 Responses API）。
+AI 分析服務 — 透過學校 myai168 中繼閘道（同一把金鑰可呼叫多個中繼）。
 
-端點：POST {OPENAI_BASE_URL}/responses
-- 文字查證：input 帶提示詞，並啟用 web_search 工具做即時佐證
-- 圖片查證：input 帶 input_image（base64 data URL），支援視覺/OCR
-- 來源引用：從回應的 url_citation annotations 取出真實網址
+雙引擎設計（最優效率 + 韌性）：
+- 主引擎 Claude Opus（/anthropic/v1/messages）：擅長細緻的假訊息/詐騙判斷
+- 備援 OpenAI gpt-5（/openai/v1/responses）：主引擎失敗（額度/錯誤）時自動接手
+- 兩者皆啟用 web_search 即時佐證，回傳真實引用來源
 
-Embedding：學校中繼無 /embeddings 端點，故向量層改為「可選」——
-若 .env 有 GOOGLE_API_KEY 則用 Gemini 產生向量，否則回傳空陣列（停用 Layer 2，
-URL/Hash 兩層快取仍正常運作，不會誤命中）。
+其他能力：
+- 圖片查證：Claude / OpenAI 視覺（OCR + 判讀）
+- 影片語音轉文字：/openai/v1/audio/transcriptions（whisper），無字幕時的後備
+- Embedding：中繼無此端點 → 可選用 Gemini（設 GOOGLE_API_KEY）否則停用向量層
 """
 import base64
 import json
+import os
 from typing import Dict, List, Optional, Any
 
 import requests
@@ -38,8 +40,7 @@ SYSTEM_PROMPT_V41 = """
    - 判斷內容意圖：是騙取金錢個資 (Scam)？還是製造恐慌/誤導大眾 (Misinformation)？
 
 2. **雙重事實查核 (可使用 web_search 工具)**：
-   - **Phase A: 詐騙查核** (針對金錢/連結)：
-     - 搜尋網域信譽、官方網址比對。
+   - **Phase A: 詐騙查核** (針對金錢/連結)：搜尋網域信譽、官方網址比對。
    - **Phase B: 假訊息查核** (針對健康/政治/舊聞)：
      - **務必優先參考**：台灣事實查核中心 (TFC)、MyGoPen、Cofacts、CNA中央社。
      - 檢查是否為「舊聞重炒」或「偽科學謠言」。
@@ -48,8 +49,7 @@ SYSTEM_PROMPT_V41 = """
    - 檢查語音是否誘導「點擊主頁連結 (Link in Bio)」(詐騙特徵)。
    - 檢查是否使用機器人語音傳播農場文 (假訊息特徵)。
 
-4. **標準化摘要**：
-   - 去除雜訊，保留人名、關鍵字、宣稱的後果 (如：帳戶凍結、會致癌)。
+4. **標準化摘要**：去除雜訊，保留人名、關鍵字、宣稱的後果 (如：帳戶凍結、會致癌)。
 
 # Category List (分類清單 - 請嚴格遵守)
 [詐騙類 - SCAM]
@@ -77,17 +77,13 @@ SYSTEM_PROMPT_V41 = """
 JSON 結構如下：
 {
   "is_risk": (Boolean, 只要是詐騙 OR 假訊息，都填 true),
-  "risk_type": (String, 若為詐騙填 "SCAM", 若為假訊息填 "MISINFO", 安全則填 "SAFE"),
+  "risk_type": (String, 詐騙填 "SCAM", 假訊息填 "MISINFO", 安全填 "SAFE"),
   "category": (String, 必須從上面的分類清單中選擇),
-  "confidence_score": (Float, 0.95-1.0 為網址直接命中的詐騙; 0.0-1.0 代表信心程度),
+  "confidence_score": (Float, 0.0-1.0 代表信心程度),
   "summary": (String, 用於向量資料庫的高品質摘要),
   "explanation": (String, 白話解釋。若是假訊息，請指出「正確事實」是什麼),
   "sources": [
-    {
-      "title": (String, 來源標題),
-      "url": (String, 來源網址。⚠️ 只能引用你實際查核到的真實 URL，嚴禁編造；
-        若無可靠來源，sources 必須留空 [])
-    }
+    {"title": (String, 來源標題), "url": (String, 只能引用實際查核到的真實 URL，嚴禁編造；無可靠來源則留空 [])}
   ]
 }
 """
@@ -107,33 +103,118 @@ def _default_fallback_result(err_msg: str) -> Dict[str, Any]:
 
 
 class AIService:
-    """AI 分析服務（學校 OpenAI 相容 Responses API）。"""
+    """雙引擎 AI 分析服務（Claude 主、OpenAI 備援，皆走學校中繼）。"""
 
     def __init__(self):
-        self.base_url = (settings.OPENAI_BASE_URL or "").rstrip("/")
-        self.api_key = (settings.OPENAI_API_KEY or "").strip()
-        self.model = settings.OPENAI_MODEL or "gpt-5"
-        self._available = bool(self.base_url and self.api_key)
+        self.key = (settings.MYAI_API_KEY or "").strip()        # 閘道共用金鑰
+        self.claude_base = (settings.CLAUDE_RELAY_URL or "").rstrip("/")
+        self.openai_base = (settings.OPENAI_RELAY_URL or "").rstrip("/")
+        self.claude_model = settings.CLAUDE_MODEL or "claude-opus-4-8"
+        self.openai_model = settings.OPENAI_MODEL or "gpt-5"
+        self._available = bool(self.key and self.claude_base and self.openai_base)
+
+        primary = (settings.AI_PROVIDER or "claude").lower()
+        if primary not in ("claude", "openai"):
+            primary = "claude"
+        # 主引擎優先，另一個自動作為備援
+        self.providers = [primary, "openai" if primary == "claude" else "claude"]
+
         if not self._available:
-            print("⚠️ 未設定 OPENAI_API_KEY / OPENAI_BASE_URL，AI 分析將回傳 fallback 結果")
+            print("[AI] 未設定 OPENAI_API_KEY / 中繼 BASE_URL，AI 分析將回傳 fallback 結果")
 
-    # ── 內部：HTTP 與解析 ────────────────────────────────────────
-    @property
-    def _headers(self) -> Dict[str, str]:
-        return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+    # ── 共用解析工具 ─────────────────────────────────────────────
+    @staticmethod
+    def _parse_json_loose(text: str) -> Dict[str, Any]:
+        """穩健解析 JSON：去掉 code fence，必要時擷取第一個 { 到最後一個 }。"""
+        text = text.replace("```json", "").replace("```", "").strip()
+        try:
+            return json.loads(text)
+        except Exception:
+            start, end = text.find("{"), text.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                return json.loads(text[start:end + 1])
+            raise
 
-    def _call_responses(self, input_payload: Any, use_web_search: bool = True, timeout: int = 120) -> dict:
-        """呼叫 /responses，回傳原始 JSON dict（失敗會 raise）。"""
-        body: Dict[str, Any] = {"model": self.model, "input": input_payload}
+    def _validate_result(self, result: Dict[str, Any]) -> None:
+        for field in ["is_risk", "risk_type", "category", "confidence_score", "summary", "explanation", "sources"]:
+            if field not in result:
+                raise ValueError(f"缺少必要欄位: {field}")
+        if result["risk_type"] not in ["SCAM", "MISINFO", "SAFE", "UNKNOWN"]:
+            result["risk_type"] = "SAFE"
+
+    # ── Claude 引擎 ──────────────────────────────────────────────
+    def _claude_analyze(self, prompt_text: str, image: Optional[dict], use_web_search: bool) -> Dict[str, Any]:
+        content: List[dict] = [{"type": "text", "text": prompt_text}]
+        if image:
+            content.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": image["mime"], "data": image["b64"]},
+            })
+        body: Dict[str, Any] = {
+            "model": self.claude_model,
+            "max_tokens": 2000,
+            "messages": [{"role": "user", "content": content}],
+        }
         if use_web_search:
-            body["tools"] = [{"type": "web_search"}]
-        r = requests.post(f"{self.base_url}/responses", headers=self._headers, json=body, timeout=timeout)
+            body["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}]
+        headers = {"x-api-key": self.key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
+        r = requests.post(f"{self.claude_base}/messages", headers=headers, json=body, timeout=150)
         r.raise_for_status()
-        return r.json()
+        data = r.json()
+        text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+        if not text.strip():
+            raise ValueError("Claude 回傳無內容")
+        result = self._parse_json_loose(text)
+        self._validate_result(result)
+        cites = self._claude_citations(data)
+        if cites:
+            result["sources"] = cites
+        return result
 
     @staticmethod
-    def _extract_output_text(data: dict) -> str:
-        """從 Responses API 的 output 陣列串接 message 的 output_text。"""
+    def _claude_citations(data: dict) -> List[Dict[str, str]]:
+        sources, seen = [], set()
+        for b in data.get("content", []) or []:
+            if b.get("type") != "text":
+                continue
+            for c in b.get("citations", []) or []:
+                u = c.get("url")
+                if u and u not in seen:
+                    seen.add(u)
+                    sources.append({"title": c.get("title") or u, "url": u})
+        return sources[:5]
+
+    # ── OpenAI 引擎 ──────────────────────────────────────────────
+    def _openai_analyze(self, prompt_text: str, image: Optional[dict], use_web_search: bool) -> Dict[str, Any]:
+        if image:
+            input_payload: Any = [{
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": prompt_text},
+                    {"type": "input_image", "image_url": f"data:{image['mime']};base64,{image['b64']}"},
+                ],
+            }]
+        else:
+            input_payload = prompt_text
+        body: Dict[str, Any] = {"model": self.openai_model, "input": input_payload}
+        if use_web_search:
+            body["tools"] = [{"type": "web_search"}]
+        headers = {"Authorization": f"Bearer {self.key}", "Content-Type": "application/json"}
+        r = requests.post(f"{self.openai_base}/responses", headers=headers, json=body, timeout=150)
+        r.raise_for_status()
+        data = r.json()
+        text = self._openai_output_text(data)
+        if not text.strip():
+            raise ValueError("OpenAI 回傳無內容")
+        result = self._parse_json_loose(text)
+        self._validate_result(result)
+        cites = self._openai_citations(data)
+        if cites:
+            result["sources"] = cites
+        return result
+
+    @staticmethod
+    def _openai_output_text(data: dict) -> str:
         parts = []
         for item in data.get("output", []) or []:
             if item.get("type") == "message":
@@ -143,8 +224,7 @@ class AIService:
         return "".join(parts)
 
     @staticmethod
-    def _extract_citations(data: dict) -> List[Dict[str, str]]:
-        """從 web_search 的 url_citation annotations 取出真實來源網址。"""
+    def _openai_citations(data: dict) -> List[Dict[str, str]]:
         sources, seen = [], set()
         for item in data.get("output", []) or []:
             if item.get("type") != "message":
@@ -158,98 +238,61 @@ class AIService:
                             sources.append({"title": ann.get("title") or u, "url": u})
         return sources[:5]
 
-    @staticmethod
-    def _parse_json_loose(text: str) -> Dict[str, Any]:
-        """穩健解析 JSON：去掉 code fence，必要時擷取第一個 { 到最後一個 }。"""
-        text = text.replace("```json", "").replace("```", "").strip()
-        try:
-            return json.loads(text)
-        except Exception:
-            start, end = text.find("{"), text.rfind("}")
-            if start != -1 and end != -1 and end > start:
-                return json.loads(text[start:end + 1])
-            raise
+    # ── 引擎排程：主→備援，最後無工具再試一次 ───────────────────
+    def _run_analysis(self, prompt_text: str, image: Optional[dict] = None, use_web_search: bool = True) -> Dict[str, Any]:
+        last_err = ""
+        for prov in self.providers:
+            try:
+                fn = self._claude_analyze if prov == "claude" else self._openai_analyze
+                return fn(prompt_text, image, use_web_search)
+            except requests.exceptions.HTTPError as e:
+                last_err = f"{prov} HTTP {getattr(e.response,'status_code','?')}: {(getattr(e.response,'text','') or '')[:160]}"
+                print(f"[AI] {last_err}")
+            except Exception as e:
+                last_err = f"{prov}: {e}"
+                print(f"[AI] {last_err}")
+        # 最後手段：主引擎關閉 web_search 再試（避免搜尋雜訊導致 JSON 解析失敗）
+        if use_web_search:
+            try:
+                prov = self.providers[0]
+                fn = self._claude_analyze if prov == "claude" else self._openai_analyze
+                return fn(prompt_text, image, False)
+            except Exception as e:
+                last_err = f"{self.providers[0]}(no-search): {e}"
+        return _default_fallback_result(last_err or "所有 AI 供應商皆失敗")
 
-    # ── 對外：文字/URL 分析 ──────────────────────────────────────
-    def analyze_content(
-        self,
-        content: str,
-        url: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    # ── 對外：文字 / URL 分析 ────────────────────────────────────
+    def analyze_content(self, content: str, url: Optional[str] = None, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         if not self._available:
-            return _default_fallback_result("未設定 OPENAI_API_KEY 或 OPENAI_BASE_URL")
-
+            return _default_fallback_result("未設定學校 API 金鑰或中繼網址")
         prompt = self._build_prompt(content, url, context)
         full_prompt = f"{SYSTEM_PROMPT_V41}\n\n---\n\n{prompt}"
+        return self._run_analysis(full_prompt, image=None, use_web_search=True)
 
-        last_err = ""
-        # 先帶 web_search 即時佐證；若失敗（不支援/逾時）退回無工具再試一次
-        for use_ws in (True, False):
-            try:
-                data = self._call_responses(full_prompt, use_web_search=use_ws)
-                text = self._extract_output_text(data)
-                if not text.strip():
-                    last_err = "回傳無內容"
-                    continue
-                result = self._parse_json_loose(text)
-                self._validate_result(result)
-                cites = self._extract_citations(data)
-                if cites:
-                    result["sources"] = cites  # 用 web_search 的真實來源覆蓋
-                return result
-            except requests.exceptions.HTTPError as e:
-                detail = (getattr(e.response, "text", None) or str(e))[:300]
-                last_err = f"{e.response.status_code}: {detail}"
-                print(f"⚠️ Responses API HTTP: {last_err}")
-            except Exception as e:
-                last_err = str(e)
-                print(f"⚠️ Responses API 失敗: {last_err}")
-
-        return _default_fallback_result(last_err or "Responses API 呼叫失敗")
-
-    def _build_prompt(
-        self,
-        content: str,
-        url: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> str:
-        """構建分析提示詞。"""
-        prompt_parts = []
+    def _build_prompt(self, content: str, url: Optional[str] = None, context: Optional[Dict[str, Any]] = None) -> str:
+        parts = []
         if url:
-            prompt_parts.append(f"【來源網址】\n{url}\n")
-        prompt_parts.append(f"【待分析內容】\n{content}\n")
-
+            parts.append(f"【來源網址】\n{url}\n")
+        parts.append(f"【待分析內容】\n{content}\n")
         if context and context.get("similar_news"):
-            prompt_parts.append("【網路事實查核與相關報導參考】")
-            prompt_parts.append("以下為系統擷取的相關報導，如為假訊息請將查核文章的標題與網址放入 sources：\n")
+            parts.append("【網路事實查核與相關報導參考】")
+            parts.append("以下為系統擷取的相關報導，如為假訊息請將查核文章的標題與網址放入 sources：\n")
             for news in context["similar_news"]:
-                prompt_parts.append(f"- 標題：{news.get('title', '無標題')} ({news.get('date', '未知日期')})")
-                prompt_parts.append(f"  網址：{news.get('url', '')}")
+                parts.append(f"- 標題：{news.get('title', '無標題')} ({news.get('date', '未知日期')})")
+                parts.append(f"  網址：{news.get('url', '')}")
                 if news.get("content"):
-                    prompt_parts.append(f"  摘要：{news.get('content', '')[:150]}...")
-            prompt_parts.append("")
-
-        prompt_parts.append("請根據上述內容進行分析，並只回傳標準 JSON 格式。")
-        return "\n".join(prompt_parts)
-
-    def _validate_result(self, result: Dict[str, Any]) -> None:
-        """驗證 AI 結果格式，補正 risk_type。"""
-        required = ["is_risk", "risk_type", "category", "confidence_score", "summary", "explanation", "sources"]
-        for field in required:
-            if field not in result:
-                raise ValueError(f"缺少必要欄位: {field}")
-        if result["risk_type"] not in ["SCAM", "MISINFO", "SAFE", "UNKNOWN"]:
-            result["risk_type"] = "SAFE"
+                    parts.append(f"  摘要：{news.get('content', '')[:150]}...")
+            parts.append("")
+        parts.append("請根據上述內容進行分析，並只回傳標準 JSON 格式。")
+        return "\n".join(parts)
 
     # ── 對外：圖片分析（視覺 / OCR）──────────────────────────────
     def analyze_image(self, image_path: str, url: Optional[str] = None) -> Dict[str, Any]:
         if not self._available:
             return _default_fallback_result("未啟用 AI 服務，無法進行圖片分析")
-
         try:
             with open(image_path, "rb") as f:
-                img_b64 = base64.standard_b64encode(f.read()).decode()
+                b64 = base64.standard_b64encode(f.read()).decode()
             mime = "image/png"
             low = image_path.lower()
             if low.endswith((".jpg", ".jpeg")):
@@ -267,32 +310,35 @@ class AIService:
         )
         if url:
             instr += f"\n來源網址: {url}"
+        full_prompt = f"{SYSTEM_PROMPT_V41}\n\n{instr}"
+        # 圖片分析不開 web_search（穩定優先）
+        return self._run_analysis(full_prompt, image={"b64": b64, "mime": mime}, use_web_search=False)
 
-        input_payload = [{
-            "role": "user",
-            "content": [
-                {"type": "input_text", "text": f"{SYSTEM_PROMPT_V41}\n\n{instr}"},
-                {"type": "input_image", "image_url": f"data:{mime};base64,{img_b64}"},
-            ],
-        }]
-
+    # ── 對外：影片語音轉文字（whisper STT）──────────────────────
+    def transcribe_audio(self, file_path: str) -> str:
+        """把音訊檔轉成逐字稿（影片無字幕時的後備）。失敗回空字串。"""
+        if not self._available or not os.path.isfile(file_path):
+            return ""
         try:
-            data = self._call_responses(input_payload, use_web_search=False)
-            text = self._extract_output_text(data)
-            if not text.strip():
-                return _default_fallback_result("圖片分析回傳無內容")
-            result = self._parse_json_loose(text)
-            self._validate_result(result)
-            return result
+            with open(file_path, "rb") as f:
+                r = requests.post(
+                    f"{self.openai_base}/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {self.key}"},
+                    files={"file": (os.path.basename(file_path), f, "audio/mpeg")},
+                    data={"model": settings.STT_MODEL},
+                    timeout=180,
+                )
+            r.raise_for_status()
+            return (r.json().get("text", "") or "").strip()
         except Exception as e:
-            return _default_fallback_result(f"圖片分析失敗: {e}")
+            print(f"[AI] 語音轉文字失敗: {e}")
+            return ""
 
-    # ── 對外：Embedding（可選；學校 API 無此端點）────────────────
+    # ── 對外：Embedding（可選；學校中繼無此端點）────────────────
     def generate_embedding(self, text: str) -> List[float]:
         """
-        學校中繼無 /embeddings 端點。
-        若 .env 設了 GOOGLE_API_KEY，仍可用 Gemini 產生向量以啟用 Layer 2 語義快取；
-        否則回傳空陣列（向量層自動停用，URL/Hash 快取不受影響）。
+        學校中繼無 /embeddings 端點。若 .env 設了 GOOGLE_API_KEY 則用 Gemini 產生向量
+        以啟用 Layer 2 語義快取；否則回傳空陣列（向量層停用，URL/Hash 快取不受影響）。
         """
         gkey = (settings.GOOGLE_API_KEY or "").strip()
         if not gkey:
@@ -311,5 +357,5 @@ class AIService:
                 )
                 return list(result["embedding"])
             except Exception as e:
-                print(f"⚠️ Embedding 產生失敗（向量層停用）：{e}")
+                print(f"[AI] Embedding 產生失敗（向量層停用）：{e}")
                 return []

@@ -38,8 +38,8 @@ app/
 │   └── feedback.py       ← /api/feedback (使用者評分)
 │
 ├── services/             ← 業務邏輯
-│   ├── ai_service.py     ← 學校 OpenAI 中繼 API 呼叫、web_search 佐證、Prompt
-│   ├── crawler.py        ← Trafilatura + Playwright 爬蟲
+│   ├── ai_service.py     ← 雙引擎（Claude 主／OpenAI 備援）、web_search 佐證、語音轉文字
+│   ├── crawler.py        ← Trafilatura + Playwright 爬蟲、影片字幕／STT 逐字稿
 │   ├── cache_service.py  ← Hash 工具 + PostgreSQL 快取（lazy import）
 │   ├── pandas_store.py   ← Parquet 三層快取實作
 │   ├── vector_service.py ← Embedding 包裝
@@ -71,9 +71,15 @@ app/
 複製 `.env.example` 為 `.env` 並填入：
 
 ```ini
-# 主要分析引擎：學校 OpenAI 相容中繼 API
-OPENAI_API_KEY=your_developer_key_here
-OPENAI_BASE_URL=https://www.myai168.com/cgu/api/openai/v1
+# 學校 myai168 中繼閘道金鑰（OpenAI 與 Claude 中繼共用同一把）
+# 用 MYAI_* 命名，避免被系統內建的 OPENAI_API_KEY / ANTHROPIC_BASE_URL 覆寫
+MYAI_API_KEY=your_developer_key_here
+
+# 雙引擎：主引擎 claude（推薦）或 openai，另一個自動作為備援
+AI_PROVIDER=claude
+CLAUDE_RELAY_URL=https://www.myai168.com/cgu/api/anthropic/v1
+CLAUDE_MODEL=claude-opus-4-8
+OPENAI_RELAY_URL=https://www.myai168.com/cgu/api/openai/v1
 OPENAI_MODEL=gpt-5
 
 # 選填：Gemini 僅供向量 embedding（中繼 API 無此端點，留空則停用 Layer 2）
@@ -83,6 +89,10 @@ DEMO_MODE=false
 TRENDING_FETCH_INTERVAL_HOURS=6
 SIMILARITY_THRESHOLD=0.95
 ```
+
+> **AI 引擎**：分析走學校中繼閘道，主引擎 **Claude Opus**（擅長細緻判斷）、
+> 失敗時自動退到 **OpenAI gpt-5**；兩者皆用 `web_search` 取得真實佐證來源。
+> 影片無字幕時，以 `whisper` 語音轉文字補上逐字稿。
 
 ---
 
@@ -179,7 +189,7 @@ from factcheck_system import CrawlerClient, AIClient
                                           結果回填知識庫 ◄────┘
 ```
 
-對重複查詢，省下最貴的 AI 分析呼叫（學校 OpenAI 中繼 API）。
+對重複查詢，省下最貴的 AI 分析呼叫（學校中繼閘道：Claude 主／OpenAI 備援）。
 （Layer 2 向量層需要 embedding；學校中繼無此端點，未設 `GOOGLE_API_KEY` 時自動略過。）
 
 ---
