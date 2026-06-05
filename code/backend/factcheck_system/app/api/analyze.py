@@ -121,6 +121,8 @@ class AnalysisResult(BaseModel):
     risk_type: str
     category: str
     confidence_score: float
+    confidence_level: str | None = None      # 高/中/低（模型自評，未校準）
+    confidence_note: str | None = None        # 校準說明
     summary: str
     explanation: str
     sources: list
@@ -159,6 +161,32 @@ async def analyze_url(
     if settings.DEMO_MODE:
         return _get_demo_result("yellow")
     return await analyze_text(request)
+
+
+@router.post("/sync", response_model=AnalysisResult)
+async def analyze_sync(
+    request: AnalyzeTextRequest,
+):
+    """
+    同步分析端點（給 iOS 捷徑 / 自動化用）。
+    一次請求直接回傳最終結果，不需輪詢 task_id。
+    內部直接 await 完整三層快取 + AI 流程。
+    """
+    if settings.DEMO_MODE:
+        is_url = request.content.strip().startswith(("http://", "https://"))
+        return _decorate_display_fields(
+            _get_demo_result("yellow" if is_url else "red")
+        )
+    try:
+        from app.workers.pandas_task_processor import process_analysis_task_async
+
+        is_url = request.content.strip().startswith(("http://", "https://"))
+        input_type = "url" if is_url else "text"
+        task_id = task_store.create_task(f"analyze_{input_type}", request.content)
+        result = await process_analysis_task_async(task_id, request.content, input_type)
+        return _decorate_display_fields(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"分析失敗: {str(e)}")
 
 
 @router.post("/image")

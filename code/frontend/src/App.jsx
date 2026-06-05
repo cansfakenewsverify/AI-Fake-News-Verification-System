@@ -35,7 +35,12 @@ function AnalyzingCard() {
 function AiResultCard({ result }) {
   const s = getAiCardStyle(result.risk_type);
   const conf = result.confidence_score;
-  const confPct = conf != null ? Math.round(conf * 100) : null;
+  // confidence_score 為模型自評、未經機率校準，故以離散等級（高/中/低）呈現，
+  // 避免被誤解為真實命中機率。實際效能以評測報告為準。
+  const confLevel =
+    result.confidence_level ||
+    (conf == null ? null : conf >= 0.8 ? '高' : conf >= 0.5 ? '中' : '低');
+  const confNote = result.confidence_note || '模型自評信心，未經機率校準';
 
   return (
     <div className={`mt-3 mb-4 rounded-2xl border ${s.wrapper} overflow-hidden shadow-sm fade-in relative`}>
@@ -55,9 +60,12 @@ function AiResultCard({ result }) {
             </span>
           </div>
         </div>
-        {confPct != null && (
-          <div className={`${s.chip} text-xs font-bold px-3 py-1.5 rounded-full shadow-sm`}>
-            信心 {confPct}%
+        {confLevel != null && (
+          <div
+            className={`${s.chip} text-xs font-bold px-3 py-1.5 rounded-full shadow-sm cursor-help`}
+            title={confNote}
+          >
+            信心：{confLevel}
           </div>
         )}
       </div>
@@ -223,7 +231,12 @@ function TrendingSection() {
                       <span className="text-[10px] text-slate-400">{rec.category}</span>
                     )}
                     {rec.ai_score != null && (
-                      <span className="text-[10px] text-slate-400">信心 {Math.round(rec.ai_score * 100)}%</span>
+                      <span
+                        className="text-[10px] text-slate-400 cursor-help"
+                        title="模型自評信心，未經機率校準"
+                      >
+                        信心：{rec.ai_score >= 0.8 ? '高' : rec.ai_score >= 0.5 ? '中' : '低'}
+                      </span>
                     )}
                   </div>
                 </div>

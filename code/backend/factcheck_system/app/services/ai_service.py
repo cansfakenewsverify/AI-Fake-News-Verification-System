@@ -185,35 +185,70 @@ class AIService:
         last_err = ""
         if HAS_REQUESTS and api_key:
             for model in ["gemini-2.5-flash"]:
-                result, err = self._call_gemini_rest(api_key, model, full_prompt)
-                if result is not None:
-                    return result
-                last_err = err or ""
+                # 先用 Google Search 原生 grounding；若該 Key/模型不支援則退回無 grounding
+                for grounding in (True, False):
+                    result, err = self._call_gemini_rest(
+                        api_key, model, full_prompt, use_grounding=grounding
+                    )
+                    if result is not None:
+                        return result
+                    last_err = err or ""
 
         return _default_fallback_result(last_err or "REST API 呼叫失敗，請檢查 API Key 與網路")
 
-    def _call_gemini_rest(self, api_key: str, model: str, prompt: str) -> tuple:
-        """直接呼叫 Gemini REST API。回傳 (result_dict, error_msg)，成功時 error_msg 為 None"""
+    @staticmethod
+    def _parse_json_loose(text: str) -> Dict[str, Any]:
+        """穩健解析 JSON：去掉 code fence，必要時擷取第一個 { 到最後一個 }。"""
+        text = text.replace("```json", "").replace("```", "").strip()
+        try:
+            return json.loads(text)
+        except Exception:
+            start, end = text.find("{"), text.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                return json.loads(text[start:end + 1])
+            raise
+
+    @staticmethod
+    def _extract_grounding_sources(candidate: Dict[str, Any]) -> List[Dict[str, str]]:
+        """從 Gemini grounding metadata 取出真實引用來源（取代 AI 自編 URL）。"""
+        meta = candidate.get("groundingMetadata") or {}
+        chunks = meta.get("groundingChunks") or []
+        sources, seen = [], set()
+        for ch in chunks:
+            web = (ch or {}).get("web") or {}
+            uri = web.get("uri")
+            if uri and uri not in seen:
+                seen.add(uri)
+                sources.append({"title": web.get("title") or uri, "url": uri})
+        return sources[:5]
+
+    def _call_gemini_rest(self, api_key: str, model: str, prompt: str, use_grounding: bool = True) -> tuple:
+        """直接呼叫 Gemini REST API。回傳 (result_dict, error_msg)，成功時 error_msg 為 None。
+        use_grounding=True 時啟用 Google Search 原生 grounding，sources 改用真實搜尋來源。"""
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.2, "topP": 0.95, "topK": 40, "maxOutputTokens": 2048},
         }
+        if use_grounding:
+            # Gemini 內建 Google Search grounding：回傳附真實引用來源，穩定且不被擋
+            payload["tools"] = [{"google_search": {}}]
         try:
             r = requests.post(url, json=payload, timeout=60)
             r.raise_for_status()
             data = r.json()
-            text = (
-                data.get("candidates", [{}])[0]
-                .get("content", {})
-                .get("parts", [{}])[0]
-                .get("text", "")
-            )
+            candidate = (data.get("candidates") or [{}])[0]
+            # 串接所有 text part（grounding 模式可能拆成多個 part）
+            parts = candidate.get("content", {}).get("parts", []) or []
+            text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
             if not text or not text.strip():
                 return None, f"{model}: 回傳無內容"
-            text = text.replace("```json", "").replace("```", "").strip()
-            result = json.loads(text)
+            result = self._parse_json_loose(text)
             self._validate_result(result)
+            # 用 grounding 的真實來源覆蓋 sources（同時解決搜尋穩定性與 URL 幻覺）
+            grounded = self._extract_grounding_sources(candidate)
+            if grounded:
+                result["sources"] = grounded
             return result, None
         except requests.exceptions.HTTPError as e:
             err_detail = (getattr(e.response, "text", None) or str(e))[:500]

@@ -62,15 +62,32 @@ def _safe_str(val):
     return str(val) if val else ""
 
 
+# confidence_score 由 LLM 自評，未經機率校準。對外改以離散等級呈現，
+# 避免把「自評信心」誤當成「真實命中機率」。實際準確率以評測腳本量測。
+CONFIDENCE_NOTE = "模型自評信心，未經機率校準（實際效能請參考評測報告）"
+
+
+def _confidence_level(score: float) -> str:
+    """把模型自評信心轉成離散等級（高/中/低），僅供顯示。"""
+    if score >= 0.8:
+        return "高"
+    if score >= 0.5:
+        return "中"
+    return "低"
+
+
 def _build_result(ai_analysis: Dict[str, Any], similar_news: list, timeline: list, cached: bool) -> Dict[str, Any]:
     ft, fl = _ai_result_to_frame(ai_analysis)
+    conf = float(ai_analysis.get("confidence_score") or 0.0)
     return {
         "frame_type": ft,
         "frame_label": fl,
         "is_risk": bool(ai_analysis.get("is_risk", False)),
         "risk_type": _safe_str(ai_analysis.get("risk_type")) or "SAFE",
         "category": _safe_str(ai_analysis.get("category")) or "Irrelevant",
-        "confidence_score": float(ai_analysis.get("confidence_score") or 0.0),
+        "confidence_score": conf,
+        "confidence_level": _confidence_level(conf),
+        "confidence_note": CONFIDENCE_NOTE,
         "summary": _safe_str(ai_analysis.get("summary")),
         "explanation": _safe_str(ai_analysis.get("explanation")),
         "sources": _safe_list(ai_analysis.get("sources")),

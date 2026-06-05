@@ -100,6 +100,9 @@ Schema 詳見 [`data/SCHEMA.md`](data/SCHEMA.md)。
 
 # 灌入範本資料（測試用）
 .\venv\Scripts\python scripts\seed_data.py
+
+# 評測判定引擎（混淆矩陣 / accuracy / P/R/F1）
+.\venv\Scripts\python scripts\evaluate.py
 ```
 
 ---
@@ -108,11 +111,37 @@ Schema 詳見 [`data/SCHEMA.md`](data/SCHEMA.md)。
 
 啟動後到 http://localhost:8000/docs 看完整 Swagger UI，主要路由：
 
-- `POST /api/analyze/text` — 文字/URL 查證
+- `POST /api/analyze/text` — 文字/URL 查證（非同步，回 task_id 後輪詢）
+- `POST /api/analyze/sync` — 文字/URL 查證（**同步，一次回傳結果**，適合手機捷徑）
 - `POST /api/analyze/image` — 圖片查證（multipart）
 - `GET  /api/analyze/task/{id}` — 取得結果
 - `GET  /api/trending` — 熱門列表
 - `POST /api/trending/refresh` — 手動觸發抓取
+
+---
+
+## 評測（論文數據來源）
+
+判定引擎的效能以 `scripts/evaluate.py` 量測，產出混淆矩陣與各項指標：
+
+```powershell
+# 1. 確認 .env 的 GOOGLE_API_KEY 已設定且有額度（評測會呼叫真實 Gemini）
+# 2. 編輯 data/eval_set.csv，每筆填 gold_label（SCAM / MISINFO / SAFE）
+#    內附 30 筆種子範例，建議擴充到 150~300 筆（可取自 Cofacts / TFC / MyGoPen / 165）
+.\venv\Scripts\python scripts\evaluate.py            # 全部
+.\venv\Scripts\python scripts\evaluate.py --limit 10 # 先試 10 筆
+.\venv\Scripts\python scripts\evaluate.py --resume   # 中斷後續跑
+```
+
+產出：
+| 檔案 | 內容 |
+|------|------|
+| `data/eval_predictions.csv` | 每筆的 gold / pred / confidence / 是否正確 |
+| `data/eval_report.csv` | 各類 precision / recall / f1 + accuracy + macro-F1 |
+| `../../assets/confusion_matrix.png` | 混淆矩陣熱力圖 |
+
+> **信心分數說明**：`confidence_score` 為模型自評，**未經機率校準**，前端以「高/中/低」呈現。
+> 系統真實效能請以本評測報告（accuracy / F1）為準。
 
 ---
 

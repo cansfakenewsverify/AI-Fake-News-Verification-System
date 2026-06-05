@@ -257,49 +257,130 @@ class CrawlerService:
                     'error': 'yt-dlp 未安裝，無法下載影音',
                     'url': url
                 }
+            # 只取 metadata 與字幕，不下載整支影片
+            # （省頻寬、避免 /tmp 在 Windows 失敗；分析只需要逐字稿）
             ydl_opts = {
-                'format': 'best[ext=mp4]/best',
-                'outtmpl': '/tmp/%(id)s.%(ext)s',
                 'quiet': True,
                 'no_warnings': True,
-                'extract_flat': False,
+                'skip_download': True,
             }
-            
+
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # 取得影片資訊
-                info = ydl.extract_info(url, download=True)
-                
-                video_path = ydl.prepare_filename(info)
-                
-                # 提取字幕（如果有的話）
-                subtitles = {}
-                if 'subtitles' in info:
-                    subtitles = info['subtitles']
-                elif 'automatic_captions' in info:
-                    subtitles = info['automatic_captions']
-                
-                desc = info.get('description', '')[:settings.MAX_CONTENT_LENGTH]
-                title = info.get('title')
+                info = ydl.extract_info(url, download=False)
+
+                # 關鍵：把「影片裡講的話」轉成逐字稿（之前只抓描述）
+                transcript = CrawlerService._extract_transcript(info)
+
+                desc = (info.get('description') or '')[:settings.MAX_CONTENT_LENGTH]
+                title = info.get('title') or ''
+
+                # content 以逐字稿為主，輔以標題與描述，讓 AI 真正分析到影片內容
+                parts = []
+                if title:
+                    parts.append(f"【影片標題】{title}")
+                if transcript:
+                    parts.append(f"【影片逐字稿】{transcript}")
+                if desc:
+                    parts.append(f"【影片描述】{desc}")
+                content = "\n".join(parts) or str(title or '')
+
                 return {
                     'success': True,
                     'url': url,
                     'platform': platform,
-                    'video_path': video_path,
+                    'video_path': None,
                     'title': title,
-                    'content': desc or str(title or ''),
+                    'content': content[:settings.MAX_CONTENT_LENGTH],
                     'date': info.get('upload_date'),
                     'source': info.get('uploader'),
                     'duration': info.get('duration'),
-                    'subtitles': subtitles,
+                    'has_transcript': bool(transcript),
+                    'subtitles': info.get('subtitles') or info.get('automatic_captions') or {},
                     'thumbnail': info.get('thumbnail'),
                 }
-                
+
         except Exception as e:
             return {
                 'success': False,
                 'error': str(e),
                 'url': url
             }
+
+    @staticmethod
+    def _extract_transcript(info: dict, max_chars: int = 8000) -> str:
+        """
+        從 yt-dlp info 取出字幕並轉成純文字逐字稿。
+        優先：人工字幕 > 自動字幕；語言優先中文 > 英文 > 第一個可用。
+        """
+        import requests as _rq
+
+        subs = info.get("subtitles") or {}
+        auto = info.get("automatic_captions") or {}
+        tracks = subs or auto  # 人工字幕優先，沒有才用自動字幕
+        if not tracks:
+            return ""
+
+        # 選語言
+        lang = None
+        for pref in ("zh-Hant", "zh-TW", "zh", "zh-Hans", "en", "en-US"):
+            if pref in tracks:
+                lang = pref
+                break
+        if lang is None:
+            lang = next(iter(tracks))
+
+        fmts = tracks.get(lang) or []
+        # 偏好純文字易解析的格式
+        chosen = None
+        for ext in ("vtt", "srv1", "srv3", "ttml"):
+            for f in fmts:
+                if f.get("ext") == ext and f.get("url"):
+                    chosen = f
+                    break
+            if chosen:
+                break
+        if chosen is None and fmts:
+            chosen = fmts[0]
+        if not chosen or not chosen.get("url"):
+            return ""
+
+        try:
+            r = _rq.get(chosen["url"], timeout=30)
+            r.raise_for_status()
+            raw = r.text
+        except Exception:
+            return ""
+
+        return CrawlerService._parse_subtitle_text(raw)[:max_chars]
+
+    @staticmethod
+    def _parse_subtitle_text(raw: str) -> str:
+        """把 VTT / TTML 字幕轉成純文字（去時間軸、去標籤、去重複行）。"""
+        import re
+
+        lines = []
+        for line in raw.splitlines():
+            s = line.strip()
+            if not s:
+                continue
+            if s.startswith(("WEBVTT", "NOTE", "Kind:", "Language:")):
+                continue
+            if "-->" in s:          # 時間軸行
+                continue
+            if s.isdigit():         # cue 編號
+                continue
+            s = re.sub(r"<[^>]+>", "", s)   # 去掉 <c>、<00:00:00.000> 等標籤
+            s = re.sub(r"&nbsp;", " ", s)
+            s = s.strip()
+            if s:
+                lines.append(s)
+
+        # 去除連續重複（自動字幕常見的滾動重複）
+        deduped = []
+        for s in lines:
+            if not deduped or deduped[-1] != s:
+                deduped.append(s)
+        return " ".join(deduped)
     
     @staticmethod
     async def search_keyword_and_crawl(keyword: str) -> Dict[str, Any]:

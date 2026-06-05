@@ -57,7 +57,9 @@ class Settings(BaseSettings):
     TRENDING_FETCH_INTERVAL_HOURS: int = 6
 
     # Demo mode (True = return mock results, no real API calls)
-    DEMO_MODE: bool = True
+    # Default False: run REAL Gemini analysis. Only set True via .env for
+    # offline presentations where no API key / network is available.
+    DEMO_MODE: bool = False
     
     @property
     def cors_origins_list(self) -> List[str]:
