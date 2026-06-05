@@ -38,7 +38,7 @@ app/
 │   └── feedback.py       ← /api/feedback (使用者評分)
 │
 ├── services/             ← 業務邏輯
-│   ├── ai_service.py     ← Gemini 呼叫、Embedding、Prompt
+│   ├── ai_service.py     ← 學校 OpenAI 中繼 API 呼叫、web_search 佐證、Prompt
 │   ├── crawler.py        ← Trafilatura + Playwright 爬蟲
 │   ├── cache_service.py  ← Hash 工具 + PostgreSQL 快取（lazy import）
 │   ├── pandas_store.py   ← Parquet 三層快取實作
@@ -71,7 +71,14 @@ app/
 複製 `.env.example` 為 `.env` 並填入：
 
 ```ini
-GOOGLE_API_KEY=your_api_key_here
+# 主要分析引擎：學校 OpenAI 相容中繼 API
+OPENAI_API_KEY=your_developer_key_here
+OPENAI_BASE_URL=https://www.myai168.com/cgu/api/openai/v1
+OPENAI_MODEL=gpt-5
+
+# 選填：Gemini 僅供向量 embedding（中繼 API 無此端點，留空則停用 Layer 2）
+GOOGLE_API_KEY=
+
 DEMO_MODE=false
 TRENDING_FETCH_INTERVAL_HOURS=6
 SIMILARITY_THRESHOLD=0.95
@@ -167,12 +174,13 @@ from factcheck_system import CrawlerClient, AIClient
 ## 三層快取設計
 
 ```
-輸入 → Layer 0: URL → Layer 1: Hash → Layer 2: Vector → Layer 3: Gemini
+輸入 → Layer 0: URL → Layer 1: Hash → Layer 2: Vector → Layer 3: AI 分析
                                                               │
                                           結果回填知識庫 ◄────┘
 ```
 
-對重複查詢，省下最貴的 Gemini 分析呼叫。
+對重複查詢，省下最貴的 AI 分析呼叫（學校 OpenAI 中繼 API）。
+（Layer 2 向量層需要 embedding；學校中繼無此端點，未設 `GOOGLE_API_KEY` 時自動略過。）
 
 ---
 

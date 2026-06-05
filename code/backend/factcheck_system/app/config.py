@@ -22,9 +22,13 @@ class Settings(BaseSettings):
     # Redis 設定
     REDIS_URL: str = "redis://localhost:6379/0"
     
-    # AI API Keys（請在 .env 設定 GOOGLE_API_KEY，勿寫入程式碼）
+    # AI API Keys（請在 .env 設定，勿寫入程式碼）
+    # 主要分析引擎：學校 OpenAI 相容中繼 API（myai168 Responses API）
+    OPENAI_API_KEY: str = ""        # 學校開發者金鑰
+    OPENAI_BASE_URL: str = "https://www.myai168.com/cgu/api/openai/v1"
+    OPENAI_MODEL: str = "gpt-5"
+    # 選用：Gemini 僅供向量 embedding（學校中繼無 embeddings 端點）
     GOOGLE_API_KEY: str = ""
-    OPENAI_API_KEY: str = ""
     
     # CORS 設定
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"

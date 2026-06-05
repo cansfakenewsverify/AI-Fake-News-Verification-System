@@ -1,30 +1,22 @@
 """
-AI 分析服務 - 整合 Gemini 與 Embedding
+AI 分析服務 — 透過學校的 OpenAI 相容中繼 API（myai168 Responses API）。
+
+端點：POST {OPENAI_BASE_URL}/responses
+- 文字查證：input 帶提示詞，並啟用 web_search 工具做即時佐證
+- 圖片查證：input 帶 input_image（base64 data URL），支援視覺/OCR
+- 來源引用：從回應的 url_citation annotations 取出真實網址
+
+Embedding：學校中繼無 /embeddings 端點，故向量層改為「可選」——
+若 .env 有 GOOGLE_API_KEY 則用 Gemini 產生向量，否則回傳空陣列（停用 Layer 2，
+URL/Hash 兩層快取仍正常運作，不會誤命中）。
 """
+import base64
 import json
 from typing import Dict, List, Optional, Any
-import os
 
-try:
-    import requests
-    HAS_REQUESTS = True
-except ImportError:
-    HAS_REQUESTS = False
-
-try:
-    from google import genai
-    USE_NEW_API = True
-except ImportError:
-    try:
-        import google.generativeai as genai
-        USE_NEW_API = False
-    except ImportError:
-        raise ImportError("請安裝 google-genai 或 google-generativeai 套件")
+import requests
 
 from app.config import settings
-
-if not USE_NEW_API and settings.GOOGLE_API_KEY:
-    genai.configure(api_key=settings.GOOGLE_API_KEY)
 
 
 # V4.1 System Prompt（嚴格版本）
@@ -45,7 +37,7 @@ SYSTEM_PROMPT_V41 = """
 1. **意圖與類型識別**：
    - 判斷內容意圖：是騙取金錢個資 (Scam)？還是製造恐慌/誤導大眾 (Misinformation)？
 
-2. **雙重事實查核 (Google Search 必須執行)**：
+2. **雙重事實查核 (可使用 web_search 工具)**：
    - **Phase A: 詐騙查核** (針對金錢/連結)：
      - 搜尋網域信譽、官方網址比對。
    - **Phase B: 假訊息查核** (針對健康/政治/舊聞)：
@@ -80,7 +72,7 @@ SYSTEM_PROMPT_V41 = """
 - `Irrelevant`: 無關內容 (自拍、閒聊)
 
 # Output Format (輸出格式)
-你 **必須且只能** 回傳一個標準的 JSON 物件。不要使用 Markdown。
+你 **必須且只能** 回傳一個標準的 JSON 物件。不要使用 Markdown，不要加任何說明文字。
 
 JSON 結構如下：
 {
@@ -93,13 +85,8 @@ JSON 結構如下：
   "sources": [
     {
       "title": (String, 來源標題),
-      "url": (String, 來源網址。⚠️⚠️⚠️ 絕對禁止違反的規則：
-        1. **嚴禁編造、推測、想像任何 URL**。即使網域看起來合理，也絕對禁止生成不存在的 URL。
-        2. 你**只能引用「網路事實查核與相關報導參考」context 中明確提供給你的 URL**。
-        3. 如果 context 沒有提供任何 URL，sources **必須留空 `[]`**，不可填入任何網址。
-        4. **嚴禁回傳首頁/根域名**（如 `https://tfc-taiwan.org.tw/` 或 `https://www.cna.com.tw/`）。
-        5. 不確定 URL 是否真實存在時，一律不要寫入。**寧缺勿濫**。
-        6. 違反以上規則的回應將被視為錯誤回應。)
+      "url": (String, 來源網址。⚠️ 只能引用你實際查核到的真實 URL，嚴禁編造；
+        若無可靠來源，sources 必須留空 [])
     }
   ]
 }
@@ -114,87 +101,62 @@ def _default_fallback_result(err_msg: str) -> Dict[str, Any]:
         "category": "Irrelevant",
         "confidence_score": 0.0,
         "summary": "AI 分析暫時無法使用",
-        "explanation": f"Gemini 呼叫失敗，請檢查 API Key 與網路。錯誤：{err_msg}",
+        "explanation": f"AI 服務呼叫失敗，請檢查 API Key 與網路。錯誤：{err_msg}",
         "sources": [],
     }
 
 
 class AIService:
-    """AI 分析服務類別（真實 Gemini 判定，失敗時回傳結構化 fallback）"""
+    """AI 分析服務（學校 OpenAI 相容 Responses API）。"""
 
     def __init__(self):
-        """初始化 Gemini 客戶端；無 Key 或失敗時 _gemini_available=False"""
-        self.use_new_api = USE_NEW_API
-        self.model = None
-        self.client = None
-        self.model_name = settings.GEMINI_MODEL
-        self._use_legacy_api = False
-        self._gemini_available = False
+        self.base_url = (settings.OPENAI_BASE_URL or "").rstrip("/")
+        self.api_key = (settings.OPENAI_API_KEY or "").strip()
+        self.model = settings.OPENAI_MODEL or "gpt-5"
+        self._available = bool(self.base_url and self.api_key)
+        if not self._available:
+            print("⚠️ 未設定 OPENAI_API_KEY / OPENAI_BASE_URL，AI 分析將回傳 fallback 結果")
 
-        if not (settings.GOOGLE_API_KEY and settings.GOOGLE_API_KEY.strip()):
-            print("⚠️ GOOGLE_API_KEY 未設定，AI 分析將回傳 fallback 結果")
-            return
+    # ── 內部：HTTP 與解析 ────────────────────────────────────────
+    @property
+    def _headers(self) -> Dict[str, str]:
+        return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
-        if USE_NEW_API:
-            try:
-                self.client = genai.Client(api_key=settings.GOOGLE_API_KEY.strip())
-                self._gemini_available = True
-                print("✅ 使用新版 google-genai API")
-            except Exception as e:
-                print(f"⚠️ 新 API 初始化失敗: {e}，嘗試舊 API")
-                try:
-                    import google.generativeai as genai_old
-                    genai_old.configure(api_key=settings.GOOGLE_API_KEY)
-                    # 強制使用 gemini-2.5-flash，避免 .env 覆寫成 1.5 導致 404
-                    self.model = genai_old.GenerativeModel(model_name="gemini-2.5-flash")
-                    self.use_new_api = False
-                    self._use_legacy_api = True
-                    self._gemini_available = True
-                    print("✅ 使用舊版 google-generativeai API")
-                except Exception as e2:
-                    print(f"⚠️ 舊 API 也失敗: {e2}")
-        else:
-            try:
-                self.model = genai.GenerativeModel(
-                    model_name="gemini-2.5-flash",
-                    system_instruction=SYSTEM_PROMPT_V41,
-                )
-                self._gemini_available = True
-            except TypeError:
-                self.model = genai.GenerativeModel(model_name="gemini-2.5-flash")
-                self._use_legacy_api = True
-                self._gemini_available = True
-    
-    def analyze_content(
-        self,
-        content: str,
-        url: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """
-        真實 AI 判定：優先使用 REST API 直接呼叫 gemini-2.5-flash，繞過 SDK 預設。
-        """
-        if not self._gemini_available:
-            return _default_fallback_result("未設定 GOOGLE_API_KEY 或 Gemini 初始化失敗")
+    def _call_responses(self, input_payload: Any, use_web_search: bool = True, timeout: int = 120) -> dict:
+        """呼叫 /responses，回傳原始 JSON dict（失敗會 raise）。"""
+        body: Dict[str, Any] = {"model": self.model, "input": input_payload}
+        if use_web_search:
+            body["tools"] = [{"type": "web_search"}]
+        r = requests.post(f"{self.base_url}/responses", headers=self._headers, json=body, timeout=timeout)
+        r.raise_for_status()
+        return r.json()
 
-        prompt = self._build_prompt(content, url, context)
-        full_prompt = f"{SYSTEM_PROMPT_V41}\n\n---\n\n{prompt}"
-        api_key = settings.GOOGLE_API_KEY.strip()
+    @staticmethod
+    def _extract_output_text(data: dict) -> str:
+        """從 Responses API 的 output 陣列串接 message 的 output_text。"""
+        parts = []
+        for item in data.get("output", []) or []:
+            if item.get("type") == "message":
+                for c in item.get("content", []) or []:
+                    if c.get("type") == "output_text":
+                        parts.append(c.get("text", "") or "")
+        return "".join(parts)
 
-        # 僅使用 REST API（完全繞過 SDK，避免 gemini-1.5-flash 預設）
-        last_err = ""
-        if HAS_REQUESTS and api_key:
-            for model in ["gemini-2.5-flash"]:
-                # 先用 Google Search 原生 grounding；若該 Key/模型不支援則退回無 grounding
-                for grounding in (True, False):
-                    result, err = self._call_gemini_rest(
-                        api_key, model, full_prompt, use_grounding=grounding
-                    )
-                    if result is not None:
-                        return result
-                    last_err = err or ""
-
-        return _default_fallback_result(last_err or "REST API 呼叫失敗，請檢查 API Key 與網路")
+    @staticmethod
+    def _extract_citations(data: dict) -> List[Dict[str, str]]:
+        """從 web_search 的 url_citation annotations 取出真實來源網址。"""
+        sources, seen = [], set()
+        for item in data.get("output", []) or []:
+            if item.get("type") != "message":
+                continue
+            for c in item.get("content", []) or []:
+                for ann in c.get("annotations", []) or []:
+                    if ann.get("type") == "url_citation":
+                        u = ann.get("url")
+                        if u and u not in seen:
+                            seen.add(u)
+                            sources.append({"title": ann.get("title") or u, "url": u})
+        return sources[:5]
 
     @staticmethod
     def _parse_json_loose(text: str) -> Dict[str, Any]:
@@ -208,192 +170,146 @@ class AIService:
                 return json.loads(text[start:end + 1])
             raise
 
-    @staticmethod
-    def _extract_grounding_sources(candidate: Dict[str, Any]) -> List[Dict[str, str]]:
-        """從 Gemini grounding metadata 取出真實引用來源（取代 AI 自編 URL）。"""
-        meta = candidate.get("groundingMetadata") or {}
-        chunks = meta.get("groundingChunks") or []
-        sources, seen = [], set()
-        for ch in chunks:
-            web = (ch or {}).get("web") or {}
-            uri = web.get("uri")
-            if uri and uri not in seen:
-                seen.add(uri)
-                sources.append({"title": web.get("title") or uri, "url": uri})
-        return sources[:5]
+    # ── 對外：文字/URL 分析 ──────────────────────────────────────
+    def analyze_content(
+        self,
+        content: str,
+        url: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        if not self._available:
+            return _default_fallback_result("未設定 OPENAI_API_KEY 或 OPENAI_BASE_URL")
 
-    def _call_gemini_rest(self, api_key: str, model: str, prompt: str, use_grounding: bool = True) -> tuple:
-        """直接呼叫 Gemini REST API。回傳 (result_dict, error_msg)，成功時 error_msg 為 None。
-        use_grounding=True 時啟用 Google Search 原生 grounding，sources 改用真實搜尋來源。"""
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.2, "topP": 0.95, "topK": 40, "maxOutputTokens": 2048},
-        }
-        if use_grounding:
-            # Gemini 內建 Google Search grounding：回傳附真實引用來源，穩定且不被擋
-            payload["tools"] = [{"google_search": {}}]
-        try:
-            r = requests.post(url, json=payload, timeout=60)
-            r.raise_for_status()
-            data = r.json()
-            candidate = (data.get("candidates") or [{}])[0]
-            # 串接所有 text part（grounding 模式可能拆成多個 part）
-            parts = candidate.get("content", {}).get("parts", []) or []
-            text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
-            if not text or not text.strip():
-                return None, f"{model}: 回傳無內容"
-            result = self._parse_json_loose(text)
-            self._validate_result(result)
-            # 用 grounding 的真實來源覆蓋 sources（同時解決搜尋穩定性與 URL 幻覺）
-            grounded = self._extract_grounding_sources(candidate)
-            if grounded:
-                result["sources"] = grounded
-            return result, None
-        except requests.exceptions.HTTPError as e:
-            err_detail = (getattr(e.response, "text", None) or str(e))[:500]
-            err_msg = f"{model} {e.response.status_code}: {err_detail}"
-            print(f"⚠️ REST API: {err_msg}")
-            return None, err_msg
-        except Exception as e:
-            err_msg = f"{model}: {str(e)}"
-            print(f"⚠️ REST API 失敗: {err_msg}")
-            return None, err_msg
-    
+        prompt = self._build_prompt(content, url, context)
+        full_prompt = f"{SYSTEM_PROMPT_V41}\n\n---\n\n{prompt}"
+
+        last_err = ""
+        # 先帶 web_search 即時佐證；若失敗（不支援/逾時）退回無工具再試一次
+        for use_ws in (True, False):
+            try:
+                data = self._call_responses(full_prompt, use_web_search=use_ws)
+                text = self._extract_output_text(data)
+                if not text.strip():
+                    last_err = "回傳無內容"
+                    continue
+                result = self._parse_json_loose(text)
+                self._validate_result(result)
+                cites = self._extract_citations(data)
+                if cites:
+                    result["sources"] = cites  # 用 web_search 的真實來源覆蓋
+                return result
+            except requests.exceptions.HTTPError as e:
+                detail = (getattr(e.response, "text", None) or str(e))[:300]
+                last_err = f"{e.response.status_code}: {detail}"
+                print(f"⚠️ Responses API HTTP: {last_err}")
+            except Exception as e:
+                last_err = str(e)
+                print(f"⚠️ Responses API 失敗: {last_err}")
+
+        return _default_fallback_result(last_err or "Responses API 呼叫失敗")
+
     def _build_prompt(
         self,
         content: str,
         url: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """
-        構建分析提示詞
-        """
+        """構建分析提示詞。"""
         prompt_parts = []
-        
         if url:
             prompt_parts.append(f"【來源網址】\n{url}\n")
-        
         prompt_parts.append(f"【待分析內容】\n{content}\n")
-        
-        if context:
-            if 'similar_news' in context and context['similar_news']:
-                prompt_parts.append("【網路事實查核與相關報導參考】")
-                prompt_parts.append("請參考以下由系統擷取的網路相關報導。如果是假訊息，請務必將以下查核文章的標題與網址放入 JSON 的 sources 中：\n")
-                for news in context['similar_news']:
-                    prompt_parts.append(f"- 標題：{news.get('title', '無標題')} ({news.get('date', '未知日期')})")
-                    prompt_parts.append(f"  網址：{news.get('url', '')}")
-                    if news.get('content'):
-                        prompt_parts.append(f"  摘要：{news.get('content', '')[:150]}...")
-                prompt_parts.append("")
-        
-        prompt_parts.append("請根據上述內容進行分析，並回傳標準 JSON 格式。")
-        
+
+        if context and context.get("similar_news"):
+            prompt_parts.append("【網路事實查核與相關報導參考】")
+            prompt_parts.append("以下為系統擷取的相關報導，如為假訊息請將查核文章的標題與網址放入 sources：\n")
+            for news in context["similar_news"]:
+                prompt_parts.append(f"- 標題：{news.get('title', '無標題')} ({news.get('date', '未知日期')})")
+                prompt_parts.append(f"  網址：{news.get('url', '')}")
+                if news.get("content"):
+                    prompt_parts.append(f"  摘要：{news.get('content', '')[:150]}...")
+            prompt_parts.append("")
+
+        prompt_parts.append("請根據上述內容進行分析，並只回傳標準 JSON 格式。")
         return "\n".join(prompt_parts)
-    
+
     def _validate_result(self, result: Dict[str, Any]) -> None:
-        """
-        驗證 AI 結果格式
-        """
-        required_fields = ['is_risk', 'risk_type', 'category', 'confidence_score', 'summary', 'explanation', 'sources']
-        
-        for field in required_fields:
+        """驗證 AI 結果格式，補正 risk_type。"""
+        required = ["is_risk", "risk_type", "category", "confidence_score", "summary", "explanation", "sources"]
+        for field in required:
             if field not in result:
                 raise ValueError(f"缺少必要欄位: {field}")
-        
-        # 驗證 risk_type（容許 UNKNOWN 等）
-        allowed = ['SCAM', 'MISINFO', 'SAFE', 'UNKNOWN']
-        if result['risk_type'] not in allowed:
-            result['risk_type'] = 'SAFE'
-    
-    def generate_embedding(self, text: str) -> List[float]:
-        # Try multiple model names; SDK API version differences mean some
-        # accept the prefix and some don't.
-        model_candidates = [
-            settings.EMBEDDING_MODEL,  # configured (default: text-embedding-004)
-            "gemini-embedding-001",
-            "models/text-embedding-004",
-        ]
-        # Dedupe while preserving order
-        seen = set()
-        models = [m for m in model_candidates if m and not (m in seen or seen.add(m))]
+        if result["risk_type"] not in ["SCAM", "MISINFO", "SAFE", "UNKNOWN"]:
+            result["risk_type"] = "SAFE"
 
-        last_err = None
-        for m in models:
-            try:
-                if self.use_new_api and self.client:
-                    res = self.client.models.embed_content(model=m, contents=text)
-                    return list(res.embeddings[0].values)
-                else:
-                    import google.generativeai as legacy_genai
-                    result = legacy_genai.embed_content(
-                        model=m, content=text, task_type="retrieval_document"
-                    )
-                    return list(result["embedding"])
-            except Exception as e:
-                last_err = e
-                continue
-        print(f"⚠️ Embedding all models failed: {last_err}")
-        return [0.0] * settings.VECTOR_DIMENSION
-    
+    # ── 對外：圖片分析（視覺 / OCR）──────────────────────────────
     def analyze_image(self, image_path: str, url: Optional[str] = None) -> Dict[str, Any]:
-        """
-        分析圖片內容（OCR + 視覺分析）。
-        優先使用 REST API 以支援 gemini-2.5-flash 多模態。
-        """
-        if not self._gemini_available:
-            return _default_fallback_result("未啟用 Gemini，無法進行圖片分析")
-
-        api_key = (settings.GOOGLE_API_KEY or "").strip()
-        if not api_key or not HAS_REQUESTS:
-            return _default_fallback_result("缺少 GOOGLE_API_KEY 或 requests")
+        if not self._available:
+            return _default_fallback_result("未啟用 AI 服務，無法進行圖片分析")
 
         try:
-            import base64
             with open(image_path, "rb") as f:
                 img_b64 = base64.standard_b64encode(f.read()).decode()
             mime = "image/png"
-            if image_path.lower().endswith((".jpg", ".jpeg")):
+            low = image_path.lower()
+            if low.endswith((".jpg", ".jpeg")):
                 mime = "image/jpeg"
-            elif image_path.lower().endswith(".webp"):
+            elif low.endswith(".webp"):
                 mime = "image/webp"
-            elif image_path.lower().endswith(".gif"):
+            elif low.endswith(".gif"):
                 mime = "image/gif"
         except Exception as e:
             return _default_fallback_result(f"無法讀取圖片: {e}")
 
-        prompt = "請分析這張圖片中的內容。若圖片中有文字請 OCR。回傳標準 JSON（is_risk, risk_type, category, confidence_score, summary, explanation, sources）。"
+        instr = (
+            "請分析這張圖片的內容，若圖片中有文字請先 OCR 再判斷。"
+            "只回傳標準 JSON（is_risk, risk_type, category, confidence_score, summary, explanation, sources）。"
+        )
         if url:
-            prompt += f"\n來源網址: {url}"
+            instr += f"\n來源網址: {url}"
 
-        for model in ["gemini-2.5-flash"]:
-            api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {"text": prompt},
-                        {"inline_data": {"mime_type": mime, "data": img_b64}},
-                    ]
-                }],
-                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048},
-            }
+        input_payload = [{
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": f"{SYSTEM_PROMPT_V41}\n\n{instr}"},
+                {"type": "input_image", "image_url": f"data:{mime};base64,{img_b64}"},
+            ],
+        }]
+
+        try:
+            data = self._call_responses(input_payload, use_web_search=False)
+            text = self._extract_output_text(data)
+            if not text.strip():
+                return _default_fallback_result("圖片分析回傳無內容")
+            result = self._parse_json_loose(text)
+            self._validate_result(result)
+            return result
+        except Exception as e:
+            return _default_fallback_result(f"圖片分析失敗: {e}")
+
+    # ── 對外：Embedding（可選；學校 API 無此端點）────────────────
+    def generate_embedding(self, text: str) -> List[float]:
+        """
+        學校中繼無 /embeddings 端點。
+        若 .env 設了 GOOGLE_API_KEY，仍可用 Gemini 產生向量以啟用 Layer 2 語義快取；
+        否則回傳空陣列（向量層自動停用，URL/Hash 快取不受影響）。
+        """
+        gkey = (settings.GOOGLE_API_KEY or "").strip()
+        if not gkey:
+            return []
+        try:
+            from google import genai
+            client = genai.Client(api_key=gkey)
+            res = client.models.embed_content(model=settings.EMBEDDING_MODEL, contents=text)
+            return list(res.embeddings[0].values)
+        except Exception:
             try:
-                r = requests.post(api_url, json=payload, timeout=90)
-                r.raise_for_status()
-                data = r.json()
-                text = (
-                    data.get("candidates", [{}])[0]
-                    .get("content", {})
-                    .get("parts", [{}])[0]
-                    .get("text", "")
+                import google.generativeai as legacy_genai
+                legacy_genai.configure(api_key=gkey)
+                result = legacy_genai.embed_content(
+                    model=settings.EMBEDDING_MODEL, content=text, task_type="retrieval_document"
                 )
-                if not text or not text.strip():
-                    continue
-                text = text.replace("```json", "").replace("```", "").strip()
-                result = json.loads(text)
-                self._validate_result(result)
-                return result
-            except Exception:
-                continue
-        return _default_fallback_result("REST API 圖片分析失敗")
-
+                return list(result["embedding"])
+            except Exception as e:
+                print(f"⚠️ Embedding 產生失敗（向量層停用）：{e}")
+                return []
