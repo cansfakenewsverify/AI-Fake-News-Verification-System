@@ -197,6 +197,10 @@ class AIService:
         else:
             input_payload = prompt_text
         body: Dict[str, Any] = {"model": self.openai_model, "input": input_payload}
+        # gpt-5 推理強度：low/minimal 大幅加速並省點數（分類任務足夠）
+        effort = (settings.OPENAI_REASONING_EFFORT or "").strip()
+        if effort:
+            body["reasoning"] = {"effort": effort}
         if use_web_search:
             body["tools"] = [{"type": "web_search"}]
         headers = {"Authorization": f"Bearer {self.key}", "Content-Type": "application/json"}

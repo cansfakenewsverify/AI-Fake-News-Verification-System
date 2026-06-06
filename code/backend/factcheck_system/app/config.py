@@ -28,16 +28,19 @@ class Settings(BaseSettings):
     # 以免被系統既有的同名環境變數覆寫（環境變數優先序高於 .env）。
     MYAI_API_KEY: str = ""          # 學校開發者金鑰（OpenAI 與 Claude 中繼共用）
 
-    # 主分析引擎：claude（推薦，擅長細緻判斷）或 openai；另一個自動作為備援
-    AI_PROVIDER: str = "claude"
+    # 主分析引擎：openai（gpt-5-mini，快又省）或 claude（品質最佳但貴 ~10 倍）；另一個自動備援
+    AI_PROVIDER: str = "openai"
 
-    # Claude 中繼（Anthropic Messages API 規格）
+    # Claude 中繼（Anthropic Messages API 規格）—— 備援/高品質用
     CLAUDE_RELAY_URL: str = "https://www.myai168.com/cgu/api/anthropic/v1"
     CLAUDE_MODEL: str = "claude-opus-4-8"
 
-    # OpenAI 中繼（Responses API 規格）
+    # OpenAI 中繼（Responses API 規格）—— 主力
     OPENAI_RELAY_URL: str = "https://www.myai168.com/cgu/api/openai/v1"
-    OPENAI_MODEL: str = "gpt-5"
+    OPENAI_MODEL: str = "gpt-5-mini"
+    # gpt-5 是推理模型，預設會花大量時間/token 思考。分類任務用 minimal/low 即可，
+    # 大幅加速並省點數（minimal 最快；設空字串則不帶此參數）。
+    OPENAI_REASONING_EFFORT: str = "low"
     STT_MODEL: str = "whisper-1"    # 影片語音轉文字（無字幕時的後備）
 
     # 向量 embedding：CGU LLM Gateway（OpenAI 相容，有 embeddings 端點，與 myai168 不同把金鑰）
