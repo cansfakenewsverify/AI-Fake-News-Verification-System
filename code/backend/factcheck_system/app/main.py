@@ -12,7 +12,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html
 
 from app.config import settings
-from app.api import analyze, admin as admin_api, feedback as feedback_api, trending as trending_api
+from app.api import (
+    analyze, admin as admin_api, feedback as feedback_api,
+    trending as trending_api, knowledge as knowledge_api,
+)
 from app.database_sql import init_sql_db
 
 # ── Logging setup ────────────────────────────────────────────
@@ -97,6 +100,7 @@ app.include_router(analyze.router)
 app.include_router(admin_api.router)
 app.include_router(feedback_api.router)
 app.include_router(trending_api.router)
+app.include_router(knowledge_api.router)
 
 # Static
 _static_dir = Path(__file__).resolve().parent.parent / "static"

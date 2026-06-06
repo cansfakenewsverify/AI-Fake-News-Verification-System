@@ -65,6 +65,7 @@ code/backend/factcheck_system/
 │   ├── config.py               所有設定(pydantic Settings，讀 .env)
 │   ├── api/analyze.py          /api/analyze/{text,url,sync,image,task}
 │   ├── api/trending.py         /api/trending(熱門列表) /refresh
+│   ├── api/knowledge.py        /api/knowledge(瀏覽/搜尋快取) /stats
 │   ├── services/
 │   │   ├── ai_service.py       ★雙引擎 AI(gpt-5-mini/claude)、web_search、STT、embedding
 │   │   ├── crawler.py          爬蟲 + 影片字幕/whisper 逐字稿
@@ -132,11 +133,13 @@ API 文件：http://localhost:8000/docs
 
 ## 8. 待辦 / 進行中（更新時請維護這段）
 
-- [x] 評測系統 + 150 筆資料集 + FP/FN 分析
+- [x] 評測系統 + 150 筆資料集 + FP/FN 分析（accuracy 96%、FN=0）
 - [x] 改用學校中繼 API（gpt-5-mini 主 / Claude 備援）+ CGU embedding
-- [ ] 前端：移除測試卡片、加資料庫內容檢視/查找
-- [ ] 前端 CSS 美化
+- [x] 前端：移除測試卡片、加「資料庫」分頁（瀏覽/搜尋/篩選快取內容）
+- [x] 前端 CSS 美化（漸層導覽、柔和背景、風險色卡、空狀態）
+- [x] 省點數開關（ENABLE_SCHEDULER 預設關、USE_WEB_SEARCH、gpt-5-mini+minimal）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
+- [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 
 ---
 

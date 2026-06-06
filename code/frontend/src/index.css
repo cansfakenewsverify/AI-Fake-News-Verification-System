@@ -6,8 +6,28 @@ body {
     'Microsoft JhengHei', 'PingFang TC', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafc;
+  background-color: #f6f7fb;
 }
+
+/* 整體背景：柔和的雙色光暈，比純色更有層次 */
+.app-bg {
+  background-color: #f6f7fb;
+  background-image:
+    radial-gradient(1100px 500px at 12% -8%, rgba(99, 102, 241, 0.10), transparent 60%),
+    radial-gradient(1000px 480px at 100% 0%, rgba(168, 85, 247, 0.08), transparent 55%);
+  background-attachment: fixed;
+}
+
+/* 細緻捲軸 */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; background-clip: content-box; }
 
 /* AI 分析中：脈動動效 */
 @keyframes shimmer {
