@@ -1,0 +1,143 @@
+# CLAUDE.md — 給 Claude Code 的專案說明
+
+> **這份檔案是給 AI 助理（Claude Code）看的專案地圖。**
+> **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
+> 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
+
+最後更新重點：AI 引擎已改用學校中繼閘道（gpt-5-mini 主、Claude 備援），embedding 走 CGU，評測 96% 完成。
+
+---
+
+## 1. 這個專案是什麼
+
+**全民查證公社 — AI 假訊息與詐騙查證系統**（學生專題 / 論文）。
+使用者貼上文字 / 網址 / 圖片 / 影片，系統用 AI 判定是 **詐騙(SCAM) / 假訊息(MISINFO) / 安全(SAFE)**，附上佐證來源。
+另有「今日熱門」自動抓取查核新聞、三層快取、向量檢索。
+
+- 前端：React 19 + Vite + Tailwind CSS（`code/frontend`）
+- 後端：FastAPI + Uvicorn（`code/backend/factcheck_system`）
+- 資料：SQLite（熱門記錄）+ Parquet（三層快取知識庫）
+
+---
+
+## 2. AI 引擎（重要！都走「學校中繼閘道」，不是直連官方）
+
+學校提供兩個 OpenAI 相容中繼閘道，**用同一概念的開發者金鑰**：
+
+| 用途 | 閘道 base_url | 模型 | .env 變數 |
+|------|--------------|------|-----------|
+| 文字/圖片分析（主） | `https://www.myai168.com/cgu/api/openai/v1` | `gpt-5-mini` | `OPENAI_RELAY_URL` / `OPENAI_MODEL` |
+| 分析備援（高品質） | `https://www.myai168.com/cgu/api/anthropic/v1` | `claude-opus-4-8` | `CLAUDE_RELAY_URL` / `CLAUDE_MODEL` |
+| 向量 embedding | `https://air.cgu.edu.tw/cgullmapi/v1` | `text-embedding-3-small`(1536維) | `EMBED_RELAY_URL` / `EMBED_API_KEY` |
+| 影片語音轉文字 | myai168 `/audio/transcriptions` | `whisper-1` | `STT_MODEL` |
+
+- **雙引擎**：`AI_PROVIDER`（`openai` 或 `claude`）決定主引擎，另一個自動當備援（主失敗才接手）。實作在 `app/services/ai_service.py` 的 `_run_analysis()`。
+- **金鑰命名刻意避開標準名**：用 `MYAI_API_KEY`、`CLAUDE_RELAY_URL`、`OPENAI_RELAY_URL`，**不要**用 `OPENAI_API_KEY` / `ANTHROPIC_BASE_URL`，否則會被系統既有的同名環境變數覆寫（pydantic 環境變數優先序高於 .env）。
+- myai168 與 CGU 是**兩個不同的閘道、不同金鑰、不同額度池**。CGU 有 `/v1/me/usage` 可查用量（$20 OpenAI 預算）。
+
+### 💰 點數/額度警告（最常踩雷）
+- 學校點數**有限**。`api_anthropic`(Claude Opus) 每次 ~135–1143 點；`api_openai`(gpt-5) 便宜約 10 倍。
+- `gpt-5` 是**推理模型**，預設思考很久（~20s/次、貴）。用 `gpt-5-mini` + `OPENAI_REASONING_EFFORT=minimal`（~6s/次、便宜）。
+- `web_search` 工具讓每次呼叫**貴 3–7 倍**。由 `USE_WEB_SEARCH` 控制；高量任務（評測、排程）請關掉。
+- **自動抓新聞排程預設關閉**（`ENABLE_SCHEDULER=false`），避免背景持續燒點數。要 24h 自動查證才開。
+
+---
+
+## 3. 三層快取（省最貴的 AI 呼叫）
+
+```
+輸入 → Layer 0: URL 快取 → Layer 1: 內容 Hash → Layer 2: 向量(餘弦相似) → Layer 3: AI 分析
+                                                                              │
+                                                       結果回填 knowledge_base ◄┘
+```
+- 實作：`app/workers/pandas_task_processor.py`（主流程）+ `app/services/pandas_store.py`（Parquet 存取）。
+- Layer 2 門檻 `SIMILARITY_THRESHOLD=0.88`（讓換句話說的相同謠言也命中）。改門檻要改 config，`find_similar_by_vector` 已讀 `settings`。
+- 沒設 `EMBED_API_KEY` 時 Layer 2 自動停用，URL/Hash 仍正常。
+
+---
+
+## 4. 主要檔案地圖
+
+```
+code/backend/factcheck_system/
+├── app/
+│   ├── main.py                 FastAPI 入口 + 排程器(opt-in)
+│   ├── config.py               所有設定(pydantic Settings，讀 .env)
+│   ├── api/analyze.py          /api/analyze/{text,url,sync,image,task}
+│   ├── api/trending.py         /api/trending(熱門列表) /refresh
+│   ├── services/
+│   │   ├── ai_service.py       ★雙引擎 AI(gpt-5-mini/claude)、web_search、STT、embedding
+│   │   ├── crawler.py          爬蟲 + 影片字幕/whisper 逐字稿
+│   │   ├── pandas_store.py      三層快取 Parquet
+│   │   ├── news_fetcher.py      熱門新聞兩階段流程
+│   │   └── search_service.py    RSS/Cofacts 聚合
+│   └── workers/pandas_task_processor.py  ★三層快取主流程
+├── scripts/
+│   ├── evaluate.py             ★評測(混淆矩陣/accuracy/FP/FN/--seed-db/--report-only)
+│   ├── check_db.py             看資料庫內容
+│   └── seed_data.py            灌範本
+├── data/
+│   ├── factcheck.db            SQLite(熱門記錄)  [gitignore]
+│   ├── knowledge_base.parquet  三層快取知識庫     [gitignore]
+│   ├── eval_set.csv            150 筆標註資料(50/50/50)
+│   ├── eval_report.csv / eval_binary.csv / eval_errors.csv  評測結果
+│   └── .env                    ★真實金鑰，已 gitignore，勿提交
+code/frontend/                  React + Vite + Tailwind
+assets/                         PlantUML 圖(usecase/sequence/activity) + confusion_matrix.png
+```
+
+---
+
+## 5. 常用指令
+
+```powershell
+# 一鍵啟動前後端（專案根目錄）
+.\start.bat
+
+# 後端（venv 在 code/backend/factcheck_system/venv）
+cd code\backend\factcheck_system
+.\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000
+
+# 看資料庫內容
+.\venv\Scripts\python scripts\check_db.py
+
+# 評測（會呼叫 AI、花點數）
+.\venv\Scripts\python scripts\evaluate.py --seed-db --delay 0
+# 只重算報告（不呼叫 AI、零點數）
+.\venv\Scripts\python scripts\evaluate.py --report-only
+```
+
+API 文件：http://localhost:8000/docs
+
+---
+
+## 6. 評測現況（論文數據）
+
+- 資料集 `data/eval_set.csv`：150 筆（SCAM/MISINFO/SAFE 各 50），含刻意設計的「像詐騙的合法官方訊息」當難題。
+- 最新結果（gpt-5-mini）：**accuracy 96.0%、macro-F1 0.960**。
+- 二分類偽陽性/偽陰性：**FN=0（從不漏判風險）、FP=5（誤報合法警示/政策）**。
+- 錯誤多為「模型對詐騙字眼過度反應」，把反詐宣導、政府補助公告誤判成 SCAM。
+
+---
+
+## 7. 慣例與注意事項
+
+- **Windows 主控台是 cp950**：`print()` **不要放 emoji / ✓✗**（會 `UnicodeEncodeError` 崩潰）。中文可以（Big5）。要輸出給人看的結果，寫成 UTF-8 檔再讀。
+- `.env` 已 gitignore（含真實金鑰）。改設定改 `.env`；範本改 `.env.example`。
+- runtime 檔（`*.db`、`*.parquet`）已 gitignore，不要提交。
+- commit 訊息結尾加 `Co-Authored-By: <model> <noreply@anthropic.com>`。
+- 大檔（如報告影片 895MB）放雲端，不進 git（GitHub 單檔上限 100MB）。
+
+---
+
+## 8. 待辦 / 進行中（更新時請維護這段）
+
+- [x] 評測系統 + 150 筆資料集 + FP/FN 分析
+- [x] 改用學校中繼 API（gpt-5-mini 主 / Claude 備援）+ CGU embedding
+- [ ] 前端：移除測試卡片、加資料庫內容檢視/查找
+- [ ] 前端 CSS 美化
+- [ ] （選）擴充 eval_set 到 300 筆、做信心校準
+
+---
+
+*提醒：改完任何東西，回來更新本檔對應段落（特別是第 2、6、8 段）。*
