@@ -35,6 +35,8 @@ ASSETS_DIR = os.path.normpath(os.path.join(ROOT, "..", "..", "..", "assets"))
 DEFAULT_INPUT = os.path.join(DATA_DIR, "eval_set.csv")
 PRED_PATH = os.path.join(DATA_DIR, "eval_predictions.csv")
 REPORT_PATH = os.path.join(DATA_DIR, "eval_report.csv")
+BINARY_PATH = os.path.join(DATA_DIR, "eval_binary.csv")     # 二分類 FP/FN
+ERRORS_PATH = os.path.join(DATA_DIR, "eval_errors.csv")     # 判錯案例(錯誤分析)
 CM_PATH = os.path.join(ASSETS_DIR, "confusion_matrix.png")
 
 
@@ -174,22 +176,35 @@ def compute_metrics(preds: pd.DataFrame):
     for i, lab in enumerate(LABELS):
         print(f"    {lab:8}" + "".join(f"{cm[i][j]:>9}" for j in range(len(LABELS))))
 
-    # ── 二分類視角（風險 vs 安全）：給論文算 FP/FN ──
+    # ── 二分類視角（風險 vs 安全）：給論文算偽陽性/偽陰性 ──
     def to_bin(x):
         return "SAFE" if x == "SAFE" else "RISK"
     yb_true = [to_bin(x) for x in y_true]
     yb_pred = [to_bin(x) for x in y_pred]
     bcm = confusion_matrix(yb_true, yb_pred, labels=["RISK", "SAFE"])
-    tp, fn = bcm[0][0], bcm[0][1]      # 真實有風險
-    fp, tn = bcm[1][0], bcm[1][1]      # 真實安全
-    print("\n  二分類（風險 vs 安全）：")
-    print(f"    TP={tp}  FP={fp}  FN={fn}  TN={tn}")
-    if tp + fp:
-        print(f"    Precision={tp / (tp + fp):.3f}  ", end="")
-    if tp + fn:
-        print(f"Recall={tp / (tp + fn):.3f}  ", end="")
-    if tn + fp:
-        print(f"Specificity={tn / (tn + fp):.3f}")
+    tp, fn = int(bcm[0][0]), int(bcm[0][1])   # 真實有風險：判對 / 漏判(偽陰性)
+    fp, tn = int(bcm[1][0]), int(bcm[1][1])   # 真實安全：誤判風險(偽陽性) / 判對
+    prec = tp / (tp + fp) if (tp + fp) else 0.0
+    rec = tp / (tp + fn) if (tp + fn) else 0.0          # 偵測率(抓到多少真風險)
+    spec = tn / (tn + fp) if (tn + fp) else 0.0         # 特異度
+    fpr = fp / (fp + tn) if (fp + tn) else 0.0          # 偽陽性率(誤報)
+    fnr = fn / (fn + tp) if (fn + tp) else 0.0          # 偽陰性率(漏報)
+    print("\n  二分類（風險 vs 安全）— 偽陽性/偽陰性：")
+    print(f"    TP={tp}  FP(偽陽性/誤報)={fp}  FN(偽陰性/漏報)={fn}  TN={tn}")
+    print(f"    Precision={prec:.3f}  Recall={rec:.3f}  Specificity={spec:.3f}")
+    print(f"    偽陽性率 FPR={fpr:.3f}  偽陰性率 FNR={fnr:.3f}")
+
+    # 存二分類指標（論文用）
+    pd.DataFrame([{
+        "TP": tp, "FP_偽陽性": fp, "FN_偽陰性": fn, "TN": tn,
+        "precision": round(prec, 3), "recall": round(rec, 3),
+        "specificity": round(spec, 3), "FPR_偽陽性率": round(fpr, 3),
+        "FNR_偽陰性率": round(fnr, 3),
+    }]).to_csv(BINARY_PATH, index=False, encoding="utf-8-sig")
+    print(f"  [v] 偽陽性/偽陰性指標已存：{BINARY_PATH}")
+
+    # ── 判錯案例輸出（錯誤分析）──
+    _save_error_cases(valid)
 
     # ── 存報告 CSV ──
     rep_rows = []
@@ -209,6 +224,33 @@ def compute_metrics(preds: pd.DataFrame):
     print(f"\n  [v] 報告已存：{REPORT_PATH}")
 
     _save_confusion_png(cm)
+
+
+def _save_error_cases(valid: pd.DataFrame):
+    """把判錯案例輸出成 CSV，標註偽陽性/偽陰性，供論文錯誤分析。"""
+    wrong = valid[valid["gold"] != valid["pred"]].copy()
+    if wrong.empty:
+        print("  (無判錯案例)")
+        return
+    # 用 id 補回完整內容與備註
+    try:
+        src = pd.read_csv(DEFAULT_INPUT)[["id", "content", "note"]]
+        wrong = wrong.drop(columns=[c for c in ["content"] if c in wrong.columns])
+        wrong = wrong.merge(src, on="id", how="left")
+    except Exception:
+        pass
+
+    def etype(r):
+        if r["gold"] == "SAFE" and r["pred"] != "SAFE":
+            return "偽陽性FP(安全被誤判為風險)"
+        if r["gold"] != "SAFE" and r["pred"] == "SAFE":
+            return "偽陰性FN(風險被誤判為安全)"
+        return "類別混淆(風險類型判錯)"
+
+    wrong["error_type"] = wrong.apply(etype, axis=1)
+    cols = [c for c in ["id", "gold", "pred", "error_type", "confidence", "note", "content"] if c in wrong.columns]
+    wrong[cols].to_csv(ERRORS_PATH, index=False, encoding="utf-8-sig")
+    print(f"  [v] 判錯案例已存：{ERRORS_PATH}（{len(wrong)} 筆）")
 
 
 def _save_confusion_png(cm):
@@ -263,7 +305,21 @@ def main():
     ap.add_argument("--resume", action="store_true", help="從上次中斷處續跑")
     ap.add_argument("--seed-db", action="store_true",
                     help="把判對的案例寫入 knowledge_base，建立可重用的查證快取")
+    ap.add_argument("--report-only", action="store_true",
+                    help="只用現有 eval_predictions.csv 重算指標（不呼叫 AI、不花點數）")
     args = ap.parse_args()
+
+    # 只重算報告：不呼叫任何 AI，零點數
+    if args.report_only:
+        if not os.path.exists(PRED_PATH):
+            print(f"[ERR] 找不到 {PRED_PATH}，請先跑過一次評測")
+            sys.exit(1)
+        preds = pd.read_csv(PRED_PATH)
+        preds["errored"] = preds["errored"].astype(bool)
+        print(f"重算報告：{len(preds)} 筆（未呼叫 AI、零點數）\n")
+        compute_metrics(preds)
+        print("\n 報告重算完成。")
+        return
 
     if not os.path.exists(args.input):
         print(f"[ERR] 找不到標註資料：{args.input}")

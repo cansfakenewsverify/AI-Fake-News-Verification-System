@@ -1,0 +1,2 @@
+﻿TP,FP_偽陽性,FN_偽陰性,TN,precision,recall,specificity,FPR_偽陽性率,FNR_偽陰性率
+100,5,0,45,0.952,1.0,0.9,0.1,0.0
