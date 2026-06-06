@@ -57,6 +57,21 @@ def _strip_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text or "").strip()
 
 
+_CJK_RE = re.compile(r"[一-鿿]")
+
+
+def _is_real_text(text: str) -> bool:
+    """是否為真正的「訊息文字」：非純網址、夠長、含中文、不是標籤雲。"""
+    t = (text or "").strip()
+    if not t or t.startswith(("http://", "https://")):
+        return False
+    if len(t) < 8 or not _CJK_RE.search(t):
+        return False
+    if t.count(",") >= 8 or t.count("，") >= 8:   # 標籤雲 / 關鍵字列表
+        return False
+    return True
+
+
 def _parse_rss_xml(xml_bytes: bytes, source_name: str, num: int) -> List[Dict]:
     """Parse RSS or Atom XML into normalized items."""
     try:
@@ -170,18 +185,23 @@ class SearchService:
 
     @staticmethod
     def _fetch_cofacts(num: int = 5) -> List[Dict]:
-        """Fetch trending hoax messages from Cofacts (collaborative fact-check)."""
+        """
+        從 Cofacts 取「已被查核為謠言(RUMOR)」的訊息。
+        重點：只收有 RUMOR 回覆的文章（真的被判定為假訊息），而不是剛被提交、
+        尚未查證的訊息——後者多半是個人訊息、垃圾或純網址，不能當成已查核假訊息。
+        """
         query = """
         query ListArticles($first: Int) {
           ListArticles(
-            orderBy: [{lastRequestedAt: DESC}],
-            filter: {replyRequestCount: {GTE: 1}},
+            filter: {replyCount: {GTE: 1}},
+            orderBy: [{lastRepliedAt: DESC}],
             first: $first
           ) {
             edges {
               node {
                 id
                 text
+                articleReplies(status: NORMAL) { reply { type } }
               }
             }
           }
@@ -190,8 +210,8 @@ class SearchService:
         try:
             resp = requests.post(
                 "https://api.cofacts.tw/graphql",
-                json={"query": query, "variables": {"first": num}},
-                timeout=10,
+                json={"query": query, "variables": {"first": num * 3}},
+                timeout=12,
             )
             resp.raise_for_status()
             edges = resp.json().get("data", {}).get("ListArticles", {}).get("edges", [])
@@ -199,8 +219,12 @@ class SearchService:
             for e in edges:
                 node = e.get("node", {})
                 aid = node.get("id", "")
-                text = node.get("text", "") or ""
-                if not aid or not text:
+                text = (node.get("text", "") or "").strip()
+                types = {(r.get("reply") or {}).get("type")
+                         for r in (node.get("articleReplies") or [])}
+                if "RUMOR" not in types:        # 沒有「謠言」判定 → 跳過
+                    continue
+                if not aid or not _is_real_text(text):
                     continue
                 items.append({
                     "url": f"https://cofacts.tw/article/{aid}",
@@ -208,7 +232,10 @@ class SearchService:
                     "summary": text[:500],
                     "published": "",
                     "source": "Cofacts",
+                    "verdict": "RUMOR",          # 已查核為謠言
                 })
+                if len(items) >= num:
+                    break
             return items
         except Exception:
             return []

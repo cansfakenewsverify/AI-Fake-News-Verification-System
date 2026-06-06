@@ -81,6 +81,33 @@ def _extract_claim_from_title(title: str) -> str:
     return s.strip()
 
 
+_CJK_RE = re.compile(r"[一-鿿]")
+# MyGoPen / TFC 標題若帶這些查核標籤，代表已判定為不實
+_FALSE_TAG_RE = re.compile(r"^【[^】]*(錯誤|誤導|謠言|不實|易誤解|假)[^】]*】")
+
+
+def _is_real_claim(claim: str) -> bool:
+    """是否為可索引的真實主張：非網址、含中文、不太短、非標籤雲。"""
+    c = (claim or "").strip()
+    if not c or c.startswith(("http://", "https://")):
+        return False
+    if len(c) < 6 or not _CJK_RE.search(c):
+        return False
+    if c.count(",") >= 8 or c.count("，") >= 8:
+        return False
+    return True
+
+
+def _title_says_false(title: str) -> bool:
+    """標題帶【錯誤/誤導/假…】等查核標籤 → 已判定不實。"""
+    return bool(_FALSE_TAG_RE.match((title or "").strip()))
+
+
+def _is_confirmed_false(item: dict, title: str) -> bool:
+    """是否「明確被判定為假訊息」：Cofacts 的 RUMOR 判定，或標題帶查核標籤。"""
+    return (item or {}).get("verdict") == "RUMOR" or _title_says_false(title)
+
+
 def _is_ai_fallback(ai_result: dict) -> bool:
     if not isinstance(ai_result, dict):
         return True
@@ -94,8 +121,8 @@ def _index_factcheck_claim(url: str, title: str, source_meta: dict):
     so future user queries about this claim hit the cache.
     """
     claim = _extract_claim_from_title(title)
-    if not claim or len(claim) < 5:
-        print(f"[NewsFetcher]   claim too short, skip indexing")
+    if not _is_real_claim(claim):
+        print(f"[NewsFetcher]   not a real claim, skip indexing: {claim[:30]}")
         return
 
     content_hash = _cache_service.generate_hash(claim)
@@ -157,27 +184,27 @@ def _save_rss_record(item: dict):
         rec.updated_at = datetime.utcnow()
 
         source = _detect_source(url)
-        if source:
-            # Fact-check sources are authoritative: ALWAYS overwrite
-            # (e.g. previous AI runs may have wrongly classified these as SAFE)
-            should_overwrite = (
-                source.get("is_factcheck", False)
-                or not rec.risk_type
-                or rec.risk_type in ("PENDING", "UNKNOWN", None)
-            )
-            if should_overwrite:
-                rec.risk_type = source["risk_type"]
+        confirmed_false = _is_confirmed_false(item, title)
+
+        if source and source.get("risk_type") == "SAFE":
+            if not rec.risk_type or rec.risk_type in ("PENDING", "UNKNOWN", None):
+                rec.risk_type = "SAFE"
                 rec.category = source["category"]
-                rec.ai_score = 0.95
-                claim = _extract_claim_from_title(title)
-                rec.ai_summary = f"[{source['name']}] {claim or title}"
+                rec.ai_score = 0.9
+        elif source and source.get("is_factcheck") and confirmed_false:
+            # 只有「明確被判定為假訊息」才標 MISINFO
+            rec.risk_type = "MISINFO"
+            rec.category = source["category"]
+            rec.ai_score = 0.95
+            claim = _extract_claim_from_title(title)
+            rec.ai_summary = f"[{source['name']}] {claim or title}"
         elif not rec.risk_type:
-            rec.risk_type = "PENDING"
+            rec.risk_type = "PENDING"   # 尚未查證
 
         db.commit()
 
-        # Phase 2: index the false claim into knowledge_base
-        if source and source.get("is_factcheck"):
+        # Phase 2: 只索引「確定不實 + 真實主張」的項目進知識庫
+        if source and source.get("is_factcheck") and confirmed_false:
             _index_factcheck_claim(url, title, source)
     finally:
         db.close()
@@ -196,8 +223,10 @@ def _get_pending_records(limit: int = 10) -> List[FactCheckRecord]:
 
 def _cleanup_legacy_strings():
     """
-    Fix old '等待 AI 分析' placeholders.
-    Force-reclassify ALL records from fact-check sites (overwriting wrong AI verdicts).
+    修正舊資料：
+      - 帶查核標籤的假訊息 → MISINFO（並索引）
+      - 來自查核站但沒有不實標籤（如 TFC 小考題/標籤雲/純網址）→ 改回 PENDING
+      - 舊的「等待 AI 分析」占位字串 → PENDING
     """
     db = SessionLocal()
     try:
@@ -207,15 +236,21 @@ def _cleanup_legacy_strings():
         fixed = 0
         for r in all_trending:
             source = _detect_source(r.source_url)
+            title = r.news_title or ""
             if source and source.get("is_factcheck"):
-                # Always overwrite for fact-check sources
-                r.risk_type = source["risk_type"]
-                r.category = source["category"]
-                r.ai_score = 0.95
-                claim = _extract_claim_from_title(r.news_title or "")
-                r.ai_summary = f"[{source['name']}] {claim or r.news_title}"
-                _index_factcheck_claim(r.source_url, r.news_title or "", source)
-                fixed += 1
+                if _title_says_false(title):
+                    r.risk_type = "MISINFO"
+                    r.category = source["category"]
+                    r.ai_score = 0.95
+                    claim = _extract_claim_from_title(title)
+                    r.ai_summary = f"[{source['name']}] {claim or title}"
+                    _index_factcheck_claim(r.source_url, title, source)
+                    fixed += 1
+                elif r.risk_type == "MISINFO":
+                    # 之前被誤標成假訊息，但其實沒有不實判定 → 退回未查證
+                    r.risk_type = "PENDING"
+                    r.ai_summary = None
+                    fixed += 1
             elif r.ai_summary == "等待 AI 分析":
                 r.ai_summary = None
                 r.risk_type = "PENDING"
