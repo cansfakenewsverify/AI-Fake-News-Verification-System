@@ -4,7 +4,8 @@
 > **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
 > 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
 
-最後更新重點：AI 引擎已改用學校中繼閘道（gpt-5-mini 主、Claude 備援），embedding 走 CGU，評測 96% 完成。
+最後更新重點：AI 引擎走學校中繼閘道（gpt-5-mini 主、Claude 備援）、embedding 走 CGU、評測 96%；
+熱門/資料庫誤標已修（只在確定不實才標假訊息）、卡片風格統一（InfoCard）、knowledge_base 已提交 178 筆 demo 種子。
 
 ---
 
@@ -78,11 +79,13 @@ code/backend/factcheck_system/
 │   ├── check_db.py             看資料庫內容
 │   └── seed_data.py            灌範本
 ├── data/
-│   ├── factcheck.db            SQLite(熱門記錄)  [gitignore]
-│   ├── knowledge_base.parquet  三層快取知識庫     [gitignore]
+│   ├── factcheck.db            SQLite(熱門記錄)  [本機 runtime，未提交]
+│   ├── knowledge_base.parquet  三層快取知識庫     [★已提交 178 筆 demo 種子；
+│   │                            是 runtime 快取，用過後會顯示 modified→那些變動不用 commit]
 │   ├── eval_set.csv            150 筆標註資料(50/50/50)
-│   ├── eval_report.csv / eval_binary.csv / eval_errors.csv  評測結果
-│   └── .env                    ★真實金鑰，已 gitignore，勿提交
+│   ├── tasks.parquet           非同步任務狀態      [runtime]
+│   └── eval_report.csv / eval_binary.csv / eval_errors.csv  評測結果
+├── .env                        ★真實金鑰(在 factcheck_system 根目錄)，已 gitignore，勿提交
 code/frontend/                  React + Vite + Tailwind
 assets/                         PlantUML 圖(usecase/sequence/activity) + confusion_matrix.png
 ```
@@ -151,6 +154,19 @@ API 文件：http://localhost:8000/docs
   「來自查核網站」就整批標成假訊息（這是先前的 bug）。
 - `_is_real_claim()`：純網址 / 無中文 / 標籤雲 / 太短 → 不索引進 knowledge_base。
 
+## 10. 查證紀錄儲存 & 是否需要登入
+
+| 資料 | 存在哪 | 是否持久 / 分使用者 |
+|------|--------|---------------------|
+| 使用者送出的查證（動態牆 posts） | 前端 React state（記憶體） | ❌ 重整就消失、不分使用者 |
+| AI 判定結果（快取） | `knowledge_base.parquet` | ✅ 持久，但**全站共用、匿名**（非個人歷史） |
+| 今日熱門 | `factcheck.db`（SQLite） | ✅ 持久 |
+| 非同步任務狀態 | `tasks.parquet` | 暫時 |
+
+- **目前沒有使用者帳號 / 登入系統**，也沒有「個人查證歷史」。這是公開查證工具的合理設計。
+- **thesis 不建議加登入**（過度設計、牽涉帳密安全）。若要「重整後動態牆還在」→ 用瀏覽器
+  `localStorage`（方案 A，不用登入、不用改後端）。只有要「跨裝置看個人歷史」才需要會員系統（方案 B）。
+
 ---
 
-*提醒：改完任何東西，回來更新本檔對應段落（特別是第 2、6、8 段）。*
+*提醒：改完任何東西，回來更新本檔對應段落（特別是第 2、6、8、9 段）。*
