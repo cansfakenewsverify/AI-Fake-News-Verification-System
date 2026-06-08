@@ -90,6 +90,34 @@ function AiResultCard({ result }) {
   );
 }
 
+// === 共用資訊卡片（資料庫 / 今日熱門共用同一風格）===
+function InfoCard({ riskType, title, subtitle, category, metaRight, href, rank }) {
+  const s = getAiCardStyle(riskType);
+  const inner = (
+    <div className={`bg-white rounded-2xl border ${s.wrapper} shadow-sm overflow-hidden relative fade-in ${href ? 'hover:shadow-md transition-shadow' : ''}`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${s.accent}`} />
+      <div className="p-4 pl-5">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          {rank != null && <span className="text-slate-300 font-extrabold text-sm">{rank}</span>}
+          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${s.chip}`}>{s.icon} {s.shortLabel}</span>
+          {category && <span className="text-[11px] text-slate-500">{category}</span>}
+          {metaRight && <span className="text-[10px] text-slate-400 ml-auto">{metaRight}</span>}
+        </div>
+        <p className="text-[14px] text-slate-800 leading-relaxed line-clamp-3">{title}</p>
+        {subtitle && subtitle !== title && (
+          <p className="text-[12.5px] text-slate-500 leading-snug mt-2 border-t border-black/5 pt-2 line-clamp-2">{subtitle}</p>
+        )}
+        {href && <span className="inline-flex items-center gap-1 text-[12px] text-indigo-600 mt-2">🔗 查看來源</span>}
+      </div>
+    </div>
+  );
+  return href
+    ? <a href={href} target="_blank" rel="noopener noreferrer" className="block">{inner}</a>
+    : inner;
+}
+
+const confLabel = (v) => v == null ? null : (v >= 0.8 ? '高' : v >= 0.5 ? '中' : '低');
+
 // === 今日熱門趨勢 ===
 function TrendingSection() {
   const [records, setRecords] = useState([]);
@@ -135,8 +163,9 @@ function TrendingSection() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+    <div className="flex flex-col gap-3">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg">🔥</span>
           <span className="font-bold text-slate-800">今日熱門趨勢</span>
@@ -149,43 +178,28 @@ function TrendingSection() {
             : '↻'} 立即更新
         </button>
       </div>
+      {/* Items（與資料庫同款卡片）*/}
       {loading ? (
-        <div className="p-4 flex flex-col gap-3">{[1,2,3].map(i => <div key={i} className="h-14 rounded-xl shimmer" />)}</div>
+        <div className="flex flex-col gap-3">{[1,2,3].map(i => <div key={i} className="h-20 rounded-2xl shimmer" />)}</div>
       ) : records.length === 0 ? (
-        <div className="px-4 py-8 text-center text-slate-400 text-sm">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-8 text-center text-slate-400 text-sm">
           <div className="text-3xl mb-2">📭</div>
           <div>尚無趨勢資料</div>
           <div className="text-xs mt-1">點「立即更新」觸發 AI 抓取熱門新聞</div>
         </div>
       ) : (
-        <div className="divide-y divide-slate-50">
-          {records.map((rec, i) => {
-            const style = getAiCardStyle(rec.risk_type);
-            return (
-              <a key={rec.id} href={rec.source_url || '#'} target="_blank" rel="noopener noreferrer"
-                className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors group">
-                <span className="text-slate-300 font-bold text-sm w-5 flex-shrink-0 mt-0.5">{i + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] text-slate-800 leading-snug line-clamp-2 group-hover:text-indigo-700 transition-colors">
-                    {rec.news_title || rec.ai_summary || rec.source_url}
-                  </p>
-                  {rec.ai_summary && rec.news_title && rec.ai_summary !== rec.news_title && (
-                    <p className="text-[11px] text-slate-500 leading-snug line-clamp-1 mt-0.5">{rec.ai_summary}</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${style.chipSmall}`}>{style.shortLabel}</span>
-                    {rec.category && <span className="text-[10px] text-slate-400">{rec.category}</span>}
-                    {rec.ai_score != null && (
-                      <span className="text-[10px] text-slate-400 cursor-help" title="模型自評信心，未經機率校準">
-                        信心：{rec.ai_score >= 0.8 ? '高' : rec.ai_score >= 0.5 ? '中' : '低'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </a>
-            );
-          })}
-        </div>
+        records.map((rec, i) => (
+          <InfoCard
+            key={rec.id}
+            rank={i + 1}
+            riskType={rec.risk_type}
+            title={rec.news_title || rec.ai_summary || rec.source_url}
+            subtitle={rec.ai_summary && rec.ai_summary !== rec.news_title ? rec.ai_summary : null}
+            category={rec.category}
+            metaRight={rec.ai_score != null ? `信心：${confLabel(rec.ai_score)}` : null}
+            href={rec.source_url || null}
+          />
+        ))
       )}
     </div>
   );
@@ -283,30 +297,15 @@ function KnowledgeSection() {
       ) : (
         <div className="flex flex-col gap-3">
           {records.map((rec, i) => {
-            const s = getAiCardStyle(rec.risk_type);
             return (
-              <div key={i} className={`bg-white rounded-2xl border ${s.wrapper} shadow-sm overflow-hidden relative fade-in`}>
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${s.accent}`} />
-                <div className="p-4 pl-5">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${s.chip}`}>{s.icon} {s.shortLabel}</span>
-                    {rec.category && <span className="text-[11px] text-slate-500">{rec.category}</span>}
-                    {rec.hit_count > 0 && <span className="text-[10px] text-slate-400 ml-auto">命中 {rec.hit_count} 次</span>}
-                  </div>
-                  <p className="text-[14px] text-slate-800 leading-relaxed line-clamp-3">{rec.raw_content}</p>
-                  {rec.summary && rec.summary !== rec.raw_content && (
-                    <p className="text-[12.5px] text-slate-500 leading-snug mt-2 border-t border-black/5 pt-2 line-clamp-2">
-                      {rec.summary}
-                    </p>
-                  )}
-                  {rec.source_url && (
-                    <a href={rec.source_url} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[12px] text-indigo-600 hover:text-indigo-800 mt-2">
-                      🔗 查核來源
-                    </a>
-                  )}
-                </div>
-              </div>
+              <InfoCard key={i}
+                riskType={rec.risk_type}
+                title={rec.raw_content}
+                subtitle={rec.summary}
+                category={rec.category}
+                metaRight={rec.hit_count > 0 ? `命中 ${rec.hit_count} 次` : null}
+                href={rec.source_url || null}
+              />
             );
           })}
         </div>

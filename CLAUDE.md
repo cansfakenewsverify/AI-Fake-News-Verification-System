@@ -138,8 +138,18 @@ API 文件：http://localhost:8000/docs
 - [x] 前端：移除測試卡片、加「資料庫」分頁（瀏覽/搜尋/篩選快取內容）
 - [x] 前端 CSS 美化（漸層導覽、柔和背景、風險色卡、空狀態）
 - [x] 省點數開關（ENABLE_SCHEDULER 預設關、USE_WEB_SEARCH、gpt-5-mini+minimal）
+- [x] 修正熱門/資料庫誤標：只在「確定不實」才標假訊息（Cofacts RUMOR 判定 /
+      MyGoPen·TFC【錯誤/誤導/假】標籤）；Cofacts 改抓 RUMOR-verified；其餘標 PENDING
+- [x] 統一卡片風格 InfoCard：今日熱門/資料庫同款卡片；PENDING 顯示「未查證」；
+      /api/trending 已查證優先
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
+
+## 9. 標記規則（重要，勿退回舊邏輯）
+- **只有「確定不實」才標 MISINFO**：Cofacts 文章需有 `RUMOR` 回覆；MyGoPen/TFC
+  標題需帶【錯誤/誤導/謠言/不實/易誤解/假】。其餘一律 `PENDING`（未查證），不要因為
+  「來自查核網站」就整批標成假訊息（這是先前的 bug）。
+- `_is_real_claim()`：純網址 / 無中文 / 標籤雲 / 太短 → 不索引進 knowledge_base。
 
 ---
 

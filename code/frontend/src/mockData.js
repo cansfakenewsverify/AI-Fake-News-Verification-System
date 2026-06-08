@@ -43,9 +43,9 @@ export const RISK_STYLES = {
     chip: 'bg-slate-400 text-white',
     chipSmall: 'bg-slate-100 text-slate-500',
     title: 'text-slate-700',
-    icon: '⏳',
-    label: 'AI 分析中',
-    shortLabel: 'AI 分析中',
+    icon: '🔎',
+    label: '尚未查證',
+    shortLabel: '未查證',
   },
   UNKNOWN: {
     wrapper: 'bg-gradient-to-br from-slate-50 to-gray-50 border-slate-200',
