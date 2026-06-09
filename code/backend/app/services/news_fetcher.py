@@ -161,7 +161,7 @@ def _index_factcheck_claim(url: str, title: str, source_meta: dict):
         ai_result=ai_result,
         source_url=url,
     )
-    print(f"[NewsFetcher]   ✓ indexed claim: '{claim}' -> MISINFO")
+    print(f"[NewsFetcher]   indexed claim: '{claim}' -> MISINFO")
 
 
 def _save_rss_record(item: dict):

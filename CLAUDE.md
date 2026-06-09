@@ -158,6 +158,8 @@ API 文件：http://localhost:8000/docs
 - [x] 統一卡片風格 InfoCard：今日熱門/資料庫同款卡片；PENDING 顯示「未查證」；
       /api/trending 已查證優先
 - [x] 目錄攤平：`code/backend/factcheck_system/*` → `code/backend/`；刪死檔/alembic/inner pkg
+- [x] 修正熱門「全是 Cofacts 個人對話」：`api/trending.py` 改真新聞(MyGoPen/TFC/Google)
+      優先、Cofacts 個人投稿限量(≤3)排到最後，避免單一來源洗版
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 
