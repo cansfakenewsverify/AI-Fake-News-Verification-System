@@ -90,12 +90,15 @@ class CrawlerService:
                 if extracted:
                     # 取得標題和元數據
                     metadata = trafilatura.extract_metadata(downloaded)
+                    raw_author = metadata.author if metadata else None
+                    if isinstance(raw_author, list):
+                        raw_author = raw_author[0] if raw_author else None
                     result = {
                         'success': True,
                         'url': url,
                         'title': metadata.title if metadata else None,
                         'content': extracted,
-                        'author': metadata.author if metadata else None,
+                        'author': raw_author,
                         'date': metadata.date if metadata else None,
                         'source': metadata.sitename if metadata else None,
                     }
