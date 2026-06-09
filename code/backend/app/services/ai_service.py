@@ -229,7 +229,10 @@ class AIService:
         effort = (reasoning_effort or "").strip()
         if effort:
             body["reasoning"] = {"effort": effort}
-        if use_web_search:
+        # gpt-5 的 minimal 推理模式不支援 web_search 工具(帶了會 HTTP 400)。
+        # minimal 本就是省點數模式，跳過搜尋讓此 provider 維持可用，
+        # 不必 fallback 到貴 10 倍的 claude。
+        if use_web_search and effort != "minimal":
             body["tools"] = [{"type": "web_search"}]
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         r = requests.post(f"{base_url}/responses", headers=headers, json=body, timeout=150)

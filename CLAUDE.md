@@ -45,6 +45,8 @@
 - 學校點數**有限**。`api_anthropic`(Claude Opus) 每次 ~135–1143 點；`api_openai`(gpt-5) 便宜約 10 倍。
 - `gpt-5` 是**推理模型**，預設思考很久（~20s/次、貴）。用 `gpt-5-mini` + `OPENAI_REASONING_EFFORT=minimal`（~6s/次、便宜）。
 - `web_search` 工具讓每次呼叫**貴 3–7 倍**。由 `USE_WEB_SEARCH` 控制；高量任務（評測、排程）請關掉。
+- ⚠️ **minimal 推理與 web_search 不相容**：gpt-5-mini 在 `OPENAI_REASONING_EFFORT=minimal` 下帶 web_search 會 HTTP 400。
+  `ai_service._responses_analyze` 已自動在 minimal 時跳過 web_search（openai/cgu 共用此引擎），否則每次都失敗後 fallback 到貴 10 倍的 claude。
 - **自動抓新聞排程預設關閉**（`ENABLE_SCHEDULER=false`），避免背景持續燒點數。要 24h 自動查證才開。
 
 ---
