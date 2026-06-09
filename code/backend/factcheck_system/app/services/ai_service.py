@@ -1,15 +1,15 @@
 """
-AI 分析服務 — 透過學校 myai168 中繼閘道（同一把金鑰可呼叫多個中繼）。
+AI 分析服務 — 支援 myai168 與 CGU AIR Gateway。
 
-雙引擎設計（最優效率 + 韌性）：
-- 主引擎 Claude Opus（/anthropic/v1/messages）：擅長細緻的假訊息/詐騙判斷
-- 備援 OpenAI gpt-5（/openai/v1/responses）：主引擎失敗（額度/錯誤）時自動接手
-- 兩者皆啟用 web_search 即時佐證，回傳真實引用來源
+多引擎設計（最優效率 + 韌性）：
+- myai168 Claude（/anthropic/v1/messages）：擅長細緻的假訊息/詐騙判斷
+- myai168 OpenAI（/openai/v1/responses）：快、省點數
+- CGU AIR Gateway（/cgullmapi/v1/responses）：OpenAI 相容新增選項，不取代原方案
 
 其他能力：
-- 圖片查證：Claude / OpenAI 視覺（OCR + 判讀）
-- 影片語音轉文字：/openai/v1/audio/transcriptions（whisper），無字幕時的後備
-- Embedding：中繼無此端點 → 可選用 Gemini（設 GOOGLE_API_KEY）否則停用向量層
+- 圖片查證：Claude / OpenAI-compatible 視覺（OCR + 判讀，依模型支援度）
+- 影片語音轉文字：/audio/transcriptions，無字幕時的後備
+- Embedding：CGU AIR /embeddings 主，Gemini 備援
 """
 import base64
 import json
@@ -103,24 +103,38 @@ def _default_fallback_result(err_msg: str) -> Dict[str, Any]:
 
 
 class AIService:
-    """雙引擎 AI 分析服務（Claude 主、OpenAI 備援，皆走學校中繼）。"""
+    """多引擎 AI 分析服務（myai168 OpenAI/Claude + CGU AIR Gateway）。"""
 
     def __init__(self):
-        self.key = (settings.MYAI_API_KEY or "").strip()        # 閘道共用金鑰
+        self.myai_key = (settings.MYAI_API_KEY or "").strip()   # myai168 共用金鑰
+        self.cgu_key = (settings.CGU_API_KEY or "").strip()     # CGU AIR Gateway 金鑰
         self.claude_base = (settings.CLAUDE_RELAY_URL or "").rstrip("/")
         self.openai_base = (settings.OPENAI_RELAY_URL or "").rstrip("/")
+        self.cgu_base = (settings.CGU_BASE_URL or "").rstrip("/")
         self.claude_model = settings.CLAUDE_MODEL or "claude-opus-4-8"
         self.openai_model = settings.OPENAI_MODEL or "gpt-5"
-        self._available = bool(self.key and self.claude_base and self.openai_base)
+        self.cgu_model = settings.CGU_MODEL or "gpt-5.4-mini"
 
-        primary = (settings.AI_PROVIDER or "claude").lower()
-        if primary not in ("claude", "openai"):
-            primary = "claude"
-        # 主引擎優先，另一個自動作為備援
-        self.providers = [primary, "openai" if primary == "claude" else "claude"]
+        self.provider_available = {
+            "openai": bool(self.myai_key and self.openai_base),
+            "claude": bool(self.myai_key and self.claude_base),
+            "cgu": bool(self.cgu_key and self.cgu_base),
+        }
+        self._available = any(self.provider_available.values())
+
+        primary = (settings.AI_PROVIDER or "openai").lower()
+        if primary not in ("openai", "claude", "cgu"):
+            primary = "openai"
+        # 主引擎優先，其他可用 provider 自動備援；不移除原本 myai168 方案。
+        fallback_order = {
+            "cgu": ["cgu", "openai", "claude"],
+            "openai": ["openai", "claude", "cgu"],
+            "claude": ["claude", "openai", "cgu"],
+        }
+        self.providers = [p for p in fallback_order[primary] if self.provider_available.get(p)]
 
         if not self._available:
-            print("[AI] 未設定 OPENAI_API_KEY / 中繼 BASE_URL，AI 分析將回傳 fallback 結果")
+            print("[AI] 未設定可用 AI provider 金鑰 / BASE_URL，AI 分析將回傳 fallback 結果")
 
     # ── 共用解析工具 ─────────────────────────────────────────────
     @staticmethod
@@ -157,7 +171,7 @@ class AIService:
         }
         if use_web_search:
             body["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}]
-        headers = {"x-api-key": self.key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
+        headers = {"x-api-key": self.myai_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
         r = requests.post(f"{self.claude_base}/messages", headers=headers, json=body, timeout=150)
         r.raise_for_status()
         data = r.json()
@@ -184,8 +198,18 @@ class AIService:
                     sources.append({"title": c.get("title") or u, "url": u})
         return sources[:5]
 
-    # ── OpenAI 引擎 ──────────────────────────────────────────────
-    def _openai_analyze(self, prompt_text: str, image: Optional[dict], use_web_search: bool) -> Dict[str, Any]:
+    # ── OpenAI-compatible Responses 引擎 ─────────────────────────
+    def _responses_analyze(
+        self,
+        provider_name: str,
+        base_url: str,
+        api_key: str,
+        model: str,
+        reasoning_effort: str,
+        prompt_text: str,
+        image: Optional[dict],
+        use_web_search: bool,
+    ) -> Dict[str, Any]:
         if image:
             input_payload: Any = [{
                 "role": "user",
@@ -196,26 +220,56 @@ class AIService:
             }]
         else:
             input_payload = prompt_text
-        body: Dict[str, Any] = {"model": self.openai_model, "input": input_payload}
+        body: Dict[str, Any] = {
+            "model": model,
+            "input": input_payload,
+            "max_output_tokens": 2000,
+        }
         # gpt-5 推理強度：low/minimal 大幅加速並省點數（分類任務足夠）
-        effort = (settings.OPENAI_REASONING_EFFORT or "").strip()
+        effort = (reasoning_effort or "").strip()
         if effort:
             body["reasoning"] = {"effort": effort}
         if use_web_search:
             body["tools"] = [{"type": "web_search"}]
-        headers = {"Authorization": f"Bearer {self.key}", "Content-Type": "application/json"}
-        r = requests.post(f"{self.openai_base}/responses", headers=headers, json=body, timeout=150)
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        r = requests.post(f"{base_url}/responses", headers=headers, json=body, timeout=150)
         r.raise_for_status()
         data = r.json()
         text = self._openai_output_text(data)
         if not text.strip():
-            raise ValueError("OpenAI 回傳無內容")
+            raise ValueError(f"{provider_name} 回傳無內容")
         result = self._parse_json_loose(text)
         self._validate_result(result)
         cites = self._openai_citations(data)
         if cites:
             result["sources"] = cites
         return result
+
+    # ── myai168 OpenAI 引擎 ─────────────────────────────────────
+    def _openai_analyze(self, prompt_text: str, image: Optional[dict], use_web_search: bool) -> Dict[str, Any]:
+        return self._responses_analyze(
+            provider_name="OpenAI",
+            base_url=self.openai_base,
+            api_key=self.myai_key,
+            model=self.openai_model,
+            reasoning_effort=settings.OPENAI_REASONING_EFFORT,
+            prompt_text=prompt_text,
+            image=image,
+            use_web_search=use_web_search,
+        )
+
+    # ── CGU AIR Gateway 引擎（OpenAI 相容 Responses API）────────
+    def _cgu_analyze(self, prompt_text: str, image: Optional[dict], use_web_search: bool) -> Dict[str, Any]:
+        return self._responses_analyze(
+            provider_name="CGU",
+            base_url=self.cgu_base,
+            api_key=self.cgu_key,
+            model=self.cgu_model,
+            reasoning_effort=settings.CGU_REASONING_EFFORT,
+            prompt_text=prompt_text,
+            image=image,
+            use_web_search=use_web_search,
+        )
 
     @staticmethod
     def _openai_output_text(data: dict) -> str:
@@ -247,7 +301,11 @@ class AIService:
         last_err = ""
         for prov in self.providers:
             try:
-                fn = self._claude_analyze if prov == "claude" else self._openai_analyze
+                fn = {
+                    "claude": self._claude_analyze,
+                    "openai": self._openai_analyze,
+                    "cgu": self._cgu_analyze,
+                }[prov]
                 return fn(prompt_text, image, use_web_search)
             except requests.exceptions.HTTPError as e:
                 last_err = f"{prov} HTTP {getattr(e.response,'status_code','?')}: {(getattr(e.response,'text','') or '')[:160]}"
@@ -259,7 +317,11 @@ class AIService:
         if use_web_search:
             try:
                 prov = self.providers[0]
-                fn = self._claude_analyze if prov == "claude" else self._openai_analyze
+                fn = {
+                    "claude": self._claude_analyze,
+                    "openai": self._openai_analyze,
+                    "cgu": self._cgu_analyze,
+                }[prov]
                 return fn(prompt_text, image, False)
             except Exception as e:
                 last_err = f"{self.providers[0]}(no-search): {e}"
@@ -270,7 +332,7 @@ class AIService:
                         context: Optional[Dict[str, Any]] = None,
                         use_web_search: Optional[bool] = None) -> Dict[str, Any]:
         if not self._available:
-            return _default_fallback_result("未設定學校 API 金鑰或中繼網址")
+            return _default_fallback_result("未設定可用 AI provider 金鑰或中繼網址")
         # use_web_search=None → 依設定（USE_WEB_SEARCH）。web_search 每次貴 3~7 倍。
         if use_web_search is None:
             use_web_search = settings.USE_WEB_SEARCH
@@ -328,13 +390,21 @@ class AIService:
         """把音訊檔轉成逐字稿（影片無字幕時的後備）。失敗回空字串。"""
         if not self._available or not os.path.isfile(file_path):
             return ""
+        if self.provider_available.get("cgu") and (settings.AI_PROVIDER or "").lower() == "cgu":
+            base = self.cgu_base
+            key = self.cgu_key
+            model = settings.CGU_STT_MODEL or settings.STT_MODEL
+        else:
+            base = self.openai_base if self.provider_available.get("openai") else self.cgu_base
+            key = self.myai_key if self.provider_available.get("openai") else self.cgu_key
+            model = settings.STT_MODEL if self.provider_available.get("openai") else settings.CGU_STT_MODEL
         try:
             with open(file_path, "rb") as f:
                 r = requests.post(
-                    f"{self.openai_base}/audio/transcriptions",
-                    headers={"Authorization": f"Bearer {self.key}"},
+                    f"{base}/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {key}"},
                     files={"file": (os.path.basename(file_path), f, "audio/mpeg")},
-                    data={"model": settings.STT_MODEL},
+                    data={"model": model, "language": "zh", "response_format": "json"},
                     timeout=180,
                 )
             r.raise_for_status()
@@ -351,7 +421,7 @@ class AIService:
         備援：Gemini（若有 GOOGLE_API_KEY）。皆無則回傳空陣列（向量層自動停用）。
         """
         base = (settings.EMBED_RELAY_URL or "").rstrip("/")
-        key = (settings.EMBED_API_KEY or "").strip()
+        key = (settings.EMBED_API_KEY or settings.CGU_API_KEY or "").strip()
         if base and key:
             try:
                 r = requests.post(

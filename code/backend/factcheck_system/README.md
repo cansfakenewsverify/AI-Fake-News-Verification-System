@@ -38,7 +38,7 @@ app/
 │   └── feedback.py       ← /api/feedback (使用者評分)
 │
 ├── services/             ← 業務邏輯
-│   ├── ai_service.py     ← 雙引擎（Claude 主／OpenAI 備援）、web_search 佐證、語音轉文字
+│   ├── ai_service.py     ← 多引擎（myai168 OpenAI/Claude + CGU AIR）、web_search 佐證、語音轉文字
 │   ├── crawler.py        ← Trafilatura + Playwright 爬蟲、影片字幕／STT 逐字稿
 │   ├── cache_service.py  ← Hash 工具 + PostgreSQL 快取（lazy import）
 │   ├── pandas_store.py   ← Parquet 三層快取實作
@@ -71,18 +71,27 @@ app/
 複製 `.env.example` 為 `.env` 並填入：
 
 ```ini
-# 學校 myai168 中繼閘道金鑰（OpenAI 與 Claude 中繼共用同一把）
-# 用 MYAI_* 命名，避免被系統內建的 OPENAI_API_KEY / ANTHROPIC_BASE_URL 覆寫
+# Provider 選擇：openai / claude = 原本 myai168；cgu = CGU AIR Gateway 新增選項
+AI_PROVIDER=openai
+
+# 方案 A：myai168 中繼閘道（原本方案，保留）
 MYAI_API_KEY=your_developer_key_here
 
-# 雙引擎：主引擎 claude（推薦）或 openai，另一個自動作為備援
-AI_PROVIDER=claude
 CLAUDE_RELAY_URL=https://www.myai168.com/cgu/api/anthropic/v1
 CLAUDE_MODEL=claude-opus-4-8
 OPENAI_RELAY_URL=https://www.myai168.com/cgu/api/openai/v1
-OPENAI_MODEL=gpt-5
+OPENAI_MODEL=gpt-5-mini
+OPENAI_REASONING_EFFORT=minimal
 
-# 向量 embedding：CGU LLM Gateway（OpenAI 相容，與 myai168 不同把金鑰）
+# 方案 B：CGU AIR Gateway（OpenAI 相容 Responses API）
+# 參考：https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html
+CGU_API_KEY=your_cgu_api_key_here
+CGU_BASE_URL=https://air.cgu.edu.tw/cgullmapi/v1
+CGU_MODEL=gpt-5.4-mini
+CGU_REASONING_EFFORT=medium
+CGU_STT_MODEL=gpt-4o-mini-transcribe
+
+# 向量 embedding：CGU AIR Gateway（EMBED_API_KEY 空時會退用 CGU_API_KEY）
 EMBED_RELAY_URL=https://air.cgu.edu.tw/cgullmapi/v1
 EMBED_API_KEY=your_cgu_api_key_here
 EMBED_MODEL=text-embedding-3-small
@@ -92,13 +101,14 @@ GOOGLE_API_KEY=
 
 DEMO_MODE=false
 TRENDING_FETCH_INTERVAL_HOURS=6
-SIMILARITY_THRESHOLD=0.95
+SIMILARITY_THRESHOLD=0.88
 ```
 
-> **AI 引擎**：分析走學校 myai168 中繼閘道，主引擎 **Claude Opus**（擅長細緻判斷）、
-> 失敗時自動退到 **OpenAI gpt-5**；兩者皆用 `web_search` 取得真實佐證來源。
+> **AI 引擎**：`AI_PROVIDER=openai` / `claude` 使用原本 myai168 中繼；
+> `AI_PROVIDER=cgu` 使用 CGU AIR Gateway（OpenAI 相容 `/responses`）。
+> 目前 fallback 順序會保留舊方案：`cgu -> openai -> claude`、`openai -> claude -> cgu`、`claude -> openai -> cgu`。
 > 影片無字幕時，以 `whisper` 語音轉文字補上逐字稿。
-> **向量 embedding** 走 CGU LLM Gateway（`text-embedding-3-small`，1536 維），
+> **向量 embedding** 走 CGU AIR Gateway（`text-embedding-3-small`，1536 維），
 > 啟用 Layer 2 語義快取；失敗時退到 Gemini，皆無則自動停用向量層。
 
 ---
@@ -127,6 +137,9 @@ Schema 詳見 [`data/SCHEMA.md`](data/SCHEMA.md)。
 
 # 評測判定引擎（混淆矩陣 / accuracy / P/R/F1）
 .\venv\Scripts\python scripts\evaluate.py
+
+# 測試目前 AI provider（低成本 smoke test）
+.\venv\Scripts\python scripts\test_ai_provider.py --provider cgu
 ```
 
 ---
@@ -196,7 +209,7 @@ from factcheck_system import CrawlerClient, AIClient
                                           結果回填知識庫 ◄────┘
 ```
 
-對重複查詢，省下最貴的 AI 分析呼叫（學校中繼閘道：Claude 主／OpenAI 備援）。
+對重複查詢，省下最貴的 AI 分析呼叫（myai168 OpenAI/Claude 與 CGU AIR Gateway 皆可作為 provider）。
 （Layer 2 向量層的 embedding 走 CGU LLM Gateway；未設 `EMBED_API_KEY` 時自動略過，URL/Hash 兩層仍正常。）
 
 ---

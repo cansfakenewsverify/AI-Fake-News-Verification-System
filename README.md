@@ -5,7 +5,7 @@
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)
 ![SQLite + Parquet](https://img.shields.io/badge/Storage-SQLite%20%2B%20Parquet-336791)
 
-整合 **Google Gemini** 大型語言模型與多元事實查核資料來源，提供**自動化假訊息辨識**與**熱門詐騙趨勢追蹤**的全端應用程式。
+整合 **myai168 OpenAI/Claude** 與 **CGU AIR Gateway** 多 AI provider，加上多元事實查核資料來源，提供**自動化假訊息辨識**與**熱門詐騙趨勢追蹤**的全端應用程式。
 
 > 🎯 **核心特色**：三層快取（URL / Hash / Vector）大幅降低 API 成本；自動從 MyGoPen、Cofacts、Google News 抓取熱門查核；支援文字、網址、圖片三種輸入方式。
 
@@ -29,7 +29,7 @@ chmod +x start.sh && ./start.sh
 3. 開兩個視窗（後端 + 前端）
 4. 自動開啟瀏覽器到 http://localhost:5173
 
-**首次使用前**：到 `code/backend/factcheck_system/.env` 填入 `GOOGLE_API_KEY`（[免費申請](https://aistudio.google.com)）。
+**首次使用前**：複製 `code/backend/factcheck_system/.env.example` 為 `.env`，填入 `MYAI_API_KEY` 或 `CGU_API_KEY`，並用 `AI_PROVIDER=openai` / `claude` / `cgu` 選擇 AI 方案。
 
 ---
 
@@ -41,7 +41,8 @@ chmod +x start.sh && ./start.sh
 | **自動趨勢抓取** | 每 6 小時從 MyGoPen / TFC / Cofacts / Google News 抓取最新查核 |
 | **假訊息原文索引** | 從查核文章提取假訊息原文 + 向量，使用者再輸入時直接命中查證來源 |
 | **多模態輸入** | 文字 / 網址 / 圖片三種模式，圖片支援拖曳上傳 |
-| **背景排程** | APScheduler 每 30 分鐘自動重試 Gemini 暫時失敗的記錄 |
+| **多 AI Provider** | 保留 myai168 OpenAI/Claude，新增 CGU AIR Gateway，可用 `AI_PROVIDER` 切換 |
+| **背景排程** | APScheduler 可選擇啟用背景抓取與重試，預設關閉以節省點數 |
 | **熱門趨勢看板** | 前端顯示即時熱門查核結果，可手動觸發更新 |
 | **防 AI 幻覺** | Prompt 嚴禁編造 URL + 後端對 sources URL 做 HEAD 驗證 |
 
@@ -53,7 +54,8 @@ chmod +x start.sh && ./start.sh
 - FastAPI + Uvicorn
 - SQLAlchemy + SQLite（趨勢資料）
 - Pandas + Parquet（三層快取知識庫）
-- Google Gemini（gemini-2.5-flash + text-embedding-004）
+- myai168 OpenAI/Claude + CGU AIR Gateway（OpenAI-compatible Responses API）
+- CGU AIR / Gemini embedding 備援
 - APScheduler（背景排程）
 - Trafilatura + Beautifulsoup4（爬蟲）
 
@@ -161,10 +163,14 @@ cd code\backend\factcheck_system
 
 | 變數 | 預設值 | 說明 |
 |------|--------|------|
-| `GOOGLE_API_KEY` | （必填） | Gemini API Key |
+| `AI_PROVIDER` | `openai` | `openai` / `claude` 使用 myai168；`cgu` 使用 CGU AIR Gateway |
+| `MYAI_API_KEY` | 空 | myai168 OpenAI/Claude 共用金鑰 |
+| `CGU_API_KEY` | 空 | CGU AIR Gateway 金鑰 |
+| `CGU_BASE_URL` | `https://air.cgu.edu.tw/cgullmapi/v1` | CGU AIR OpenAI-compatible API |
+| `GOOGLE_API_KEY` | 空 | Gemini embedding 備援 |
 | `DEMO_MODE` | `false` | `true` 時回傳假資料，不呼叫 API |
 | `TRENDING_FETCH_INTERVAL_HOURS` | `6` | 熱門新聞抓取間隔 |
-| `SIMILARITY_THRESHOLD` | `0.95` | 向量快取命中門檻 |
+| `SIMILARITY_THRESHOLD` | `0.88` | 向量快取命中門檻 |
 | `SERPER_API_KEY` | 空 | （選填）Serper 搜尋 API，加強搜尋品質 |
 
 完整列表請參考 [`code/backend/factcheck_system/.env.example`](code/backend/factcheck_system/.env.example)。

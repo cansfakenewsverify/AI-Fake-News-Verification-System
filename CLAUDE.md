@@ -4,7 +4,7 @@
 > **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
 > 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
 
-最後更新重點：AI 引擎走學校中繼閘道（gpt-5-mini 主、Claude 備援）、embedding 走 CGU、評測 96%；
+最後更新重點：AI 引擎保留 myai168 OpenAI/Claude，新增 CGU AIR Gateway provider；embedding 走 CGU、評測 96%；
 熱門/資料庫誤標已修（只在確定不實才標假訊息）、卡片風格統一（InfoCard）、knowledge_base 已提交 178 筆 demo 種子。
 
 ---
@@ -21,20 +21,25 @@
 
 ---
 
-## 2. AI 引擎（重要！都走「學校中繼閘道」，不是直連官方）
+## 2. AI 引擎（重要！支援多個學校 AI provider，不直連官方）
 
-學校提供兩個 OpenAI 相容中繼閘道，**用同一概念的開發者金鑰**：
+目前保留原本 myai168 方案，並新增 CGU AIR Gateway 選項。用 `.env` 的 `AI_PROVIDER` 選擇：
+
+- `AI_PROVIDER=openai`：myai168 OpenAI Responses API（原本方案）
+- `AI_PROVIDER=claude`：myai168 Anthropic Messages API（原本方案）
+- `AI_PROVIDER=cgu`：CGU AIR Gateway OpenAI-compatible Responses API（新增方案）
 
 | 用途 | 閘道 base_url | 模型 | .env 變數 |
 |------|--------------|------|-----------|
-| 文字/圖片分析（主） | `https://www.myai168.com/cgu/api/openai/v1` | `gpt-5-mini` | `OPENAI_RELAY_URL` / `OPENAI_MODEL` |
-| 分析備援（高品質） | `https://www.myai168.com/cgu/api/anthropic/v1` | `claude-opus-4-8` | `CLAUDE_RELAY_URL` / `CLAUDE_MODEL` |
-| 向量 embedding | `https://air.cgu.edu.tw/cgullmapi/v1` | `text-embedding-3-small`(1536維) | `EMBED_RELAY_URL` / `EMBED_API_KEY` |
-| 影片語音轉文字 | myai168 `/audio/transcriptions` | `whisper-1` | `STT_MODEL` |
+| myai168 OpenAI 分析 | `https://www.myai168.com/cgu/api/openai/v1` | `gpt-5-mini` | `MYAI_API_KEY` / `OPENAI_RELAY_URL` / `OPENAI_MODEL` |
+| myai168 Claude 分析 | `https://www.myai168.com/cgu/api/anthropic/v1` | `claude-opus-4-8` | `MYAI_API_KEY` / `CLAUDE_RELAY_URL` / `CLAUDE_MODEL` |
+| CGU AIR 分析 | `https://air.cgu.edu.tw/cgullmapi/v1` | `gpt-5.4-mini` | `CGU_API_KEY` / `CGU_BASE_URL` / `CGU_MODEL` |
+| 向量 embedding | `https://air.cgu.edu.tw/cgullmapi/v1` | `text-embedding-3-small`(1536維) | `EMBED_RELAY_URL` / `EMBED_API_KEY`，空時退用 `CGU_API_KEY` |
+| 影片語音轉文字 | myai168 或 CGU AIR `/audio/transcriptions` | `whisper-1` / `gpt-4o-mini-transcribe` | `STT_MODEL` / `CGU_STT_MODEL` |
 
-- **雙引擎**：`AI_PROVIDER`（`openai` 或 `claude`）決定主引擎，另一個自動當備援（主失敗才接手）。實作在 `app/services/ai_service.py` 的 `_run_analysis()`。
+- **多 provider fallback**：`AI_PROVIDER=cgu` 時順序為 `cgu -> openai -> claude`；`openai` 時為 `openai -> claude -> cgu`；`claude` 時為 `claude -> openai -> cgu`。只有設定好 key/base 的 provider 會被加入。實作在 `app/services/ai_service.py` 的 `_run_analysis()`。
 - **金鑰命名刻意避開標準名**：用 `MYAI_API_KEY`、`CLAUDE_RELAY_URL`、`OPENAI_RELAY_URL`，**不要**用 `OPENAI_API_KEY` / `ANTHROPIC_BASE_URL`，否則會被系統既有的同名環境變數覆寫（pydantic 環境變數優先序高於 .env）。
-- myai168 與 CGU 是**兩個不同的閘道、不同金鑰、不同額度池**。CGU 有 `/v1/me/usage` 可查用量（$20 OpenAI 預算）。
+- myai168 與 CGU 是**兩個不同的閘道、不同金鑰、不同額度池**。CGU 有 `/v1/me/usage` 可查用量（$20 OpenAI 預算）。CGU 教學頁：`https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html`。
 
 ### 💰 點數/額度警告（最常踩雷）
 - 學校點數**有限**。`api_anthropic`(Claude Opus) 每次 ~135–1143 點；`api_openai`(gpt-5) 便宜約 10 倍。
@@ -68,7 +73,7 @@ code/backend/factcheck_system/
 │   ├── api/trending.py         /api/trending(熱門列表) /refresh
 │   ├── api/knowledge.py        /api/knowledge(瀏覽/搜尋快取) /stats
 │   ├── services/
-│   │   ├── ai_service.py       ★雙引擎 AI(gpt-5-mini/claude)、web_search、STT、embedding
+│   │   ├── ai_service.py       ★多 provider AI(myai168 OpenAI/Claude + CGU AIR)、web_search、STT、embedding
 │   │   ├── crawler.py          爬蟲 + 影片字幕/whisper 逐字稿
 │   │   ├── pandas_store.py      三層快取 Parquet
 │   │   ├── news_fetcher.py      熱門新聞兩階段流程
@@ -109,6 +114,9 @@ cd code\backend\factcheck_system
 .\venv\Scripts\python scripts\evaluate.py --seed-db --delay 0
 # 只重算報告（不呼叫 AI、零點數）
 .\venv\Scripts\python scripts\evaluate.py --report-only
+
+# 低成本測試目前 AI provider
+.\venv\Scripts\python scripts\test_ai_provider.py --provider cgu
 ```
 
 API 文件：http://localhost:8000/docs
@@ -138,6 +146,7 @@ API 文件：http://localhost:8000/docs
 
 - [x] 評測系統 + 150 筆資料集 + FP/FN 分析（accuracy 96%、FN=0）
 - [x] 改用學校中繼 API（gpt-5-mini 主 / Claude 備援）+ CGU embedding
+- [x] 新增 CGU AIR Gateway provider（AI_PROVIDER=cgu），保留 myai168 OpenAI/Claude 舊方案
 - [x] 前端：移除測試卡片、加「資料庫」分頁（瀏覽/搜尋/篩選快取內容）
 - [x] 前端 CSS 美化（漸層導覽、柔和背景、風險色卡、空狀態）
 - [x] 省點數開關（ENABLE_SCHEDULER 預設關、USE_WEB_SEARCH、gpt-5-mini+minimal）
