@@ -24,7 +24,7 @@ if errorlevel 1 (
 )
 
 :: Paths
-set BACKEND_DIR=%~dp0code\backend\factcheck_system
+set BACKEND_DIR=%~dp0code\backend
 set FRONTEND_DIR=%~dp0code\frontend
 set VENV=%BACKEND_DIR%\venv
 

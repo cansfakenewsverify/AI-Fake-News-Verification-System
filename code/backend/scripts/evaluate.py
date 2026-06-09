@@ -28,10 +28,10 @@ from app.services.ai_service import AIService
 
 LABELS = ["SCAM", "MISINFO", "SAFE"]
 
-# 路徑（相對 factcheck_system 根目錄）
+# 路徑（相對 backend 根目錄）
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT, "data")
-ASSETS_DIR = os.path.normpath(os.path.join(ROOT, "..", "..", "..", "assets"))
+ASSETS_DIR = os.path.normpath(os.path.join(ROOT, "..", "..", "assets"))
 DEFAULT_INPUT = os.path.join(DATA_DIR, "eval_set.csv")
 PRED_PATH = os.path.join(DATA_DIR, "eval_predictions.csv")
 REPORT_PATH = os.path.join(DATA_DIR, "eval_report.csv")

@@ -54,7 +54,7 @@ Thumbs.db
 desktop.ini
 
 # ── Auto-generated helpers ─────────────────────
-code/backend/factcheck_system/_run_backend.bat~
+code/backend/_run_backend.bat~
 code/frontend/_run_frontend.bat~
 
 # ── Docker volumes ─────────────────────────────

@@ -3,7 +3,7 @@
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="$SCRIPT_DIR/code/backend/factcheck_system"
+BACKEND_DIR="$SCRIPT_DIR/code/backend"
 FRONTEND_DIR="$SCRIPT_DIR/code/frontend"
 VENV="$BACKEND_DIR/venv"
 

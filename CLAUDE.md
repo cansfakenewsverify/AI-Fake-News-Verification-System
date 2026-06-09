@@ -65,7 +65,7 @@
 ## 4. 主要檔案地圖
 
 ```
-code/backend/factcheck_system/
+code/backend/
 ├── app/
 │   ├── main.py                 FastAPI 入口 + 排程器(opt-in)
 │   ├── config.py               所有設定(pydantic Settings，讀 .env)
@@ -90,7 +90,9 @@ code/backend/factcheck_system/
 │   ├── eval_set.csv            150 筆標註資料(50/50/50)
 │   ├── tasks.parquet           非同步任務狀態      [runtime]
 │   └── eval_report.csv / eval_binary.csv / eval_errors.csv  評測結果
-├── .env                        ★真實金鑰(在 factcheck_system 根目錄)，已 gitignore，勿提交
+├── .env                        ★真實金鑰(在 backend 根目錄)，已 gitignore，勿提交
+├── requirements.txt  .env.example  README.md  Dockerfile  docker-compose.yml
+└── venv/（本機建立，不進 git）
 code/frontend/                  React + Vite + Tailwind
 assets/                         PlantUML 圖 + confusion_matrix.png
 └── 期末專題文件/                OOSE 期末繳交文件(詞彙表/使用案例圖/情節/活動圖/類別圖+README)
@@ -104,8 +106,8 @@ assets/                         PlantUML 圖 + confusion_matrix.png
 # 一鍵啟動前後端（專案根目錄）
 .\start.bat
 
-# 後端（venv 在 code/backend/factcheck_system/venv）
-cd code\backend\factcheck_system
+# 後端（venv 在 code/backend/venv）
+cd code\backend
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000
 
 # 看資料庫內容
@@ -145,10 +147,6 @@ API 文件：http://localhost:8000/docs
 
 ## 8. 待辦 / 進行中（更新時請維護這段）
 
-> ⏳ **待執行（下次優先）**：把 `code/backend/factcheck_system/*` 攤平進 `code/backend/`（不要多一層）。
-> 完整計畫＋現況＋待拍板 3 個決策見 **`docs/搬移修改計畫.md`**。執行前先請使用者確認那 3 個決策。
-
-
 - [x] 評測系統 + 150 筆資料集 + FP/FN 分析（accuracy 96%、FN=0）
 - [x] 改用學校中繼 API（gpt-5-mini 主 / Claude 備援）+ CGU embedding
 - [x] 新增 CGU AIR Gateway provider（AI_PROVIDER=cgu），保留 myai168 OpenAI/Claude 舊方案
@@ -159,6 +157,7 @@ API 文件：http://localhost:8000/docs
       MyGoPen·TFC【錯誤/誤導/假】標籤）；Cofacts 改抓 RUMOR-verified；其餘標 PENDING
 - [x] 統一卡片風格 InfoCard：今日熱門/資料庫同款卡片；PENDING 顯示「未查證」；
       /api/trending 已查證優先
+- [x] 目錄攤平：`code/backend/factcheck_system/*` → `code/backend/`；刪死檔/alembic/inner pkg
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 
