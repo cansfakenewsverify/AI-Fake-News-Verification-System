@@ -1,0 +1,67 @@
+@startuml sequence
+' ============================================================
+'  循序圖 (Sequence Diagram)
+'  使用者查證流程 + 三層快取 + 非同步輪詢
+' ============================================================
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam participant {
+  BackgroundColor #EFF6FF
+  BorderColor #3B82F6
+}
+skinparam sequenceLifeLineBorderColor #94A3B8
+
+title 查證文字／網址 — 循序圖（含三層快取與輪詢）
+
+actor "使用者" as User
+participant "前端\n(React)" as FE
+participant "API\n/api/analyze" as API
+participant "任務處理器\n(TaskProcessor)" as TP
+database "Parquet 知識庫\n(快取)" as Cache
+participant "爬蟲\n(Crawler)" as Crawler
+participant "Gemini AI" as AI
+
+== 送出查證請求 ==
+User -> FE : 輸入文字／網址，按下查證
+FE -> API : POST /api/analyze/text
+API -> TP : 建立任務 (task_id)
+API --> FE : 回傳 task_id (202 Accepted)
+
+== 背景處理：三層快取 ==
+activate TP
+TP -> Cache : Layer 0｜以 URL 查詢
+alt URL 命中
+  Cache --> TP : 回傳既有結果
+else 未命中
+  TP -> Cache : Layer 1｜以內容 Hash 查詢
+  alt Hash 命中
+    Cache --> TP : 回傳既有結果
+  else 未命中
+    TP -> AI : 產生 Embedding 向量
+    AI --> TP : 向量
+    TP -> Cache : Layer 2｜餘弦相似度比對 (≥0.95)
+    alt 向量命中
+      Cache --> TP : 回傳相似結果
+    else 全部未命中
+      opt 輸入為網址
+        TP -> Crawler : 抓取網頁內文
+        Crawler --> TP : 純文字內容
+      end
+      TP -> AI : Layer 3｜分析內容
+      AI --> TP : 風險判定 + 來源
+      TP -> Cache : 回填結果（含向量）
+    end
+  end
+end
+TP --> API : 更新任務狀態 = 完成
+deactivate TP
+
+== 前端輪詢結果 ==
+loop 每 2 秒，最多 60 次
+  FE -> API : GET /api/analyze/task/{id}
+  API --> FE : 狀態（處理中／完成）
+end
+FE -> User : 顯示查證結果卡片（風險類型 + 來源）
+
+@enduml

@@ -92,7 +92,8 @@ code/backend/factcheck_system/
 │   └── eval_report.csv / eval_binary.csv / eval_errors.csv  評測結果
 ├── .env                        ★真實金鑰(在 factcheck_system 根目錄)，已 gitignore，勿提交
 code/frontend/                  React + Vite + Tailwind
-assets/                         PlantUML 圖(usecase/sequence/activity) + confusion_matrix.png
+assets/                         PlantUML 圖 + confusion_matrix.png
+└── 期末專題文件/                OOSE 期末繳交文件(詞彙表/使用案例圖/情節/活動圖/類別圖+README)
 ```
 
 ---

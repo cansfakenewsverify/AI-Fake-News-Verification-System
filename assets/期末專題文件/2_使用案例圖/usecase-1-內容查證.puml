@@ -1,0 +1,57 @@
+@startuml usecase-1-verify
+' ============================================================
+'  使用案例圖（內容查證子系統）— 參考第五章
+'  示範：一般化、<<include>>、<<extend>>
+' ============================================================
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #EFF6FF
+  BorderColor #3B82F6
+  ArrowColor #1D4ED8
+}
+title 使用案例圖（內容查證子系統）
+
+actor "使用者"  as User
+actor "AI 引擎" as AI
+
+rectangle "內容查證子系統" {
+  usecase "查證內容"      as UC_Verify
+  usecase "查證文字"      as UC_Text
+  usecase "查證網址"      as UC_Url
+  usecase "查證圖片"      as UC_Image
+  usecase "查證影片"      as UC_Video
+
+  usecase "三層快取比對"   as UC_Cache
+  usecase "擷取內容"      as UC_Crawl
+  usecase "語音轉文字"     as UC_STT
+  usecase "AI 分析"       as UC_AI
+  usecase "檢視查證結果"   as UC_Result
+}
+
+User --> UC_Verify
+User --> UC_Result
+
+' ── 一般化：四種查證皆是「查證內容」的特例 ──
+UC_Text  --|> UC_Verify
+UC_Url   --|> UC_Verify
+UC_Image --|> UC_Verify
+UC_Video --|> UC_Verify
+
+' ── include：查證一定會做三層快取比對 ──
+UC_Verify ..> UC_Cache : <<include>>
+
+' ── extend：快取未命中才呼叫 AI 分析 ──
+UC_AI ..> UC_Cache : <<extend>>\n(快取未命中)
+
+' ── include / extend：擷取與轉文字 ──
+UC_Url   ..> UC_Crawl : <<include>>
+UC_Image ..> UC_Crawl : <<include>>
+UC_Video ..> UC_Crawl : <<include>>
+UC_STT ..> UC_Video : <<extend>>\n(影片無字幕)
+
+UC_AI --> AI
+@enduml

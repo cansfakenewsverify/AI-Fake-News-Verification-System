@@ -1,0 +1,51 @@
+@startuml usecase-2-trending
+' ============================================================
+'  使用案例圖（熱門趨勢子系統）— 參考第五章
+'  示範：actor「時間」、<<include>>
+' ============================================================
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #EFF6FF
+  BorderColor #3B82F6
+  ArrowColor #1D4ED8
+}
+title 使用案例圖（熱門趨勢子系統）
+
+actor "使用者"   as User
+actor "管理員"   as Admin
+actor "時間\n(排程器)" as Time
+actor "查核來源"  as Src
+actor "AI 引擎"  as AI
+
+rectangle "熱門趨勢子系統" {
+  usecase "瀏覽今日熱門"        as UC_Browse
+  usecase "更新今日熱門"        as UC_Refresh
+  usecase "自動抓取查核新聞"     as UC_Fetch
+  usecase "分類查核來源"        as UC_Classify
+  usecase "擷取假訊息並索引"     as UC_Index
+  usecase "分析未知來源"        as UC_Analyze
+}
+
+User  --> UC_Browse
+User  --> UC_Refresh
+Admin --> UC_Refresh
+
+Time  --> UC_Fetch
+
+' 更新今日熱門其實是手動觸發自動抓取
+UC_Refresh ..> UC_Fetch : <<include>>
+
+' 抓取一定會分類來源；分類後索引假訊息
+UC_Fetch ..> UC_Classify : <<include>>
+UC_Classify ..> UC_Index : <<include>>
+
+' 未知來源才需要 AI 分析（延伸）
+UC_Analyze ..> UC_Fetch : <<extend>>\n(來源未分類)
+
+UC_Fetch   --> Src
+UC_Analyze --> AI
+@enduml

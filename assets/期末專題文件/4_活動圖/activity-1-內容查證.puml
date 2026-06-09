@@ -1,0 +1,78 @@
+@startuml activity-1-verify
+' ============================================================
+'  活動圖：查證內容（文字／網址）— 參考第七章
+'  對應 UC-1 之主要路徑與例外路徑（含 swimlane 分隔）
+' ============================================================
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #EFF6FF
+  BorderColor #3B82F6
+  DiamondBackgroundColor #FEF3C7
+  DiamondBorderColor #F59E0B
+}
+title 活動圖：查證內容（文字／網址）
+
+|使用者|
+start
+:貼上可疑訊息／網址\n並按「發布查證」;
+
+|系統|
+:建立查證任務 (task_id);
+if (輸入為網址？) then (是)
+  :擷取網頁內容;
+else (否)
+  :直接使用文字內容;
+endif
+
+if (Layer 0：URL 快取命中？) then (是)
+  :取出快取結果;
+  |使用者|
+  :顯示查證結果（cached）;
+  stop
+else (否)
+endif
+
+|系統|
+if (Layer 1：Hash 快取命中？) then (是)
+  :取出快取結果;
+  |使用者|
+  :顯示查證結果（cached）;
+  stop
+else (否)
+endif
+
+|系統|
+:產生語義向量;
+if (Layer 2：向量相似度 ≥ 0.88？) then (是)
+  :取出相似快取結果;
+  |使用者|
+  :顯示查證結果（cached）;
+  stop
+else (否)
+endif
+
+|AI 引擎|
+:Layer 3：分析內容\n(主引擎 gpt-5-mini);
+if (主引擎成功？) then (是)
+else (否，限流/錯誤)
+  :改用備援引擎 (Claude);
+  if (備援成功？) then (是)
+  else (否)
+    |使用者|
+    :顯示「AI 分析暫時無法使用」;
+    stop
+  endif
+endif
+:回傳風險類型／摘要／\n解釋／佐證來源;
+
+|系統|
+:過濾無效來源 URL;
+:結果回填知識庫（含向量）;
+:更新任務為「完成」;
+
+|使用者|
+:輪詢並取得結果;
+:顯示查證結果卡片\n(風險類型 + 佐證來源);
+stop
+@enduml

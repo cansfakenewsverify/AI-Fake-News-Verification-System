@@ -1,0 +1,161 @@
+@startuml class-diagram
+' ============================================================
+'  類別圖（整個資訊系統）— 全民查證公社
+'  參考第八章：以 boundary/control/entity 分層，
+'  含屬性能見度（+ - #）、多重性、關聯/聚合/組合關係
+' ============================================================
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #F8FAFF
+  BorderColor #3B82F6
+  ArrowColor #1D4ED8
+}
+title 類別圖：全民查證公社 AI 假訊息與詐騙查證系統
+
+' ───────────── 介面層（boundary）─────────────
+package "介面層" #EEF2FF {
+  class AnalyzeController <<boundary>> {
+    +analyzeText(content): Task
+    +analyzeUrl(content): Task
+    +analyzeImage(file): Task
+    +analyzeSync(content): AnalysisResult
+    +getTaskResult(id): AnalysisResult
+  }
+  class TrendingController <<boundary>> {
+    +getTrending(limit, riskType): List
+    +refresh(): void
+  }
+  class KnowledgeController <<boundary>> {
+    +list(q, riskType, limit): List
+    +stats(): Map
+  }
+}
+
+' ───────────── 控制層（control）─────────────
+package "控制層" #ECFEFF {
+  class TaskProcessor <<control>> {
+    +processAnalysisTask(id, input, type): AnalysisResult
+    -buildResult(): AnalysisResult
+  }
+  class AIService <<control>> {
+    -provider: String
+    +analyzeContent(content, url): AnalysisResult
+    +analyzeImage(path): AnalysisResult
+    +transcribeAudio(path): String
+    +generateEmbedding(text): float[]
+  }
+  class CrawlerService <<control>> {
+    +processInput(input, type): Map
+    +crawlUrl(url): Map
+    +downloadVideo(url): Map
+  }
+  class VectorService <<control>> {
+    +vectorizeContent(text): float[]
+  }
+  class CacheService <<control>> {
+    +generateHash(text): String
+  }
+  class SearchService <<control>> {
+    +fetchRssItems(num): List
+    -fetchCofacts(num): List
+  }
+  class NewsFetcher <<control>> {
+    +runTrendingFetch(): void
+    +retryPendingRecords(): void
+    -indexFactcheckClaim(): void
+  }
+  class PandasStore <<control>> {
+    +findByUrl(url): KnowledgeRecord
+    +findByHash(hash): KnowledgeRecord
+    +findSimilarByVector(vec): KnowledgeRecord
+    +saveRecord(...): KnowledgeRecord
+  }
+  class TaskStore <<control>> {
+    +createTask(type, input): Task
+    +getTask(id): Task
+    +updateTask(id, status, result): void
+  }
+}
+
+' ───────────── 實體層（entity / persistent）─────────────
+package "實體層" #FEF9F3 {
+  class AnalysisResult <<entity>> {
+    -isRisk: boolean
+    -riskType: String
+    -category: String
+    -confidenceScore: float
+    -summary: String
+    -explanation: String
+  }
+  class Source <<entity>> {
+    -title: String
+    -url: String
+  }
+  class Task <<entity>> {
+    -id: String
+    -taskType: String
+    -status: String
+    -resultData: String
+    -createdAt: DateTime
+  }
+  class KnowledgeRecord <<persistent>> {
+    -id: String
+    -rawContent: String
+    -dataHash: String
+    -contentVector: float[]
+    -riskType: String
+    -category: String
+    -summary: String
+    -sourceUrl: String
+    -hitCount: int
+    -createdAt: DateTime
+  }
+  class FactCheckRecord <<persistent>> {
+    -id: int
+    -sourceUrl: String
+    -newsTitle: String
+    -content: String
+    -aiScore: float
+    -aiSummary: String
+    -riskType: String
+    -category: String
+    -isTrending: boolean
+    -createdAt: DateTime
+  }
+}
+
+' ───────────── 關係 ─────────────
+' 介面層 → 控制層（相依）
+AnalyzeController ..> TaskProcessor
+TrendingController ..> NewsFetcher
+TrendingController --> "0..*" FactCheckRecord : 讀取
+KnowledgeController --> PandasStore
+
+' 主流程協調各服務（關聯）
+TaskProcessor --> CrawlerService
+TaskProcessor --> CacheService
+TaskProcessor --> VectorService
+TaskProcessor --> AIService
+TaskProcessor --> PandasStore
+TaskProcessor --> TaskStore
+TaskProcessor ..> AnalysisResult : <<create>>
+
+VectorService --> AIService : 取得 embedding
+
+' 熱門新聞流程
+NewsFetcher --> SearchService
+NewsFetcher --> CrawlerService
+NewsFetcher --> AIService
+NewsFetcher --> VectorService
+NewsFetcher --> PandasStore
+NewsFetcher ..> "0..*" FactCheckRecord : <<create>>
+
+' 組合：結果「擁有」來源；來源隨結果消滅
+AnalysisResult "1" *-- "0..*" Source : 包含
+
+' 聚合：儲存庫「管理」記錄
+PandasStore "1" o-- "0..*" KnowledgeRecord : 管理
+TaskStore   "1" o-- "0..*" Task            : 管理
+@enduml

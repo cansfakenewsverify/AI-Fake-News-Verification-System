@@ -1,0 +1,57 @@
+@startuml activity-3-fetch
+' ============================================================
+'  活動圖：自動抓取查核新聞 — 參考第七章
+'  對應 UC-7（排程器觸發；只在「確定不實」才標假訊息）
+' ============================================================
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #EFF6FF
+  BorderColor #3B82F6
+  DiamondBackgroundColor #FEF3C7
+  DiamondBorderColor #F59E0B
+}
+title 活動圖：自動抓取查核新聞
+
+|時間（排程器）|
+start
+:排程時間到，觸發抓取;
+
+|系統|
+:抓取 RSS（MyGoPen／TFC）\n+ Cofacts（RUMOR 已查核）;
+
+while (還有未處理的新聞？) is (有)
+  :儲存／更新熱門記錄;
+  :偵測來源網域;
+  if (是否「確定不實」？\n(Cofacts RUMOR 或【錯誤/誤導/假】標籤)) then (是)
+    :標記為「已查核假訊息」(MISINFO);
+    :擷取原始謠言文字;
+    if (是真實主張？\n(非網址/非標籤雲)) then (是)
+      :產生向量並寫入知識庫;
+    else (否)
+      :略過索引;
+    endif
+  elseif (官方來源？) then (是)
+    :標記為 SAFE;
+  else (未知來源)
+    :標記為 PENDING（未查證）;
+  endif
+endwhile (沒有了)
+
+:重試 PENDING 記錄;
+while (還有 PENDING？\n上限 10 筆) is (有)
+  :爬取內容;
+  |AI 引擎|
+  :分析內容;
+  |系統|
+  if (遇到限流？) then (是)
+    :停止本輪，下週期再試;
+    break
+  else (否)
+    :更新風險判定;
+  endif
+endwhile (沒有了)
+
+:完成本輪抓取;
+stop
+@enduml

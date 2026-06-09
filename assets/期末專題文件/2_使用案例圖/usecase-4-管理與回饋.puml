@@ -1,0 +1,35 @@
+@startuml usecase-4-admin
+' ============================================================
+'  使用案例圖（管理與回饋子系統）— 參考第五章
+'  示範：角色一般化（管理員是一種使用者）
+' ============================================================
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #EFF6FF
+  BorderColor #3B82F6
+  ArrowColor #1D4ED8
+}
+title 使用案例圖（管理與回饋子系統）
+
+actor "使用者" as User
+actor "管理員" as Admin
+
+' 角色一般化：管理員繼承使用者可做的事
+Admin --|> User
+
+rectangle "管理與回饋子系統" {
+  usecase "提交使用者回饋"    as UC_Feedback
+  usecase "人工覆寫查證結果"  as UC_Override
+  usecase "查詢覆寫紀錄"      as UC_Audit
+}
+
+User  --> UC_Feedback
+Admin --> UC_Override
+Admin --> UC_Audit
+
+UC_Override ..> UC_Audit : <<include>>
+@enduml

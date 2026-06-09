@@ -1,0 +1,57 @@
+@startuml usecase-0-overall
+' ============================================================
+'  使用案例圖（整體）— 全民查證公社
+'  參考第五章
+' ============================================================
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #EFF6FF
+  BorderColor #3B82F6
+  ArrowColor #1D4ED8
+}
+title 使用案例圖（整體）— 全民查證公社 AI 假訊息與詐騙查證系統
+
+actor "使用者"   as User
+actor "管理員"   as Admin
+actor "時間\n(排程器)" as Time
+actor "AI 引擎"  as AI
+actor "查核來源"  as Src
+
+rectangle "全民查證公社系統" {
+  usecase "查證內容"        as UC_Verify
+  usecase "檢視查證結果"     as UC_Result
+  usecase "瀏覽今日熱門"     as UC_Trend
+  usecase "更新今日熱門"     as UC_Refresh
+  usecase "自動抓取查核新聞"  as UC_Fetch
+  usecase "瀏覽查證資料庫"    as UC_Browse
+  usecase "搜尋查證資料庫"    as UC_Search
+  usecase "人工覆寫查證結果"  as UC_Override
+  usecase "提交使用者回饋"    as UC_Feedback
+}
+
+User --> UC_Verify
+User --> UC_Result
+User --> UC_Trend
+User --> UC_Refresh
+User --> UC_Browse
+User --> UC_Search
+User --> UC_Feedback
+
+Admin --> UC_Override
+Admin --> UC_Trend
+
+Time --> UC_Fetch
+
+UC_Verify --> AI    : 內容判定
+UC_Fetch  --> Src   : 抓取查核文章
+UC_Fetch  --> AI    : 未知來源判定
+
+note bottom of UC_Verify
+  細部（含 include/extend）見
+  「內容查證」使用案例圖
+end note
+@enduml

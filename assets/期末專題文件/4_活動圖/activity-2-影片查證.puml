@@ -1,0 +1,48 @@
+@startuml activity-2-video
+' ============================================================
+'  活動圖：查證影片 — 參考第七章
+'  對應 UC-3（字幕優先，無字幕改用語音轉文字）
+' ============================================================
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #EFF6FF
+  BorderColor #3B82F6
+  DiamondBackgroundColor #FEF3C7
+  DiamondBorderColor #F59E0B
+}
+title 活動圖：查證影片
+
+|使用者|
+start
+:貼上影片網址並送出;
+
+|系統|
+:辨識為影片平台;
+:取得影片資訊（標題／描述／字幕）;
+
+if (影片有字幕？) then (有)
+  :下載字幕並整理成逐字稿;
+else (無)
+  :下載音軌;
+  |AI 引擎|
+  :語音轉文字 (whisper)\n取得逐字稿;
+  |系統|
+endif
+
+if (逐字稿長度足夠？) then (是)
+  :組合「標題＋逐字稿＋描述」;
+  |AI 引擎|
+  :分析影片內容;
+  :回傳查證結果;
+  |系統|
+  :結果回填知識庫;
+  |使用者|
+  :顯示查證結果;
+  stop
+else (否)
+  |使用者|
+  :顯示「無法取得足夠內容」;
+  stop
+endif
+@enduml
