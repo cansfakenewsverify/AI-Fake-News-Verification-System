@@ -145,6 +145,10 @@ API 文件：http://localhost:8000/docs
 
 ## 8. 待辦 / 進行中（更新時請維護這段）
 
+> ⏳ **待執行（下次優先）**：把 `code/backend/factcheck_system/*` 攤平進 `code/backend/`（不要多一層）。
+> 完整計畫＋現況＋待拍板 3 個決策見 **`docs/搬移修改計畫.md`**。執行前先請使用者確認那 3 個決策。
+
+
 - [x] 評測系統 + 150 筆資料集 + FP/FN 分析（accuracy 96%、FN=0）
 - [x] 改用學校中繼 API（gpt-5-mini 主 / Claude 備援）+ CGU embedding
 - [x] 新增 CGU AIR Gateway provider（AI_PROVIDER=cgu），保留 myai168 OpenAI/Claude 舊方案
