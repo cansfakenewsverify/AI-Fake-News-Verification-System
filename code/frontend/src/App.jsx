@@ -3,13 +3,15 @@ import { initialPosts, RISK_STYLES, DEFAULT_RISK_STYLE } from './mockData';
 
 const getAiCardStyle = (riskType) => RISK_STYLES[riskType] || DEFAULT_RISK_STYLE;
 
+const AVATAR = 'https://ui-avatars.com/api/?name=Me&background=18212f&color=34dcc4';
+
 // === AI 分析中骨架卡片 ===
 function AnalyzingCard() {
   return (
-    <div className="mt-3 mb-1 rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm fade-in">
-      <div className="h-1 bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 analyzing-pulse" />
+    <div className="mt-3 mb-1 rounded-2xl border border-[var(--c-border)] bg-[var(--c-bg-surface)] overflow-hidden shadow-sm fade-in">
+      <div className="h-1 bg-[var(--c-accent)] analyzing-pulse" />
       <div className="p-4 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-xl analyzing-pulse">🤖</div>
+        <div className="w-10 h-10 rounded-full bg-[var(--c-accent-soft)] flex items-center justify-center text-xl analyzing-pulse">🤖</div>
         <div className="flex-1 flex flex-col gap-2">
           <div className="h-3 w-2/3 rounded shimmer" />
           <div className="h-3 w-1/2 rounded shimmer" />
@@ -20,8 +22,8 @@ function AnalyzingCard() {
         <div className="h-3 w-5/6 rounded shimmer" />
       </div>
       <div className="px-4 pb-4">
-        <div className="text-[12px] text-slate-500 flex items-center gap-1.5">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
+        <div className="text-[12px] text-[var(--c-text-secondary)] flex items-center gap-1.5">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--c-accent)] animate-ping" />
           AI 正在進行雙重事實查核...
         </div>
       </div>
@@ -56,17 +58,17 @@ function AiResultCard({ result }) {
         )}
       </div>
       <div className="px-4 pb-4 flex flex-col gap-3">
-        <div className="bg-white/60 rounded-xl p-3 border border-white/80">
-          <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">查證摘要</h4>
-          <p className="text-[14px] font-medium text-slate-800 leading-relaxed">{result.summary}</p>
+        <div className="bg-[var(--c-bg-input)] rounded-xl p-3 border border-[var(--c-border)]">
+          <h4 className="text-[10px] font-bold text-[var(--c-text-muted)] uppercase tracking-widest mb-1">查證摘要</h4>
+          <p className="text-[14px] font-medium text-[var(--c-text-primary)] leading-relaxed">{result.summary}</p>
         </div>
         <div>
-          <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">詳細解釋</h4>
-          <p className="text-[13.5px] text-slate-600 leading-relaxed">{result.explanation}</p>
+          <h4 className="text-[10px] font-bold text-[var(--c-text-muted)] uppercase tracking-widest mb-1.5">詳細解釋</h4>
+          <p className="text-[13.5px] text-[var(--c-text-secondary)] leading-relaxed">{result.explanation}</p>
         </div>
         {result.sources && result.sources.length > 0 && (
-          <div className="pt-2 border-t border-black/5">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">參考來源</h4>
+          <div className="pt-2 border-t border-[var(--c-border)]">
+            <h4 className="text-[10px] font-bold text-[var(--c-text-muted)] uppercase tracking-widest mb-2">參考來源</h4>
             <div className="flex flex-wrap gap-2">
               {result.sources.map((src, idx) => {
                 const isString = typeof src === 'string';
@@ -76,7 +78,7 @@ function AiResultCard({ result }) {
                 if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
                 return (
                   <a key={idx} href={url} target="_blank" rel="noopener noreferrer"
-                    className="text-[12px] text-indigo-700 hover:text-indigo-900 bg-white hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-100 transition-colors shadow-sm flex items-center gap-1.5 max-w-[220px]"
+                    className="text-[12px] text-[var(--c-accent)] hover:text-[var(--c-accent-strong)] bg-[var(--c-bg-elevated)] hover:bg-[var(--c-accent-soft)] px-2.5 py-1.5 rounded-lg border border-[var(--c-border)] transition-colors shadow-sm flex items-center gap-1.5 max-w-[220px]"
                     title={title}>
                     <span>🔗</span><span className="truncate">{title}</span>
                   </a>
@@ -94,20 +96,20 @@ function AiResultCard({ result }) {
 function InfoCard({ riskType, title, subtitle, category, metaRight, href, rank }) {
   const s = getAiCardStyle(riskType);
   const inner = (
-    <div className={`bg-white rounded-2xl border ${s.wrapper} shadow-sm overflow-hidden relative fade-in ${href ? 'hover:shadow-md transition-shadow' : ''}`}>
+    <div className={`rounded-2xl border ${s.wrapper} shadow-sm overflow-hidden relative fade-in ${href ? 'hover:shadow-md transition-shadow' : ''}`}>
       <div className={`absolute left-0 top-0 bottom-0 w-1 ${s.accent}`} />
       <div className="p-4 pl-5">
         <div className="flex items-center gap-2 mb-2 flex-wrap">
-          {rank != null && <span className="text-slate-300 font-extrabold text-sm">{rank}</span>}
+          {rank != null && <span className="text-[var(--c-text-muted)] font-extrabold text-sm">{rank}</span>}
           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${s.chip}`}>{s.icon} {s.shortLabel}</span>
-          {category && <span className="text-[11px] text-slate-500">{category}</span>}
-          {metaRight && <span className="text-[10px] text-slate-400 ml-auto">{metaRight}</span>}
+          {category && <span className="text-[11px] text-[var(--c-text-secondary)]">{category}</span>}
+          {metaRight && <span className="text-[10px] text-[var(--c-text-muted)] ml-auto">{metaRight}</span>}
         </div>
-        <p className="text-[14px] text-slate-800 leading-relaxed line-clamp-3">{title}</p>
+        <p className="text-[14px] text-[var(--c-text-primary)] leading-relaxed line-clamp-3">{title}</p>
         {subtitle && subtitle !== title && (
-          <p className="text-[12.5px] text-slate-500 leading-snug mt-2 border-t border-black/5 pt-2 line-clamp-2">{subtitle}</p>
+          <p className="text-[12.5px] text-[var(--c-text-secondary)] leading-snug mt-2 border-t border-[var(--c-border)] pt-2 line-clamp-2">{subtitle}</p>
         )}
-        {href && <span className="inline-flex items-center gap-1 text-[12px] text-indigo-600 mt-2">🔗 查看來源</span>}
+        {href && <span className="inline-flex items-center gap-1 text-[12px] text-[var(--c-accent)] mt-2">🔗 查看來源</span>}
       </div>
     </div>
   );
@@ -165,16 +167,16 @@ function TrendingSection() {
   return (
     <div className="flex flex-col gap-3">
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 flex items-center justify-between">
+      <div className="bg-[var(--c-bg-surface)] rounded-2xl border border-[var(--c-border)] shadow-sm px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg">🔥</span>
-          <span className="font-bold text-slate-800">今日熱門趨勢</span>
-          <span className="text-[11px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">AI 每 6 小時更新</span>
+          <span className="font-bold text-[var(--c-text-primary)]">今日熱門趨勢</span>
+          <span className="text-[11px] text-[var(--c-text-muted)] bg-[var(--c-bg-elevated)] px-2 py-0.5 rounded-full">AI 每 6 小時更新</span>
         </div>
         <button onClick={handleRefresh} disabled={refreshing}
-          className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50 font-medium">
+          className="text-xs text-[var(--c-accent)] hover:text-[var(--c-accent-strong)] flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-[var(--c-accent-soft)] transition-colors disabled:opacity-50 font-medium">
           {refreshing
-            ? <span className="inline-block w-3 h-3 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+            ? <span className="inline-block w-3 h-3 border-2 border-[var(--c-accent-line)] border-t-[var(--c-accent)] rounded-full animate-spin" />
             : '↻'} 立即更新
         </button>
       </div>
@@ -182,7 +184,7 @@ function TrendingSection() {
       {loading ? (
         <div className="flex flex-col gap-3">{[1,2,3].map(i => <div key={i} className="h-20 rounded-2xl shimmer" />)}</div>
       ) : records.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-8 text-center text-slate-400 text-sm">
+        <div className="bg-[var(--c-bg-surface)] rounded-2xl border border-[var(--c-border)] shadow-sm px-4 py-8 text-center text-[var(--c-text-muted)] text-sm">
           <div className="text-3xl mb-2">📭</div>
           <div>尚無趨勢資料</div>
           <div className="text-xs mt-1">點「立即更新」觸發 AI 抓取熱門新聞</div>
@@ -244,11 +246,11 @@ function KnowledgeSection() {
   return (
     <div className="flex flex-col gap-4">
       {/* 標題 + 統計 */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
+      <div className="bg-[var(--c-bg-surface)] rounded-2xl border border-[var(--c-border)] shadow-sm p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-lg">🗂️</span>
-          <span className="font-bold text-slate-800">查證資料庫</span>
-          <span className="text-[11px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">已快取 {stats.total} 筆</span>
+          <span className="font-bold text-[var(--c-text-primary)]">查證資料庫</span>
+          <span className="text-[11px] text-[var(--c-text-muted)] bg-[var(--c-bg-elevated)] px-2 py-0.5 rounded-full">已快取 {stats.total} 筆</span>
         </div>
         {/* 統計小卡 */}
         <div className="grid grid-cols-3 gap-2 mb-4">
@@ -268,9 +270,9 @@ function KnowledgeSection() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜尋已查證的內容或摘要..."
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-indigo-300 focus:bg-white transition-colors"
+            className="flex-1 bg-[var(--c-bg-input)] border border-[var(--c-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--c-text-primary)] placeholder-[var(--c-text-muted)] outline-none focus:border-[var(--c-accent)] transition-colors"
           />
-          <button type="submit" className="btn-primary text-white px-4 py-2 rounded-xl font-semibold text-sm">搜尋</button>
+          <button type="submit" className="btn-primary px-4 py-2 rounded-xl font-semibold text-sm">搜尋</button>
         </form>
         {/* 篩選 */}
         <div className="flex gap-2 mt-3">
@@ -278,8 +280,8 @@ function KnowledgeSection() {
             <button key={f.key} onClick={() => onFilter(f.key)}
               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                 filter === f.key
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'
+                  ? 'bg-[var(--c-accent)] text-[var(--c-accent-ink)] border-[var(--c-accent)]'
+                  : 'bg-[var(--c-bg-elevated)] text-[var(--c-text-secondary)] border-[var(--c-border)] hover:border-[var(--c-accent-line)]'
               }`}>{f.label}</button>
           ))}
         </div>
@@ -289,7 +291,7 @@ function KnowledgeSection() {
       {loading ? (
         <div className="flex flex-col gap-3">{[1,2,3,4].map(i => <div key={i} className="h-24 rounded-2xl shimmer" />)}</div>
       ) : records.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-12 text-center text-slate-400">
+        <div className="bg-[var(--c-bg-surface)] rounded-2xl border border-[var(--c-border)] shadow-sm px-4 py-12 text-center text-[var(--c-text-muted)]">
           <div className="text-4xl mb-2">🔍</div>
           <div className="text-sm">找不到符合的資料</div>
           <div className="text-xs mt-1">換個關鍵字，或先送出幾筆查證</div>
@@ -370,7 +372,7 @@ export default function App() {
       const newPostId = Date.now();
       const newPost = {
         id: newPostId,
-        author: { name: '我', avatar: 'https://ui-avatars.com/api/?name=Me&background=E0E7FF&color=4F46E5', handle: '@me' },
+        author: { name: '我', avatar: AVATAR, handle: '@me' },
         time: '剛剛',
         content: displayContent,
         imagePreview: inputMode === 'image' ? imagePreview : null,
@@ -417,16 +419,16 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen app-bg text-gray-900">
+    <div className="min-h-screen app-bg text-[var(--c-text-primary)]">
       {/* 頂部導覽 */}
-      <nav className="sticky top-0 z-50 bg-white/75 backdrop-blur-xl border-b border-slate-200/60 px-4">
+      <nav className="sticky top-0 z-50 bg-[rgba(17,24,36,0.78)] backdrop-blur-xl border-b border-[var(--c-border)] px-4">
         <div className="w-full max-w-2xl mx-auto">
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black shadow-md shadow-indigo-500/20">查</div>
-              <div className="text-[19px] font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tight">全民查證公社</div>
+              <div className="w-9 h-9 rounded-xl bg-[var(--c-accent-soft)] flex items-center justify-center text-[var(--c-accent)] font-black shadow-sm ring-1 ring-[var(--c-accent-line)]">查</div>
+              <div className="text-[19px] font-extrabold text-[var(--c-text-primary)] tracking-tight">全民查證公社</div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-700 font-bold shadow-sm cursor-pointer hover:scale-105 transition-transform border border-white">我</div>
+            <div className="w-9 h-9 rounded-full bg-[var(--c-accent-soft)] flex items-center justify-center text-[var(--c-accent)] font-bold shadow-sm cursor-pointer hover:scale-105 transition-transform ring-1 ring-[var(--c-border)]">我</div>
           </div>
           {/* 視圖切換 */}
           <div className="flex gap-1">
@@ -436,10 +438,10 @@ export default function App() {
             ].map(t => (
               <button key={t.key} onClick={() => setView(t.key)}
                 className={`relative px-4 py-2.5 text-sm font-semibold transition-colors ${
-                  view === t.key ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  view === t.key ? 'text-[var(--c-accent)]' : 'text-[var(--c-text-muted)] hover:text-[var(--c-text-secondary)]'
                 }`}>
                 <span className="mr-1">{t.icon}</span>{t.label}
-                {view === t.key && <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-indigo-600" />}
+                {view === t.key && <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-[var(--c-accent)]" />}
               </button>
             ))}
           </div>
@@ -454,8 +456,8 @@ export default function App() {
             <TrendingSection />
 
             {/* 查證輸入框 */}
-            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-              <div className="flex gap-1 mb-3 bg-slate-50 p-1 rounded-xl">
+            <div className="bg-[var(--c-bg-surface)] rounded-2xl p-4 sm:p-5 shadow-sm border border-[var(--c-border)] hover:shadow-md transition-shadow">
+              <div className="flex gap-1 mb-3 bg-[var(--c-bg-input)] p-1 rounded-xl">
                 {[
                   { key: 'text', label: '文字', icon: '📝' },
                   { key: 'url', label: '網址', icon: '🔗' },
@@ -463,7 +465,7 @@ export default function App() {
                 ].map(t => (
                   <button key={t.key} onClick={() => setInputMode(t.key)} disabled={isLoading}
                     className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      inputMode === t.key ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      inputMode === t.key ? 'bg-[var(--c-bg-elevated)] text-[var(--c-accent)] shadow-sm' : 'text-[var(--c-text-muted)] hover:text-[var(--c-text-secondary)]'
                     }`}>
                     <span className="mr-1">{t.icon}</span>{t.label}
                   </button>
@@ -471,18 +473,18 @@ export default function App() {
               </div>
 
               <div className="flex gap-3">
-                <img src="https://ui-avatars.com/api/?name=Me&background=E0E7FF&color=4F46E5" alt="me"
-                  className="w-10 h-10 rounded-full flex-shrink-0 ring-2 ring-white shadow-sm" />
+                <img src={AVATAR} alt="me"
+                  className="w-10 h-10 rounded-full flex-shrink-0 ring-1 ring-[var(--c-border)] shadow-sm" />
                 <div className="flex-1">
                   {inputMode === 'text' && (
                     <textarea
-                      className="w-full bg-transparent resize-none outline-none text-[15px] placeholder-slate-400 min-h-[60px] leading-relaxed"
+                      className="w-full bg-transparent resize-none outline-none text-[15px] text-[var(--c-text-primary)] placeholder-[var(--c-text-muted)] min-h-[60px] leading-relaxed"
                       placeholder="貼上可疑的訊息、新聞，讓 AI 幫你查證..."
                       value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={isLoading} />
                   )}
                   {inputMode === 'url' && (
                     <input type="url"
-                      className="w-full bg-transparent outline-none text-[15px] placeholder-slate-400 py-3 border-b border-slate-100 focus:border-indigo-300 transition-colors"
+                      className="w-full bg-transparent outline-none text-[15px] text-[var(--c-text-primary)] placeholder-[var(--c-text-muted)] py-3 border-b border-[var(--c-border)] focus:border-[var(--c-accent)] transition-colors"
                       placeholder="貼上文章網址 https://..."
                       value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={isLoading} />
                   )}
@@ -490,10 +492,10 @@ export default function App() {
                     <div>
                       {imagePreview ? (
                         <div className="relative inline-block">
-                          <img src={imagePreview} alt="preview" className="max-h-48 rounded-lg shadow-sm border border-slate-200" />
+                          <img src={imagePreview} alt="preview" className="max-h-48 rounded-lg shadow-sm border border-[var(--c-border)]" />
                           <button onClick={() => { setImageFile(null); setImagePreview(null); }} disabled={isLoading}
-                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-slate-700 text-white text-sm hover:bg-slate-800 shadow-md">×</button>
-                          <div className="text-[11px] text-slate-400 mt-1.5">{imageFile?.name}</div>
+                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[var(--c-bg-elevated)] text-[var(--c-text-primary)] text-sm hover:bg-[var(--c-border-strong)] shadow-md border border-[var(--c-border)]">×</button>
+                          <div className="text-[11px] text-[var(--c-text-muted)] mt-1.5">{imageFile?.name}</div>
                         </div>
                       ) : (
                         <label htmlFor="img-upload"
@@ -501,11 +503,11 @@ export default function App() {
                           onDragLeave={() => setIsDragActive(false)}
                           onDrop={(e) => { e.preventDefault(); setIsDragActive(false); if (e.dataTransfer.files[0]) handleImageSelect(e.dataTransfer.files[0]); }}
                           className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
-                            isDragActive ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30'
+                            isDragActive ? 'border-[var(--c-accent)] bg-[var(--c-accent-soft)]' : 'border-[var(--c-border)] hover:border-[var(--c-accent-line)] hover:bg-[var(--c-bg-input)]'
                           }`}>
                           <div className="text-3xl mb-2">📷</div>
-                          <div className="text-sm font-medium text-slate-600">點擊或拖曳上傳圖片</div>
-                          <div className="text-[11px] text-slate-400 mt-1">支援 PNG / JPG / WEBP，最大 10MB</div>
+                          <div className="text-sm font-medium text-[var(--c-text-secondary)]">點擊或拖曳上傳圖片</div>
+                          <div className="text-[11px] text-[var(--c-text-muted)] mt-1">支援 PNG / JPG / WEBP，最大 10MB</div>
                           <input id="img-upload" type="file" accept="image/*" className="hidden"
                             onChange={(e) => handleImageSelect(e.target.files[0])} disabled={isLoading} />
                         </label>
@@ -515,16 +517,16 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center border-t border-slate-100 pt-3 mt-3">
-                <div className="text-[12px] text-slate-400 flex items-center gap-1.5">
+              <div className="flex justify-between items-center border-t border-[var(--c-border)] pt-3 mt-3">
+                <div className="text-[12px] text-[var(--c-text-muted)] flex items-center gap-1.5">
                   <span>✨</span>
                   {inputMode === 'image' ? 'AI 將進行 OCR 與圖片內容分析' : 'AI 將進行雙重事實查核'}
                 </div>
                 <button onClick={handlePostSubmit}
                   disabled={isLoading || (inputMode === 'image' ? !imageFile : !inputText.trim())}
-                  className="btn-primary text-white px-5 py-2 rounded-full font-semibold text-sm flex items-center gap-2">
+                  className="btn-primary px-5 py-2 rounded-full font-semibold text-sm flex items-center gap-2">
                   {isLoading
-                    ? (<><span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />分析中</>)
+                    ? (<><span className="inline-block w-3 h-3 border-2 border-[var(--c-accent-ink)]/30 border-t-[var(--c-accent-ink)] rounded-full animate-spin" />分析中</>)
                     : (<>發布查證</>)}
                 </button>
               </div>
@@ -532,27 +534,27 @@ export default function App() {
 
             {/* 結果列表 */}
             {posts.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-12 text-center text-slate-400">
+              <div className="bg-[var(--c-bg-surface)] rounded-2xl border border-[var(--c-border)] shadow-sm px-4 py-12 text-center text-[var(--c-text-muted)]">
                 <div className="text-4xl mb-2">📝</div>
-                <div className="text-sm font-medium text-slate-500">還沒有查證紀錄</div>
+                <div className="text-sm font-medium text-[var(--c-text-secondary)]">還沒有查證紀錄</div>
                 <div className="text-xs mt-1">在上方貼上可疑訊息、網址或圖片，AI 會幫你判斷真偽</div>
               </div>
             ) : (
               <div className="flex flex-col gap-4">
                 {posts.map((post) => (
                   <article key={post.id}
-                    className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 transition-all hover:shadow-md hover:border-slate-200 fade-in">
+                    className="bg-[var(--c-bg-surface)] rounded-2xl p-4 sm:p-5 shadow-sm border border-[var(--c-border)] transition-all hover:shadow-md hover:border-[var(--c-border-strong)] fade-in">
                     <div className="flex items-center gap-3 mb-3">
-                      <img src={post.author.avatar} alt={post.author.name} className="w-10 h-10 rounded-full flex-shrink-0 ring-2 ring-white shadow-sm" />
+                      <img src={post.author.avatar} alt={post.author.name} className="w-10 h-10 rounded-full flex-shrink-0 ring-1 ring-[var(--c-border)] shadow-sm" />
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-slate-900">{post.author.name}</span>
-                        <span className="text-slate-400 text-sm">{post.author.handle}</span>
-                        <span className="text-slate-300 text-sm">·</span>
-                        <span className="text-slate-400 text-sm">{post.time}</span>
+                        <span className="font-bold text-[var(--c-text-primary)]">{post.author.name}</span>
+                        <span className="text-[var(--c-text-muted)] text-sm">{post.author.handle}</span>
+                        <span className="text-[var(--c-text-muted)] text-sm">·</span>
+                        <span className="text-[var(--c-text-muted)] text-sm">{post.time}</span>
                       </div>
                     </div>
-                    <div className="text-slate-800 text-[15px] leading-relaxed mb-2 whitespace-pre-wrap">{post.content}</div>
-                    {post.imagePreview && <img src={post.imagePreview} alt="upload" className="max-h-64 rounded-lg border border-slate-200 mb-3" />}
+                    <div className="text-[var(--c-text-primary)] text-[15px] leading-relaxed mb-2 whitespace-pre-wrap">{post.content}</div>
+                    {post.imagePreview && <img src={post.imagePreview} alt="upload" className="max-h-64 rounded-lg border border-[var(--c-border)] mb-3" />}
                     {post.analyzing && <AnalyzingCard />}
                     {post.aiResult && !post.analyzing && <AiResultCard result={post.aiResult} />}
                   </article>

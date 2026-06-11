@@ -1,42 +1,79 @@
 @import "tailwindcss";
 
+/* ============================================================
+   設計 TOKEN（與單檔查核儀同一套：深色 + 青綠強調 + 語意風險色）
+   ============================================================ */
+:root {
+  --c-bg-base:      #0a0e15;
+  --c-bg-surface:   #111824;
+  --c-bg-elevated:  #18212f;
+  --c-bg-input:     #0c121b;
+  --c-border:       #232f40;
+  --c-border-strong:#33425a;
+
+  --c-text-primary:   #e9eef6;
+  --c-text-secondary: #9fb0c4;
+  --c-text-muted:     #7e90a6;
+
+  --c-accent:       #34dcc4;
+  --c-accent-strong:#5eead6;
+  --c-accent-ink:   #04221d;
+  --c-accent-soft:  rgba(52,220,196,0.13);
+  --c-accent-line:  rgba(52,220,196,0.45);
+
+  --c-risk-high: #fb6a63;
+  --c-risk-mid:  #e6b540;
+  --c-risk-low:  #46c46b;
+  --c-risk-high-soft: rgba(251,106,99,0.15);
+  --c-risk-mid-soft:  rgba(230,181,64,0.15);
+  --c-risk-low-soft:  rgba(70,196,107,0.14);
+  --c-muted-soft:     rgba(126,144,166,0.14);
+}
+
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC',
     'Microsoft JhengHei', 'PingFang TC', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f6f7fb;
+  color: var(--c-text-primary);
+  background-color: var(--c-bg-base);
 }
 
-/* 整體背景：柔和的雙色光暈，比純色更有層次 */
+/* 整體背景：深色 + 頂部一抹青綠光暈（取代原本的靛紫） */
 .app-bg {
-  background-color: #f6f7fb;
+  background-color: var(--c-bg-base);
   background-image:
-    radial-gradient(1100px 500px at 12% -8%, rgba(99, 102, 241, 0.10), transparent 60%),
-    radial-gradient(1000px 480px at 100% 0%, rgba(168, 85, 247, 0.08), transparent 55%);
+    radial-gradient(1100px 520px at 82% -8%, rgba(52,220,196,0.09), transparent 60%),
+    radial-gradient(900px 480px at 0% 0%, rgba(52,220,196,0.045), transparent 55%);
   background-attachment: fixed;
 }
 
-/* 細緻捲軸 */
+/* 焦點環（鍵盤可達） */
+:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* 深色細捲軸 */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--c-border-strong);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-text-muted); background-clip: content-box; }
 
-/* AI 分析中：脈動動效 */
+/* AI 分析中：深色 shimmer */
 @keyframes shimmer {
   0% { background-position: -1000px 0; }
   100% { background-position: 1000px 0; }
 }
-
 .shimmer {
-  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background: linear-gradient(90deg, #131a24 0%, #1d2838 50%, #131a24 100%);
   background-size: 1000px 100%;
   animation: shimmer 1.8s infinite linear;
 }
@@ -46,33 +83,30 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+.fade-in { animation: fadeIn 0.3s ease-out; }
 
-.fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* 風險標題微微脈動 */
+/* 風險標題微脈動 */
 @keyframes softPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.85; }
 }
+.analyzing-pulse { animation: softPulse 1.6s ease-in-out infinite; }
 
-.analyzing-pulse {
-  animation: softPulse 1.6s ease-in-out infinite;
-}
-
-/* 平滑滑入按鈕 hover */
+/* 主按鈕：青綠（取代靛紫漸層） */
 .btn-primary {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: var(--c-accent);
+  color: var(--c-accent-ink);
   transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 1px 3px rgba(52,220,196,0.20);
 }
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+  background: var(--c-accent-strong);
+  box-shadow: 0 4px 16px rgba(52,220,196,0.30);
 }
 .btn-primary:disabled {
-  background: #cbd5e1;
+  background: var(--c-border-strong);
+  color: var(--c-text-muted);
   cursor: not-allowed;
   box-shadow: none;
 }
