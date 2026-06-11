@@ -4,8 +4,9 @@
 > **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
 > 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
 
-最後更新重點：AI 引擎保留 myai168 OpenAI/Claude，新增 CGU AIR Gateway provider；embedding 走 CGU、評測 96%；
-熱門/資料庫誤標已修（只在確定不實才標假訊息）、卡片風格統一（InfoCard）、knowledge_base 已提交 178 筆 demo 種子。
+最後更新重點：新增單檔查核儀(根目錄 `fake-news-detector.html`)、React 前端改採深色青綠設計(與查核儀同一設計語言)、
+一鍵啟動改版(`start.bat`→後端+查核儀)；AI 引擎多 provider(myai168 OpenAI/Claude + CGU)、評測 96%；
+熱門排序真新聞優先+Cofacts 限量、minimal 推理自動跳過 web_search、目錄已攤平至 `code/backend`。
 
 ---
 
@@ -15,8 +16,9 @@
 使用者貼上文字 / 網址 / 圖片 / 影片，系統用 AI 判定是 **詐騙(SCAM) / 假訊息(MISINFO) / 安全(SAFE)**，附上佐證來源。
 另有「今日熱門」自動抓取查核新聞、三層快取、向量檢索。
 
-- 前端：React 19 + Vite + Tailwind CSS（`code/frontend`）
-- 後端：FastAPI + Uvicorn（`code/backend/factcheck_system`）
+- 前端：**兩個並存、同一深色查核儀設計**——① React 19 + Vite + Tailwind（`code/frontend`，功能完整、接真後端）；
+  ② 單檔 HTML 查核儀（根目錄 `fake-news-detector.html`，自包含可離線、靜態伺服器 8090）
+- 後端：FastAPI + Uvicorn（`code/backend`，已從 `factcheck_system` 子目錄攤平）
 - 資料：SQLite（熱門記錄）+ Parquet（三層快取知識庫）
 
 ---
@@ -95,7 +97,10 @@ code/backend/
 ├── .env                        ★真實金鑰(在 backend 根目錄)，已 gitignore，勿提交
 ├── requirements.txt  .env.example  README.md  Dockerfile  docker-compose.yml
 └── venv/（本機建立，不進 git）
-code/frontend/                  React + Vite + Tailwind
+code/frontend/                  React + Vite + Tailwind（深色查核儀設計：index.css token / mockData RISK_STYLES / App.jsx）
+fake-news-detector.html         ★單檔查核儀(根目錄)：設計token+環形儀表盤+掃描動畫+三視圖(檢測/熱門/資料庫)
+                                熱門/資料庫接 /api/trending、/api/knowledge(離線 fallback 範例)；檢測為前端啟發式 mock
+start.bat / _run_detector.bat   一鍵啟動：後端 + 查核儀靜態伺服器(8090)；start.sh 為 Linux/mac 版
 assets/                         PlantUML 圖 + confusion_matrix.png
 └── 期末專題文件/                OOSE 期末繳交文件(詞彙表/使用案例圖/情節/活動圖/類別圖+README)
 ```
@@ -105,12 +110,16 @@ assets/                         PlantUML 圖 + confusion_matrix.png
 ## 5. 常用指令
 
 ```powershell
-# 一鍵啟動前後端（專案根目錄）
+# 一鍵啟動：後端 + 單檔查核儀(8090)（專案根目錄）
 .\start.bat
 
 # 後端（venv 在 code/backend/venv）
 cd code\backend
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000
+
+# React 深色前端（單獨跑，靠 vite proxy /api→8000）
+cd code\frontend
+npm run dev    # http://localhost:5173
 
 # 看資料庫內容
 .\venv\Scripts\python scripts\check_db.py
@@ -162,6 +171,11 @@ API 文件：http://localhost:8000/docs
 - [x] 目錄攤平：`code/backend/factcheck_system/*` → `code/backend/`；刪死檔/alembic/inner pkg
 - [x] 修正熱門「全是 Cofacts 個人對話」：`api/trending.py` 改真新聞(MyGoPen/TFC/Google)
       優先、Cofacts 個人投稿限量(≤3)排到最後，避免單一來源洗版
+- [x] 新增單檔查核儀 `fake-news-detector.html`：設計token系統+環形儀表盤+掃描動畫+三視圖；
+      熱門/資料庫接真後端、離線 fallback；分類中文化、198筆顯示前60；localStorage 歷史
+- [x] React 前端深色化：改採查核儀設計語言(深色青綠+語意色)，改 index.css/mockData/App.jsx；邏輯不變
+- [x] 一鍵啟動改版：`start.bat`/`start.sh` 路徑修正(攤平後 `code\backend`)、改啟動後端+查核儀；
+      新增 `_run_detector.bat`(http.server 8090)
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 
