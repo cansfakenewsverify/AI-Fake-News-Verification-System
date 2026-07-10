@@ -8,6 +8,9 @@
 一鍵啟動改版(`start.bat`→後端+查核儀)；AI 引擎多 provider(myai168 OpenAI/Claude + CGU)、評測 96%；
 熱門排序真新聞優先+Cofacts 限量、minimal 推理自動跳過 web_search、目錄已攤平至 `code/backend`。
 
+> ⚠️ **目前阻塞（2026-07）**：myai168 AI 額度用盡（claude 402 insufficient_credits）＋`gpt-5-mini` 網關下架（openai 400 no_pricing），
+> AI 暫時無法真分析（會回「AI 分析暫時無法使用」）。**恢復步驟見第 2 節「🚨 AI 全部壞掉時的排查與恢復」。**
+
 ---
 
 ## 1. 這個專案是什麼
@@ -54,6 +57,24 @@
 - ⚠️ **點數會用盡**：claude 402 `insufficient_credits`(需儲值)、openai 400 `no_pricing_info`(模型下架/換 `OPENAI_MODEL`)
   代表 myai168 額度或模型出問題；此時 AI 回「AI 分析暫時無法使用」，前端(查核儀/React)會 fallback。可考慮改 `AI_PROVIDER=cgu`。
 - **自動抓新聞排程預設關閉**（`ENABLE_SCHEDULER=false`），避免背景持續燒點數。要 24h 自動查證才開。
+
+### 🚨 AI 全部壞掉時的排查與恢復（2026-07 實際遇到，下一個接手請照這做）
+**症狀**：檢測/評測回「AI 分析暫時無法使用」(risk_type=SAFE、confidence=0)；後端 log 出現：
+- `[AI] claude HTTP 402: insufficient_credits「You need to top up!」` → **myai168 點數燒完**（claude/openai 共用 `MYAI_API_KEY` 同一額度池）
+- `[AI] openai HTTP 400: no_pricing_info「Please use other models!」` → **`OPENAI_MODEL`(gpt-5-mini) 在網關下架/沒定價**
+
+**恢復步驟**（擇一，改 `code/backend/.env` 後**重啟後端**才生效）：
+1. **myai168 儲值** → claude/openai 立即恢復（同一額度池）。
+2. **換 openai 模型**：把 `OPENAI_MODEL=gpt-5-mini` 改成網關還有定價的型號（去 myai168 後台查可用清單）。
+3. **改用 CGU 網關**：`AI_PROVIDER=cgu`（獨立 $20 預算、不同金鑰池；用量查詢見本節上方）。
+
+**驗證**（低成本，會印出 risk_type 或 HTTP 錯誤碼）：
+```powershell
+cd code\backend
+.\venv\Scripts\python scripts\test_ai_provider.py --provider openai   # 或 cgu / claude
+```
+**前端不會因此崩**：查核儀 → fallback 前端啟發式並標「離線」；React → 顯示「分析失敗」卡片；
+熱門/資料庫走 `/api/trending`、`/api/knowledge` 讀快取、**不呼叫 AI、不受影響**。
 
 ---
 
