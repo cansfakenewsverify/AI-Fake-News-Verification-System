@@ -169,8 +169,10 @@ class AIService:
             "max_tokens": 2000,
             "messages": [{"role": "user", "content": content}],
         }
-        if use_web_search:
-            body["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}]
+        # myai168 的 anthropic 中繼不支援 hosted 工具：web_search 帶了會 HTTP 400
+        # (unsupported_tool)，故 claude 引擎一律不帶 web_search。
+        # openai 引擎的 web_search 仍照常（見 _responses_analyze）。use_web_search 參數保留以維持簽名。
+        _ = use_web_search
         headers = {"x-api-key": self.myai_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
         r = requests.post(f"{self.claude_base}/messages", headers=headers, json=body, timeout=150)
         r.raise_for_status()

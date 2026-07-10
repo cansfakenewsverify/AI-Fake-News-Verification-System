@@ -28,6 +28,42 @@
   --c-risk-mid-soft:  rgba(230,181,64,0.15);
   --c-risk-low-soft:  rgba(70,196,107,0.14);
   --c-muted-soft:     rgba(126,144,166,0.14);
+  --c-topbar-bg:      rgba(17,24,36,0.78);
+}
+
+/* 淺色主題（深色為預設；data-theme="light" 覆蓋同一組 token） */
+:root[data-theme="light"] {
+  --c-bg-base:      #eef1f6;
+  --c-bg-surface:   #ffffff;
+  --c-bg-elevated:  #f1f4f9;
+  --c-bg-input:     #f6f8fb;
+  --c-border:       #dce3ed;
+  --c-border-strong:#c3cdda;
+  --c-text-primary:   #16202e;
+  --c-text-secondary: #46566a;
+  --c-text-muted:     #6a7889;
+  --c-accent:       #0d9488;
+  --c-accent-strong:#0f766e;
+  --c-accent-ink:   #ffffff;
+  --c-accent-soft:  rgba(13,148,136,0.10);
+  --c-accent-line:  rgba(13,148,136,0.40);
+  --c-risk-high: #dc2626;
+  --c-risk-mid:  #c2790a;
+  --c-risk-low:  #15a34a;
+  --c-risk-high-soft: rgba(220,38,38,0.10);
+  --c-risk-mid-soft:  rgba(194,121,10,0.12);
+  --c-risk-low-soft:  rgba(21,163,74,0.12);
+  --c-muted-soft:     rgba(100,114,132,0.12);
+  --c-topbar-bg:      rgba(255,255,255,0.80);
+}
+:root[data-theme="light"] .app-bg {
+  background-image:
+    radial-gradient(1100px 520px at 82% -8%, rgba(13,148,136,0.07), transparent 60%),
+    radial-gradient(900px 480px at 0% 0%, rgba(13,148,136,0.04), transparent 55%);
+}
+:root[data-theme="light"] .shimmer {
+  background: linear-gradient(90deg, #e8edf3 0%, #f4f7fb 50%, #e8edf3 100%);
+  background-size: 1000px 100%;
 }
 
 body {

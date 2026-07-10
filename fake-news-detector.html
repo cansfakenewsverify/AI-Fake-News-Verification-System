@@ -93,6 +93,50 @@
     --content-max: 1240px;
   }
 
+  /* 淺色主題（深色為預設；data-theme="light" 時覆蓋同一組 token） */
+  :root[data-theme="light"] {
+    --c-bg-base:      #eef1f6;
+    --c-bg-surface:   #ffffff;
+    --c-bg-elevated:  #f1f4f9;
+    --c-bg-input:     #f6f8fb;
+    --c-border:       #dce3ed;
+    --c-border-strong:#c3cdda;
+    --c-text-primary:   #16202e;
+    --c-text-secondary: #46566a;
+    --c-text-muted:     #6a7889;
+    --c-accent:       #0d9488;
+    --c-accent-strong:#0f766e;
+    --c-accent-ink:   #ffffff;
+    --c-accent-soft:  rgba(13,148,136,0.10);
+    --c-accent-line:  rgba(13,148,136,0.40);
+    --c-risk-high: #dc2626;
+    --c-risk-mid:  #c2790a;
+    --c-risk-low:  #15a34a;
+    --c-risk-high-soft: rgba(220,38,38,0.10);
+    --c-risk-mid-soft:  rgba(194,121,10,0.12);
+    --c-risk-low-soft:  rgba(21,163,74,0.12);
+  }
+  :root[data-theme="light"] body {
+    background-image:
+      radial-gradient(1100px 520px at 82% -8%, rgba(13,148,136,0.07), transparent 60%),
+      radial-gradient(900px 480px at 0% 0%, rgba(13,148,136,0.04), transparent 55%);
+  }
+  :root[data-theme="light"] .topbar {
+    background: linear-gradient(180deg, rgba(255,255,255,0.72), transparent);
+  }
+  .theme-toggle {
+    width: 38px; height: 38px; flex: none;
+    display: grid; place-items: center;
+    border-radius: var(--radius-md);
+    background: var(--c-bg-surface);
+    border: 1px solid var(--c-border);
+    color: var(--c-text-secondary);
+    font-size: 16px; line-height: 1;
+    cursor: pointer;
+    transition: border-color var(--dur), background var(--dur), transform var(--dur-fast);
+  }
+  .theme-toggle:hover { border-color: var(--c-accent-line); color: var(--c-text-primary); transform: translateY(-1px); }
+
   /* ============================================================
      RESET / BASE
      ============================================================ */
@@ -798,6 +842,9 @@
           <div class="stat__label">高風險標記</div>
         </div>
       </div>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切換深色／淺色主題" title="切換主題">
+        <span id="theme-icon">🌙</span>
+      </button>
     </header>
 
     <!-- ── 側欄：導覽 + 歷史紀錄 ───────────────────────── -->
@@ -1142,7 +1189,10 @@
       reasonsList.appendChild(li);
     });
 
-    resultHint.textContent = opts.fromHistory ? "歷史回顧" : "分析完成";
+    resultHint.textContent = opts.fromHistory ? "歷史回顧"
+      : opts.live === false ? "離線啟發式（後端未啟動）"
+      : opts.live === true ? "即時 AI 分析"
+      : "分析完成";
     result.dataset.state = "done";
   }
 
@@ -1169,6 +1219,61 @@
     });
   }
 
+  /* ── 接後端 /api/analyze/sync（同步 AI）；失敗 fallback 前端啟發式 ── */
+  async function detectViaBackend(text) {
+    try {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 25000);
+      const res = await fetch(`${API_BASE}/api/analyze/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(to);
+      if (!res.ok) throw new Error("bad status");
+      return backendToResult(await res.json());
+    } catch (e) {
+      const r = analyze(text);   // 離線：前端啟發式
+      r._live = false;
+      return r;
+    }
+  }
+
+  // 後端(判定信心度) → 查核儀(可信度/風險/依據)：SAFE 信心高=可信度高；SCAM/MISINFO 反向
+  function backendToResult(d) {
+    const rt = (d.risk_type || "").toUpperCase();
+    const conf = typeof d.confidence_score === "number" ? d.confidence_score : 0.5;
+    let score;
+    if (rt === "SAFE") score = Math.round(conf * 100);
+    else if (rt === "SCAM" || rt === "MISINFO") score = Math.round((1 - conf) * 100);
+    else score = 50;
+    score = Math.max(2, Math.min(99, score));
+
+    let level;
+    if (score >= 70) level = "low";
+    else if (score >= 45) level = "mid";
+    else level = "high";
+
+    const verdict = { SCAM: "詐騙", MISINFO: "假訊息", SAFE: "安全", UNKNOWN: "未確認" }[rt] || rt;
+    const reasons = [{
+      type: rt === "SAFE" ? "pos" : (rt === "UNKNOWN" ? "info" : "neg"),
+      icon: rt === "SAFE" ? "✓" : (rt === "UNKNOWN" ? "i" : "!"),
+      text: `AI 判定：${verdict}${d.category ? `（${catLabel(d.category)}）` : ""}，判定信心 ${Math.round(conf * 100)}%。`,
+    }];
+    if (d.summary) reasons.push({ type: "info", icon: "i", text: d.summary });
+    (d.sources || []).forEach((s) => {
+      const u = typeof s === "string" ? s : (s && s.url);
+      if (u) reasons.push({ type: "info", icon: "🔗", text: `參考來源：${typeof s === "string" ? u : (s.title || u)}` });
+    });
+
+    return {
+      score, level, reasons,
+      explanation: d.explanation || d.summary || "（後端未提供說明）",
+      _live: true,
+    };
+  }
+
   /* ── 檢測主流程 ─────────────────────────────────────── */
   async function handleDetect() {
     if (busy) return;
@@ -1189,9 +1294,9 @@
     detectBtn.disabled = true;
     detectLabel.textContent = "檢測中⋯";
 
-    await runScan();
-    const r = analyze(text);
-    renderResult(r);
+    // 掃描動畫與後端 AI 並行：動畫至少跑完一輪，AI 較慢就等 AI
+    const [, r] = await Promise.all([runScan(), detectViaBackend(text)]);
+    renderResult(r, { live: r._live });
     saveHistory(text, r);
 
     busy = false;
@@ -1522,7 +1627,23 @@
       renderKnowledge();
     }));
 
+  /* ── 主題切換（深色為預設） ─────────────────────────── */
+  const themeToggle = $("#theme-toggle");
+  const themeIcon = $("#theme-icon");
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    if (themeIcon) themeIcon.textContent = t === "light" ? "☀️" : "🌙";
+    try { localStorage.setItem("factscan_theme", t); } catch (e) {}
+  }
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+      applyTheme(next);
+    });
+  }
+
   /* ── 初始化 ─────────────────────────────────────────── */
+  applyTheme(localStorage.getItem("factscan_theme") || "dark");
   updateCount();
   renderHistory();
   renderTrending();

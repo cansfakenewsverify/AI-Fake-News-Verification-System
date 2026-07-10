@@ -49,6 +49,10 @@
 - `web_search` 工具讓每次呼叫**貴 3–7 倍**。由 `USE_WEB_SEARCH` 控制；高量任務（評測、排程）請關掉。
 - ⚠️ **minimal 推理與 web_search 不相容**：gpt-5-mini 在 `OPENAI_REASONING_EFFORT=minimal` 下帶 web_search 會 HTTP 400。
   `ai_service._responses_analyze` 已自動在 minimal 時跳過 web_search（openai/cgu 共用此引擎），否則每次都失敗後 fallback 到貴 10 倍的 claude。
+- ⚠️ **myai168 anthropic 中繼不支援 hosted web_search**：claude 帶 web_search 會 HTTP 400 (unsupported_tool)。
+  `_claude_analyze` 已一律不帶 web_search；高量任務建議 `USE_WEB_SEARCH=false`。
+- ⚠️ **點數會用盡**：claude 402 `insufficient_credits`(需儲值)、openai 400 `no_pricing_info`(模型下架/換 `OPENAI_MODEL`)
+  代表 myai168 額度或模型出問題；此時 AI 回「AI 分析暫時無法使用」，前端(查核儀/React)會 fallback。可考慮改 `AI_PROVIDER=cgu`。
 - **自動抓新聞排程預設關閉**（`ENABLE_SCHEDULER=false`），避免背景持續燒點數。要 24h 自動查證才開。
 
 ---
@@ -176,6 +180,12 @@ API 文件：http://localhost:8000/docs
 - [x] React 前端深色化：改採查核儀設計語言(深色青綠+語意色)，改 index.css/mockData/App.jsx；邏輯不變
 - [x] 一鍵啟動改版：`start.bat`/`start.sh` 路徑修正(攤平後 `code\backend`)、改啟動後端+查核儀；
       新增 `_run_detector.bat`(http.server 8090)
+- [x] 一鍵啟動加 React：`start.bat`/`start.sh` 同時開後端 + 查核儀(8090) + React(5173)
+- [x] 查核儀檢測接後端：改接 `/api/analyze/sync`(同步真 AI)、信心度→可信度換算、
+      失敗自動 fallback 前端啟發式、標「即時 AI／離線」；後端 AI 額度用盡時仍不壞
+- [x] 深/淺色主題切換：查核儀 + React 都加(data-theme + localStorage、深色預設)、
+      新增 `--c-topbar-bg` token 讓頂欄跟著主題變
+- [x] claude 引擎跳過 web_search（myai168 anthropic 中繼不支援 hosted 工具）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 

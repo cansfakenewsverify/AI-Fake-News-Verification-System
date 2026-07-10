@@ -328,6 +328,14 @@ export default function App() {
 
   const pollIntervalsRef = useRef(new Set());
   const [isDragActive, setIsDragActive] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('factscan_theme') || 'dark'; } catch { return 'dark'; }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('factscan_theme', theme); } catch {}
+  }, [theme]);
 
   useEffect(() => () => {
     pollIntervalsRef.current.forEach(clearInterval);
@@ -421,14 +429,21 @@ export default function App() {
   return (
     <div className="min-h-screen app-bg text-[var(--c-text-primary)]">
       {/* 頂部導覽 */}
-      <nav className="sticky top-0 z-50 bg-[rgba(17,24,36,0.78)] backdrop-blur-xl border-b border-[var(--c-border)] px-4">
+      <nav className="sticky top-0 z-50 bg-[var(--c-topbar-bg)] backdrop-blur-xl border-b border-[var(--c-border)] px-4">
         <div className="w-full max-w-2xl mx-auto">
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-[var(--c-accent-soft)] flex items-center justify-center text-[var(--c-accent)] font-black shadow-sm ring-1 ring-[var(--c-accent-line)]">查</div>
               <div className="text-[19px] font-extrabold text-[var(--c-text-primary)] tracking-tight">全民查證公社</div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-[var(--c-accent-soft)] flex items-center justify-center text-[var(--c-accent)] font-bold shadow-sm cursor-pointer hover:scale-105 transition-transform ring-1 ring-[var(--c-border)]">我</div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
+                className="w-9 h-9 rounded-xl bg-[var(--c-bg-surface)] border border-[var(--c-border)] flex items-center justify-center text-[15px] text-[var(--c-text-secondary)] hover:border-[var(--c-accent-line)] hover:text-[var(--c-text-primary)] transition-colors"
+                aria-label="切換深色／淺色主題" title="切換主題">
+                {theme === 'light' ? '☀️' : '🌙'}
+              </button>
+              <div className="w-9 h-9 rounded-full bg-[var(--c-accent-soft)] flex items-center justify-center text-[var(--c-accent)] font-bold shadow-sm cursor-pointer hover:scale-105 transition-transform ring-1 ring-[var(--c-border)]">我</div>
+            </div>
           </div>
           {/* 視圖切換 */}
           <div className="flex gap-1">
