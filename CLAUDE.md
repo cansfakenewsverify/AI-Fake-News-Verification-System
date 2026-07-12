@@ -4,7 +4,7 @@
 > **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
 > 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
 
-最後更新重點：新增 **pytest 單元測試（tests/，29 個）+ GitHub Actions CI**；React 前端現代簡約化
+最後更新重點：新增 **pytest 單元測試（tests/，31 個）+ GitHub Actions CI**；React 前端現代簡約化
 （token 精修＋幾何記號取代 emoji，深淺色保留）。先前：Threads 查核機器人（第 11 節）、
 修查核報導「同謠言兩種標籤」bug（第 9 節三道防線）、start.bat pip 修復、全專案優化、多 provider、評測 96%。
 
@@ -142,7 +142,7 @@ code/backend/
 │   ├── test_threads_bot.py     Threads 機器人乾跑/憑證驗證(--live)/真跑一輪(--poll)
 │   ├── fix_factcheck_labels.py 一次性資料修復(查核報導錯標+HTML entities，冪等/--dry-run)
 │   └── seed_data.py            灌範本
-├── tests/                      ★pytest 單元測試(29 tests、離線零點數；CI 每次 push 自動跑)
+├── tests/                      ★pytest 單元測試(31 tests、離線零點數；CI 每次 push 自動跑)
 │   ├── test_cache_and_store.py   hash/三層快取/任務儲存
 │   ├── test_marking_rules.py     標記規則守門(第9節邏輯，防退回舊 bug)
 │   ├── test_ai_service_contract.py  JSON解析/fallback字樣契約/紅黃綠框/Threads回覆500字
@@ -200,7 +200,7 @@ npm run dev    # http://localhost:5173
 .\venv\Scripts\python scripts\test_threads_bot.py --live
 .\venv\Scripts\python scripts\test_threads_bot.py --poll
 
-# 單元測試（29 tests、離線、零點數；GitHub Actions 每次 push 也會自動跑）
+# 單元測試（31 tests、離線、零點數；GitHub Actions 每次 push 也會自動跑）
 .\venv\Scripts\python -m pytest tests -q
 ```
 
@@ -232,6 +232,8 @@ API 文件：http://localhost:8000/docs
 - 大檔（如報告影片 895MB、plantuml jar）放雲端或 gitignore，不進 git（GitHub 單檔上限 100MB）。
 - PostgreSQL/Redis 死碼已全數移除（2026-07）：不要再引用 `app/database.py`、PG models、
   pgvector 方法——它們不存在了；資料層就是 SQLite（熱門）+ Parquet（快取/任務/回饋）。
+- **單機單寫者假設**：Parquet/SQLite 沒有跨行程鎖。batch_verify_pending.py 與後端伺服器
+  同時「寫入」有機率互相蓋掉（讀取無妨）。跑批次時避免同時做大量 /sync 查證。
 
 ---
 
@@ -274,7 +276,7 @@ API 文件：http://localhost:8000/docs
       @機器人回覆可疑貼文 → 三層快取+AI 分析 → 自動回覆紅黃綠+來源；預設關、缺 token 全自動停用
 - [x] 修「同一謠言兩種標籤」bug：查核報導判定對象統一為被查核的主張（見第 9 節三道防線）；
       RSS 標題 &nbsp; entities 清乾淨（_strip_html 解 entities + fix_factcheck_labels.py 修舊資料）
-- [x] 單元測試 + CI：tests/ 29 個 pytest（快取/標記規則/fallback契約/API冒煙/URL過濾，
+- [x] 單元測試 + CI：tests/ 31 個 pytest（快取/標記規則/fallback契約/API冒煙/URL過濾，
       離線零點數）＋ .github/workflows/ci.yml（push/PR 自動跑，對應專題「測試驗證/品質保證」）
 - [x] React 前端現代簡約化：token 精修（低對比邊框、主題感知陰影 --shadow-card/pop、
       柔和光暈）、裝飾 emoji 換幾何記號（✕/!/✓ 語意色）、標題列 accent bar；深淺色皆保留
@@ -294,6 +296,10 @@ API 文件：http://localhost:8000/docs
       → 15 筆 NULL 記錄對 retry 隱形，改 or_(is_(None), in_([...]))
 - [x] 前端整合決策：React 為唯一主介面（start.bat/start.sh 只開後端+React）；
       查核儀降級為離線備援（雙擊 = 純離線模式；_run_detector.bat = 接後端模式）
+- [x] 文件一致性大掃描（2026-07-12）：根 README 全面重寫（原本還在講 factcheck_system
+      路徑/PG+Redis 部署/0.88 門檻、結構樹有不存在的目錄）＋ CI/評測徽章；
+      SCHEMA.md 修 768→1536 維、快取流程圖、UNVERIFIABLE 狀態、單寫者注意；
+      前端 README 補 Knowledge/主題/token；React 補 UNVERIFIABLE 樣式（原誤顯示「待分析」）
 - [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy

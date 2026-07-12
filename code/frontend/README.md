@@ -39,11 +39,14 @@ vite.config.js     ← 已設定 /api proxy → http://localhost:8000
 
 | 元件 | 功能 |
 |------|------|
-| `App` | 主元件，管理發文列表與輸入狀態 |
+| `App` | 主元件，管理發文列表、輸入狀態與深/淺色主題（localStorage 記憶） |
 | `TrendingSection` | 今日熱門趨勢看板，輪詢 `/api/trending` |
+| `KnowledgeSection` | 「資料庫」分頁：伺服器端搜尋/篩選快取知識庫 + 統計卡 |
+| `InfoCard` | 熱門/資料庫共用的資訊卡片 |
 | `AnalyzingCard` | AI 分析中骨架動畫 |
-| `AiResultCard` | 紅 / 黃 / 綠分析結果卡片 |
-| `getAiCardStyle` | 依 risk_type 回傳對應配色 |
+| `AiResultCard` | 紅 / 黃 / 綠分析結果卡片（含快取命中層 chip） |
+| `normalizeAiResult` | 辨識 AI 額度用盡的 fallback，轉為「分析失敗」顯示 |
+| `getAiCardStyle` | 依 risk_type 回傳對應配色（樣式集中在 `mockData.js` RISK_STYLES） |
 
 ---
 
@@ -60,6 +63,8 @@ vite.config.js     ← 已設定 /api proxy → http://localhost:8000
 | 輪詢狀態 | `/api/analyze/task/{id}/status` | GET |
 | 熱門列表 | `/api/trending?limit=N` | GET |
 | 觸發更新 | `/api/trending/refresh` | POST |
+| 知識庫列表/搜尋 | `/api/knowledge?q=&risk_type=&limit=` | GET |
+| 知識庫統計 | `/api/knowledge/stats` | GET |
 
 開發時 Vite 自動 proxy 到 `http://localhost:8000`；
 部署到雲端時由 nginx 處理（見 `nginx.conf` 與 `Dockerfile`）。
@@ -68,23 +73,24 @@ vite.config.js     ← 已設定 /api proxy → http://localhost:8000
 
 ## 樣式系統
 
-採用 **Tailwind CSS v4**，搭配自訂 utility（定義在 `index.css`）：
+採用 **Tailwind CSS v4** + **CSS 設計 token**（`index.css` 的 `--c-*` 變數；
+深色為預設，`data-theme="light"` 覆蓋同一組 token，陰影也隨主題切換）：
 
 | Class | 效果 |
 |-------|------|
 | `.shimmer` | 載入中的微光動畫 |
 | `.fade-in` | 卡片淡入 |
 | `.analyzing-pulse` | AI 分析中的脈動效果 |
-| `.btn-primary` | 漸層主按鈕 |
+| `.btn-primary` | 青綠微漸層主按鈕 |
 
-色彩語意對應：
+色彩語意對應（token）：
 
-| 風險類型 | 配色 |
-|----------|------|
-| SCAM | red / rose |
-| MISINFO | amber / orange |
-| SAFE | emerald / teal |
-| PENDING / UNKNOWN | slate |
+| 風險類型 | 記號 / token |
+|----------|--------------|
+| SCAM | ✕ `--c-risk-high`（紅） |
+| MISINFO | ! `--c-risk-mid`（黃） |
+| SAFE | ✓ `--c-risk-low`（綠） |
+| PENDING / UNVERIFIABLE / UNKNOWN | 中性灰 `--c-muted-soft` |
 
 ---
 
@@ -95,4 +101,4 @@ docker build -t factcheck-frontend .
 docker run -p 80:80 factcheck-frontend
 ```
 
-或從專案根 docker-compose 一鍵啟動所有服務。
+（後端的 docker-compose 為 backend-only；前端容器由 nginx 服務靜態檔並反代 `/api`，見 `nginx.conf`。）

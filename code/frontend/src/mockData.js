@@ -50,6 +50,18 @@ export const RISK_STYLES = {
     label: '尚未查證',
     shortLabel: '未查證',
   },
+  // 內容不足/爬不到而無法自動查證的終態（news_fetcher 標記，不再重試）
+  UNVERIFIABLE: {
+    wrapper: `${CARD}`,
+    accent: 'bg-[var(--c-text-muted)]',
+    iconBg: 'bg-[var(--c-muted-soft)] text-[var(--c-text-secondary)]',
+    chip: 'bg-[var(--c-muted-soft)] text-[var(--c-text-secondary)]',
+    chipSmall: 'bg-[var(--c-muted-soft)] text-[var(--c-text-secondary)]',
+    title: 'text-[var(--c-text-secondary)]',
+    icon: '—',
+    label: '無法自動查證',
+    shortLabel: '無法查證',
+  },
   UNKNOWN: {
     wrapper: `${CARD}`,
     accent: 'bg-[var(--c-text-muted)]',

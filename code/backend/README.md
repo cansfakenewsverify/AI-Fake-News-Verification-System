@@ -65,7 +65,7 @@ app/
 ├── database_sql.py       ← SQLite engine
 └── main.py               ← FastAPI 入口 + APScheduler（排程皆 opt-in）
 
-tests/                    ← pytest 單元測試（30 tests、離線零點數；CI 自動跑）
+tests/                    ← pytest 單元測試（31 tests、離線零點數；CI 自動跑）
 ```
 
 ---
@@ -154,7 +154,7 @@ Schema 詳見 [`data/SCHEMA.md`](data/SCHEMA.md)。
 # Threads 機器人：乾跑 / 驗憑證 / 真跑一輪
 .\venv\Scripts\python scripts\test_threads_bot.py [--live | --poll]
 
-# 單元測試（30 tests、離線、零點數）
+# 單元測試（31 tests、離線、零點數）
 .\venv\Scripts\python -m pytest tests -q
 ```
 
