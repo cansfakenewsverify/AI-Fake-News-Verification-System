@@ -5,7 +5,7 @@ DEMO_MODE=True 時：暫停真實 API，立即回傳紅黃綠框 mock 結果，�
 """
 import json
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.config import settings
 from app.workers.task_queue import enqueue_analysis_task
 from app.services.task_store import TaskStore
@@ -83,8 +83,8 @@ def _get_demo_result(frame_type: str) -> dict:
 
 
 class AnalyzeTextRequest(BaseModel):
-    """文字分析請求"""
-    content: str
+    """文字分析請求（空字串直接 422，不浪費爬蟲/AI 資源）"""
+    content: str = Field(..., min_length=1, max_length=20000)
 
 
 class AnalyzeResponse(BaseModel):

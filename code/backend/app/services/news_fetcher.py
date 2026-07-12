@@ -12,6 +12,7 @@ Phase 3: For unknown sources: AI analyze normally.
 """
 import asyncio
 import re
+import sys
 from datetime import datetime
 from typing import Optional, List
 
@@ -29,6 +30,16 @@ _ai = AIService()
 _vector = VectorService()
 _pandas_store = PandasStore()
 _cache_service = CacheService()
+
+
+def _print(msg: str) -> None:
+    """cp950 安全輸出：RSS 標題/主張是外部文字，可能含 ▶ 等非 Big5 字元，
+    直接 print 會 UnicodeEncodeError 把整輪抓取炸掉（2026-07 實際發生）。"""
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+        print(msg.encode(enc, errors="replace").decode(enc, errors="replace"))
 
 _MAX_AI_CALLS_PER_RUN = 10
 
@@ -146,21 +157,21 @@ def _index_factcheck_claim(url: str, title: str, source_meta: dict):
     """
     claim = _extract_claim_from_title(title)
     if not _is_real_claim(claim):
-        print(f"[NewsFetcher]   not a real claim, skip indexing: {claim[:30]}")
+        _print(f"[NewsFetcher]   not a real claim, skip indexing: {claim[:30]}")
         return
 
     content_hash = _cache_service.generate_hash(claim)
 
     # Skip if already indexed
     if _pandas_store.find_by_hash(content_hash):
-        print(f"[NewsFetcher]   already indexed: {claim}")
+        _print(f"[NewsFetcher]   already indexed: {claim}")
         return
 
     # Generate embedding for vector search
     try:
         vector = _vector.vectorize_content(claim)
     except Exception as e:
-        print(f"[NewsFetcher]   embedding failed: {e}")
+        _print(f"[NewsFetcher]   embedding failed: {e}")
         vector = None
 
     # Build AI-style result pointing to the fact-check article as proof
@@ -185,7 +196,7 @@ def _index_factcheck_claim(url: str, title: str, source_meta: dict):
         ai_result=ai_result,
         source_url=url,
     )
-    print(f"[NewsFetcher]   indexed claim: '{claim}' -> MISINFO")
+    _print(f"[NewsFetcher]   indexed claim: '{claim}' -> MISINFO")
 
 
 def _save_rss_record(item: dict):
@@ -303,7 +314,7 @@ def _cleanup_legacy_strings():
                 fixed += 1
         db.commit()
         if fixed:
-            print(f"[NewsFetcher] Cleaned/reclassified {fixed} records")
+            _print(f"[NewsFetcher] Cleaned/reclassified {fixed} records")
     finally:
         db.close()
 
@@ -318,7 +329,7 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
             if len(crawled) > len(content):
                 content = crawled
     except Exception as e:
-        print(f"[NewsFetcher] Crawl error: {e}")
+        _print(f"[NewsFetcher] Crawl error: {e}")
 
     if len(content) < 50:
         return "skip"
@@ -343,7 +354,7 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
                 except Exception:
                     pass
     except Exception as e:
-        print(f"[NewsFetcher] AI error: {e}")
+        _print(f"[NewsFetcher] AI error: {e}")
 
     if not ai_result or _is_ai_fallback(ai_result):
         err = (ai_result or {}).get("explanation", "") if ai_result else ""
@@ -362,7 +373,7 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
             rec.content = content[:2000]
             rec.updated_at = datetime.utcnow()
             db.commit()
-            print(f"[NewsFetcher]   AI done: {rec.risk_type} - {title[:30]}")
+            _print(f"[NewsFetcher]   AI done: {rec.risk_type} - {title[:30]}")
     finally:
         db.close()
     return "ok"
@@ -370,20 +381,20 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
 
 async def run_trending_fetch():
     """Full pipeline: RSS fetch + classify + AI analyze. Runs every 6 hours."""
-    print(f"\n{'='*60}")
-    print(f"[NewsFetcher] Full fetch at {datetime.now():%Y-%m-%d %H:%M}")
-    print(f"{'='*60}")
+    _print(f"\n{'='*60}")
+    _print(f"[NewsFetcher] Full fetch at {datetime.now():%Y-%m-%d %H:%M}")
+    _print(f"{'='*60}")
 
     _cleanup_legacy_strings()
 
     items = SearchService.fetch_rss_items(num_per_feed=4)
-    print(f"[NewsFetcher] RSS items: {len(items)}")
+    _print(f"[NewsFetcher] RSS items: {len(items)}")
     classified = 0
     for item in items:
         _save_rss_record(item)
         if _detect_source(item.get("url", "")):
             classified += 1
-    print(f"[NewsFetcher] {len(items)} saved, {classified} auto-classified")
+    _print(f"[NewsFetcher] {len(items)} saved, {classified} auto-classified")
 
     await retry_pending_records()
 
@@ -398,14 +409,14 @@ async def retry_pending_records():
     if not pending:
         return
 
-    print(f"[NewsFetcher] Retry job: {len(pending)} pending records")
+    _print(f"[NewsFetcher] Retry job: {len(pending)} pending records")
     ok = 0
     for rec in pending:
         result = await _analyze_record(rec.source_url, rec.news_title or "", rec.content or "")
         if result == "ratelimit":
-            print(f"[NewsFetcher] Rate limited, will retry next cycle")
+            _print(f"[NewsFetcher] Rate limited, will retry next cycle")
             break
         if result == "ok":
             ok += 1
         await asyncio.sleep(2)
-    print(f"[NewsFetcher] Retry done: {ok}/{len(pending)} analyzed")
+    _print(f"[NewsFetcher] Retry done: {ok}/{len(pending)} analyzed")

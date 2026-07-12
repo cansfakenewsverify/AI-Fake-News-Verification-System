@@ -206,9 +206,27 @@ async def process_analysis_task_async(
         if not crawl_result.get("success"):
             raise Exception(f"爬取失敗: {crawl_result.get('error')}")
 
-        content = crawl_result.get("content", input_data) or input_data
-        url = crawl_result.get("url") or (input_data if is_url else None)
-        similar_news = crawl_result.get("similar_news", [])
+        if is_url:
+            content = crawl_result.get("content", input_data) or input_data
+            url = crawl_result.get("url") or input_data
+            similar_news = crawl_result.get("similar_news", []) or []
+        else:
+            # 文字輸入：分析對象一律是「使用者原文」。舊版會被關鍵字搜尋
+            # 爬到的第一個網頁全文取代——AI 判的是別人的網頁而不是使用者
+            # 的訊息（評測 96% 是以原文量測，上線行為必須一致）。
+            # 爬到的網頁（常是相關查核文章）全部降級為 similar_news 參考脈絡。
+            content = input_data
+            url = None
+            similar_news = []
+            if crawl_result.get("url") and crawl_result.get("content"):
+                similar_news.append({
+                    "title": crawl_result.get("title"),
+                    "url": crawl_result.get("url"),
+                    "date": crawl_result.get("date"),
+                    "source": crawl_result.get("source"),
+                    "content": (crawl_result.get("content") or "")[:500],
+                })
+            similar_news += crawl_result.get("similar_news", []) or []
 
         # ── Layer 2（網址輸入）：向量快取，以爬到的內文語意比對 ───────
         if is_url:

@@ -8,6 +8,10 @@ import uuid
 
 import pandas as pd
 
+# 任務是暫時性資料：只保留最近 N 筆，避免 tasks.parquet 無上限長大
+# （每筆查證至少寫 3 次，長期跑會讓每次讀寫都變慢）
+_MAX_TASKS = 500
+
 
 class TaskStore:
     """
@@ -76,6 +80,9 @@ class TaskStore:
             left = df[common_cols].dropna(axis=1, how="all")
             right = new_row[common_cols].dropna(axis=1, how="all")
             df = pd.concat([left, right], ignore_index=True)
+
+        if len(df) > _MAX_TASKS:
+            df = df.tail(_MAX_TASKS).reset_index(drop=True)
 
         self._save_tasks(df)
         return task_id
