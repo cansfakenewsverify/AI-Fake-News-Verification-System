@@ -126,6 +126,8 @@ class AnalysisResult(BaseModel):
     summary: str
     explanation: str
     sources: list
+    cached: bool | None = None                # 是否命中快取（未呼叫 AI）
+    cache_layer: str | None = None            # 命中哪一層：url / hash / vector
 
 
 @router.post("/text")

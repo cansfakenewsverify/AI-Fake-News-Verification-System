@@ -69,11 +69,19 @@ function AiResultCard({ result }) {
             <span className={`font-bold text-[15px] ${s.title}`}>{s.label}：{result.category || '—'}</span>
           </div>
         </div>
-        {confLevel != null && (
-          <div className={`${s.chip} text-xs font-bold px-3 py-1.5 rounded-full shadow-sm cursor-help`} title={confNote}>
-            信心：{confLevel}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {result.cache_layer && (
+            <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[var(--c-accent-soft)] text-[var(--c-accent)]"
+              title="此結果來自查證快取，未重複呼叫 AI">
+              {{ url: '快取·相同網址', hash: '快取·相同內容', vector: '快取·語意相似' }[result.cache_layer] || '快取命中'}
+            </div>
+          )}
+          {confLevel != null && (
+            <div className={`${s.chip} text-xs font-bold px-3 py-1.5 rounded-full shadow-sm cursor-help`} title={confNote}>
+              信心：{confLevel}
+            </div>
+          )}
+        </div>
       </div>
       <div className="px-4 pb-4 flex flex-col gap-3">
         <div className="bg-[var(--c-bg-input)] rounded-xl p-3 border border-[var(--c-border)]">

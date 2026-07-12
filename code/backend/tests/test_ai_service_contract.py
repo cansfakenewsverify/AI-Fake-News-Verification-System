@@ -5,6 +5,7 @@ from app.services.ai_service import AIService, _default_fallback_result
 from app.services.threads_service import format_verdict_reply, THREADS_TEXT_LIMIT
 from app.workers.pandas_task_processor import (
     _ai_result_to_frame,
+    _build_result,
     _confidence_level,
     _is_fallback,
 )
@@ -61,6 +62,15 @@ def test_confidence_level_bands():
     assert _confidence_level(0.95) == "高"
     assert _confidence_level(0.6) == "中"
     assert _confidence_level(0.1) == "低"
+
+
+def test_build_result_reports_cache_layer():
+    ai = {"is_risk": True, "risk_type": "SCAM", "category": "Investment",
+          "confidence_score": 0.9, "summary": "s", "explanation": "e", "sources": []}
+    hit = _build_result(ai, [], [], cached=True, cache_layer="vector")
+    assert hit["cached"] is True and hit["cache_layer"] == "vector"
+    miss = _build_result(ai, [], [], cached=False)
+    assert miss["cached"] is False and miss["cache_layer"] is None
 
 
 # ── Threads 回覆格式：500 字上限與必要元素 ────────────────────

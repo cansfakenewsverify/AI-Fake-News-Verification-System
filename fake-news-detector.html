@@ -1267,6 +1267,10 @@
       text: `AI 判定：${verdict}${d.category ? `（${catLabel(d.category)}）` : ""}，判定信心 ${Math.round(conf * 100)}%。`,
     }];
     if (d.summary) reasons.push({ type: "info", icon: "i", text: d.summary });
+    if (d.cache_layer) {
+      const layer = { url: "相同網址", hash: "相同內容", vector: "語意相似" }[d.cache_layer] || d.cache_layer;
+      reasons.push({ type: "pos", icon: "✓", text: `命中查證快取（${layer}），未重複呼叫 AI、即時回應。` });
+    }
     (d.sources || []).forEach((s) => {
       const u = typeof s === "string" ? s : (s && s.url);
       if (u) reasons.push({ type: "info", icon: "🔗", text: `參考來源：${typeof s === "string" ? u : (s.title || u)}` });

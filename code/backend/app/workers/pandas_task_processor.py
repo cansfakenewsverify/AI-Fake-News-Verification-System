@@ -81,7 +81,10 @@ def _confidence_level(score: float) -> str:
     return "低"
 
 
-def _build_result(ai_analysis: Dict[str, Any], similar_news: list, timeline: list, cached: bool) -> Dict[str, Any]:
+def _build_result(
+    ai_analysis: Dict[str, Any], similar_news: list, timeline: list,
+    cached: bool, cache_layer: str = None,
+) -> Dict[str, Any]:
     ft, fl = _ai_result_to_frame(ai_analysis)
     conf = float(ai_analysis.get("confidence_score") or 0.0)
     return {
@@ -99,6 +102,9 @@ def _build_result(ai_analysis: Dict[str, Any], similar_news: list, timeline: lis
         "similar_news": similar_news,
         "timeline": timeline,
         "cached": cached,
+        # 哪一層快取命中（url / hash / vector；None = 走了完整 AI 分析）。
+        # 前端顯示與論文「三層快取有效性」的實據都靠這個欄位。
+        "cache_layer": cache_layer,
     }
 
 
@@ -129,7 +135,7 @@ async def process_analysis_task_async(
             url_cached = pandas_store.find_by_url(input_data)
             if url_cached and not _is_fallback(url_cached.get("ai_analysis")):
                 ai_analysis = url_cached["ai_analysis"]
-                result = _build_result(ai_analysis, [], [], cached=True)
+                result = _build_result(ai_analysis, [], [], cached=True, cache_layer="url")
                 task_store.update_task(
                     task_id, status="completed",
                     result_data=json.dumps(result, ensure_ascii=False),
@@ -142,7 +148,7 @@ async def process_analysis_task_async(
         hash_cached = pandas_store.find_by_hash(content_hash)
         if hash_cached and not _is_fallback(hash_cached.get("ai_analysis")):
             ai_analysis = hash_cached["ai_analysis"]
-            result = _build_result(ai_analysis, [], [], cached=True)
+            result = _build_result(ai_analysis, [], [], cached=True, cache_layer="hash")
             task_store.update_task(
                 task_id, status="completed",
                 result_data=json.dumps(result, ensure_ascii=False),
@@ -167,6 +173,30 @@ async def process_analysis_task_async(
             )
             return result
 
+        # ── Layer 2（文字輸入）：向量快取，先於爬蟲 ────────────────────
+        # 知識庫存的是「謠言主張」的向量，必須拿使用者原文比對才會命中
+        # 「換句話說的同一謠言」。命中即回，連最慢的關鍵字搜尋與 AI 都省下。
+        # （先前版本拿爬完的網頁全文比對，長文對短句幾乎不會過 0.88 門檻，
+        #  導致向量層形同虛設——勿改回。）
+        query_vector: list = []
+        if not is_url:
+            query_vector = await asyncio.to_thread(
+                vector_service.vectorize_content, input_data
+            )
+            vector_cached = await asyncio.to_thread(
+                pandas_store.find_similar_by_vector, query_vector
+            )
+            if vector_cached and not _is_fallback(vector_cached.get("ai_analysis")):
+                result = _build_result(
+                    vector_cached["ai_analysis"], [], [], cached=True, cache_layer="vector"
+                )
+                task_store.update_task(
+                    task_id, status="completed",
+                    result_data=json.dumps(result, ensure_ascii=False),
+                    completed_at=datetime.utcnow(),
+                )
+                return result
+
         # ── 爬取內容（文字 / URL）──────────────────────────────────────
         if is_url:
             crawl_result = await crawler.process_input(input_data, "url")
@@ -180,18 +210,22 @@ async def process_analysis_task_async(
         url = crawl_result.get("url") or (input_data if is_url else None)
         similar_news = crawl_result.get("similar_news", [])
 
-        # ── Layer 2: 向量快取（語義相似）─────────────────────────────
-        content_vector = await asyncio.to_thread(vector_service.vectorize_content, content)
-        vector_cached = await asyncio.to_thread(pandas_store.find_similar_by_vector, content_vector)
-        if vector_cached and not _is_fallback(vector_cached.get("ai_analysis")):
-            ai_analysis = vector_cached["ai_analysis"]
-            result = _build_result(ai_analysis, similar_news, [], cached=True)
-            task_store.update_task(
-                task_id, status="completed",
-                result_data=json.dumps(result, ensure_ascii=False),
-                completed_at=datetime.utcnow(),
-            )
-            return result
+        # ── Layer 2（網址輸入）：向量快取，以爬到的內文語意比對 ───────
+        if is_url:
+            content_vector = await asyncio.to_thread(vector_service.vectorize_content, content)
+            vector_cached = await asyncio.to_thread(pandas_store.find_similar_by_vector, content_vector)
+            if vector_cached and not _is_fallback(vector_cached.get("ai_analysis")):
+                ai_analysis = vector_cached["ai_analysis"]
+                result = _build_result(ai_analysis, similar_news, [], cached=True, cache_layer="vector")
+                task_store.update_task(
+                    task_id, status="completed",
+                    result_data=json.dumps(result, ensure_ascii=False),
+                    completed_at=datetime.utcnow(),
+                )
+                return result
+        else:
+            # 文字輸入沿用原文向量（上面已比對過、未命中），存檔用
+            content_vector = query_vector
 
         # ── Layer 3: AI 分析（全流程）─────────────────────────────────
         context = {"similar_news": similar_news, "crawl_result": crawl_result}
@@ -209,9 +243,11 @@ async def process_analysis_task_async(
                 print(f"URL validation error: {e}")
 
         if not _is_fallback(ai_result):
+            # 文字輸入存「使用者原文」：與 content_vector（原文向量）語意一致，
+            # 未來的相似查詢才比得中；網址輸入存爬到的內文。
             pandas_store.save_record(
                 data_type=input_type.upper(),
-                raw_content=content,
+                raw_content=content if is_url else input_data,
                 content_hash=content_hash,
                 content_vector=content_vector,
                 ai_result=ai_result,

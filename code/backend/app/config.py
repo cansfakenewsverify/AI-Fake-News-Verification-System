@@ -54,8 +54,11 @@ class Settings(BaseSettings):
 
     # 向量資料庫設定（text-embedding-3-small 原生維度 1536）
     VECTOR_DIMENSION: int = 1536
-    # 0.88：讓「換句話說的相同謠言」也能命中事實查核快取（0.95 過嚴只抓近乎一字不差）
-    SIMILARITY_THRESHOLD: float = 0.88
+    # 0.75：2026-07 實測校準（text-embedding-3-small、繁中謠言文本）——
+    # 「換句話說的同一謠言」相似度實測 0.79~0.82（舊值 0.88 全部擋掉，向量層形同虛設）；
+    # 「同類型但不同支的詐騙」最高 0.68；不同主題 ≤0.52。
+    # 0.75 = 噪音帶(≤0.68)之上、改寫帶(≥0.79)之下。換 embedding 模型要重新量測。
+    SIMILARITY_THRESHOLD: float = 0.75
     
     # 爬蟲設定
     CRAWLER_TIMEOUT: int = 30

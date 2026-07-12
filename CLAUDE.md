@@ -86,12 +86,19 @@ cd code\backend
 ## 3. 三層快取（省最貴的 AI 呼叫）
 
 ```
-輸入 → Layer 0: URL 快取 → Layer 1: 內容 Hash → Layer 2: 向量(餘弦相似) → Layer 3: AI 分析
-                                                                              │
-                                                       結果回填 knowledge_base ◄┘
+文字輸入 → L0(skip) → L1: 內容 Hash → L2: 向量(以「使用者原文」比對，先於爬蟲!) → 爬蟲 → L3: AI
+網址輸入 → L0: URL 快取 → L1: Hash → 爬蟲 → L2: 向量(以爬到的內文比對) → L3: AI
+                                                          結果回填 knowledge_base ◄┘
 ```
 - 實作：`app/workers/pandas_task_processor.py`（主流程）+ `app/services/pandas_store.py`（Parquet 存取）。
-- Layer 2 門檻 `SIMILARITY_THRESHOLD=0.88`（讓換句話說的相同謠言也命中）。改門檻要改 config，`find_similar_by_vector` 已讀 `settings`。
+- **文字輸入的向量層在爬蟲之前、比對對象是使用者原文**（2026-07 修正：舊版拿爬完的
+  網頁全文比對，長文對短句過不了門檻，向量層形同虛設——勿改回）。命中時連關鍵字
+  搜尋與 AI 都省下（實測 6s vs 未命中 11-15s+AI 點數）。
+- Layer 2 門檻 `SIMILARITY_THRESHOLD=0.75`：**實測校準**（text-embedding-3-small、繁中）
+  改寫版同一謠言 0.79~0.82、不同支謠言 ≤0.68、不同主題 ≤0.52；舊值 0.88 會把改寫版全擋掉。
+  換 embedding 模型要重新量測。改門檻改 config，`find_similar_by_vector` 已讀 `settings`。
+- 回應帶 `cached` / `cache_layer`（url/hash/vector）：React 顯示「快取·語意相似」chip、
+  查核儀在依據列顯示命中層——demo 三層快取的實據。
 - 沒設 `EMBED_API_KEY` 時 Layer 2 自動停用，URL/Hash 仍正常。
 
 ---
@@ -268,6 +275,9 @@ API 文件：http://localhost:8000/docs
       離線零點數）＋ .github/workflows/ci.yml（push/PR 自動跑，對應專題「測試驗證/品質保證」）
 - [x] React 前端現代簡約化：token 精修（低對比邊框、主題感知陰影 --shadow-card/pop、
       柔和光暈）、裝飾 emoji 換幾何記號（✕/!/✓ 語意色）、標題列 accent bar；深淺色皆保留
+- [x] 修「向量檢索沒真正發揮」：文字輸入改為先以原文查向量（舊版拿爬完全文比對，
+      永遠過不了門檻）；門檻 0.88→0.75（實測校準，見第 3 節）；回應加 cached/cache_layer
+      欄位＋雙前端顯示命中層；實測改寫版謠言命中 vector 層（6s、零 AI 點數）
 - [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
