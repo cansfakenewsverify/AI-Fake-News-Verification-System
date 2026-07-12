@@ -283,8 +283,9 @@ API 文件：http://localhost:8000/docs
       news_fetcher print 外部文字 cp950 崩潰 → _print 安全輸出；TaskStore 修剪(500筆)；
       /api/analyze 輸入驗證；README 全面更新
 - [x] 批次查證腳本 batch_verify_pending.py（抓 RSS + 清 PENDING、CGU 預算護欄、
-      預設關 web_search、零進展自動停）；跑完：熱門 63 筆中 45 筆已有判定、
-      知識庫 230 筆(200 帶向量)、總花費 <$0.11
+      預設關 web_search、零進展自動停）；跑完：熱門 63 筆 PENDING 歸零
+      （MISINFO 30/SAFE 13/SCAM 8/UNVERIFIABLE 12）、知識庫 236 筆(200 帶向量)、
+      三輪批次總花費 $0.127（CGU $20 額度）
 - [x] 修 retry 空轉三連 bug：內容不足標 UNVERIFIABLE 終態（不再無限重試）；
       AI 暫時失敗與內容不足分開處理；`.in_([...,None])` 比不中 SQL NULL
       → 15 筆 NULL 記錄對 retry 隱形，改 or_(is_(None), in_([...]))
