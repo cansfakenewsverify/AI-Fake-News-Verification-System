@@ -23,12 +23,13 @@ if errorlevel 1 (
     pause & exit /b 1
 )
 
-:: Paths (backend flattened to code\backend; detector is the root single-file HTML)
+:: Paths (backend flattened to code\backend)
+:: The single-file detector (fake-news-detector.html) is an OFFLINE BACKUP:
+:: double-click it directly, or run _run_detector.bat to serve it on :8090.
 set ROOT=%~dp0
 set BACKEND_DIR=%ROOT%code\backend
 set FRONTEND_DIR=%ROOT%code\frontend
 set VENV=%BACKEND_DIR%\venv
-set HTML_PORT=8090
 
 :: Copy .env
 if not exist "%BACKEND_DIR%\.env" (
@@ -69,7 +70,7 @@ if not exist "%FRONTEND_DIR%\node_modules" (
 )
 
 echo.
-echo  Launching backend + detector + React ...
+echo  Launching backend + React ...
 echo.
 
 :: Start backend (helper bat lives in code\backend after flatten)
@@ -78,30 +79,26 @@ echo Backend     : http://localhost:8000
 
 timeout /t 3 /nobreak > nul
 
-:: Start detector frontend (static server for the single-file HTML)
-start "" "%ROOT%_run_detector.bat"
-echo Detector    : http://localhost:%HTML_PORT%/fake-news-detector.html
-
-:: Start React dev server
+:: Start React dev server (main UI)
 start "" "%FRONTEND_DIR%\_run_frontend.bat"
 echo React       : http://localhost:5173
 
 timeout /t 4 /nobreak > nul
 
-:: Open both frontends in the browser
-echo Opening browsers ...
-start "" "http://localhost:%HTML_PORT%/fake-news-detector.html"
+:: Open the main UI in the browser
+echo Opening browser ...
 start "" "http://localhost:5173"
 
 echo.
 echo  ========================================
 echo   Done!
-echo   Detector (single HTML) : http://localhost:%HTML_PORT%/fake-news-detector.html
-echo   React (full app)       : http://localhost:5173
-echo   Backend API            : http://localhost:8000/docs
+echo   Main UI (React) : http://localhost:5173
+echo   Backend API     : http://localhost:8000/docs
+echo   Offline backup  : double-click fake-news-detector.html
+echo                     (works even without backend / network)
 echo  ========================================
 echo.
 echo  This window can be closed.
-echo  To stop, close the Backend / Detector / React windows.
+echo  To stop, close the Backend / React windows.
 echo.
 pause

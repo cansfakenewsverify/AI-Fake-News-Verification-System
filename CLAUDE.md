@@ -21,8 +21,10 @@
 使用者貼上文字 / 網址 / 圖片 / 影片，系統用 AI 判定是 **詐騙(SCAM) / 假訊息(MISINFO) / 安全(SAFE)**，附上佐證來源。
 另有「今日熱門」自動抓取查核新聞、三層快取、向量檢索。
 
-- 前端：**兩個並存、同一深色查核儀設計**——① React 19 + Vite + Tailwind（`code/frontend`，功能完整、接真後端）；
-  ② 單檔 HTML 查核儀（根目錄 `fake-news-detector.html`，自包含可離線、靜態伺服器 8090）
+- 前端：**React 為唯一主介面**（`code/frontend`，React 19 + Vite + Tailwind，功能完整：文字/網址/圖片、
+  伺服器端搜尋）；單檔查核儀（根目錄 `fake-news-detector.html`）**降級為離線備援**——斷網/後端掛掉時
+  雙擊即可 demo（前端啟發式＋範例資料），需要接後端時手動跑 `_run_detector.bat`（8090，CORS 已允許）。
+  start.bat/start.sh 只啟動後端 + React（2026-07 整合決策：功能重疊造成三處同步維護成本）。
 - 後端：FastAPI + Uvicorn（`code/backend`，已從 `factcheck_system` 子目錄攤平）
 - 資料：SQLite（熱門記錄）+ Parquet（三層快取知識庫）
 
@@ -160,7 +162,8 @@ code/frontend/                  React + Vite + Tailwind（深色查核儀設計�
 fake-news-detector.html         ★單檔查核儀(根目錄)：設計token+環形儀表盤+掃描動畫+三視圖(檢測/熱門/資料庫)
                                 熱門/資料庫接 /api/trending、/api/knowledge(離線 fallback 範例)；
                                 檢測接 /api/analyze/sync(真 AI)，後端掛/AI 掛時 fallback 前端啟發式並標離線
-start.bat / _run_detector.bat   一鍵啟動：後端 + 查核儀靜態伺服器(8090)；start.sh 為 Linux/mac 版
+start.bat / start.sh            一鍵啟動：後端 + React 主介面（查核儀不再自動開啟）
+_run_detector.bat               手動啟動查核儀靜態伺服器(8090)——離線備援要接後端時才用
 assets/                         PlantUML 圖 + confusion_matrix.png
 └── 期末專題文件/                OOSE 期末繳交文件(詞彙表/使用案例圖/情節/活動圖/類別圖+README)
 ```
@@ -170,7 +173,7 @@ assets/                         PlantUML 圖 + confusion_matrix.png
 ## 5. 常用指令
 
 ```powershell
-# 一鍵啟動：後端 + 單檔查核儀(8090)（專案根目錄）
+# 一鍵啟動：後端 + React 主介面（專案根目錄）
 .\start.bat
 
 # 後端（venv 在 code/backend/venv）
@@ -289,6 +292,8 @@ API 文件：http://localhost:8000/docs
 - [x] 修 retry 空轉三連 bug：內容不足標 UNVERIFIABLE 終態（不再無限重試）；
       AI 暫時失敗與內容不足分開處理；`.in_([...,None])` 比不中 SQL NULL
       → 15 筆 NULL 記錄對 retry 隱形，改 or_(is_(None), in_([...]))
+- [x] 前端整合決策：React 為唯一主介面（start.bat/start.sh 只開後端+React）；
+      查核儀降級為離線備援（雙擊 = 純離線模式；_run_detector.bat = 接後端模式）
 - [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy

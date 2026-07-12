@@ -1,11 +1,12 @@
 #!/bin/bash
-# AI 假訊息查核系統 - 一鍵啟動（Linux / macOS）：後端 + 查核儀 + React
+# AI 假訊息查核系統 - 一鍵啟動（Linux / macOS）：後端 + React 主介面
+# （單檔查核儀 fake-news-detector.html 為離線備援：直接雙擊開啟即可，
+#   需要接後端時手動跑 ./_run_detector.bat 或 python3 -m http.server 8090）
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/code/backend"
 FRONTEND_DIR="$SCRIPT_DIR/code/frontend"
 VENV="$BACKEND_DIR/venv"
-HTML_PORT=8090
 
 echo ""
 echo " ========================================"
@@ -51,31 +52,24 @@ echo "[後端] 啟動 FastAPI (http://localhost:8000)..."
 run_term "後端 FastAPI" "cd '$BACKEND_DIR' && source venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 sleep 3
 
-# ── 啟動查核儀（單檔 HTML 靜態伺服器）──────────────────────
-echo "[前端] 啟動查核儀 (http://localhost:$HTML_PORT)..."
-run_term "查核儀 前端" "cd '$SCRIPT_DIR' && python3 -m http.server $HTML_PORT"
-sleep 1
-
 # ── 啟動 React ────────────────────────────────────────────
 echo "[前端] 啟動 React (http://localhost:5173)..."
 run_term "React 前端" "cd '$FRONTEND_DIR' && npm run dev"
 sleep 3
 
 # ── 開啟瀏覽器 ────────────────────────────────────────────
-DETECTOR="http://localhost:$HTML_PORT/fake-news-detector.html"
 REACT="http://localhost:5173"
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    open "$DETECTOR"; open "$REACT"
+    open "$REACT"
 else
-    xdg-open "$DETECTOR" 2>/dev/null || true
     xdg-open "$REACT" 2>/dev/null || true
 fi
 
 echo ""
 echo " ========================================"
 echo "  啟動完成！"
-echo "  查核儀  ：$DETECTOR"
-echo "  React   ：$REACT"
+echo "  主介面  ：$REACT"
 echo "  後端 API：http://localhost:8000/docs"
+echo "  離線備援：雙擊 fake-news-detector.html（斷網/後端掛掉也能 demo）"
 echo " ========================================"
 echo ""
