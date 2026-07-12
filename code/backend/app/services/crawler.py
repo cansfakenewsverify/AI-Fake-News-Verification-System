@@ -78,18 +78,19 @@ class CrawlerService:
             包含標題、內容、發布時間等資訊的字典
         """
         try:
-            # 使用 Trafilatura 爬取
-            downloaded = trafilatura.fetch_url(url)
+            # 使用 Trafilatura 爬取（同步網路 IO，丟執行緒避免卡 event loop）
+            downloaded = await asyncio.to_thread(trafilatura.fetch_url, url)
             if downloaded:
-                extracted = trafilatura.extract(
+                extracted = await asyncio.to_thread(
+                    trafilatura.extract,
                     downloaded,
                     include_comments=False,
-                    include_tables=False
+                    include_tables=False,
                 )
-                
+
                 if extracted:
                     # 取得標題和元數據
-                    metadata = trafilatura.extract_metadata(downloaded)
+                    metadata = await asyncio.to_thread(trafilatura.extract_metadata, downloaded)
                     raw_author = metadata.author if metadata else None
                     if isinstance(raw_author, list):
                         raw_author = raw_author[0] if raw_author else None
@@ -128,7 +129,9 @@ class CrawlerService:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
-            response = requests.get(url, headers=headers, timeout=settings.CRAWLER_TIMEOUT)
+            response = await asyncio.to_thread(
+                requests.get, url, headers=headers, timeout=settings.CRAWLER_TIMEOUT
+            )
             response.raise_for_status()
             
             from bs4 import BeautifulSoup
@@ -245,14 +248,19 @@ class CrawlerService:
     async def download_video(url: str, platform: str) -> Dict[str, Any]:
         """
         Pipeline B: 下載影音並提取資訊
-        
+
         Args:
             url: 影音 URL
             platform: 平台名稱（youtube, tiktok 等）
-            
+
         Returns:
             包含影片資訊、字幕、截圖的字典
         """
+        # yt-dlp / 字幕下載 / whisper 全是同步阻塞，整段丟執行緒
+        return await asyncio.to_thread(CrawlerService._download_video_sync, url, platform)
+
+    @staticmethod
+    def _download_video_sync(url: str, platform: str) -> Dict[str, Any]:
         try:
             if yt_dlp is None:
                 return {

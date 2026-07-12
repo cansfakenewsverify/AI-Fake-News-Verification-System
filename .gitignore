@@ -41,6 +41,8 @@ data/tasks.parquet
 data/admin_overrides.parquet
 data/user_feedback.parquet
 data/uploads/
+code/backend/data/threads_state.json
+code/backend/data/threads_reply_sample.txt
 
 # ── IDE ────────────────────────────────────────
 .vscode/
@@ -67,3 +69,7 @@ backend_data/
 *.bak
 *.tmp
 tmp/
+
+# ── Local tooling ──────────────────────────────
+.claude/
+plantuml-*.jar

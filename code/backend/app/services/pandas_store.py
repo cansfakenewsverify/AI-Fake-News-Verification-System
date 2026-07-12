@@ -81,10 +81,9 @@ class PandasStore:
         self,
         query_vector: List[float],
         threshold: Optional[float] = None,
-        top_n: int = 1,
     ) -> Optional[Dict[str, Any]]:
         """
-        以 cosine similarity 找出語義相近的快取記錄。
+        以 cosine similarity 找出語義最相近的快取記錄（numpy 矩陣化，一次算完全部）。
         只有超過 threshold 才算命中。threshold 預設讀取 settings.SIMILARITY_THRESHOLD。
         """
         if threshold is None:
@@ -94,36 +93,41 @@ class PandasStore:
         if df.empty or "content_vector" not in df.columns:
             return None
 
-        df_vec = df[df["content_vector"].notna()].copy()
+        df_vec = df[df["content_vector"].notna()]
         if df_vec.empty:
             return None
 
-        q = np.array(query_vector, dtype=np.float32)
+        q = np.asarray(query_vector, dtype=np.float32)
         q_norm = np.linalg.norm(q)
-        if q_norm == 0:
+        if q.size == 0 or q_norm == 0:
             return None
 
-        best_score = -1.0
-        best_idx = None
-
-        for idx, row in df_vec.iterrows():
+        # 只收維度與查詢向量一致的列（防舊資料混入不同維度的向量）
+        indices, rows = [], []
+        for idx, v in df_vec["content_vector"].items():
             try:
-                v = np.array(row["content_vector"], dtype=np.float32)
-                v_norm = np.linalg.norm(v)
-                if v_norm == 0:
-                    continue
-                score = float(np.dot(q, v) / (q_norm * v_norm))
-                if score > best_score:
-                    best_score = score
-                    best_idx = idx
+                a = np.asarray(v, dtype=np.float32)
             except Exception:
                 continue
+            if a.shape == q.shape:
+                indices.append(idx)
+                rows.append(a)
+        if not rows:
+            return None
 
-        if best_idx is not None and best_score >= threshold:
+        matrix = np.stack(rows)                      # (N, dim)
+        norms = np.linalg.norm(matrix, axis=1)       # (N,)
+        scores = np.full(len(rows), -1.0, dtype=np.float32)
+        valid = norms > 0
+        scores[valid] = (matrix[valid] @ q) / (norms[valid] * q_norm)
+
+        best = int(np.argmax(scores))
+        if float(scores[best]) >= threshold:
+            best_idx = indices[best]
             df.loc[best_idx, "last_accessed_at"] = datetime.now()
             df.loc[best_idx, "hit_count"] = df.loc[best_idx, "hit_count"] + 1
             self._save_knowledge_base(df)
-            return df_vec.loc[best_idx].to_dict()
+            return df.loc[best_idx].to_dict()
 
         return None
 

@@ -12,7 +12,7 @@ powercfg /requestsoverride PROCESS python.exe SYSTEM AWAYMODE >nul 2>&1
 
 echo.
 echo Starting FastAPI on http://localhost:8000 ...
-echo (Auto-fetches trending news every 6 hours)
+echo (Scheduler off by default; set ENABLE_SCHEDULER=true in .env for auto-fetch)
 echo.
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 

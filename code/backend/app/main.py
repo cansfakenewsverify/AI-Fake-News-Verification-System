@@ -15,6 +15,7 @@ from app.config import settings
 from app.api import (
     analyze, admin as admin_api, feedback as feedback_api,
     trending as trending_api, knowledge as knowledge_api,
+    threads as threads_api,
 )
 from app.database_sql import init_sql_db
 
@@ -35,34 +36,52 @@ async def lifespan(app: FastAPI):
     init_sql_db()
 
     scheduler = None
-    # 排程預設關閉，避免背景持續呼叫 AI 燒點數；需自動抓新聞時在 .env 設 ENABLE_SCHEDULER=true
-    if settings.ENABLE_SCHEDULER and not settings.DEMO_MODE:
+    # 兩個排程都預設關閉（省 AI 點數）：
+    #   ENABLE_SCHEDULER=true    → 自動抓熱門新聞
+    #   ENABLE_THREADS_BOT=true  → Threads 查核機器人輪詢 mentions
+    want_trending = settings.ENABLE_SCHEDULER and not settings.DEMO_MODE
+    want_threads = settings.ENABLE_THREADS_BOT and not settings.DEMO_MODE
+    if want_trending or want_threads:
         try:
             from apscheduler.schedulers.asyncio import AsyncIOScheduler
-            from app.services.news_fetcher import run_trending_fetch, retry_pending_records
 
             scheduler = AsyncIOScheduler(timezone="Asia/Taipei")
-            scheduler.add_job(
-                run_trending_fetch, "interval",
-                hours=settings.TRENDING_FETCH_INTERVAL_HOURS,
-                id="trending_fetch", replace_existing=True,
-            )
-            scheduler.add_job(
-                retry_pending_records, "interval",
-                minutes=30,
-                id="retry_pending", replace_existing=True,
-            )
+            logger.info("Scheduler starting:")
+
+            if want_trending:
+                from app.services.news_fetcher import run_trending_fetch, retry_pending_records
+
+                scheduler.add_job(
+                    run_trending_fetch, "interval",
+                    hours=settings.TRENDING_FETCH_INTERVAL_HOURS,
+                    id="trending_fetch", replace_existing=True,
+                )
+                scheduler.add_job(
+                    retry_pending_records, "interval",
+                    minutes=30,
+                    id="retry_pending", replace_existing=True,
+                )
+                logger.info("  - Full RSS fetch: every %dh", settings.TRENDING_FETCH_INTERVAL_HOURS)
+                logger.info("  - Retry pending : every 30min")
+
+                # First fetch in background after 30s (don't block startup)
+                asyncio.get_running_loop().call_later(
+                    30, lambda: asyncio.create_task(run_trending_fetch())
+                )
+                logger.info("First fetch in 30 seconds...")
+
+            if want_threads:
+                from app.workers.threads_bot import run_threads_poll
+
+                scheduler.add_job(
+                    run_threads_poll, "interval",
+                    minutes=settings.THREADS_POLL_MINUTES,
+                    id="threads_poll", replace_existing=True,
+                )
+                logger.info("  - Threads bot   : poll mentions every %dmin", settings.THREADS_POLL_MINUTES)
+
             scheduler.start()
             app.state.scheduler = scheduler
-            logger.info("Scheduler started:")
-            logger.info("  - Full RSS fetch: every %dh", settings.TRENDING_FETCH_INTERVAL_HOURS)
-            logger.info("  - Retry pending : every 30min")
-
-            # First fetch in background after 30s (don't block startup)
-            asyncio.get_event_loop().call_later(
-                30, lambda: asyncio.create_task(run_trending_fetch())
-            )
-            logger.info("First fetch in 30 seconds...")
         except Exception as e:
             logger.error("Scheduler failed to start: %s", e)
 
@@ -101,6 +120,7 @@ app.include_router(admin_api.router)
 app.include_router(feedback_api.router)
 app.include_router(trending_api.router)
 app.include_router(knowledge_api.router)
+app.include_router(threads_api.router)
 
 # Static
 _static_dir = Path(__file__).resolve().parent.parent / "static"

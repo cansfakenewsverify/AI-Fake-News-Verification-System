@@ -2,7 +2,7 @@
 Seed script: populate knowledge_base.parquet with sample records.
 
 Usage:
-    cd code/backend/factcheck_system
+    cd codeackend
     venv\\Scripts\\python scripts/seed_data.py
 """
 import sys

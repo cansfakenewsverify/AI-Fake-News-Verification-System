@@ -13,15 +13,6 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     
-    # 資料庫設定
-    DATABASE_URL: str = "postgresql+psycopg://user:password@localhost:5432/factcheck_db"
-    POSTGRES_USER: str = "user"
-    POSTGRES_PASSWORD: str = "password"
-    POSTGRES_DB: str = "factcheck_db"
-    
-    # Redis 設定
-    REDIS_URL: str = "redis://localhost:6379/0"
-    
     # AI API Keys（請在 .env 設定，勿寫入程式碼）
     # 學校 myai168 中繼閘道：同一把開發者金鑰可呼叫 OpenAI / Claude 等多個中繼。
     # 注意：刻意「不」用 OPENAI_API_KEY / ANTHROPIC_BASE_URL 這類標準 SDK 名稱，
@@ -69,16 +60,13 @@ class Settings(BaseSettings):
     # 爬蟲設定
     CRAWLER_TIMEOUT: int = 30
     MAX_CONTENT_LENGTH: int = 100000
-    CRAWL_WITH_SCREENSHOT: bool = True  # F1.4: 對爬取新聞擷取原始截圖
+    # F1.4 截圖能力保留但預設關閉：截圖目前無下游使用者，
+    # 開著會讓每次 URL 分析多啟動數次 Chromium（主文 + 相似新聞各一次）
+    CRAWL_WITH_SCREENSHOT: bool = False
     SEARCH_RESULTS_LIMIT: int = 5  # 關鍵字搜尋時爬取的相似新聞數量
-    
-    # AI models
-    GEMINI_MODEL: str = "gemini-2.5-flash"
-    GEMINI_MODEL_FALLBACK: str = "gemini-2.5-flash"
+
+    # Gemini embedding 備援模型（generate_embedding 的最後備援）
     EMBEDDING_MODEL: str = "text-embedding-004"  # no "models/" prefix for new SDK
-    
-    # Task queue
-    QUEUE_NAME: str = "factcheck_tasks"
 
     # SQLite database (for trending records)
     SQLITE_URL: str = "sqlite:///./data/factcheck.db"
@@ -97,6 +85,16 @@ class Settings(BaseSettings):
     # True 準確但每次貴 3~7 倍；點數吃緊時設 False（仍可正常判斷，只是少了即時引用）。
     USE_WEB_SEARCH: bool = True
 
+    # ── Threads 查核機器人（延伸功能，預設關）──────────────────
+    # 使用者在 Threads 上 @機器人帳號 回覆可疑貼文 → 機器人抓原貼文
+    # 跑三層快取+AI 分析 → 自動回覆紅黃綠判定與查核來源。
+    # token 申請見 CLAUDE.md 第 11 節；沒設 token 時所有功能自動停用。
+    ENABLE_THREADS_BOT: bool = False
+    THREADS_ACCESS_TOKEN: str = ""      # Meta 開發者後台的長效 access token（60 天）
+    THREADS_USER_ID: str = ""           # 機器人帳號的 Threads user id
+    THREADS_POLL_MINUTES: int = 5       # 輪詢 mentions 的間隔（分鐘）
+    THREADS_BASE_URL: str = "https://graph.threads.net/v1.0"
+
     # Demo mode (True = return mock results, no real API calls)
     # Default False: run REAL analysis. Only set True via .env for
     # offline presentations where no API key / network is available.
@@ -109,7 +107,11 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+        # .env 有中文註解，明確指定 UTF-8（不指定會用系統編碼 cp950 讀，可能炸）
+        env_file_encoding = "utf-8"
         case_sensitive = True
+        # .env 裡多出的舊變數（如已移除的 DATABASE_URL）直接忽略，不要讓啟動炸掉
+        extra = "ignore"
 
 
 settings = Settings()

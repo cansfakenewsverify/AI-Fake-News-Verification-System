@@ -3,6 +3,22 @@ import { initialPosts, RISK_STYLES, DEFAULT_RISK_STYLE } from './mockData';
 
 const getAiCardStyle = (riskType) => RISK_STYLES[riskType] || DEFAULT_RISK_STYLE;
 
+// 後端 AI 額度用盡/掛掉時仍回 HTTP 200 的 fallback（SAFE、confidence 0）。
+// 那不是真分析結果，不能顯示成「安全」卡片，改標成分析失敗。
+const normalizeAiResult = (r) => {
+  if (!r || !(r.summary || '').startsWith('AI 分析暫時無法使用')) return r;
+  return {
+    ...r,
+    risk_type: 'UNKNOWN',
+    category: '分析失敗',
+    confidence_score: null,
+    confidence_level: null,
+    summary: 'AI 服務暫時無法使用（額度用盡或網路問題）',
+    explanation: r.explanation || '請檢查後端日誌與 AI 額度，稍後再試。',
+    sources: [],
+  };
+};
+
 const AVATAR = 'https://ui-avatars.com/api/?name=Me&background=18212f&color=34dcc4';
 
 // === AI 分析中骨架卡片 ===
@@ -384,7 +400,7 @@ export default function App() {
         time: '剛剛',
         content: displayContent,
         imagePreview: inputMode === 'image' ? imagePreview : null,
-        aiResult: apiResult.task_id ? null : apiResult,
+        aiResult: apiResult.task_id ? null : normalizeAiResult(apiResult),
         analyzing: !!apiResult.task_id,
       };
 
@@ -407,7 +423,7 @@ export default function App() {
             if (statusData.status === 'completed') {
               stop(pollInterval);
               const finalData = await (await fetch(`/api/analyze/task/${apiResult.task_id}`)).json();
-              setPosts(prev => prev.map(p => p.id === newPostId ? { ...p, aiResult: finalData, analyzing: false } : p));
+              setPosts(prev => prev.map(p => p.id === newPostId ? { ...p, aiResult: normalizeAiResult(finalData), analyzing: false } : p));
             } else if (statusData.status === 'failed') {
               stop(pollInterval);
               setPosts(prev => prev.map(p => p.id === newPostId ? {

@@ -319,9 +319,9 @@ class AIService:
                 last_err = f"{prov}: {e}"
                 print(f"[AI] {last_err}")
         # 最後手段：主引擎關閉 web_search 再試（避免搜尋雜訊導致 JSON 解析失敗）
-        if use_web_search:
+        if use_web_search and self.providers:
+            prov = self.providers[0]
             try:
-                prov = self.providers[0]
                 fn = {
                     "claude": self._claude_analyze,
                     "openai": self._openai_analyze,
@@ -329,7 +329,7 @@ class AIService:
                 }[prov]
                 return fn(prompt_text, image, False)
             except Exception as e:
-                last_err = f"{self.providers[0]}(no-search): {e}"
+                last_err = f"{prov}(no-search): {e}"
         return _default_fallback_result(last_err or "所有 AI 供應商皆失敗")
 
     # ── 對外：文字 / URL 分析 ────────────────────────────────────

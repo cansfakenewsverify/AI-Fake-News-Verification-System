@@ -1190,7 +1190,7 @@
     });
 
     resultHint.textContent = opts.fromHistory ? "歷史回顧"
-      : opts.live === false ? "離線啟發式（後端未啟動）"
+      : opts.live === false ? "離線啟發式（後端未啟動或 AI 暫時無法使用）"
       : opts.live === true ? "即時 AI 分析"
       : "分析完成";
     result.dataset.state = "done";
@@ -1232,7 +1232,12 @@
       });
       clearTimeout(to);
       if (!res.ok) throw new Error("bad status");
-      return backendToResult(await res.json());
+      const d = await res.json();
+      // 後端活著但 AI 額度用盡/掛掉時，仍回 200 的 fallback 結果
+      // （SAFE、confidence 0、summary 帶固定字樣）。這不是真分析，
+      // 不能換算成「可信度 2 / 高風險」，改走前端啟發式並標離線。
+      if ((d.summary || "").startsWith("AI 分析暫時無法使用")) throw new Error("ai unavailable");
+      return backendToResult(d);
     } catch (e) {
       const r = analyze(text);   // 離線：前端啟發式
       r._live = false;

@@ -1,7 +1,12 @@
 """
 任務處理器 - 三層快取 + AI 分析
 Layer 0: URL 快取 → Layer 1: Hash 快取 → Layer 2: 向量快取 → Layer 3: AI
+
+注意：AI / embedding / 來源驗證都是同步 requests（最長 150s），
+必須用 asyncio.to_thread 丟到執行緒，否則會把整個 FastAPI event loop
+卡死（/api/analyze/sync 分析期間連 /api/trending 都無法回應）。
 """
+import asyncio
 import json
 import os
 from datetime import datetime
@@ -149,7 +154,7 @@ async def process_analysis_task_async(
         if input_type == "image":
             if not os.path.isfile(input_data):
                 raise Exception("圖片檔案不存在")
-            ai_result = ai_service.analyze_image(input_data)
+            ai_result = await asyncio.to_thread(ai_service.analyze_image, input_data)
             try:
                 os.remove(input_data)
             except Exception:
@@ -176,8 +181,8 @@ async def process_analysis_task_async(
         similar_news = crawl_result.get("similar_news", [])
 
         # ── Layer 2: 向量快取（語義相似）─────────────────────────────
-        content_vector = vector_service.vectorize_content(content)
-        vector_cached = pandas_store.find_similar_by_vector(content_vector)
+        content_vector = await asyncio.to_thread(vector_service.vectorize_content, content)
+        vector_cached = await asyncio.to_thread(pandas_store.find_similar_by_vector, content_vector)
         if vector_cached and not _is_fallback(vector_cached.get("ai_analysis")):
             ai_analysis = vector_cached["ai_analysis"]
             result = _build_result(ai_analysis, similar_news, [], cached=True)
@@ -190,12 +195,16 @@ async def process_analysis_task_async(
 
         # ── Layer 3: AI 分析（全流程）─────────────────────────────────
         context = {"similar_news": similar_news, "crawl_result": crawl_result}
-        ai_result = ai_service.analyze_content(content, url=url, context=context)
+        ai_result = await asyncio.to_thread(
+            ai_service.analyze_content, content, url=url, context=context
+        )
 
         # Filter out hallucinated/dead URLs from AI sources
         if ai_result and ai_result.get("sources"):
             try:
-                ai_result["sources"] = filter_valid_sources(ai_result["sources"])
+                ai_result["sources"] = await asyncio.to_thread(
+                    filter_valid_sources, ai_result["sources"]
+                )
             except Exception as e:
                 print(f"URL validation error: {e}")
 
@@ -228,8 +237,6 @@ async def process_analysis_task_async(
 
 
 def process_analysis_task(task_id: str, input_data: str, input_type: str) -> None:
-    import asyncio
-
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:

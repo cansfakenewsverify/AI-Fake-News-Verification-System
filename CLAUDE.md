@@ -4,12 +4,15 @@
 > **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
 > 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
 
-最後更新重點：新增單檔查核儀(根目錄 `fake-news-detector.html`)、React 前端改採深色青綠設計(與查核儀同一設計語言)、
-一鍵啟動改版(`start.bat`→後端+查核儀)；AI 引擎多 provider(myai168 OpenAI/Claude + CGU)、評測 96%；
-熱門排序真新聞優先+Cofacts 限量、minimal 推理自動跳過 web_search、目錄已攤平至 `code/backend`。
+最後更新重點：新增 **Threads 查核機器人**（延伸功能，見第 11 節；@機器人→自動查核回覆，預設關）；
+修 start.bat pip 報錯（requirements.txt 不可有非 ASCII，pip 用 cp950 讀）。
+先前：全專案優化（AI 額度用盡誤標 bug、to_thread 非阻塞、向量搜尋矩陣化、刪 PG 死碼、compose 精簡）、
+查核儀+React 深色化、多 provider、評測 96%。
 
-> ⚠️ **目前阻塞（2026-07）**：myai168 AI 額度用盡（claude 402 insufficient_credits）＋`gpt-5-mini` 網關下架（openai 400 no_pricing），
-> AI 暫時無法真分析（會回「AI 分析暫時無法使用」）。**恢復步驟見第 2 節「🚨 AI 全部壞掉時的排查與恢復」。**
+> ✅ **已恢復（2026-07-11）**：已切換 `AI_PROVIDER=cgu`（`CGU_API_KEY` 與 embedding 同一把 CGU 金鑰），
+> 真 AI 分析恢復正常（實測 SCAM 判定 14s、信心 0.95）。**注意 CGU 是獨立 $20 預算**，用量可查 `/v1/me/usage`。
+> myai168 仍然額度用盡＋`gpt-5-mini` 下架：備援順序 cgu→openai→claude 中，後兩個目前打了也會失敗（無害，只是 log 有錯誤）。
+> myai168 儲值後可把 `AI_PROVIDER` 切回 `openai`。排查手冊見第 2 節「🚨 AI 全部壞掉時的排查與恢復」。
 
 ---
 
@@ -75,6 +78,9 @@ cd code\backend
 ```
 **前端不會因此崩**：查核儀 → fallback 前端啟發式並標「離線」；React → 顯示「分析失敗」卡片；
 熱門/資料庫走 `/api/trending`、`/api/knowledge` 讀快取、**不呼叫 AI、不受影響**。
+> 實作細節：AI 掛掉時 `/api/analyze/sync` 仍回 **HTTP 200** 的 fallback JSON（SAFE、confidence 0、
+> summary 以「AI 分析暫時無法使用」開頭）。查核儀 `detectViaBackend` 與 React `normalizeAiResult`
+> 都是靠這個 summary 前綴辨識，**改 fallback 字樣時三處要一起改**（`ai_service._default_fallback_result`）。
 
 ---
 
@@ -97,20 +103,35 @@ cd code\backend
 code/backend/
 ├── app/
 │   ├── main.py                 FastAPI 入口 + 排程器(opt-in)
-│   ├── config.py               所有設定(pydantic Settings，讀 .env)
+│   ├── config.py               所有設定(pydantic Settings，讀 .env；extra=ignore)
+│   ├── database_sql.py         SQLite engine（熱門記錄用）
 │   ├── api/analyze.py          /api/analyze/{text,url,sync,image,task}
 │   ├── api/trending.py         /api/trending(熱門列表) /refresh
 │   ├── api/knowledge.py        /api/knowledge(瀏覽/搜尋快取) /stats
+│   ├── api/admin.py            /api/admin 管理者覆寫 AI 判定（寫 AuditStore）
+│   ├── api/feedback.py         /api/feedback 使用者回饋（寫 AuditStore）
+│   ├── api/threads.py          /api/threads/{status,poll} Threads 機器人狀態/手動觸發
+│   ├── models/fact_check_record.py  SQLite 熱門記錄 model（唯一的 SQLAlchemy model）
 │   ├── services/
 │   │   ├── ai_service.py       ★多 provider AI(myai168 OpenAI/Claude + CGU AIR)、web_search、STT、embedding
-│   │   ├── crawler.py          爬蟲 + 影片字幕/whisper 逐字稿
-│   │   ├── pandas_store.py      三層快取 Parquet
+│   │   ├── crawler.py          爬蟲 + 影片字幕/whisper 逐字稿（阻塞 IO 皆走 to_thread）
+│   │   ├── pandas_store.py      三層快取 Parquet（向量搜尋已 numpy 矩陣化）
+│   │   ├── task_store.py        非同步任務狀態 Parquet
+│   │   ├── audit_store.py       覆寫/回饋紀錄 Parquet
+│   │   ├── cache_service.py     內容 SHA-256 hash
+│   │   ├── vector_service.py    embedding 包裝（實際搜尋在 pandas_store）
 │   │   ├── news_fetcher.py      熱門新聞兩階段流程
-│   │   └── search_service.py    RSS/Cofacts 聚合
-│   └── workers/pandas_task_processor.py  ★三層快取主流程
+│   │   ├── search_service.py    RSS/Cofacts 聚合
+│   │   └── threads_service.py   Threads Graph API 客戶端 + 回覆格式化(500字上限)
+│   ├── utils/url_validator.py  過濾 AI 幻覺出的死連結
+│   └── workers/
+│       ├── pandas_task_processor.py  ★三層快取主流程（AI/embedding 走 to_thread 不卡 event loop）
+│       └── threads_bot.py       Threads 機器人輪詢（mentions→分析→回覆，已回覆 id 存 data/threads_state.json）
 ├── scripts/
 │   ├── evaluate.py             ★評測(混淆矩陣/accuracy/FP/FN/--seed-db/--report-only)
 │   ├── check_db.py             看資料庫內容
+│   ├── test_ai_provider.py     低成本測試 AI provider
+│   ├── test_threads_bot.py     Threads 機器人乾跑/憑證驗證(--live)/真跑一輪(--poll)
 │   └── seed_data.py            灌範本
 ├── data/
 │   ├── factcheck.db            SQLite(熱門記錄)  [本機 runtime，未提交]
@@ -124,7 +145,8 @@ code/backend/
 └── venv/（本機建立，不進 git）
 code/frontend/                  React + Vite + Tailwind（深色查核儀設計：index.css token / mockData RISK_STYLES / App.jsx）
 fake-news-detector.html         ★單檔查核儀(根目錄)：設計token+環形儀表盤+掃描動畫+三視圖(檢測/熱門/資料庫)
-                                熱門/資料庫接 /api/trending、/api/knowledge(離線 fallback 範例)；檢測為前端啟發式 mock
+                                熱門/資料庫接 /api/trending、/api/knowledge(離線 fallback 範例)；
+                                檢測接 /api/analyze/sync(真 AI)，後端掛/AI 掛時 fallback 前端啟發式並標離線
 start.bat / _run_detector.bat   一鍵啟動：後端 + 查核儀靜態伺服器(8090)；start.sh 為 Linux/mac 版
 assets/                         PlantUML 圖 + confusion_matrix.png
 └── 期末專題文件/                OOSE 期末繳交文件(詞彙表/使用案例圖/情節/活動圖/類別圖+README)
@@ -156,6 +178,11 @@ npm run dev    # http://localhost:5173
 
 # 低成本測試目前 AI provider
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu
+
+# Threads 機器人：乾跑(免token) / 驗憑證 / 真跑一輪(會回覆、花點數)
+.\venv\Scripts\python scripts\test_threads_bot.py
+.\venv\Scripts\python scripts\test_threads_bot.py --live
+.\venv\Scripts\python scripts\test_threads_bot.py --poll
 ```
 
 API 文件：http://localhost:8000/docs
@@ -174,10 +201,18 @@ API 文件：http://localhost:8000/docs
 ## 7. 慣例與注意事項
 
 - **Windows 主控台是 cp950**：`print()` **不要放 emoji / ✓✗**（會 `UnicodeEncodeError` 崩潰）。中文可以（Big5）。要輸出給人看的結果，寫成 UTF-8 檔再讀。
+- **`requirements.txt` 只能放 ASCII**：pip 讀 requirements 用系統編碼（cp950），
+  放中文註解會讓 `pip install -r` 直接 UnicodeDecodeError（start.bat 就炸在這，2026-07 踩過）。
+  `.env` 可以有中文，因為 config 已指定 `env_file_encoding="utf-8"`。
 - `.env` 已 gitignore（含真實金鑰）。改設定改 `.env`；範本改 `.env.example`。
+  Settings 已設 `extra="ignore"`：.env 有多餘舊變數不會炸，但也**不會警告拼錯的變數名**。
+- **async 端點內不要直接呼叫 requests / 檔案大 IO**：會卡死整個 event loop
+  （AI 呼叫 timeout 150s）。照 `pandas_task_processor.py` 的做法包 `asyncio.to_thread`。
 - runtime 檔（`*.db`、`*.parquet`）已 gitignore，不要提交。
 - commit 訊息結尾加 `Co-Authored-By: <model> <noreply@anthropic.com>`。
-- 大檔（如報告影片 895MB）放雲端，不進 git（GitHub 單檔上限 100MB）。
+- 大檔（如報告影片 895MB、plantuml jar）放雲端或 gitignore，不進 git（GitHub 單檔上限 100MB）。
+- PostgreSQL/Redis 死碼已全數移除（2026-07）：不要再引用 `app/database.py`、PG models、
+  pgvector 方法——它們不存在了；資料層就是 SQLite（熱門）+ Parquet（快取/任務/回饋）。
 
 ---
 
@@ -207,6 +242,18 @@ API 文件：http://localhost:8000/docs
 - [x] 深/淺色主題切換：查核儀 + React 都加(data-theme + localStorage、深色預設)、
       新增 `--c-topbar-bg` token 讓頂欄跟著主題變
 - [x] claude 引擎跳過 web_search（myai168 anthropic 中繼不支援 hosted 工具）
+- [x] 修 bug：AI 額度用盡時 `/sync` 回 200 fallback，查核儀誤換算成「可信度 2/高風險/即時 AI」
+      → 查核儀與 React 都改為辨識 fallback（summary 前綴）後轉離線/分析失敗顯示
+- [x] 效能：阻塞呼叫（AI/embedding/爬蟲/來源驗證/yt-dlp）改 `asyncio.to_thread`；
+      向量搜尋 numpy 矩陣化；`CRAWL_WITH_SCREENSHOT` 預設關（截圖無下游使用者）
+- [x] 大掃除：刪 PG 死碼（app/database.py、4 個 PG models、pgvector 方法、5 個 emoji 舊 scripts）、
+      requirements 刪 redis/rq/openai/aiohttp/Pillow、前端刪 axios、docker-compose 精簡為 backend-only、
+      `.env.example` CORS 補 8090、`start-debug.bat` 修攤平後路徑
+- [x] 修 start.bat pip 報錯：requirements.txt 中文註解 → cp950 UnicodeDecodeError；
+      改純 ASCII + config 加 env_file_encoding="utf-8" + 清 venv 殘破 ~andas
+- [x] Threads 查核機器人（延伸功能，模式 2）：threads_service + threads_bot + /api/threads；
+      @機器人回覆可疑貼文 → 三層快取+AI 分析 → 自動回覆紅黃綠+來源；預設關、缺 token 全自動停用
+- [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 
@@ -228,6 +275,27 @@ API 文件：http://localhost:8000/docs
 - **目前沒有使用者帳號 / 登入系統**，也沒有「個人查證歷史」。這是公開查證工具的合理設計。
 - **thesis 不建議加登入**（過度設計、牽涉帳密安全）。若要「重整後動態牆還在」→ 用瀏覽器
   `localStorage`（方案 A，不用登入、不用改後端）。只有要「跨裝置看個人歷史」才需要會員系統（方案 B）。
+
+## 11. Threads 查核機器人（延伸功能，預設關）
+
+**模式**：使用者在 Threads 上「回覆一則可疑貼文並 @機器人帳號」（或直接 @機器人貼可疑文字）→
+機器人抓原貼文文字 → 走與 `/api/analyze/sync` 完全相同的三層快取+AI 管線 → 自動回覆
+紅黃綠判定＋查核來源（≤500 字，AI 產出的幻覺連結已被 url_validator 過濾）。
+
+**啟用步驟**：
+1. Meta 開發者後台（developers.facebook.com）建立 App，use case 選 **Threads API**，
+   綁定機器人用的 Threads 帳號，申請權限：`threads_basic`、`threads_content_publish`、
+   `threads_read_replies`、`threads_manage_replies`（mentions 權限名以官方文件為準；
+   開發模式用自己帳號測試**不用送審**，公開給其他人用才要 app review）。
+2. 取得**長效 access token（60 天，要記得換）**與帳號 user id，填入 `.env`：
+   `THREADS_ACCESS_TOKEN` / `THREADS_USER_ID`、`ENABLE_THREADS_BOT=true`，重啟後端。
+3. 驗證：`venv\Scripts\python scripts\test_threads_bot.py --live`（驗憑證，零成本）→
+   `POST /api/threads/poll` 手動跑一輪（會真的回覆貼文、花 AI 點數）。
+
+**防呆設計（改code前先看）**：已回覆 id 存 `data/threads_state.json`（gitignored）不重複回；
+不回機器人自己的貼文；**AI 額度用盡的 fallback 不回覆、不標記**（額度恢復後下輪自動補回）；
+沒設 token 時排程與端點全部自動停用。Threads API 端點如有改版只需改 `threads_service.py`。
+API 實作依 2026-01 官方文件：https://developers.facebook.com/docs/threads
 
 ---
 

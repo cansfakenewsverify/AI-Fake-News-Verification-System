@@ -1,69 +1,28 @@
 version: '3.8'
 
+# 目前架構：SQLite + Parquet（免資料庫服務），只需要 backend 一個容器。
+# 前端 React 開發時走 vite proxy；正式部署可自行加 nginx 反代 /api → backend:8000。
 services:
-  postgres:
-    image: pgvector/pgvector:pg16
-    container_name: factcheck_postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-factcheck_db}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: factcheck_redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: factcheck_backend
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-factcheck_db}
-      - REDIS_URL=redis://redis:6379/0
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - AI_PROVIDER=${AI_PROVIDER:-openai}
+      - MYAI_API_KEY=${MYAI_API_KEY}
+      - CGU_API_KEY=${CGU_API_KEY:-}
+      - EMBED_API_KEY=${EMBED_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
       - DEMO_MODE=${DEMO_MODE:-false}
+      - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-false}
+      - USE_WEB_SEARCH=${USE_WEB_SEARCH:-true}
     ports:
       - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     volumes:
       - ./app:/app/app
       - backend_data:/app/data
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  frontend:
-    build:
-      context: ../../frontend
-      dockerfile: Dockerfile
-    container_name: factcheck_frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-
 volumes:
-  postgres_data:
-  redis_data:
   backend_data:
