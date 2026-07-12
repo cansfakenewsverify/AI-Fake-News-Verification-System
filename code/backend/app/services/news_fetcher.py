@@ -255,11 +255,17 @@ def _save_rss_record(item: dict):
 
 
 def _get_pending_records(limit: int = 10) -> List[FactCheckRecord]:
+    from sqlalchemy import or_
     db = SessionLocal()
     try:
+        # 注意：SQL 的 IN 永遠比不中 NULL，risk_type 為 NULL 的舊記錄要用 IS NULL
+        # 撈（先前 .in_([..., None]) 讓 15 筆 NULL 記錄對 retry 永遠隱形）
         return db.query(FactCheckRecord).filter(
             FactCheckRecord.is_trending == True,
-            FactCheckRecord.risk_type.in_(["PENDING", "UNKNOWN", None]),
+            or_(
+                FactCheckRecord.risk_type.is_(None),
+                FactCheckRecord.risk_type.in_(["PENDING", "UNKNOWN"]),
+            ),
         ).order_by(FactCheckRecord.created_at.desc()).limit(limit).all()
     finally:
         db.close()
@@ -332,7 +338,7 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
         _print(f"[NewsFetcher] Crawl error: {e}")
 
     if len(content) < 50:
-        return "skip"
+        return "short"   # 內容不足（終態）：呼叫端標 UNVERIFIABLE，不再每輪重試
 
     ai_result = None
     try:
@@ -360,7 +366,7 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
         err = (ai_result or {}).get("explanation", "") if ai_result else ""
         if any(s in err for s in ["503", "429", "RESOURCE_EXHAUSTED", "UNAVAILABLE"]):
             return "ratelimit"
-        return "skip"
+        return "ai_unavailable"   # AI 暫時失敗（額度/網路）：保留 PENDING，額度恢復後再試
 
     db = SessionLocal()
     try:
@@ -399,15 +405,30 @@ async def run_trending_fetch():
     await retry_pending_records()
 
 
-async def retry_pending_records():
+def _mark_unverifiable(url: str) -> None:
+    """內容不足/爬不到的記錄標為 UNVERIFIABLE（終態），不再每輪空轉重試。
+    前端會顯示為「未查證」；只有 PENDING/UNKNOWN 會被標，不覆蓋已有判定。"""
+    db = SessionLocal()
+    try:
+        rec = db.query(FactCheckRecord).filter_by(source_url=url).first()
+        if rec and rec.risk_type in (None, "", "PENDING", "UNKNOWN"):
+            rec.risk_type = "UNVERIFIABLE"
+            if not rec.ai_summary:
+                rec.ai_summary = "內容不足或無法爬取，無法自動查證"
+            db.commit()
+    finally:
+        db.close()
+
+
+async def retry_pending_records() -> int:
     """
     Lightweight job: retry AI analysis on PENDING records.
     Runs every 30 minutes - so 503 failures get retried quickly.
-    Also called as part of run_trending_fetch().
+    Also called as part of run_trending_fetch(). 回傳本輪成功分析筆數。
     """
     pending = _get_pending_records(limit=_MAX_AI_CALLS_PER_RUN)
     if not pending:
-        return
+        return 0
 
     _print(f"[NewsFetcher] Retry job: {len(pending)} pending records")
     ok = 0
@@ -418,5 +439,10 @@ async def retry_pending_records():
             break
         if result == "ok":
             ok += 1
+        elif result == "short":
+            # 內容太短/爬不到 → 終態，否則排程與批次會對同幾筆無限空轉
+            _mark_unverifiable(rec.source_url)
+            _print(f"[NewsFetcher]   unverifiable (content too short): {(rec.news_title or rec.source_url)[:40]}")
         await asyncio.sleep(2)
     _print(f"[NewsFetcher] Retry done: {ok}/{len(pending)} analyzed")
+    return ok

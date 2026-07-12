@@ -42,6 +42,7 @@ def cgu_cost_usd() -> float:
 
 
 def pending_count() -> int:
+    from sqlalchemy import or_
     from app.database_sql import SessionLocal, init_sql_db
     from app.models.fact_check_record import FactCheckRecord
     init_sql_db()
@@ -49,7 +50,10 @@ def pending_count() -> int:
     try:
         return db.query(FactCheckRecord).filter(
             FactCheckRecord.is_trending == True,  # noqa: E712
-            FactCheckRecord.risk_type.in_(["PENDING", "UNKNOWN"]),
+            or_(
+                FactCheckRecord.risk_type.is_(None),
+                FactCheckRecord.risk_type.in_(["PENDING", "UNKNOWN"]),
+            ),
         ).count()
     finally:
         db.close()
@@ -89,7 +93,11 @@ async def main() -> None:
         if cost >= 0 and cost > args.budget_cap:
             print(f"[batch] 已達預算護欄 ${args.budget_cap}，停止")
             break
-        await retry_pending_records()
+        ok = await retry_pending_records()
+        if ok == 0 and pending_count() >= n:
+            # 整輪零進展（多半是 AI 暫時無法使用）→ 停止，別空轉
+            print("[batch] 本輪零進展，停止（AI 額度恢復後可重跑）")
+            break
         time.sleep(2)
     else:
         print(f"[batch] 達回合上限 {args.max_rounds}，停止")

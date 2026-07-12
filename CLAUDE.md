@@ -278,6 +278,16 @@ API 文件：http://localhost:8000/docs
 - [x] 修「向量檢索沒真正發揮」：文字輸入改為先以原文查向量（舊版拿爬完全文比對，
       永遠過不了門檻）；門檻 0.88→0.75（實測校準，見第 3 節）；回應加 cached/cache_layer
       欄位＋雙前端顯示命中層；實測改寫版謠言命中 vector 層（6s、零 AI 點數）
+- [x] 自主掃描優化第二輪（2026-07-12）：修「文字輸入分析對象被爬到的網頁偷換」
+      （AI 一律分析使用者原文，爬到的頁面降級 similar_news；含 mock 回歸測試）；
+      news_fetcher print 外部文字 cp950 崩潰 → _print 安全輸出；TaskStore 修剪(500筆)；
+      /api/analyze 輸入驗證；README 全面更新
+- [x] 批次查證腳本 batch_verify_pending.py（抓 RSS + 清 PENDING、CGU 預算護欄、
+      預設關 web_search、零進展自動停）；跑完：熱門 63 筆中 45 筆已有判定、
+      知識庫 230 筆(200 帶向量)、總花費 <$0.11
+- [x] 修 retry 空轉三連 bug：內容不足標 UNVERIFIABLE 終態（不再無限重試）；
+      AI 暫時失敗與內容不足分開處理；`.in_([...,None])` 比不中 SQL NULL
+      → 15 筆 NULL 記錄對 retry 隱形，改 or_(is_(None), in_([...]))
 - [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
