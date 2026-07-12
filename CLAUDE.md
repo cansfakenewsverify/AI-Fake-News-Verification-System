@@ -4,10 +4,9 @@
 > **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
 > 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
 
-最後更新重點：新增 **Threads 查核機器人**（延伸功能，見第 11 節；@機器人→自動查核回覆，預設關）；
-修 start.bat pip 報錯（requirements.txt 不可有非 ASCII，pip 用 cp950 讀）。
-先前：全專案優化（AI 額度用盡誤標 bug、to_thread 非阻塞、向量搜尋矩陣化、刪 PG 死碼、compose 精簡）、
-查核儀+React 深色化、多 provider、評測 96%。
+最後更新重點：新增 **pytest 單元測試（tests/，29 個）+ GitHub Actions CI**；React 前端現代簡約化
+（token 精修＋幾何記號取代 emoji，深淺色保留）。先前：Threads 查核機器人（第 11 節）、
+修查核報導「同謠言兩種標籤」bug（第 9 節三道防線）、start.bat pip 修復、全專案優化、多 provider、評測 96%。
 
 > ✅ **已恢復（2026-07-11）**：已切換 `AI_PROVIDER=cgu`（`CGU_API_KEY` 與 embedding 同一把 CGU 金鑰），
 > 真 AI 分析恢復正常（實測 SCAM 判定 14s、信心 0.95）。**注意 CGU 是獨立 $20 預算**，用量可查 `/v1/me/usage`。
@@ -132,7 +131,14 @@ code/backend/
 │   ├── check_db.py             看資料庫內容
 │   ├── test_ai_provider.py     低成本測試 AI provider
 │   ├── test_threads_bot.py     Threads 機器人乾跑/憑證驗證(--live)/真跑一輪(--poll)
+│   ├── fix_factcheck_labels.py 一次性資料修復(查核報導錯標+HTML entities，冪等/--dry-run)
 │   └── seed_data.py            灌範本
+├── tests/                      ★pytest 單元測試(29 tests、離線零點數；CI 每次 push 自動跑)
+│   ├── test_cache_and_store.py   hash/三層快取/任務儲存
+│   ├── test_marking_rules.py     標記規則守門(第9節邏輯，防退回舊 bug)
+│   ├── test_ai_service_contract.py  JSON解析/fallback字樣契約/紅黃綠框/Threads回覆500字
+│   ├── test_api.py               API 冒煙(health/knowledge/threads status)
+│   └── test_url_validator.py     幻覺連結過濾
 ├── data/
 │   ├── factcheck.db            SQLite(熱門記錄)  [本機 runtime，未提交]
 │   ├── knowledge_base.parquet  三層快取知識庫     [★已提交 178 筆 demo 種子；
@@ -183,6 +189,9 @@ npm run dev    # http://localhost:5173
 .\venv\Scripts\python scripts\test_threads_bot.py
 .\venv\Scripts\python scripts\test_threads_bot.py --live
 .\venv\Scripts\python scripts\test_threads_bot.py --poll
+
+# 單元測試（29 tests、離線、零點數；GitHub Actions 每次 push 也會自動跑）
+.\venv\Scripts\python -m pytest tests -q
 ```
 
 API 文件：http://localhost:8000/docs
@@ -255,6 +264,10 @@ API 文件：http://localhost:8000/docs
       @機器人回覆可疑貼文 → 三層快取+AI 分析 → 自動回覆紅黃綠+來源；預設關、缺 token 全自動停用
 - [x] 修「同一謠言兩種標籤」bug：查核報導判定對象統一為被查核的主張（見第 9 節三道防線）；
       RSS 標題 &nbsp; entities 清乾淨（_strip_html 解 entities + fix_factcheck_labels.py 修舊資料）
+- [x] 單元測試 + CI：tests/ 29 個 pytest（快取/標記規則/fallback契約/API冒煙/URL過濾，
+      離線零點數）＋ .github/workflows/ci.yml（push/PR 自動跑，對應專題「測試驗證/品質保證」）
+- [x] React 前端現代簡約化：token 精修（低對比邊框、主題感知陰影 --shadow-card/pop、
+      柔和光暈）、裝飾 emoji 換幾何記號（✕/!/✓ 語意色）、標題列 accent bar；深淺色皆保留
 - [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy

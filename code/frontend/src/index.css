@@ -1,68 +1,74 @@
 @import "tailwindcss";
 
 /* ============================================================
-   設計 TOKEN（與單檔查核儀同一套：深色 + 青綠強調 + 語意風險色）
+   設計 TOKEN（現代簡約：低對比邊框、柔和陰影、青綠單一強調色）
+   深色為預設；data-theme="light" 覆蓋同一組 token
    ============================================================ */
 :root {
-  --c-bg-base:      #0a0e15;
-  --c-bg-surface:   #111824;
-  --c-bg-elevated:  #18212f;
+  --c-bg-base:      #0b0f16;
+  --c-bg-surface:   #101722;
+  --c-bg-elevated:  #172130;
   --c-bg-input:     #0c121b;
-  --c-border:       #232f40;
-  --c-border-strong:#33425a;
+  --c-border:       #1d2735;
+  --c-border-strong:#2c3a4e;
 
-  --c-text-primary:   #e9eef6;
+  --c-text-primary:   #eaeff7;
   --c-text-secondary: #9fb0c4;
-  --c-text-muted:     #7e90a6;
+  --c-text-muted:     #77899f;
 
-  --c-accent:       #34dcc4;
+  --c-accent:       #35dcc4;
   --c-accent-strong:#5eead6;
   --c-accent-ink:   #04221d;
-  --c-accent-soft:  rgba(52,220,196,0.13);
-  --c-accent-line:  rgba(52,220,196,0.45);
+  --c-accent-soft:  rgba(53,220,196,0.12);
+  --c-accent-line:  rgba(53,220,196,0.40);
 
-  --c-risk-high: #fb6a63;
+  --c-risk-high: #fb7069;
   --c-risk-mid:  #e6b540;
-  --c-risk-low:  #46c46b;
-  --c-risk-high-soft: rgba(251,106,99,0.15);
-  --c-risk-mid-soft:  rgba(230,181,64,0.15);
-  --c-risk-low-soft:  rgba(70,196,107,0.14);
-  --c-muted-soft:     rgba(126,144,166,0.14);
-  --c-topbar-bg:      rgba(17,24,36,0.78);
+  --c-risk-low:  #4ecb74;
+  --c-risk-high-soft: rgba(251,112,105,0.13);
+  --c-risk-mid-soft:  rgba(230,181,64,0.13);
+  --c-risk-low-soft:  rgba(78,203,116,0.12);
+  --c-muted-soft:     rgba(126,144,166,0.13);
+  --c-topbar-bg:      rgba(11,15,22,0.72);
+
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.30), 0 12px 32px -16px rgba(0,0,0,0.45);
+  --shadow-pop:  0 2px 6px rgba(0,0,0,0.35), 0 20px 48px -20px rgba(0,0,0,0.55);
 }
 
-/* 淺色主題（深色為預設；data-theme="light" 覆蓋同一組 token） */
 :root[data-theme="light"] {
-  --c-bg-base:      #eef1f6;
+  --c-bg-base:      #f3f5f9;
   --c-bg-surface:   #ffffff;
-  --c-bg-elevated:  #f1f4f9;
+  --c-bg-elevated:  #f0f3f8;
   --c-bg-input:     #f6f8fb;
-  --c-border:       #dce3ed;
-  --c-border-strong:#c3cdda;
-  --c-text-primary:   #16202e;
-  --c-text-secondary: #46566a;
-  --c-text-muted:     #6a7889;
+  --c-border:       #e4e9f1;
+  --c-border-strong:#cbd5e2;
+  --c-text-primary:   #131e2c;
+  --c-text-secondary: #47576b;
+  --c-text-muted:     #6d7b8d;
   --c-accent:       #0d9488;
   --c-accent-strong:#0f766e;
   --c-accent-ink:   #ffffff;
-  --c-accent-soft:  rgba(13,148,136,0.10);
-  --c-accent-line:  rgba(13,148,136,0.40);
+  --c-accent-soft:  rgba(13,148,136,0.09);
+  --c-accent-line:  rgba(13,148,136,0.35);
   --c-risk-high: #dc2626;
-  --c-risk-mid:  #c2790a;
-  --c-risk-low:  #15a34a;
-  --c-risk-high-soft: rgba(220,38,38,0.10);
-  --c-risk-mid-soft:  rgba(194,121,10,0.12);
-  --c-risk-low-soft:  rgba(21,163,74,0.12);
-  --c-muted-soft:     rgba(100,114,132,0.12);
-  --c-topbar-bg:      rgba(255,255,255,0.80);
+  --c-risk-mid:  #b45309;
+  --c-risk-low:  #15803d;
+  --c-risk-high-soft: rgba(220,38,38,0.09);
+  --c-risk-mid-soft:  rgba(180,83,9,0.10);
+  --c-risk-low-soft:  rgba(21,128,61,0.10);
+  --c-muted-soft:     rgba(100,114,132,0.10);
+  --c-topbar-bg:      rgba(255,255,255,0.78);
+
+  --shadow-card: 0 1px 2px rgba(19,30,44,0.04), 0 10px 28px -18px rgba(19,30,44,0.14);
+  --shadow-pop:  0 2px 6px rgba(19,30,44,0.06), 0 18px 44px -20px rgba(19,30,44,0.20);
 }
 :root[data-theme="light"] .app-bg {
   background-image:
-    radial-gradient(1100px 520px at 82% -8%, rgba(13,148,136,0.07), transparent 60%),
-    radial-gradient(900px 480px at 0% 0%, rgba(13,148,136,0.04), transparent 55%);
+    radial-gradient(1100px 520px at 82% -8%, rgba(13,148,136,0.06), transparent 60%),
+    radial-gradient(900px 480px at 0% 0%, rgba(13,148,136,0.035), transparent 55%);
 }
 :root[data-theme="light"] .shimmer {
-  background: linear-gradient(90deg, #e8edf3 0%, #f4f7fb 50%, #e8edf3 100%);
+  background: linear-gradient(90deg, #e9edf4 0%, #f5f8fc 50%, #e9edf4 100%);
   background-size: 1000px 100%;
 }
 
@@ -72,18 +78,24 @@ body {
     'Microsoft JhengHei', 'PingFang TC', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "tnum" 1;   /* 數字等寬，統計卡不跳動 */
   color: var(--c-text-primary);
   background-color: var(--c-bg-base);
 }
 
-/* 整體背景：深色 + 頂部一抹青綠光暈（取代原本的靛紫） */
+/* 整體背景：深色 + 頂部一抹青綠光暈（收斂、不搶戲） */
 .app-bg {
   background-color: var(--c-bg-base);
   background-image:
-    radial-gradient(1100px 520px at 82% -8%, rgba(52,220,196,0.09), transparent 60%),
-    radial-gradient(900px 480px at 0% 0%, rgba(52,220,196,0.045), transparent 55%);
+    radial-gradient(1100px 520px at 82% -8%, rgba(53,220,196,0.07), transparent 60%),
+    radial-gradient(900px 480px at 0% 0%, rgba(53,220,196,0.035), transparent 55%);
   background-attachment: fixed;
 }
+
+/* 卡片陰影：覆蓋 Tailwind 的黑色系陰影，改用主題感知的柔和陰影
+   （unlayered 規則會蓋過 @layer utilities，深淺色各自成立） */
+.shadow-sm { box-shadow: var(--shadow-card); }
+.hover\:shadow-md:hover { box-shadow: var(--shadow-pop); }
 
 /* 焦點環（鍵盤可達） */
 :focus-visible {
@@ -92,7 +104,7 @@ body {
   border-radius: 8px;
 }
 
-/* 深色細捲軸 */
+/* 細捲軸 */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
@@ -103,46 +115,59 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--c-text-muted); background-clip: content-box; }
 
-/* AI 分析中：深色 shimmer */
+/* AI 分析中 shimmer */
 @keyframes shimmer {
   0% { background-position: -1000px 0; }
   100% { background-position: 1000px 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, #131a24 0%, #1d2838 50%, #131a24 100%);
+  background: linear-gradient(90deg, #121a26 0%, #1c2737 50%, #121a26 100%);
   background-size: 1000px 100%;
   animation: shimmer 1.8s infinite linear;
 }
 
 /* 卡片淡入 */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.fade-in { animation: fadeIn 0.3s ease-out; }
+.fade-in { animation: fadeIn 0.28s ease-out; }
 
-/* 風險標題微脈動 */
+/* 分析中微脈動 */
 @keyframes softPulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.85; }
+  50% { opacity: 0.82; }
 }
 .analyzing-pulse { animation: softPulse 1.6s ease-in-out infinite; }
 
-/* 主按鈕：青綠（取代靛紫漸層） */
+/* 主按鈕：青綠、微漸層、hover 輕浮起 */
 .btn-primary {
-  background: var(--c-accent);
+  background: linear-gradient(180deg, var(--c-accent-strong), var(--c-accent));
   color: var(--c-accent-ink);
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(52,220,196,0.20);
+  transition: all 0.18s ease;
+  box-shadow: 0 1px 3px rgba(53,220,196,0.22);
+}
+:root[data-theme="light"] .btn-primary {
+  background: linear-gradient(180deg, #12a99b, var(--c-accent));
 }
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: var(--c-accent-strong);
-  box-shadow: 0 4px 16px rgba(52,220,196,0.30);
+  filter: brightness(1.06);
+  box-shadow: 0 6px 18px -4px rgba(53,220,196,0.35);
 }
+.btn-primary:active:not(:disabled) { transform: translateY(0); }
 .btn-primary:disabled {
   background: var(--c-border-strong);
   color: var(--c-text-muted);
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* 語意記號（取代大顆 emoji 的幾何符號） */
+.risk-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  line-height: 1;
 }
