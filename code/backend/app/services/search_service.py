@@ -8,6 +8,7 @@ Sources:
   4. Cofacts API              (collaborative fact-check, optional)
   5. Serper API               (paid keyword search, optional)
 """
+import html
 import time
 import re
 import requests
@@ -54,7 +55,10 @@ def _is_valid_url(url: str) -> bool:
 
 
 def _strip_html(text: str) -> str:
-    return re.sub(r"<[^>]+>", "", text or "").strip()
+    """去 HTML 標籤 + 解碼 entities（&nbsp; &amp; 等，Google News RSS 摘要常見）。"""
+    s = re.sub(r"<[^>]+>", "", text or "")
+    s = html.unescape(s)
+    return s.replace("\xa0", " ").strip()
 
 
 _CJK_RE = re.compile(r"[一-鿿]")

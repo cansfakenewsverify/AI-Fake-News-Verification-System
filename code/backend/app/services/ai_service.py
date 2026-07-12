@@ -347,6 +347,9 @@ class AIService:
 
     def _build_prompt(self, content: str, url: Optional[str] = None, context: Optional[Dict[str, Any]] = None) -> str:
         parts = []
+        # 呼叫端可依情境補充判定指示（如 news_fetcher：判定對象是主張而非報導本身）
+        if context and context.get("extra_instructions"):
+            parts.append(f"【本次任務補充指示】\n{context['extra_instructions']}\n")
         if url:
             parts.append(f"【來源網址】\n{url}\n")
         parts.append(f"【待分析內容】\n{content}\n")

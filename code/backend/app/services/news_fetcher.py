@@ -85,6 +85,30 @@ _CJK_RE = re.compile(r"[一-鿿]")
 # MyGoPen / TFC 標題若帶這些查核標籤，代表已判定為不實
 _FALSE_TAG_RE = re.compile(r"^【[^】]*(錯誤|誤導|謠言|不實|易誤解|假)[^】]*】")
 
+# 主流媒體「轉載查核結果」的標題判定（ETtoday/華視/三立…報導 TFC/警方查核）。
+# 需同時命中「查核語境」與「不實判定詞」才算，避免把一般報導誤標
+# （例：「警方成立闢謠專區」只有語境詞 → 不算；「高雄警急闢謠：那是假的」→ 算）。
+# 這條規則解決同一謠言在不同媒體報導下被 AI 判成一邊 MISINFO 一邊 SAFE 的不一致。
+_DEBUNK_CONTEXT_RE = re.compile(r"(事實查核|查核|闢謠|澄清|媒體識讀|網傳|瘋傳|流傳)")
+_DEBUNK_VERDICT_RE = re.compile(r"(不實|誤導|謠言|假的|假消息|假訊息|錯假|過度誇大|錯誤|全錯|莫信|勿信|打臉)")
+
+
+def _title_indicates_debunk(title: str) -> bool:
+    """標題明示「這是查核報導且結論為不實」→ 可確定性標 MISINFO（判定對象是被查核的主張）。"""
+    t = (title or "").strip()
+    return bool(_DEBUNK_CONTEXT_RE.search(t) and _DEBUNK_VERDICT_RE.search(t))
+
+
+# 給 AI 分析新聞報導時的補充指示：判定對象是「被流傳的主張」不是「報導行為」。
+# 沒有這段時，AI 對查核報導會不一致（有時判謠言 MISINFO、有時判報導本身 SAFE）。
+_NEWS_ANALYSIS_GUIDANCE = (
+    "這是自動抓取的新聞報導。請判定「報導中被流傳的主張」而非「報導行為本身」："
+    "若內容是查核/闢謠報導（指出某流傳說法不實、誤導或過度誇大）→ risk_type 填 MISINFO，"
+    "summary 填被查核的原始不實主張；"
+    "若查核結論是「說法為真」，或內容是一般正確新聞、官方公告、反詐宣導、犯罪偵破報導"
+    "（沒有不實主張被當真流傳）→ risk_type 填 SAFE。"
+)
+
 
 def _is_real_claim(claim: str) -> bool:
     """是否為可索引的真實主張：非網址、含中文、不太短、非標籤雲。"""
@@ -198,14 +222,23 @@ def _save_rss_record(item: dict):
             rec.ai_score = 0.95
             claim = _extract_claim_from_title(title)
             rec.ai_summary = f"[{source['name']}] {claim or title}"
-        elif not rec.risk_type:
-            rec.risk_type = "PENDING"   # 尚未查證
+        elif not source and _title_indicates_debunk(title) and \
+                rec.risk_type in (None, "", "PENDING", "UNKNOWN", "SAFE"):
+            # 主流媒體轉載查核結果：標題明示不實判定 → 確定性標 MISINFO
+            # （可覆寫先前 AI 誤標的 SAFE，但不動已標 MISINFO/SCAM 的）
+            rec.risk_type = "MISINFO"
+            rec.category = "已查核假訊息"
+            rec.ai_score = 0.9
+            claim = _extract_claim_from_title(title)
+            rec.ai_summary = f"[事實查核報導] {claim or title}"
 
         db.commit()
 
         # Phase 2: 只索引「確定不實 + 真實主張」的項目進知識庫
         if source and source.get("is_factcheck") and confirmed_false:
             _index_factcheck_claim(url, title, source)
+        elif not source and _title_indicates_debunk(title):
+            _index_factcheck_claim(url, title, {"name": "事實查核報導", "category": "已查核假訊息"})
     finally:
         db.close()
 
@@ -251,6 +284,19 @@ def _cleanup_legacy_strings():
                     r.risk_type = "PENDING"
                     r.ai_summary = None
                     fixed += 1
+            elif not source and _title_indicates_debunk(title) and \
+                    r.risk_type in (None, "", "PENDING", "UNKNOWN", "SAFE"):
+                # 主流媒體查核報導被 AI 誤標 SAFE（判成報導本身而非被查核的謠言）→ 修正
+                r.risk_type = "MISINFO"
+                r.category = "已查核假訊息"
+                r.ai_score = 0.9
+                claim = _extract_claim_from_title(title)
+                r.ai_summary = f"[事實查核報導] {claim or title}"
+                _index_factcheck_claim(
+                    r.source_url, title,
+                    {"name": "事實查核報導", "category": "已查核假訊息"},
+                )
+                fixed += 1
             elif r.ai_summary == "等待 AI 分析":
                 r.ai_summary = None
                 r.risk_type = "PENDING"
@@ -284,7 +330,10 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
         if cached and isinstance(cached.get("ai_analysis"), dict) and not _is_ai_fallback(cached["ai_analysis"]):
             ai_result = cached["ai_analysis"]
         else:
-            ai_result = _ai.analyze_content(content, url=url)
+            ai_result = _ai.analyze_content(
+                content, url=url,
+                context={"extra_instructions": _NEWS_ANALYSIS_GUIDANCE},
+            )
             if ai_result and not _is_ai_fallback(ai_result):
                 try:
                     _pandas_store.save_record(

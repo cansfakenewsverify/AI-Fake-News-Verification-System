@@ -253,6 +253,8 @@ API 文件：http://localhost:8000/docs
       改純 ASCII + config 加 env_file_encoding="utf-8" + 清 venv 殘破 ~andas
 - [x] Threads 查核機器人（延伸功能，模式 2）：threads_service + threads_bot + /api/threads；
       @機器人回覆可疑貼文 → 三層快取+AI 分析 → 自動回覆紅黃綠+來源；預設關、缺 token 全自動停用
+- [x] 修「同一謠言兩種標籤」bug：查核報導判定對象統一為被查核的主張（見第 9 節三道防線）；
+      RSS 標題 &nbsp; entities 清乾淨（_strip_html 解 entities + fix_factcheck_labels.py 修舊資料）
 - [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
@@ -261,6 +263,13 @@ API 文件：http://localhost:8000/docs
 - **只有「確定不實」才標 MISINFO**：Cofacts 文章需有 `RUMOR` 回覆；MyGoPen/TFC
   標題需帶【錯誤/誤導/謠言/不實/易誤解/假】。其餘一律 `PENDING`（未查證），不要因為
   「來自查核網站」就整批標成假訊息（這是先前的 bug）。
+- **主流媒體「查核報導」判定對象是被查核的主張，不是報導本身**（2026-07 修的 bug：
+  同一 SIM 卡謠言，ETtoday 報導被標 MISINFO、華視報導被標 SAFE）。三道防線：
+  ① `_title_indicates_debunk()`：標題同時含查核語境詞(查核/闢謠/澄清/網傳…)＋不實判定詞
+  (不實/假的/過度誇大/打臉…) → 確定性標 MISINFO（可覆寫 AI 誤標的 SAFE，零 AI 成本）；
+  ② AI 分析新聞時帶 `_NEWS_ANALYSIS_GUIDANCE` 補充指示（判主張不判報導）；
+  ③ 既有資料修復：`scripts/fix_factcheck_labels.py`（冪等、支援 --dry-run，
+  同時清 RSS 殘留的 &nbsp; 等 HTML entities；`_strip_html` 已改為會解 entities）。
 - `_is_real_claim()`：純網址 / 無中文 / 標籤雲 / 太短 → 不索引進 knowledge_base。
 
 ## 10. 查證紀錄儲存 & 是否需要登入
