@@ -4,11 +4,11 @@
 
 | 項目 | 內容 |
 |------|------|
-| 文件版本 | v1.2（依共識 2026-09-15 三項更新修訂：AI 額度已解決改用 CGU、來源分級與資料清潔、機器人 handle 定案；變更紀錄見文末） |
-| 日期 | 2026-09-15（v1.0：2026-09-14；v1.1：2026-09-15 上午） |
-| 上游依據 | `docs/rebuild/00_consensus.md`（2026-09-14 grill 結論 + 2026-09-15 §4「AI 額度已解決」、§9「來源品質與資料清潔」補充）。本文件每條決策皆可回溯至該檔章節，標示為「共識 §n」；本文件與共識衝突時以共識為準 |
+| 文件版本 | v1.3（v1.2 審查修訂第二輪：21 條一致性／可行性意見全部採納，主要為 FR-16～19 內部一致性、Day 2.5 工時重排、`verified` 計算位置；變更紀錄見文末） |
+| 日期 | 2026-09-15（v1.0：2026-09-14；v1.1：2026-09-15 上午；v1.2：2026-09-15 下午） |
+| 上游依據 | `docs/rebuild/00_consensus.md`（2026-09-14 grill 結論 + 2026-09-15 §4「AI 額度已解決」、§9「來源品質與資料清潔」補充；§9 插入後原「掃描發現的既有事實」為 **§10**）。本文件每條決策皆可回溯至該檔章節，標示為「共識 §n」；本文件與共識衝突時以共識為準。**已知共識內部矛盾**：共識 §6「要買：OpenAI API 額度 USD 5–10」已被 §4（2026-09-15「不買 OpenAI 直連額度」）取代，本文件不採 §6 該行；建議下次更新共識時刪除（本次修訂不改共識檔） |
 | 事實來源 | 掃描結果 `ai_engine / backend_api / pipeline_store / crawler_news / frontend_react / offline_ops / tests_eval / docs_usecases / threads_code / threads_gap_analysis / threads_verify_10`（後者的 `refuted` 條目視為對前者的修正）；程式碼行號以掃描時 Read 輸出為準 |
-| 狀態 | 待負責人審閱（Day 0 必答 D-1／D-3（僅品牌名與顯示名稱，handle 已定 `@factcheck_tw_bot`）／D-5／D-9；Day 2.5 前答 D-15／D-17）→ Day 1 上午 S1／S2 mockup + grill with mockup → Day 1 下午 ticket（primitives → screens）→ implement → visual review。S3–S6 不另做 mockup，以 8.3 元件清單 + 8.7 文案表為驗收基準（第 11 節） |
+| 狀態 | 待負責人審閱（Day 0 必答 D-1／D-3（僅品牌名與顯示名稱，handle 已定 `@factcheck_tw_bot`）／D-5／D-9；Day 1 答 D-13／D-16／D-18；Day 2.5 前答 D-15／D-17）→ Day 1 上午 S1／S2 mockup + grill with mockup → Day 1 下午 ticket（primitives → screens）→ implement → visual review。S3–S6 不另做 mockup，以 8.3 元件清單 + 8.7 文案表為驗收基準（第 11 節） |
 | 下游文件 | 測試計畫書 `TP-FNV-2026-01`（共識 §7）：本文件第 10 節 = 計畫書 §4.2 通過準則（含 4.3 中止／再繼續）；10.6 = 計畫書 §2.3 參考文件、§4.1 測試環境、§4.4 交付項目；第 4 節 FR 編號供 §3.2 引用；3.2 = `tests/`、3.3 = visual review、3.4／3.5 = `evaluate.py`（依共識 §7，不新增 `bench.py`） |
 | 讀者 | 專案負責人（唯一實作者，AI 輔助）、4 位組員（申請／文件／測試／影片）、指導教授 |
 | 適用範圍 | 本次重做（一週）：共識 §2「做」的全部項目；「不做」項目不再以需求出現 |
@@ -212,7 +212,7 @@
 - **驗收**：`DAILY_AI_CALL_CAP=1` 時第二次未命中回 429 且 AI mock 未被呼叫；前端顯示 `quota_exceeded_*` 文案；Threads bot 遇此狀態同 AI 不可用（不回覆、不標記）。
 
 ### FR-15 工程清理（P0，支撐上述 FR；共識 §4、§5）
-移除死碼：Serper（search_service.py:248-284、`SERPER_API_KEY`）、`TRENDING_KEYWORDS`、Google News 查詢、`googlesearch` 關鍵字爬蟲、Playwright／yt-dlp 管線（crawler.py:188-435）、Gemini embedding 備援（ai_service.py:446-454，768 維汙染風險）、死設定 `DEBUG`／`ENVIRONMENT`／`EMBEDDING_MODEL`。`fake-news-detector.html` 與 `_run_detector.bat` 移至 `legacy/`，README／CLAUDE.md 標示不再維護，`start.bat`／`start.sh` 不再提及。`news_fetcher` 內同步 `requests`／`analyze_content` 呼叫改 `asyncio.to_thread`（news_fetcher.py:350,396,400）。`.gitignore` 修正為 `code/backend/data/factcheck.db`、`code/backend/data/tasks.parquet`、`code/backend/data/threads_*.json*`、`code/backend/data/ai_usage.*` 並 `git rm --cached`（offline_ops tech_debt 第 1 條；`knowledge_base.parquet` 維持提交當種子）。`ci.yml` 註解移除測試數字，並加 `npm ci && npm run build`（Day 1 就上，讓 Day 3 Vercel 部署前 CI 已驗證前端 build）。
+移除死碼：Serper（search_service.py:248-284、`SERPER_API_KEY`）、`TRENDING_KEYWORDS`、Google News 查詢、`googlesearch` 關鍵字爬蟲、Playwright／yt-dlp 管線（crawler.py:188-435）、Gemini embedding 備援（ai_service.py:446-454，768 維汙染風險）、死設定 `DEBUG`／`ENVIRONMENT`／`EMBEDDING_MODEL`。`fake-news-detector.html` 與 `_run_detector.bat` 移至 `legacy/`，README／CLAUDE.md 標示不再維護，`start.bat`／`start.sh` 不再提及。`news_fetcher` 內同步 `requests`／`analyze_content` 呼叫改 `asyncio.to_thread`（news_fetcher.py:350,396,400）。`.gitignore` 修正為 `code/backend/data/factcheck.db`、`code/backend/data/tasks.parquet`、`code/backend/data/threads_*.json*`、`code/backend/data/ai_usage.*` 並 `git rm --cached`（offline_ops tech_debt 第 1 條；`knowledge_base.parquet` 維持提交當種子——FR-18 `--apply` 通過 OP-9 後**重新提交一次**作清洗後種子，其後恢復不提交 runtime 變動）。`ci.yml` 註解移除測試數字，並加 `npm ci && npm run build`（Day 1 就上，讓 Day 3 Vercel 部署前 CI 已驗證前端 build）。
 
 **隨 yt-dlp／Playwright 一起變成死碼、一併移除**：`AIService.transcribe_audio`（ai_service.py:397-422，只有 crawler 抓音軌後呼叫）、設定鍵 `STT_MODEL`／`CGU_STT_MODEL`（config.py:35,42）、`CRAWL_WITH_SCREENSHOT`（:68）、`SEARCH_RESULTS_LIMIT`（:69，關鍵字搜尋專用）及 `.env.example` 對應行；`scripts/seed_data.py`（灌的資料對三層快取隱形，tests_eval 指出已無價值；刪除後 `label_source` 不需 `seed` 值）。CLAUDE.md §2 表格「影片語音轉文字」列刪除（QA-4 勾核）。
 
@@ -220,12 +220,12 @@
 
 ### FR-16 來源分級與顯示（P0；共識 §9 第 1、2 點）
 - **描述**：所有進入回應的來源（AI `sources`、provider web_search `url_citation`、RSS／Cofacts 記錄的 `source_url`）先經 `app/utils/source_tier.py:tier_of(url, title="", meta=None) -> 1 | 2 | 3` 分級：
-  - **Tier 1**（已有判定的查核機構）：`tfc-taiwan.org.tw`、`mygopen.com`；`cofacts.tw`／`cofacts.g0v.tw` **且**該文章有回覆、回覆類型為 `RUMOR`／`NOT_RUMOR`（以 Cofacts GraphQL `https://cofacts-api.g0v.tw/graphql` 查 `articleReplies.reply.type`，沿用 `search_service.py` 既有客戶端；查不到或無回覆 → Tier 3）；政府機關 `*.gov.tw`（**精確網域尾綴比對** `hostname == "gov.tw" or hostname.endswith(".gov.tw")`，不用子字串）；`who.int`、`cdc.gov`、`cdc.gov.tw`（含於 gov.tw）等官方機構。白名單常數 `TIER1_DOMAINS` 初版依此，D-15 由負責人確認增刪。
+  - **Tier 1**（已有判定的查核機構）：`tfc-taiwan.org.tw`、`mygopen.com`；`cofacts.tw`／`cofacts.g0v.tw` **且**該文章有回覆、回覆類型為 `RUMOR`／`NOT_RUMOR`（以 Cofacts GraphQL **`https://api.cofacts.tw/graphql`**（以程式碼為準：search_service.py:216 既有客戶端打的就是此端點）查 `articleReplies.reply.type`；查不到或無回覆 → Tier 3）；政府機關 `*.gov.tw`（**精確網域尾綴比對** `hostname == "gov.tw" or hostname.endswith(".gov.tw")`，不用子字串）；`who.int`、`cdc.gov`、`cdc.gov.tw`（含於 gov.tw）等官方機構。白名單常數 `TIER1_DOMAINS` 初版依此，D-15 由負責人確認增刪。
   - **Tier 2**（主流媒體查核報導）：標題同時含查核語境詞＋判定詞——**直接呼叫 `news_fetcher._title_indicates_debunk(title)`**（第 9 節三道防線之①，不改動）；無標題可用時（AI 只給 URL）→ Tier 3。
   - **Tier 3**：其餘（一般新聞、部落格、社群貼文、求證平台**未回覆**的貼文、`news.google.com` 轉址、`threads.com`／`facebook.com`／`line.me` 等）。
 - **顯示規則（三處一致）**：Web 結果頁 S2、Threads 回覆 7.7、每日貼文 FR-12 **只顯示 Tier 1／2** 作為「查核來源」；Tier 3 不進 `sources`，保留於 `result.related_discussions`（本次 P0 畫面**不顯示**，供稽核；P2 可加「相關討論（未查證）」折疊區）。`sources[]` 每項帶 `tier` 與 `tier_label`（「查核機構」／「媒體查核報導」）。
 - **無 Tier 1／2 來源時**：`result.verified=false`、`verification_status="unverified"`，結果頁顯示 `no_verified_source_*` 橫幅「尚無查核機構證實」，且 **`frame_type` 不得為 `green`**（7.8 新列：SAFE 未證實 → 黃「尚無查核機構證實」）；紅燈判定仍可為紅（詐騙訊息本身常無查核報導，AI 判定風險不依賴外部來源），但橫幅照顯示、Threads 回覆的「查核來源」行改為「尚無查核機構證實」。
-- **輸入**：`sources` 清單 + 可選標題；**輸出**：`(tier, tier_label)`；**成本**：零 AI；Cofacts 查詢走 `asyncio.to_thread`、逾時 5 s、失敗視為 Tier 3（保守）。
+- **輸入**：`sources` 清單 + 可選標題；**輸出**：`tier`（int，1／2／3；與簽名一致），`tier_label` 由 `TIER_LABELS[tier]` 查表（1「查核機構」、2「媒體查核報導」、3「相關討論（未查證）」）；**成本**：零 AI。**Cofacts 查詢**：同一請求內對多個 Cofacts 來源**並行**查詢（`asyncio.gather` 包 `to_thread`）、整組總逾時 5 s、結果快取於程序內 LRU（`functools.lru_cache(maxsize=512)`，鍵為 article id），失敗／逾時視為 Tier 3（保守）；`tier_of(..., offline=True)` 離線模式**不發任何網路請求**、Cofacts 一律視為 Tier 3（供 `PandasStore.save_record` 與 `_load()` 路徑使用，FR-17）。§9 效能列的「未命中 AI p50 ≤15 s」**不含**此 5 s（Cofacts 查詢時間另計，log 分開記 `tier_ms`）。
 - **驗收**：
   1. `tests/test_source_tier.py`（FN-12）：表格測試 ≥15 組 URL／標題 → tier（含 `gov.tw.evil.com` 必須是 Tier 3、`news.google.com/rss/articles/…` Tier 3、Cofacts 有回覆／無回覆兩種以 mock 區分、MyGoPen 標題無判定詞仍 Tier 1（網域即判定）、ETtoday「查核：網傳…是假的」Tier 2、ETtoday 一般新聞 Tier 3）。
   2. `GET /api/result/{id}.result.sources` 每項 `tier ∈ {1,2}`；Tier 3 只出現在 `related_discussions`。
@@ -233,6 +233,7 @@
 
 ### FR-17 知識庫寫入門檻（P0；共識 §9 第 3 點）
 - **描述**：AI 判定要寫進 `knowledge_base.parquet` 且**參與向量命中**，必須滿足 (a) 至少一個 Tier 1／2 來源通過 `url_validator.filter_valid_sources`（既有存活檢查），或 (b) 規則命中確定性標記（`label_source="rule"`，即 `_title_says_false`／`_title_indicates_debunk` 命中，或 `gold`／`admin`）。否則以 **`verified=false` 保存**（仍寫列：保留原文與判定供稽核、`label_source` 照記、`hit_count` 仍累計 hash 命中），但：`find_similar_by_vector` 過濾 `verified==True`（pandas_store.py:105-114 同維度過濾旁加一條）、`GET /api/knowledge` 與 `/stats` 只算 `verified==True`。**L1 hash 命中不受影響**（同一段文字再問仍直接回上次結果並帶 `verified=false` 標記——避免重複花 AI 點數；結果頁照顯示「尚無查核機構證實」）。
+- **計算位置（v1.3 定案，守住 FN-1 五檔不改斷言）**：`verified`／`source_tier` 由 **`PandasStore.save_record(..., label_source="ai", verified=None)` 內部**計算，不在 `pandas_task_processor` 回填時各自算：對 `sources`（處理器已先過 `url_validator.filter_valid_sources`）逐項取 `tier`——項目已帶 `tier`（處理器經 FR-16 線上分級寫入者）直接採用，否則以 `tier_of(url, title, offline=True)` 離線計算（不發網路請求；Cofacts 網址視為 Tier 3）；`label_source ∈ {rule, gold, admin}` → `verified=True`；否則 `verified = (source_tier ∈ {1,2})`；呼叫端可傳 `verified=True/False` 明確覆寫。`sources` 為空但 `source_url` 為 Tier 1／2（RSS 索引列常見）→ 先把 `source_url` 補進 `sources`（`{title: raw_content 前 40 字, url: source_url}`）再計算，保證 `rule`／`verified` 狀態的來源區不會空白（5.3）。`pandas_task_processor`、`news_fetcher._index_factcheck_claim`、`evaluate.py --seed-db` 只需傳 `label_source`。因此 `tests/test_cache_and_store.py` 直接呼叫 `save_record` 的既有 fixture（`AI_RESULT.sources[0].url = https://165.npa.gov.tw/`，`gov.tw` 尾綴 = Tier 1）自然得 `verified=true`，`test_vector_search_exact_hit` 斷言原樣通過。
 - **欄位**（第 6 節）：`knowledge_base.parquet` 加 `source_tier`（int|None：該列來源中的最高等級 1／2／3，無來源為 None）、`verified`（bool）；`tasks.parquet` 同步保存 `verified`／`source_tier` 供 `/api/result`。
 - **驗收**：
   1. `tests/test_kb_write_gate.py`（FN-13）：mock AI 回 (i) 一個 Tier 1 來源存活 → `verified=true`；(ii) 只有 Tier 3 來源 → `verified=false` 且 `find_similar_by_vector` 對同向量查詢回空；(iii) `sources=[]` + `label_source="rule"` → `verified=true`；(iv) Tier 1 來源但 `url_validator` 判死 → `verified=false`。
@@ -241,12 +242,12 @@
 
 ### FR-18 既有資料清洗腳本（P0；共識 §9 第 5 點）
 - **描述**：一次性、冪等、預設 `--dry-run` 的 `scripts/clean_sources_2026_09.py`，處理 2026-09-15 稽核發現：知識庫 236 筆中 **52 筆沒有任何來源**、`cofacts.tw` 被引用 33 筆（需逐筆確認有回覆）；熱門牆 63 筆中 `news.google.com` 轉址 31 筆（其中 12 筆 UNVERIFIABLE）。
-- **規則**（順序執行，每條可獨立以 `--only=kb|trending` 跑）：
-  1. 知識庫每列：對 `sources` 逐項 `tier_of()`（Cofacts 逐筆查 GraphQL 有無回覆；結果快取到 `data/clean_sources_cache.json` 使重跑零網路）→ 寫 `source_tier`；無 Tier 1／2 且 `label_source not in ("rule","gold","admin")` → `verified=false`，否則 `true`；Tier 3 來源自 `sources` 移到新欄位 `related_discussions`（JSON str）。
+- **規則**（順序執行，每條可獨立以 `--only=kb|trending` 跑；旗標：`--dry-run`（預設）／`--apply`／`--only=kb|trending`／`--retry-cofacts`）：
+  1. 知識庫每列：`sources` 為空但 `source_url` 為 Tier 1／2 → 先把 `source_url` 補進 `sources`（`{title: raw_content 前 40 字, url}`，與 FR-17「計算位置」同一規則；`_index_factcheck_claim` 現況已寫 `sources=[{title,url}]`，此條只補舊列）；再對 `sources` 逐項 `tier_of()`（Cofacts 逐筆查 GraphQL 有無回覆；結果快取到 `data/clean_sources_cache.json` 使重跑零網路；**`--retry-cofacts`** 忽略快取檔中結果為逾時／錯誤者重新查詢，成功者才覆寫快取）→ 寫 `source_tier`；無 Tier 1／2 且 `label_source not in ("rule","gold","admin")` → `verified=false`，否則 `true`；Tier 3 來源自 `sources` 移到新欄位 `related_discussions`（JSON str）。
   2. 知識庫：`raw_content` 為 Cofacts LINE 對話片段（`_is_real_claim()` 既有規則判否、或 `source_url` 為 Cofacts 且無回覆）→ `verified=false` 並標 `content_vector=None`（不索引）。
   3. 熱門牆：`source_url` 為 `news.google.com` → 嘗試以 `HEAD`／`GET` 解析最終網址（走 `safe_url.py`，逾時 10 s）；解析成功 → 覆寫 `source_url` 並以 `(標準化標題, 網域)` 去重（保留 `created_at` 最早者）；解析失敗或仍為 Google → **刪除該列**（12 筆 UNVERIFIABLE 全屬此類，預期刪除）。
-  4. 熱門牆每列：`verified` 回填——`label_source="rule"` → `true`；`ai` 且 `source_url` 為 Tier 1／2 → `true`；其餘 `false`。
-- **輸出**：`--dry-run` 只印 diff 摘要（各規則影響筆數 + 每筆 `id/title/before→after`）並寫 `data/clean_sources_report.txt`（UTF-8，勿 `print` emoji，CLAUDE.md §7）；`--apply` 先備份 `knowledge_base.parquet.bak-{date}`／`factcheck.db.bak-{date}` 再寫入；第二次 `--apply` 影響筆數為 0（冪等）。
+  4. 熱門牆每列：`verified` 回填——`label_source="rule"` → `true`；`ai` 且 `source_url` 為 Tier 1／2 → `true`（`source_url` 為 Cofacts 網域時**同規則 1 逐筆查 GraphQL 有無 RUMOR／NOT_RUMOR 回覆**，共用 `clean_sources_cache.json`；無回覆 → Tier 3 → `false`）；其餘 `false`；同時寫 `source_tier`。
+- **輸出**：`--dry-run` 只印 diff 摘要（各規則影響筆數 + 每筆 `id/title/before→after`）並寫 `data/clean_sources_report.txt`（UTF-8，勿 `print` emoji，CLAUDE.md §7）；`--apply` 先備份 `knowledge_base.parquet.bak-{date}`／`factcheck.db.bak-{date}` 再寫入；第二次 `--apply` 影響筆數為 0（冪等）。**`--apply` 通過 OP-9 後，把清洗後的 `knowledge_base.parquet` 提交一次**（commit 訊息註明「FR-18 清洗後種子」；`factcheck.db` 仍 gitignored 不提交），否則全新 clone 的 `_load()` 對舊列預設 `verified=False`，知識庫頁 0 筆、向量層對 236 筆全部隱形（OP-1、PF-2 跑不出命中）；提交後恢復 CLAUDE.md §4「runtime 變動不用 commit」慣例（QA-4 勾核加此例外）。
 - **驗收**：
   1. OP-9：`--dry-run` 報告經負責人審閱（D-17）後才 `--apply`；apply 後 `check_db.py` 前後比對：知識庫筆數不變（236，只改欄位）、`verified=true` 筆數 ≥ 150（預估：52 無來源 + Cofacts 無回覆者降級）、熱門牆 Google News 列 0 筆、總筆數 63 → 63 − 刪除數。
   2. QA-5：dry-run diff 中不得出現 `label_source="rule"` 被降級的列（規則命中 = 確定性）；抽查 10 筆降級列人工同意 ≥9。
@@ -255,8 +256,8 @@
 
 ### FR-19 AI web_search 網域限制與 prompt 規則（prompt 規則 P0；`allowed_domains` P1，視閘道支援）
 - **prompt 規則（P0，零風險）**：`ai_service.py` 系統 prompt「雙重事實查核」段（ai_service.py:42）加逐字規則：「`sources` 只能列出**已對這則訊息做出判定**的查核機構或媒體查核報導（TFC、MyGoPen、Cofacts 有回覆的文章、政府機關公告、主流媒體的查核報導）。找不到這類來源就回 `sources: []`，不要列出求證平台上尚未回覆的貼文、一般新聞或社群貼文，不要猜測或編造網址。」——與 FR-16 後端分級**雙保險**（prompt 減少 Tier 3 產生，`tier_of()` 兜底）。
-- **`allowed_domains`（P1）**：OpenAI Responses API 的 `web_search` 工具支援 `filters.allowed_domains`（≤20 個網域）；CGU AIR 閘道為 OpenAI-compatible，是否原樣轉發**未驗證**。Day 1 OP-2 以 `test_ai_provider.py --web-search --allowed-domains` 打一次：回 200 且 `url_citation` 全在清單內 → 設定鍵 `WEB_SEARCH_ALLOWED_DOMAINS`（預設 = `TIER1_DOMAINS` + 主流媒體查核網域）於 `_responses_analyze` 帶入（ai_service.py:237-238 旁）；回 400／被忽略 → 記入 OP-2 結果、維持 P1，靠 prompt + `tier_of()`。
-- **驗收**：FN-1 加「prompt 含上述逐字規則」斷言（字串比對）；OP-2 記錄 `allowed_domains` 實測結果；P1 時 `tests/test_ai_service_contract.py` 加「`WEB_SEARCH_ALLOWED_DOMAINS` 非空時 body 帶 `filters`」案例。
+- **`allowed_domains`（P1，優先級不隨實測改變）**：OpenAI Responses API 的 `web_search` 工具支援 `filters.allowed_domains`（≤20 個網域）；CGU AIR 閘道為 OpenAI-compatible，是否原樣轉發**未驗證**。Day 1 OP-2 以 `test_ai_provider.py --web-search --allowed-domains` 打一次，**只記錄結果、不改優先級**：回 200 且 `url_citation` 全在清單內 → 閘道支援，**維持 P1**，實作（設定鍵 `WEB_SEARCH_ALLOWED_DOMAINS` 於 `_responses_analyze` 帶入 `filters`，ai_service.py:237-238 旁，約 30 分鐘）排在 **Day 6 下午有餘裕時順手做**（D-16），不進 P0 時程；回 400／被忽略 → 閘道不支援，**不做**，靠 prompt + `tier_of()`。設定鍵預設 = `TIER1_DOMAINS`（≤20 個、**不含萬用字元**；`gov.tw` 以裸網域列入，OpenAI 是否以此涵蓋子網域於 OP-2 一併驗證並記錄）；主流媒體網域不在預設內（Tier 2 以標題判定、無網域白名單，留待 P1 實作時決定）。
+- **驗收**：FN-1 加「prompt 含上述逐字規則」斷言（字串比對）；OP-2 記錄 `allowed_domains` 實測結果（含 `gov.tw` 子網域涵蓋與否）；P1 實作時 `tests/test_ai_service_contract.py` 加「`WEB_SEARCH_ALLOWED_DOMAINS` 非空時 body 帶 `filters`」案例。
 
 ---
 
@@ -274,7 +275,7 @@
 | `GET /api/analyze/task/{id}` | 舊結果端點 | 保留相容；pending／processing 改回 **202** `{task_id, status}`（不再回 200 SAFE 佔位，backend_api tech_debt 第 3 條）；前端改用 `/api/result/{id}` |
 | `GET /api/trending` | 熱門列表 | `limit` 加 `ge=1`；記錄加 `platform`、`post_id`、`label_source`、`result_id`、`verified`、`source_tier`（FR-16／18） |
 | `GET /api/knowledge` | 知識庫 | 加 `offset`（`ge=0`）、`regex=False`；**只回 `verified=true` 列**（FR-17）；記錄加 `id`、`data_type`、`label_source`、`last_result_id`、`source_tier`；`sources` 只含 Tier 1／2 |
-| `GET /api/knowledge/stats` | 統計 | 只統計 `verified=true` 列；加 `unverified_count`（供 `/bot`／稽核，不顯示於 S4） |
+| `GET /api/knowledge/stats` | 統計 | 只統計 `verified=true` 列；加 `unverified_count`（供 S6 `/bot` **P1** 元件「知識庫未證實筆數」與 `check_db.py`／稽核，不顯示於 S4） |
 | `POST /api/admin/tasks/{task_id}/override` | 管理者覆寫（API 保留、無 UI，共識 §2） | 加 `X-Admin-Token` 驗證 |
 | `POST /api/feedback/tasks/{task_id}` | 使用者回饋 | 不變；前端本次不接 |
 
@@ -288,7 +289,7 @@
 | `POST /api/analyze/sync` | 回應 `AnalysisResult` v2：加 `result_id`、`ai_unavailable`、`similar_news`（response_model 補宣告）、`category_label`、`analyzed_at`；文字不爬 Google；網址爬取失敗回 200 UNVERIFIABLE 而非 500；`cached`／`cache_layer` 保留（共識 §4）；fallback 契約見 5.5 | backend_api tech_debt 第 1 條 |
 | `POST /api/trending/refresh` | 需 `X-Admin-Token` | backend_api gaps 第 1 條 |
 | `GET /api/threads/status` | 欄位擴充（5.3） | — |
-| `POST /api/threads/poll` | 需 `X-Admin-Token`；**非同步**啟動一輪（維持現況），立即回 202 `{started:true}`；`/bot` 頁與 `scripts/test_threads_bot.py --poll` 改輪詢 `GET /api/threads/status.last_poll_at` 直到變動（腳本印出 `last_poll_stats`）。理由：單則最壞路徑（爬蟲 ≤`CRAWLER_TIMEOUT` + AI provider 鏈每個 60 s；現為單一 `cgu` 但程式仍支援多個，且 `_run_analysis` 最後會關 web_search 再試一次）可達 2–4 分鐘，且 Cloudflare Tunnel 單請求上限 100 s 會回 524。進行中 → 409 `poll_in_progress`；`THREADS_MODE=off` → 200 `{started:false, code:"threads_disabled"}`。demo 週 `THREADS_MAX_REPLIES_PER_POLL=2` | 共識 §9；審查 |
+| `POST /api/threads/poll` | 需 `X-Admin-Token`；**非同步**啟動一輪（維持現況），立即回 202 `{started:true}`；`/bot` 頁與 `scripts/test_threads_bot.py --poll` 改輪詢 `GET /api/threads/status.last_poll_at` 直到變動（腳本印出 `last_poll_stats`）。理由：單則最壞路徑（爬蟲 ≤`CRAWLER_TIMEOUT` + AI provider 鏈每個 60 s；現為單一 `cgu` 但程式仍支援多個，且 `_run_analysis` 最後會關 web_search 再試一次）可達 2–4 分鐘，且 Cloudflare Tunnel 單請求上限 100 s 會回 524。進行中 → 409 `poll_in_progress`；`THREADS_MODE=off` → 200 `{started:false, code:"threads_disabled"}`。demo 週 `THREADS_MAX_REPLIES_PER_POLL=2` | 共識 §10；審查 |
 
 ### 5.3 新增
 
@@ -345,7 +346,7 @@
 - `status != completed` → `result: null`、`share: null`；`failed` → `error: {code:"analysis_failed", message}`（訊息為通用文案，原始例外只進 log）。
 - `ai_unavailable=true` 時 `status="completed"`、`result.frame_type="grey"`（**第四種框色，僅此情況**）、`frame_label`=「AI 暫時無法使用」、`share=null`。
 - `category_label` 由後端統一中文化（取代前端各自 `CAT_MAP`）。
-- **來源與證實狀態**（FR-16／17）：`sources[]` 只含 Tier 1／2，每項 `tier ∈ {1,2}`、`tier_label ∈ {"查核機構","媒體查核報導"}`；Tier 3 在 `related_discussions[]`（P0 畫面不顯示，可為 `[]`）。`verification_status`：`verified`（≥1 個 Tier 1／2 來源存活）、`rule`（規則命中確定性標記，`label_source ∈ {rule, gold, admin}`）、`unverified`（皆無）；`verified` = `verification_status != "unverified"`。`unverified` 時 `frame_type ≠ "green"`（7.8），結果頁顯示 `no_verified_source_*` 橫幅，`share.text` 不含「查核來源：」段。`source_tier` = `sources` 中最高等級（1 或 2），無來源為 `null`。
+- **來源與證實狀態**（FR-16／17）：`sources[]` 只含 Tier 1／2，每項 `tier ∈ {1,2}`、`tier_label ∈ {"查核機構","媒體查核報導"}`；Tier 3 在 `related_discussions[]`（P0 畫面不顯示，可為 `[]`）。`verification_status` **推導順序（固定）**：① `label_source ∈ {rule, gold, admin}` → `rule`；② 否則 `source_tier ∈ {1,2}`（≥1 個 Tier 1／2 來源存活）→ `verified`；③ 否則 `unverified`（rule 與 Tier 1 來源同時成立時取 `rule`）。`verified` = `verification_status != "unverified"`。**`rule`／`verified` 狀態保證 `sources` 非空**：`sources` 為空但列的 `source_url` 為 Tier 1／2 時，後端已在寫入時把 `source_url` 補進 `sources`（FR-17「計算位置」、FR-18 規則 1），因此結果頁來源區與 Threads「查核來源」行只在 `unverified` 時才會出現「尚無查核機構證實」。`unverified` 時 `frame_type ≠ "green"`（7.8），結果頁顯示 `no_verified_source_*` 橫幅，`share.text` 不含「查核來源：」段。**例外**：`risk_type = UNVERIFIABLE`（爬取失敗，不呼叫 AI）與 `ai_unavailable = true` 兩種結果無來源，`verification_status` 固定 `unverified`、`verified=false`，但**不觸發** `no_verified_source_*` 橫幅（各自以 S2 狀態 7 `unverifiable_body`／狀態 5 `ai_unavailable_*` 呈現；8.7 `frame_yellow_no_source` 註解已強調兩者語意不同）。`source_tier` = `sources` 中最高等級（1 或 2），無來源為 `null`。
 - 404 `{"detail":"找不到這筆查證","code":"result_not_found"}`。
 
 `GET /api/threads/status`（擴充；公開唯讀、不含 token 本體）：
@@ -413,7 +414,7 @@
 | `ai_unavailable` | bool | False | 5.5 契約 |
 | `label_source` | str | `"ai"` | 5.3 |
 | `kb_id` | str\|None | None | 指回 `knowledge_base` 列 |
-| `verified` | bool | 由舊列 `sources` 重算（`tier_of`）；無法重算者 False | FR-16／17；`/api/result` 的 `verified`／`verification_status` |
+| `verified` | bool | **舊列一律 False**（不在 `_load()` 重算：`tier_of` 對 Cofacts 網址要查 GraphQL，會違反 6.3「啟動時不發網路請求」與 OP-7 離線載入；舊任務不在 demo 範圍，其 `/r/{id}` 顯示「尚無查核機構證實」橫幅可接受） | FR-16／17；`/api/result` 的 `verified`／`verification_status` |
 | `source_tier` | int\|None | None | 同上 |
 | `related_discussions` | JSON str\|None | None | Tier 3 來源（稽核用，P0 不顯示） |
 
@@ -423,20 +424,20 @@
 
 | 新欄位 | 型別 | 預設（舊列） | 為什麼 |
 |--------|------|-------------|--------|
-| `label_source` | str | `"ai"`；`news_fetcher._index_factcheck_claim` 寫入者改 `"rule"`；`evaluate.py --seed-db` 改 `"gold"`；管理者覆寫改 `"admin"`（`scripts/seed_data.py` 已刪，無 `seed` 值；值域全文統一為 `ai\|rule\|gold\|admin`） | 共識 §9：`ai_score` 混用規則硬編 0.9/0.95 與模型信心，缺 `label_source`；FR-07 chip |
+| `label_source` | str | `"ai"`；`news_fetcher._index_factcheck_claim` 寫入者改 `"rule"`；`evaluate.py --seed-db` 改 `"gold"`；管理者覆寫改 `"admin"`（`scripts/seed_data.py` 已刪，無 `seed` 值；值域全文統一為 `ai\|rule\|gold\|admin`） | 共識 §10：`ai_score` 混用規則硬編 0.9/0.95 與模型信心，缺 `label_source`；FR-07 chip |
 | `origin` | str | `"web"` | 統計 Threads 來源 |
 | `last_result_id` | str\|None | None | 知識庫卡片可連到結果頁 |
 | `source_tier` | int\|None | 由 FR-18 清洗腳本回填（`_load()` 補 None） | 共識 §9 第 3 點；FR-16 |
-| `verified` | bool | `_load()` 補 **False**（保守：未經清洗腳本回填的舊列一律不參與向量命中；FR-18 `--apply` 後依規則回填）；`label_source ∈ {rule, gold, admin}` 新寫入者 True | 共識 §9 第 3 點；`find_similar_by_vector` 與 `/api/knowledge` 過濾條件 |
+| `verified` | bool | `_load()` 補 **False**（保守：未經清洗腳本回填的舊列一律不參與向量命中；FR-18 `--apply` 後依規則回填，**且清洗後的 parquet 提交一次作新種子**——否則全新 clone 知識庫頁 0 筆，OP-1）；新寫入者由 `save_record` 內部計算（`label_source ∈ {rule, gold, admin}` → True，否則依 `source_tier`，FR-17「計算位置」） | 共識 §9 第 3 點；`find_similar_by_vector` 與 `/api/knowledge` 過濾條件 |
 | `related_discussions` | JSON str\|None | None | Tier 3 來源自 `sources` 移出後的存放處 |
 
-`data_type` 新增 `"IMAGE"`（FR-03）。**寫入門檻**（FR-17）：`pandas_task_processor` 回填知識庫時計算 `verified`／`source_tier`；`find_similar_by_vector` 加 `verified == True` 過濾（與既有同維度過濾並列）；`get_knowledge`／`stats` 同。不清除既有 768/3072 維混雜向量（pipeline_store 流程 7）：`find_similar_by_vector` 既有同維度過濾（pandas_store.py:105-114）已讓它們隱形；`_load_knowledge_base` 後 log 一次「非 1536 維列數」供論文說明。既有 236 筆與 `eval_*.csv` 不動（評測數據要能延續）。
+`data_type` 新增 `"IMAGE"`（FR-03）。**寫入門檻**（FR-17）：`verified`／`source_tier` 由 `PandasStore.save_record` **內部**以 `tier_of(..., offline=True)` 計算（`pandas_task_processor` 與 `news_fetcher._index_factcheck_claim` 只傳 `label_source`，見 FR-17「計算位置」；`test_cache_and_store.py` 既有 fixture 因此不需改）；`find_similar_by_vector` 加 `verified == True` 過濾（與既有同維度過濾並列）；`get_knowledge`／`stats` 同。不清除既有 768/3072 維混雜向量（pipeline_store 流程 7）：`find_similar_by_vector` 既有同維度過濾（pandas_store.py:105-114）已讓它們隱形；`_load_knowledge_base` 後 log 一次「非 1536 維列數」供論文說明。既有 236 筆與 `eval_*.csv` 不動（評測數據要能延續）。
 
 ### 6.3 `fact_check_records`（fact_check_record.py:10-23，SQLite）
 
 | 新欄位 | 型別 | 為什麼 |
 |--------|------|--------|
-| `platform` | String(20) NULL | 共識 §9；`rss`／`cofacts`／`threads`；FR-12 每日貼文寫 `"threads"` 防重發 |
+| `platform` | String(20) NULL | 共識 §10；`rss`／`cofacts`／`threads`；FR-12 每日貼文寫 `"threads"` 防重發 |
 | `post_id` | String(64) NULL | Threads media id |
 | `label_source` | String(10) NULL | 值域同 6.2 `ai\|rule\|gold\|admin`（`_save_rss_record` 規則分支寫 `rule`，`_analyze_record` 寫 `ai`；只加寫入欄位，**不改**規則函式本身） |
 | `result_id` | String(36) NULL | 熱門卡可連 `/r/{id}` |
@@ -466,7 +467,7 @@
 - 模式：`THREADS_MODE=off|live|sim`（預設 `off`；取代 `ENABLE_THREADS_BOT`，舊鍵 `true` 視為 `live`）。`DEMO_MODE` 不再影響 Threads（單一由 `THREADS_MODE` 控制）。
 
 ### 7.2 帳號與角色
-- 機器人：新建**公開** Threads 帳號（handle 依第 2 節；2025-09 起可不綁 Instagram），以 **Threads Tester** 身分加入 App（App Dashboard > App roles > Roles > Add People > Threads Tester；threads_verify_10 Claim 4）——Administrator 是 Facebook 開發者帳號的角色，只保留給負責人的開發者帳號（App 擁有者），純 Threads 帳號不走這條。bio 建議：「AI 假訊息查證機器人（開發中）。回覆可疑貼文並 @我，我會給 🔴🟡🟢 判定與來源。判讀由 AI 產生，請自行查證。{PUBLIC_BASE_URL}」
+- 機器人：**已建立**的公開 Threads 帳號 `@factcheck_tw_bot`（第 2 節；2025-09 起可不綁 Instagram；C7 剩餘工作 = 確認公開、設顯示名稱、填 bio），以 **Threads Tester** 身分加入 App（App Dashboard > App roles > Roles > Add People > Threads Tester；threads_verify_10 Claim 4）——Administrator 是 Facebook 開發者帳號的角色，只保留給負責人的開發者帳號（App 擁有者），純 Threads 帳號不走這條。bio 建議：「AI 假訊息查證機器人（開發中）。回覆可疑貼文並 @我，我會給 🔴🟡🟢 判定與來源。判讀由 AI 產生，請自行查證。{PUBLIC_BASE_URL}」
 - 測試者：機器人帳號、組員 A、組員 B、（可選）指導教授 → App roles → Roles → Add People → Threads Tester；受邀者在 Threads App 設定 →「網站權限」接受邀請；**四個帳號全部設為公開**。Day 2 非程式線驗收：四個帳號皆已接受邀請且為公開。
 - 開發模式限制的使用者說明（`/bot` 頁、隱私頁、`/api/threads/status.dev_mode_notice`，逐字）：「目前為開發模式：只有被加入為測試人員的 Threads 帳號 @{BOT_HANDLE} 才會收到回覆。公開服務需通過 Meta App Review 與企業驗證，為本專題論文所述之上線條件。」
 
@@ -539,7 +540,7 @@ if reply_id: mark; update_task(threads_reply_id); append replies.jsonl; daily.re
 ```
 {燈} {判定標籤}
 {summary ≤120 字（超長於第 118 字切並補「…」），句末不補標點}
-查核來源：{sources[0].url}          ← 只可放 Tier 1／2（FR-16）；sources 為空時本行改為「尚無查核機構證實」
+查核來源：{sources[0].url}          ← 只可放 Tier 1／2（FR-16）；verification_status=="unverified" 時本行改為「尚無查核機構證實」（唯一觸發條件；rule／verified 狀態下 sources 保證非空，5.3）
 完整判讀：{PUBLIC_BASE_URL}/r/{id}
 AI 自動判讀，請自行查證。
 ```
@@ -562,7 +563,7 @@ AI 自動判讀，請自行查證。
 
 ### 7.8 紅黃綠映射（單一權威，Web 與 Threads 共用）
 
-實作於 `app/utils/verdict.py:frame_of(result) -> (frame_type, frame_label, light)`（取代 `pandas_task_processor._ai_result_to_frame` :24-34）；`_build_result`、`format_verdict_reply`、前端皆只讀 `frame_type`／`frame_label`，`format_verdict_reply` 不再自行查 `risk_type`（修正 threads_service.py:36-37 與 Web 不一致，共識 §9）。
+實作於 `app/utils/verdict.py:frame_of(result) -> (frame_type, frame_label, light)`（取代 `pandas_task_processor._ai_result_to_frame` :24-34）；`_build_result`、`format_verdict_reply`、前端皆只讀 `frame_type`／`frame_label`，`format_verdict_reply` 不再自行查 `risk_type`（修正 threads_service.py:36-37 與 Web 不一致，共識 §10）。
 
 | 條件（依序判斷） | `frame_type` | `frame_label` | 燈 | Threads 第一行 |
 |------------------|-------------|--------------|----|---------------|
@@ -679,7 +680,7 @@ AI 自動判讀，請自行查證。
 1. 返回鍵；燈號區塊（全寬）：實心圓點 + `frame_label`（24 px 粗體、h1）+ `category_label`（次級）；右側信心 chip「信心 高／中／低」（點擊展開 `confidence_note`）；快取 chip（`chip_cache_*`，點擊展開 `cache_hint`）或 `chip_live`。
 2. 「你查的內容」摘錄卡：`input_preview`（≤200 字、可展開）；`platform_post` 有值時顯示 `from_threads` + 外連原貼文。
 3. 判讀摘要 `summary`（粗體一句）+ 詳細說明 `explanation`（可折疊）。
-4. 查核來源：清單，**只列 Tier 1／2**（FR-16），每項標題 + 網域 + `tier_label` chip（`tier_1_chip`「查核機構」／`tier_2_chip`「媒體查核報導」，中性色）+ 外連圖示（`rel="noopener"`）；空時顯示 `sources_empty`（逐字「尚無查核機構證實這則訊息，請自行查證。」）；`verification_status="unverified"` 時本區上方另有 `no_verified_source_title/body` 橫幅（黃色 `-soft` 底、「!」記號、位置在燈號區之下、摘要之上，所有燈色皆顯示）。Tier 3 `related_discussions` **不顯示**（P2 才加折疊區）。
+4. 查核來源：清單，**只列 Tier 1／2**（FR-16），每項標題 + 網域 + `tier_label` chip（`tier_1_chip`「查核機構」／`tier_2_chip`「媒體查核報導」，中性色）+ 外連圖示（`rel="noopener"`）；`verification_status="unverified"` 時（此時 `sources` 必為空，5.3；`rule`／`verified` 狀態保證非空）顯示 `sources_empty`（逐字「尚無查核機構證實這則訊息，請自行查證。」）並於本區上方另有 `no_verified_source_title/body` 橫幅（黃色 `-soft` 底、「!」記號、位置在燈號區之下、摘要之上，所有燈色皆顯示）。Tier 3 `related_discussions` **不顯示**（P2 才加折疊區）。
 5. 知識庫中的相似查證 `similar_news`（向量近鄰最多 3 筆，FR-02；每筆 `raw_content` 前 60 字 + 燈號點 + 相似度 + 有 `last_result_id` 時內連 `/r/{id}`；可折疊；快取命中時隱藏）。**v1.2：降 P1，本次 `similar_news=[]` 時整區隱藏**（元件保留在設計，不實作資料來源）。
 6. 動作列（手機 sticky 於視窗底部、分頁列之上；桌機回到燈號區下方）：「分享到 Threads」（主）、「複製連結」（次）、「再查一則」（→ `/`）。
 7. 頁尾細字：`analyzed_at`、`label_source` 說明、`disclaimer_short`。
@@ -694,7 +695,7 @@ AI 自動判讀，請自行查證。
 7. **UNVERIFIABLE**：黃框「無法查證」+ `unverifiable_body`（`source_url` 為 threads 網域時加 `unverifiable_threads_hint`）；仍有分享（`share_text_yellow`）。
 8. **分享後**：分享鈕文字 3 秒內「已開啟 Threads」+ toast `toast_share`；複製鈕「已複製」。
 9. **404**：`result_not_found_title/body` + 「回首頁」。
-10. **未經證實**（`verification_status="unverified"`，FR-16）：與狀態 3／4 疊加——`no_verified_source_*` 橫幅 + 來源區 `sources_empty`；SAFE 時燈號區為黃「尚無查核機構證實」（7.8），紅燈時維持紅但橫幅照顯示；分享文案用 `share_text_yellow_unverified`（黃）或去尾段的紅文案。
+10. **未經證實**（`verification_status="unverified"`，FR-16）：與狀態 3／4 疊加——`no_verified_source_*` 橫幅 + 來源區 `sources_empty`；SAFE 時燈號區為黃「尚無查核機構證實」（7.8），紅燈時維持紅但橫幅照顯示；分享文案用 `share_text_yellow_unverified`（黃）或去尾段的紅文案。**例外（5.3）**：`risk_type=UNVERIFIABLE`（狀態 7）與 `ai_unavailable`（狀態 5）雖然 `verification_status` 亦為 `unverified`，**不顯示** `no_verified_source_*` 橫幅、來源區整區隱藏（狀態 7 只顯示 `unverifiable_body`，狀態 5 只顯示 `ai_unavailable_*`），避免「讀不到內容」與「找不到查核來源」兩種語意同時出現。
 
 #### S3 熱門牆 `/trending`
 元件：標題 `trending_title` + `trending_sub`（讀 `/health.scheduler.{enabled,interval_hours}` 顯示 `scheduler_on/off`，5.1）+ `trending_updated`；篩選 chip（全部／詐騙／假訊息／安全／未查證）；卡片列表（燈號點 + 標題 ≤2 行 + 機構 + 日期 + `label_source` 小字）；卡片點擊：有 `result_id` → `/r/{id}`，否則外連 `source_url`。
@@ -709,7 +710,7 @@ AI 自動判讀，請自行查證。
 狀態：**空** `history_empty`／**localStorage 不可用** `history_unavailable`／**列表**。
 
 #### S6 機器人狀態 `/bot`（最小只讀版 P0）
-元件（P0）：模式徽章（live「開發模式（僅 Threads 測試者）」／sim「模擬模式」／off「已停用」）；狀態卡（`threads_last_poll`、`last_error`）；`dev_mode_notice` 說明框；最近回覆列表（燈號點 + 原貼文摘要 + 回覆全文可展開 + 「原貼文」外連 + 「結果頁」內連）；每 2 秒重讀 `status`。P1（報告後）：`threads_token_days`／`threads_token_warn`、`threads_daily`、「執行一輪」按鈕。
+元件（P0）：模式徽章（live「開發模式（僅 Threads 測試者）」／sim「模擬模式」／off「已停用」）；狀態卡（`threads_last_poll`、`last_error`）；`dev_mode_notice` 說明框；最近回覆列表（燈號點 + 原貼文摘要 + 回覆全文可展開 + 「原貼文」外連 + 「結果頁」內連）；每 2 秒重讀 `status`。P1（報告後）：`threads_token_days`／`threads_token_warn`、`threads_daily`、「執行一輪」按鈕、知識庫未證實筆數 `knowledge_unverified`「知識庫未證實 {unverified_count} 筆」（讀 `GET /api/knowledge/stats.unverified_count`，5.1）。
 狀態（P0）：**未啟用** `threads_off`／**模擬模式**（徽章 + `mentions.json` 路徑提示）／**運作中**／**last_error**（紅色）／**載入**／**錯誤**。P1：**token 即將到期**／**執行中**。
 
 #### S7 靜態頁 `/privacy.html`、`/data-deletion.html`、`/deauthorize.html`（純 HTML）與 `/oauth/callback`（SPA）
@@ -853,7 +854,7 @@ Threads 回覆與分享專用文案見 7.7。
 
 | 類別 | 需求 | 量測 |
 |------|------|------|
-| 效能 | 文字 L1 命中 p50 <1.5 s；L2 命中 p50 <4 s（含一次 embedding）；快取命中（任一層）p95 ≤6 s；未命中 AI（web_search 關）p50 ≤15 s、p90 <20 s；（開）p90 <35 s；網址（含爬取）p95 ≤60 s；結果頁 API p50 <300 ms；前端首屏 LCP <2.5 s | 依共識 §7 由 `evaluate.py` 承擔（不新增 `bench.py`）：`evaluate.py --timing` 每筆輸出 `elapsed_ms`；快取層時間以後端每筆結構化 log 的 `elapsed_ms + cache_layer` 人工彙整（可觀測列）；結果頁 API 用 `curl` 迴圈 50 次；首屏用 Lighthouse 行動版預設節流（Slow 4G）LCP |
+| 效能 | 文字 L1 命中 p50 <1.5 s；L2 命中 p50 <4 s（含一次 embedding）；快取命中（任一層）p95 ≤6 s；未命中 AI（web_search 關）p50 ≤15 s、p90 <20 s；（開）p90 <35 s；網址（含爬取）p95 ≤60 s；結果頁 API p50 <300 ms；前端首屏 LCP <2.5 s。**FR-16 Cofacts GraphQL 查詢時間（並行、總逾時 5 s、程序內 LRU）另計**，log 分開記 `tier_ms`，不計入上列 AI 數字 | 依共識 §7 由 `evaluate.py` 承擔（不新增 `bench.py`）：`evaluate.py --timing` 每筆輸出 `elapsed_ms`；快取層時間以後端每筆結構化 log 的 `elapsed_ms + cache_layer` 人工彙整（可觀測列）；結果頁 API 用 `curl` 迴圈 50 次；首屏用 Lighthouse 行動版預設節流（Slow 4G）LCP |
 | 成本 | 每次未命中查證 ≤ USD 0.02（CGU AIR `gpt-5.4-mini`、`OPENAI_REASONING_EFFORT=low`，web_search 由 `USE_WEB_SEARCH` 控制；參考：2026-07 三輪批次查證共 USD 0.127，CLAUDE.md §8）；demo 週護欄 = CGU `GET /me/usage` 每日查一次 + `USE_WEB_SEARCH`（FR-14 demo 週段；程式護欄為 P1）；demo 週總花費 ≤ USD 5（共識 §4：CGU OpenAI 成本額度 USD 10，**不買 OpenAI 直連額度**）；`gpt-5.4` 只作績效測試比較組（可選、≤ USD 2） | Day 0 `test_ai_provider.py --provider cgu` 前後 `/me/usage` 差為第一筆數據；每次評測前後 `/me/usage` 記入 `docs/test/cgu_usage.txt`；P1 後加 `data/ai_usage.jsonl` |
 | 隱私 | 不存 IP；只存文字與判定；Threads 只存公開貼文的 `post_id`／`username`／`permalink`；fallback 不回傳上游錯誤原文；`/api/knowledge` 只回 `raw_content` 前 500 字；log 不含 token | code review + `grep` token 不出現在 log |
 | 安全：SSRF | `crawler.crawl_url` 與 `url_validator._is_url_alive` 統一走 `app/utils/safe_url.py`：僅 http/https；DNS 解析後所有 A/AAAA 皆非 loopback/private/link-local/multicast/reserved；port 僅 80/443；重導向 ≤3 次且每跳重檢；連線逾時 10 s、總逾時 `CRAWLER_TIMEOUT`（預設 30 s，與 FR-02 驗收 3 同一組）；回應 ≤2 MB | `tests/test_safe_url.py`（新增） |
@@ -878,8 +879,8 @@ Threads 回覆與分享專用文案見 7.7。
 ### 10.1 操作測試（3.1，操作者 U5）
 | ID | 優先級 | 步驟 | 通過準則 |
 |----|--------|------|----------|
-| OP-1 | P0 | 全新 clone → `start.bat` | 後端 `/health` 200 且 `ai_available=true`；前端 5173 開啟首頁；<5 分鐘（含 pip/npm）；`.env` 已自動產生 ≥32 字 `ADMIN_TOKEN`，`curl -X POST -H "X-Admin-Token: …" /api/threads/poll` 回 202 或 200 `threads_disabled` |
-| OP-2 | P0 | `scripts/test_ai_provider.py --provider cgu`（關／`--web-search` 開／`--web-search --allowed-domains` 各跑一次；前後各查一次 `GET {CGU_BASE_URL}/me/usage`） | 三次皆印出合法 `risk_type`、非 fallback、印出 `usage`；embedding 維度 1536；`/me/usage` 前後差 ≤ USD 0.06（三次）；若 `--web-search` 回 400／閘道不支援 → `USE_WEB_SEARCH=false` 進 demo 並在報告註明；`--allowed-domains` 回 200 且 `url_citation` 全在清單內 → FR-19 `allowed_domains` 可升 P0，否則維持 P1（記入 `docs/test/cgu_usage.txt`） |
+| OP-1 | P0 | 全新 clone → `start.bat` | 後端 `/health` 200 且 `ai_available=true`；前端 5173 開啟首頁；<5 分鐘（含 pip/npm）；`.env` 已自動產生 ≥32 字 `ADMIN_TOKEN`，`curl -X POST -H "X-Admin-Token: …" /api/threads/poll` 回 202 或 200 `threads_disabled`；**`GET /api/knowledge/stats.total ≥ 150`**（證明提交的種子是 FR-18 清洗後版本，`verified` 已回填；在 OP-9 之後執行） |
+| OP-2 | P0 | `scripts/test_ai_provider.py --provider cgu`（關／`--web-search` 開／`--web-search --allowed-domains` 各跑一次；前後各查一次 `GET {CGU_BASE_URL}/me/usage`） | **P0 條件（只有這一項擋交付）**：關閉 web_search 的一次印出合法 `risk_type`、非 fallback、印出 `usage`，embedding 維度 1536。**記錄項（回 400／不支援不算不達標）**：`--web-search` 與 `--allowed-domains` 兩次結果寫入 `docs/test/cgu_usage.txt`——`--web-search` 回 400／閘道不支援 → `USE_WEB_SEARCH=false` 進 demo 並在報告註明；`--allowed-domains` 回 200 且 `url_citation` 全在清單內（另記 `gov.tw` 裸網域是否涵蓋子網域）→ 閘道支援，FR-19 維持 P1、D-16 決定是否 Day 6 順手做；否則不做。三次 `/me/usage` 前後差合計 ≤ USD 0.06 |
 | OP-3 | P0 | `THREADS_MODE=sim` + `scripts/test_threads_bot.py --poll`（或 `curl` 打 `/api/threads/poll` 後輪詢 `status`） | 一輪完成、`replies.jsonl` 新增 ≥1 行、`/bot` 頁 ≤4 秒顯示該回覆、`status.mode == "sim"` |
 | OP-4 | P1 | `scripts/threads_auth.py` 走完授權 | `data/threads_token.json` 產生，含 `authorized_at`，`token_days_left` 介於 55–60 |
 | OP-5 | P1 | `scripts/test_threads_bot.py --live` | profile 與 mentions 皆 200；log 一則真實 mention 原始 JSON（記下 `media_type` 實際值）；對機器人自己貼文試發 `auto_publish_text=true` 回覆一則並 `GET /{id}` 可讀（7.6 D-11 依據）；480 字純中文 + 3 emoji 試發一則（7.7 長度規則）；故意讀非 Tester 貼文、用壞 token 各一次並記錄狀態碼與 `error` body（7.10） |
@@ -891,20 +892,20 @@ Threads 回覆與分享專用文案見 7.7。
 ### 10.2 功能測試（3.2 = `pytest tests`，CI 自動）
 | ID | 優先級 | 對應 FR | 準則 |
 |----|--------|---------|------|
-| FN-1 | P0 | FR-01、FR-19 | 既有測試依 5.5／7.7／7.8 新契約更新後全過（**允許改寫** `tests/test_ai_service_contract.py` 的框色案例（改驗 7.8 表 **8 列**）與 Threads 回覆案例（改驗 7.7 新模板，含「尚無查核機構證實」替代行）；其餘 `test_cache_and_store`／`test_marking_rules`／`test_api`／`test_url_validator`／`test_processor_flow` 五檔**不得修改斷言**）+ 新增：文字輸入不呼叫 crawler（mock 斷言 `process_input` 未被呼叫）；系統 prompt 含 FR-19 逐字規則（字串比對「找不到這類來源就回 `sources: []`」） |
+| FN-1 | P0 | FR-01、FR-19 | 既有測試依 5.5／7.7／7.8 新契約更新後全過（**允許改寫** `tests/test_ai_service_contract.py` 的框色案例（改驗 7.8 表 **8 列**）與 Threads 回覆案例（改驗 7.7 新模板，含「尚無查核機構證實」替代行）；其餘 `test_cache_and_store`／`test_marking_rules`／`test_api`／`test_url_validator`／`test_processor_flow` 五檔**不得修改斷言**——`test_cache_and_store` 的 fixture 直接呼叫 `save_record`、無 `verified` 參數，其來源 `165.npa.gov.tw` 為 `gov.tw` Tier 1，由 `save_record` 內部離線計算得 `verified=true`（FR-17「計算位置」），`test_vector_search_exact_hit` 在 `find_similar_by_vector` 加 `verified` 過濾後仍原樣通過）+ 新增：文字輸入不呼叫 crawler（mock 斷言 `process_input` 未被呼叫）；系統 prompt 含 FR-19 逐字規則（字串比對「找不到這類來源就回 `sources: []`」） |
 | FN-2a | P0 | FR-02 | `test_safe_url.py`：10 個私網／協定樣本全部拒絕（422 `blocked_url`）且未發出請求、3 個公網放行；連線逾時 10 s 與總逾時 `CRAWLER_TIMEOUT` 以 mock 各自驗證生效；爬取失敗回 UNVERIFIABLE 而非例外；非網址 422；輸入網址同網域的 `sources` 項被剔除。（`similar_news` 向量近鄰斷言隨功能降 P1 移至 FN-2c） |
 | FN-2c | P1 | FR-02 `similar_news` | `similar_news` 由向量近鄰填入（固定向量 fixture）、只取 `verified=true` 列、排除自己、≥0.6 |
 | FN-2b | P1 | FR-03 | 非圖片 415、>10 MB 413、bytes hash 命中 |
 | FN-3 | P0 | FR-04、5.1 | `test_result_api.py`：`/api/result/{id}` 對 pending／completed／failed／404／ai_unavailable 五態 schema 正確；sync／async／threads_sim 三種來源皆 200；`/health` 含 `scheduler.{enabled,interval_hours}` |
 | FN-4 | P0 | FR-09／FR-10 | `test_threads_bot_sim.py`：文字 mention 產生 `threads_len ≤ 400` 回覆且含 `/r/`；圖片 mention（`media_type=IMAGE`、無文字）→ `reply_media_only`；`get_post` HTTP 403 → `reply_cannot_read`；HTTP 429 → `backoff_until` 設定；未知 4xx → 標 failed 不回覆；二次 poll 不重複；fallback 不回覆不標記；自我貼文跳過（`username == bot` 與 `reply_id` 在本機清單兩種）；每則後 state 已寫入（crash 模擬）；container `FINISHED` 才 publish、`ERROR` 重試一次 |
-| FN-5 | P0 | 7.7 | 六種第一行模板 `threads_len ≤ 400`（實測後放寬 480）；4 個 emoji + 200 字 summary、含 ⚠️ 的 summary 兩個極端案例仍 ≤500 且保留結果頁連結；連結數 ≤2；`threads_len` 對 BMP emoji／U+FE0F／U+200D 以 bytes 計；**實測長度規則紀錄欄**（Day 2.5 OP-5 結果） |
+| FN-5 | P0 | 7.7 | **七種**第一行模板（含 `🟡 尚無查核機構證實`）`threads_len ≤ 400`（實測後放寬 480）；4 個 emoji + 200 字 summary、含 ⚠️ 的 summary 兩個極端案例仍 ≤500 且保留結果頁連結；「🟡 尚無查核機構證實 + 替代行『尚無查核機構證實』（無連結）」一組長度案例：連結數 = 1（只剩結果頁）、替代行計入長度不計連結；連結數 ≤2；`threads_len` 對 BMP emoji／U+FE0F／U+200D 以 bytes 計；**實測長度規則紀錄欄**（Day 2.5 OP-5 結果） |
 | FN-6 | P0 | 7.8 | `frame_of()` 對表格 **8 列** + 11 組 (is_risk, risk_type, confidence, ai_unavailable, verification_status) 輸入的表格測試；含「SAFE、0.95、unverified → yellow 尚無查核機構證實」與「SAFE、0.95、verified → green」、「缺 `verification_status` 鍵 → 視為 unverified」三組 |
 | FN-7 | P0 | 5.5 | `is_fallback()` 統一判斷（含 `evaluate.py`／`test_ai_provider.py` 改呼叫）；`ai_unavailable` 與 summary 前綴同時成立 |
 | FN-8 | P0 | FR-07 | `q="("` 200；`offset` 分頁不重複不遺漏；stats 四格加總 = total；fixture 中 `verified=false` 列不出現在列表、不計入 `total`（FR-17） |
 | FN-9 | P0 | 5.6 | 管理端點無 token → 401；`ADMIN_TOKEN` 空 → 403；正確 → 202/200/409 |
 | FN-10 | P1 | FR-14 | `DAILY_AI_CALL_CAP=1` 時第二次未命中回 429 且 AI mock 未被呼叫 |
 | FN-11 | P0 | 三層快取 | 同文 hash 命中、改寫文 vector 命中（固定向量 fixture）；`verified=false` 列即使相似度 0.99 也不命中 vector 層（hash 層仍命中）；圖片 bytes hash 命中移至 FN-2b |
-| FN-12 | P0 | FR-16 | `test_source_tier.py`：≥15 組 URL／標題 → tier 表格測試（`gov.tw.evil.com` → 3、`news.google.com/rss/…` → 3、Cofacts 有回覆 mock → 1／無回覆 → 3、MyGoPen 任意標題 → 1、ETtoday 查核標題 → 2、ETtoday 一般標題 → 3、Cofacts GraphQL 逾時 → 3）；`tier_of` 對 Tier 2 呼叫的是 `news_fetcher._title_indicates_debunk`（mock 斷言，防複製規則） |
+| FN-12 | P0 | FR-16 | `test_source_tier.py`：≥15 組 URL／標題 → tier 表格測試（`gov.tw.evil.com` → 3、`news.google.com/rss/…` → 3、Cofacts 有回覆 mock → 1／無回覆 → 3、MyGoPen 任意標題 → 1、ETtoday 查核標題 → 2、ETtoday 一般標題 → 3、Cofacts GraphQL 逾時 → 3、`offline=True` 時 Cofacts → 3 且未發請求）；GraphQL mock 對準 `https://api.cofacts.tw/graphql`（與 search_service.py:216 同端點）；`tier_of` 對 Tier 2 呼叫的是 `news_fetcher._title_indicates_debunk`（mock 斷言，防複製規則） |
 | FN-13 | P0 | FR-17 | `test_kb_write_gate.py`：FR-17 驗收 1 的四組（Tier 1 存活 → true；只有 Tier 3 → false 且 vector 不命中；`sources=[]` + rule → true；Tier 1 但 validator 判死 → false）；`/api/result` 回 `verification_status` 三值正確；`sources[]` 無 tier 3 |
 | FN-14 | P0 | FR-18 | `test_clean_sources.py`：fixture Parquet／SQLite 上 `--dry-run` 檔案 mtime 不變；`--apply` 兩次結果相同；Google News 解析 mock 成功（覆寫 + 去重）與失敗（刪列）兩種；`label_source="rule"` 列永不降級 |
 | 目標 | — | — | P0 測試數 ≥60、CI 綠燈、執行 <60 s、零付費呼叫（Cofacts GraphQL 一律 mock）；FR-01／02／04～07／09／10／11／16／17／18 每條至少一個測試 |
@@ -939,7 +940,7 @@ Threads 回覆與分享專用文案見 7.7。
 | QA-1b | P1（量測） | 同一次執行的 accuracy 與 FP 記錄實際值，目標 ≥93%／≤8；未達標不擋交付，但報告 §6 標示「未達標」並附錯誤分析。報告依 D-8 並列舊數字（0.96，gpt-5-mini via myai168，2026-07）與新數字（gpt-5.4-mini via CGU AIR，2026-09），各標 provider／model／date；PF-6 比較組（gpt-5.4）有跑才加第三欄 |
 | QA-2 | P1 | `evaluate.py` 報告加 `provider/model/date/use_web_search/elapsed_ms` 欄；`--report-only` 重算一致；`eval_errors.csv` 逐筆有 `error_type` |
 | QA-3 | P0 | CI 每次 push 綠燈（`pytest` + `npm run build`）；`ci.yml` 不再寫死測試數 |
-| QA-4 | P1 | CLAUDE.md、README、`.env.example` 與本 spec 的端點／設定名一致（文件審查勾核表，含：Threads 權限清單修正、§2 表格「影片語音轉文字」列刪除、移除 `ENABLE_THREADS_BOT`／STT 設定鍵、`legacy/` 標示、**§2 AI 引擎改寫為「CGU AIR 為唯一 provider、myai168 已停用、額度查 `/me/usage`」、§9 加來源分級三條規則、`BOT_HANDLE=factcheck_tw_bot`**） |
+| QA-4 | P1 | CLAUDE.md、README、`.env.example` 與本 spec 的端點／設定名一致（文件審查勾核表，含：Threads 權限清單修正、§2 表格「影片語音轉文字」列刪除、移除 `ENABLE_THREADS_BOT`／STT 設定鍵、`legacy/` 標示、**§2 AI 引擎改寫為「CGU AIR 為唯一 provider、myai168 已停用、額度查 `/me/usage`」、§9 加來源分級三條規則、`BOT_HANDLE=factcheck_tw_bot`、**§4／§7「runtime 變動不用 commit」補例外：FR-18 清洗後的 `knowledge_base.parquet` 提交一次作新種子**） |
 | QA-5 | P0 | 清洗 dry-run diff 審查（FR-18）：`data/clean_sources_report.txt` 中 0 筆 `label_source="rule"` 被降級；隨機抽 10 筆降級列由負責人逐筆判斷，同意 ≥9（不同意者記回 `TIER1_DOMAINS`／規則修正後重跑 dry-run）；Cofacts 33 筆逐筆有「有回覆／無回覆」結論；Google News 31 筆逐筆有「解析成功→新網址／失敗→刪除」結論；審查紀錄存 `docs/test/clean_sources_review.md` |
 
 ### 4.2 通過準則彙總（可直接抄進計畫書）
@@ -950,7 +951,7 @@ Threads 回覆與分享專用文案見 7.7。
 
 ### 10.6 計畫書對照表（§2.3 參考文件／§4.1 測試環境／§4.4 交付項目）
 
-**2.3 參考文件**：`docs/rebuild/00_consensus.md`（2026-09-14，含 2026-09-15 §4／§9 補充）、`docs/rebuild/01_spec.md`（本文件 v1.2）、`CLAUDE.md`、`code/backend/data/eval_report.csv`／`eval_binary.csv`／`eval_errors.csv`、`assets/confusion_matrix.png`、`data/clean_sources_report.txt`（FR-18）、Threads 官方文件（Threads API Overview、Reference > Publishing／Replies／Mentions、Get Started > Permissions／App Roles、Web Intents；以 threads_gap_analysis／threads_verify_10 記錄之 URL 為準）、CGU AIR Gateway 教學頁（`https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html`；OpenAI-compatible Responses API，`/v1/me/usage` 用量查詢）、OpenAI Responses API 文件（僅作格式參考；`web_search` `filters.allowed_domains` 於閘道的支援性見 OP-2）。
+**2.3 參考文件**：`docs/rebuild/00_consensus.md`（2026-09-14，含 2026-09-15 §4／§9 補充）、`docs/rebuild/01_spec.md`（本文件 v1.3）、`CLAUDE.md`、`code/backend/data/eval_report.csv`／`eval_binary.csv`／`eval_errors.csv`、`assets/confusion_matrix.png`、`data/clean_sources_report.txt`（FR-18）、Threads 官方文件（Threads API Overview、Reference > Publishing／Replies／Mentions、Get Started > Permissions／App Roles、Web Intents；以 threads_gap_analysis／threads_verify_10 記錄之 URL 為準）、CGU AIR Gateway 教學頁（`https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html`；OpenAI-compatible Responses API，`/v1/me/usage` 用量查詢）、OpenAI Responses API 文件（僅作格式參考；`web_search` `filters.allowed_domains` 於閘道的支援性見 OP-2）。
 
 **4.1 測試環境需求**：
 | 項目 | 需求 |
@@ -961,7 +962,7 @@ Threads 回覆與分享專用文案見 7.7。
 | 行動裝置 | iOS Safari 16+ 一台、Android Chrome 110+ 一台（皆裝 Threads App） |
 | AI | CGU AIR 新學期金鑰（已到手、實測通過 2026-09-15）：`AI_PROVIDER=cgu`、`CGU_MODEL=gpt-5.4-mini`、`EMBED_MODEL=text-embedding-3-small`；OpenAI 成本額度 USD 10 + 本地模型 1,000 萬 tokens；用量以 `GET {CGU_BASE_URL}/me/usage` 查；**無 OpenAI 直連、無 myai168** |
 | Threads | Meta 開發者帳號、App（Threads use case、四權限）、機器人公開帳號、4 個 Threads Tester（皆公開）、60 天長效 token、`THREADS_APP_ID`／`SECRET`；無憑證時 `THREADS_MODE=sim` |
-| 資料 | `knowledge_base.parquet` 236 筆種子（**經 FR-18 清洗後**：筆數不變、`verified` 已回填）、`factcheck.db` 熱門（清洗後無 Google News 轉址列）、`eval_set.csv` 150 筆、組員 C 的 20 筆改寫謠言、`data/threads_sim/mentions.json` |
+| 資料 | `knowledge_base.parquet` 236 筆種子（**經 FR-18 清洗後**：筆數不變、`verified` 已回填、**已提交至 git**，全新 clone 即含；OP-1 以 `stats.total ≥150` 驗）、`factcheck.db` 熱門（清洗後無 Google News 轉址列）、`eval_set.csv` 150 筆、組員 C 的 20 筆改寫謠言、`data/threads_sim/mentions.json` |
 | 工具 | `pytest`、GitHub Actions、Lighthouse（Chrome DevTools）、axe DevTools、OpenCC、`curl`、螢幕錄影（手機內建 + OBS／Xbox Game Bar） |
 
 **4.4 測試交付項目**（檔名與存放路徑）：
@@ -985,7 +986,7 @@ Threads 回覆與分享專用文案見 7.7。
 
 **v1.1 範圍刪減（審查：v1.0 Day 2／3／5 各塞 2–3 個工作日）**：P1／P2 全部移出（FR-03 圖片、`/history`、FR-14 額度護欄、速率限制、`POST /api/threads/refresh-token` + APScheduler 續期、reaper、`migrate_2026_09.py`、`bench.py`、`/bot` 進階欄位與「執行一輪」按鈕）；`/bot` 縮成只讀狀態卡；Day 2 拆兩天；機器人拆 Day 5（sim）與 Day 6 上午（live）；評測 Day 6 下午背景跑；錄素材提前到 Day 5 晚上。
 
-**v1.2 範圍調整（共識 §4、§9）**：① AI 恢復已於 Day 0 之前完成（CGU 新金鑰實測通過），Day 0 的 `.env` 切換與 C2 OpenAI 儲值**取消**，省下的 Day 0／Day 1 時間讓給 ② 來源分級；② 新增 FR-16／17／18（P0）塞進 Day 2（`source_tier.py` + 寫入門檻 + 欄位）與 Day 2.5（清洗腳本 dry-run → 審閱 → apply），FR-19 prompt 規則併入 Day 1 OP-2；③ 為了不超過 v1.1 的可行性修正，`similar_news` 向量近鄰降 P1 移出（Day 2 少一項）；④ D-3 只剩品牌名／顯示名稱，handle 已定，C7 只剩 bio 與公開確認。
+**v1.2 範圍調整（共識 §4、§9）**：① AI 恢復已於 Day 0 之前完成（CGU 新金鑰實測通過），Day 0 的 `.env` 切換與 C2 OpenAI 儲值**取消**，省下的 Day 0／Day 1 時間讓給 ② 來源分級；② 新增 FR-16／17／18（P0）塞進 Day 2（`source_tier.py` + 寫入門檻 + 欄位）與 Day 2.5（清洗腳本 dry-run → 審閱 → apply），FR-19 prompt 規則併入 Day 1 OP-2；③ 為了不超過 v1.1 的可行性修正，`similar_news` 向量近鄰降 P1 移出（Day 2 少一項）；④ D-3 只剩品牌名／顯示名稱，handle 已定，C7 只剩 bio 與公開確認。⑤ **Day 2.5 工時重排（v1.3）**：v1.2 把 FR-18 併入 Day 2.5 後，該半天同時塞了後端契約 B 四項 + 清洗腳本四段串行 + 四個新測試檔，超出 v1.1「每日不超載」標準——`safe_url.py` + SSRF、`ADMIN_TOKEN` + `start.bat`、knowledge `offset`／`regex=False`、trending 去 Google News／refresh token 與 FN-2a／8／9 **前移到 Day 2 尾段**（`similar_news` 移出騰出的空間），Day 2.5 上午只留 FR-18 全流程（腳本 → dry-run → 審閱 → apply → 二次 apply → 提交清洗後 parquet）+ `fact_check_records` ALTER 回填 + FN-14；OP-5 live 實測改由**組員 A 主跑**，負責人只在 dry-run／apply 等待期間看結果。
 
 ### Day 0／Day 1 帳號與憑證清單（對應計畫書 §4.1；每項要有完成證據）
 
@@ -1012,8 +1013,8 @@ Threads 回覆與分享專用文案見 7.7。
 |-----|---------------------------|---------------------|---------|
 | **0（9/15 二）** | 審閱本文件；C1。**`.env` 已就緒**（共識 §4，02:00 完成）：`AI_PROVIDER=cgu`、`CGU_API_KEY=<新學期金鑰>`、`CGU_MODEL=gpt-5.4-mini`、`EMBED_API_KEY` 同一把（或留空退用 `CGU_API_KEY`）、myai168／Gemini 6 個 key 已刪 → provider 鏈 `['cgu']`（ai_service.py:118-122 只加入有 key 者，**不需再清空任何 RELAY_URL**）。Day 0 程式線只剩：`test_ai_provider.py --provider cgu` 跑一次 + `GET /me/usage` 記基準值（C2 收尾，10 分鐘）；讀 FR-16～18，把 `TIER1_DOMAINS` 初版與 `_title_indicates_debunk` 現況對一遍（D-15 準備）。 | 組員 B：C3。組員 A：開始 C6 前置（Meta 開發者帳號註冊）；C7 收尾（bio、公開確認）。 | D-1／D-3／D-5／D-9 已答；Vercel 網址到手；`cgu_usage.txt` 第一列 |
 | **1（9/16 三）** | **上午**：S1／S2 兩張手機寬 mockup（半天；S2 含「尚無查核機構證實」橫幅與 tier chip）+ grill with mockup → 出 ticket（primitives → screens）。`test_ai_provider.py` 加 `--web-search`／`--allowed-domains` 旗標，關／開／限網域各跑一次並印 `usage` + `/me/usage` 差（OP-2，決定 FR-19 `allowed_domains` 是否可做）；系統 prompt 加 FR-19 逐字規則（15 分鐘）。本機 `npm run build` 15 分鐘（失敗 → Vite 7 穩定版，D-13）。**下午**：FR-15 死碼移除（含 STT／seed_data／設定鍵）、保留標記規則、`.gitignore`（含 `clean_sources_*`／`*.bak-*`）、`ci.yml` 加 build、`tests` 仍綠。C5、C10。 | 組員 A：C6／C8。組員 B：C4（三個靜態頁上 Vercel）。組員 D：計畫書 §1–2、§5。 | OP-2；`pytest` 綠；CI 綠（含 build）；Meta App 三 URL 儲存成功 |
-| **2（9/17 四）** | 後端契約 A：`GET /api/result/{id}`、`tasks.parquet` 新欄位（含 `verified`／`source_tier`）+ 5,000 上限 + `_load()` 補預設、`/url` 驗證 + `task_type`、`verdict.py`（`frame_of` 8 列 + `is_fallback` 統一 7 處）、fallback `ai_unavailable` + 通用文案、`category_label`、`/health` 欄位。**FR-16／17**：`app/utils/source_tier.py`（`tier_of` + `TIER1_DOMAINS` + Cofacts 回覆查詢 `to_thread`，約 2 小時）、`pandas_task_processor` 分級 + 寫入門檻 + `related_discussions`、`find_similar_by_vector`／`get_knowledge`／`stats` 加 `verified` 過濾、`knowledge_base.parquet` `_load()` 補 `verified=False`。（`similar_news` 向量近鄰移出，P1。）`scripts/threads_auth.py` + `/oauth/callback` 頁（1 小時）、`ThreadsService` 讀 `threads_token.json`。新測試 FN-3／6／7／12／13。 | 組員 A：C9（Tester 邀請 + 接受 + 公開）。組員 C：C14 改寫謠言。 | FN-1／3／6／7／12／13 綠；OP-7 |
-| **2.5（9/18 五 上午）** | 後端契約 B：`safe_url.py` + SSRF、`ADMIN_TOKEN` + `start.bat` 自動產生、`fact_check_records` ALTER（含 `verified`／`source_tier`）+ `label_source` 回填、knowledge `offset`／`regex=False`、trending 去 Google News／refresh 加 token。**FR-18**：`scripts/clean_sources_2026_09.py`（約 2 小時，Cofacts 逐筆查詢走快取檔；Google News 解析走 `safe_url.py`）→ `--dry-run` 產出報告 → 負責人 30 分鐘審閱（QA-5、D-15／D-17）→ `--apply` → 二次 apply 驗冪等（OP-9）。新測試 FN-2a／8／9／14。 | 組員 A 與負責人：跑 `threads_auth.py` 取 token → `threads_token.json`；`--live` 只讀驗證 + OP-5 四項實測（log mention JSON、`auto_publish_text` 自貼試發、長度試發、錯誤 body）→ 更正 FR-09 驗收 5、7.7、7.10、7.9 fixture。組員 D：協助 QA-5 抽查 10 筆降級列。 | FN 全綠；OP-4、OP-5、OP-9；QA-5 |
+| **2（9/17 四）** | 後端契約 A：`GET /api/result/{id}`、`tasks.parquet` 新欄位（含 `verified`／`source_tier`）+ 5,000 上限 + `_load()` 補預設、`/url` 驗證 + `task_type`、`verdict.py`（`frame_of` 8 列 + `is_fallback` 統一 7 處）、fallback `ai_unavailable` + 通用文案、`category_label`、`/health` 欄位。**FR-16／17**：`app/utils/source_tier.py`（`tier_of` + `TIER1_DOMAINS` + Cofacts 回覆查詢 `to_thread`，約 2 小時）、`pandas_task_processor` 分級 + 寫入門檻 + `related_discussions`、`find_similar_by_vector`／`get_knowledge`／`stats` 加 `verified` 過濾、`knowledge_base.parquet` `_load()` 補 `verified=False`、`PandasStore.save_record` 內部計算 `verified`／`source_tier`（FR-17「計算位置」）。（`similar_news` 向量近鄰移出，P1。）`scripts/threads_auth.py` + `/oauth/callback` 頁（1 小時）、`ThreadsService` 讀 `threads_token.json`。**尾段（自 Day 2.5 前移，v1.3）**：後端契約 B——`safe_url.py` + SSRF、`ADMIN_TOKEN` + `start.bat` 自動產生、knowledge `offset`／`regex=False`、trending 去 Google News／refresh 加 token。新測試 FN-3／6／7／12／13 + FN-2a／8／9。 | 組員 A：C9（Tester 邀請 + 接受 + 公開）。組員 C：C14 改寫謠言。 | FN-1／2a／3／6／7／8／9／12／13 綠；OP-7 |
+| **2.5（9/18 五 上午）** | `fact_check_records` ALTER（含 `verified`／`source_tier`）+ `label_source` 回填（清洗腳本規則 4 依賴此欄位，先做，30 分鐘）。**FR-18 全流程**：`scripts/clean_sources_2026_09.py`（約 2 小時，Cofacts 逐筆查詢走快取檔；Google News 解析走 Day 2 已完成的 `safe_url.py`）→ `--dry-run` 產出報告 → 負責人 30 分鐘審閱（QA-5、D-15／D-17）→ `--apply` → 二次 apply 驗冪等（OP-9）→ 通過後提交清洗後的 `knowledge_base.parquet`（FR-18 輸出段）。新測試 FN-14。 | **組員 A 主跑**：`threads_auth.py` 取 token → `threads_token.json`；`--live` 只讀驗證 + OP-5 四項實測（log mention JSON、`auto_publish_text` 自貼試發、長度試發、錯誤 body）→ 結果記 `docs/test/threads_live_log.md`；負責人只在 dry-run／apply 等待期間看結果並更正 FR-09 驗收 5、7.7、7.10、7.9 fixture。組員 D：協助 QA-5 抽查 10 筆降級列。 | FN 全綠（含 FN-14）；OP-4、OP-5、OP-9；QA-5；清洗後 parquet 已提交 |
 | **3（9/18 五 下午 + 9/19 六 上午）** | ② 新前端：路由（`react-router-dom`）、token、底部分頁列（3 格）、S1 首頁（含最近 5 筆 localStorage）、S2 結果頁（9 態）、深淺色；`vercel.json` rewrites；部署 Vercel；tunnel 接通（C5）。 | 組員 B：影片腳本與旁白稿初稿。組員 D：計畫書 §3–4 引用本文件第 10 節與 10.6。 | UI-1 首頁 + 結果頁截圖；OP-8 |
 | **4（9/19 六 下午）** | ③ 分享按鈕 + 複製（FR-05，含 `share_text_yellow_unverified`）；S2 補「尚無查核機構證實」橫幅 + tier chip（前端只讀欄位，30 分鐘）；S3 熱門牆（`label_source`、`verified=false` → `chip_pending`、`scheduler` 文案）；S4 知識庫（offset、四格統計、`knowledge_verified_note`）；頁尾連靜態頁；`start.bat` 更新（tunnel 選項）。 | 組員 A／B：C12 demo 貼文、C13 錄影工具。組員 D：計畫書 §4.1／4.4 抄 10.6。 | FR-05 驗收；UI-2／4／6 初查 |
 | **5（9/20 日）** | ④ 機器人（sim 優先）：`THREADS_MODE`、`ThreadsClient` Protocol + `FakeThreadsService`、7.7 模板 + `threads_len`、`verdict.frame_of` 接入、`threads_replies.jsonl`、`threads_state.json` 每則原子寫、`/api/threads/status|replies`、poll 202 + 腳本輪詢、S6 `/bot` 只讀頁；FN-4／5。**晚上：以 sim 錄一份完整閉環素材（保底成品）。** | 組員 B：旁白錄音；組員 D：報告文字（架構、既有 96% 評測、測試計畫節錄）先寫。 | OP-3；FR-10 驗收 1–4；FR-11 P0 驗收；sim 版素材已錄 |
@@ -1057,7 +1058,7 @@ Threads 回覆與分享專用文案見 7.7。
 | R12 | Cloudflare Tunnel／負責人電腦在 demo 時斷線；tunnel 100 s 逾時 | 中／中 | 前端 `backend_down` 狀態；長工作全非同步；影片預錄；現場備 sim + 本機 `localhost:5173` 直連 |
 | R13 | Vite 8 beta 在 Vercel build 失敗 | 中／中 | Day 1 本機 `npm run build`，失敗即降 Vite 7；CI 加 build |
 | R14 | Meta 後台不接受靜態頁作 Data Deletion Callback | 低／中 | FR-13 備案 `POST /api/meta/data-deletion`；Day 1 實填時確認 |
-| R15 | FR-18 清洗過度降級：`TIER1_DOMAINS` 漏列正當來源或 Cofacts 回覆查詢失敗（逾時視為無回覆）→ 大量 `verified=false`，知識庫頁縮水、PF-2 向量命中率下降 | 中／中 | 預設 `--dry-run` + QA-5 抽查 ≥9/10 同意才 apply；`--apply` 前自動備份 `.bak-{date}`，可回復；Cofacts 查詢結果快取到 `clean_sources_cache.json`，失敗者可 `--retry-cofacts` 重查；PF-2 的 20 筆改寫謠言對應原文若被降級，先以 `evaluate.py --seed-db`（`gold`，`verified=true`）補種 |
+| R15 | FR-18 清洗過度降級：`TIER1_DOMAINS` 漏列正當來源或 Cofacts 回覆查詢失敗（逾時視為無回覆）→ 大量 `verified=false`，知識庫頁縮水、PF-2 向量命中率下降 | 中／中 | 預設 `--dry-run` + QA-5 抽查 ≥9/10 同意才 apply；`--apply` 前自動備份 `.bak-{date}`，可回復；Cofacts 查詢結果快取到 `clean_sources_cache.json`，失敗者可 `--retry-cofacts` 重查（FR-18 規則 1 定義）；降級 >86 筆（`verified=true` <150，OP-9 P0 門檻）即先調 `TIER1_DOMAINS` 重跑 dry-run（D-17，與 OP-9 同一數字）；PF-2 的 20 筆改寫謠言對應原文若被降級，先以 `evaluate.py --seed-db`（`gold`，`verified=true`）補種 |
 | R16 | 分級後 demo 貼文的判定「尚無查核機構證實」（AI 找不到 Tier 1／2 來源）→ 影片主線出現黃燈而非紅燈 | 中／中 | C12 demo 貼文**必選有 MyGoPen／TFC 查核報導的謠言**（先在網站跑一次確認 `verified=true`、`sources[0].tier==1`）；`USE_WEB_SEARCH` 開時 prompt 規則 + `allowed_domains`（若可用）提高命中；備案：讓該謠言先由熱門牆 RSS `rule` 命中入庫（hash／vector 命中即帶 Tier 1 來源） |
 | R17 | Threads 顯示名稱與品牌名不一致造成影片／文件混亂 | 低／低 | D-3 一次定案品牌名 + 顯示名稱；`BOT_HANDLE=factcheck_tw_bot` 固定，全文只用 handle 指稱機器人 |
 
@@ -1065,7 +1066,7 @@ Threads 回覆與分享專用文案見 7.7。
 
 ## 13. 待決事項（只放需負責人決定的）
 
-**Day 0（今天 9/15）必答：D-1、D-3、D-5、D-9**——Day 1 建 Threads 帳號、填 Meta App URL、寫隱私頁都依賴它們，而 Threads handle 一旦建立就綁死（改名 = 重做帳號與 Tester 邀請）。**若 Day 0 未答，Day 1 一律以預設值建立且之後不改名。**其餘 D-x 可延後。
+**Day 0（今天 9/15）必答：D-1、D-3、D-5、D-9**——Day 1 填 Meta App 三個 URL、寫隱私頁、設定 `PUBLIC_BASE_URL` 都依賴 D-5／D-9；D-1 決定整個時程基準；D-3 只剩品牌名與機器人顯示名稱（handle `@factcheck_tw_bot` 已建立、不再選）。**若 Day 0 未答，Day 1 一律以預設值進行。**Day 1 另需答 D-13／D-16／D-18；其餘 D-x 可延後。
 
 | # | 事項 | 影響 | 預設（未回覆時採用） | 期限 |
 |---|------|------|--------------------|------|
@@ -1084,8 +1085,8 @@ Threads 回覆與分享專用文案見 7.7。
 | D-13 | 同意新增 `react-router-dom`（非 UI 套件，路由基礎設施）；Vite 8 beta 是否降回 Vite 7 穩定版 | 8.1、CI／Vercel build | 同意；`npm run build` 失敗即降 Vite 7 | Day 1 |
 | D-14 | 是否接受附錄 A 標「未獲同意即採預設」的範圍決策（A4／A6／A10 已依審查縮減） | 範圍 | 接受縮減後版本 | Day 1 |
 | D-15 | Tier 1 白名單 `TIER1_DOMAINS` 初版確認：`tfc-taiwan.org.tw`、`mygopen.com`、`cofacts.tw`／`cofacts.g0v.tw`（須有 RUMOR／NOT_RUMOR 回覆）、`*.gov.tw`（精確尾綴）、`who.int`、`cdc.gov`；是否加 165 反詐騙（`165.npa.gov.tw` 已含於 gov.tw）、`fda.gov.tw`（已含）、其他（如 `rumor.taipei`、`fact.check` 類）？ | FR-16 分級、FR-18 清洗結果 | 依上列初版；不加其他 | **Day 2.5 上午**（清洗 dry-run 前） |
-| D-16 | FR-19 `allowed_domains`：若 OP-2 實測 CGU 閘道支援，是否升 P0 併入 Day 2（約 30 分鐘）？ | web_search 來源品質、FR-19 優先級 | 支援即升 P0；不支援維持 P1 | Day 1（OP-2 後） |
-| D-17 | FR-18 清洗 `--apply` 放行：審閱 `data/clean_sources_report.txt`（QA-5 抽查 10 筆）後同意套用？降級筆數若 >120（超過半數）是否先調規則再 apply？ | 知識庫 `verified` 分佈、PF-2、demo 資料 | 抽查 ≥9/10 同意即 apply；>120 筆降級先調 `TIER1_DOMAINS` 重跑 dry-run 一次 | **Day 2.5 上午** |
+| D-16 | FR-19 `allowed_domains`（**維持 P1，不升 P0**）：若 OP-2 實測 CGU 閘道支援，是否於 Day 6 下午有餘裕時順手做（約 30 分鐘）？ | web_search 來源品質 | 支援且 Day 6 有餘裕即做；不支援則不做 | Day 1（OP-2 後） |
+| D-17 | FR-18 清洗 `--apply` 放行：審閱 `data/clean_sources_report.txt`（QA-5 抽查 10 筆）後同意套用？降級筆數若 **>86**（即 `verified=true` <150，與 OP-9 P0 門檻同一數字；236 − 150 = 86）是否先調規則再 apply？ | 知識庫 `verified` 分佈、PF-2、demo 資料 | 抽查 ≥9/10 同意即 apply；>86 筆降級先調 `TIER1_DOMAINS` 重跑 dry-run 一次（守住 PF-2 向量命中率） | **Day 2.5 上午** |
 | D-18 | `similar_news` 向量近鄰降 P1（v1.2 為 FR-16～18 讓位）：接受本次 S2 不顯示「知識庫中的相似查證」？ | S2 元件 5、FN-2c、A14 | 接受（P1 報告後補） | Day 1 |
 
 ---
@@ -1113,7 +1114,7 @@ Threads 回覆與分享專用文案見 7.7。
 | A17 | 來源分級實作細節（共識 §9 未定）：Tier 3 不丟棄而存 `related_discussions`（P0 不顯示）；`verification_status` 三值（`verified`／`rule`／`unverified`）；`verified=false` 列**仍寫入** Parquet 且 L1 hash 仍命中（只擋 vector 與知識庫頁）；未清洗舊列 `_load()` 預設 `verified=False`（保守） | v1.2 新增 | ☐ |
 | A18 | 紅燈不受 `verified` 影響（僅橫幅提示），只有綠燈要求「已證實」；SAFE 未證實 → 黃「尚無查核機構證實」（7.8 第 8 列） | v1.2 新增（共識 §9 只規定「不得綠燈高信心」） | ☐ |
 | A19 | 清洗腳本規則：Google News 解析失敗即**刪列**（非標記）；Cofacts 查詢逾時視為無回覆（Tier 3）；`--apply` 前自動備份；不動 `eval_*.csv` | v1.2 新增 | ☐（D-17） |
-| A20 | FR-19 拆兩段：prompt 逐字規則 P0、`allowed_domains` P1（視 OP-2 閘道實測，D-16） | v1.2 新增 | ☐（D-16） |
+| A20 | FR-19 拆兩段：prompt 逐字規則 P0、`allowed_domains` **固定 P1**（OP-2 只記錄閘道是否支援；支援時 Day 6 下午有餘裕順手做、不支援不做，D-16；預設清單 = `TIER1_DOMAINS`，無萬用字元） | v1.2 新增；v1.3 明訂不升 P0 | ☐（D-16） |
 
 ---
 
@@ -1124,3 +1125,4 @@ Threads 回覆與分享專用文案見 7.7。
 | v1.0 | 2026-09-14 | 草稿 A／B 合併定稿 |
 | v1.1 | 2026-09-15 | 依審查意見修訂（45 條，全部採納、2 條部分採納）：**部署**——具名 tunnel 需自有網域，改 quick tunnel + Vercel rewrites 同源代理（D-5 三選一）、§9 刪「網址固定」；**範圍**——FR-14 降 P1、速率限制 P2、`/history` P2、`/bot` 縮只讀最小版升 P0、refresh-token 端點與自動續期 P1、reaper P1、刪 `migrate_2026_09.py`／`bench.py`／`seed_data.py`；**時程**——加 Day 0 與帳號憑證清單（C1–C14）、Day 1 上午 mockup + grill + ticket、Day 2 拆兩天、`threads_auth.py` 提前 Day 2、機器人拆 sim（Day 5）／live（Day 6 上午）、sim 素材 Day 5 晚上錄；**Threads**——7.6 主路徑改回共識兩段式 + FINISHED（`auto_publish_text` 為 D-11）、7.5 移除不存在的 `replied_to.owner`、`media_type` 改正向清單且 fixture 用 `TEXT_POST`、7.10 以 HTTP 狀態碼為主 + error.code 標待核對、7.7 第一行回共識格式 + `threads_len` 改 bytes 計 BMP emoji + 目標 ≤400 待實測、7.4 fields 只帶已確認欄位、7.3 加 90 天授權期限、7.2 帳號全部 Tester + 公開；**契約**——5.5 辨識點 7 處（含 `evaluate.py`／`test_ai_provider.py`）、`/health` 加 `scheduler`、`similar_news` 改知識庫近鄰、`label_source` 四值統一、poll 維持 202、爬取逾時統一 `CRAWLER_TIMEOUT`、FR-04 OG 改通用靜態、FR-05 驗收改可控部分、FR-13 純 HTML + `/deauthorize`；**FR-15**——補 STT／設定鍵死碼、加「標記規則三道防線不得改動」；**測試**——§10 每表加優先級、FN-2 拆 a/b、QA-1 拆閘門／量測、PF-3 拆 a/b、UI-1 改截圖檢核表、UI-3／UI-6／FR-04 v5 加量測方法、FN-1 允許改寫兩檔、4.3 加再繼續條件、新增 10.6 計畫書對照表；**待決**——D-1／3／5／9 標 Day 0 必答，新增 D-11～D-14；附錄 A 加狀態與同意欄。 |
 | v1.2 | 2026-09-15 | 依共識 2026-09-15 三項更新修訂：**AI 額度（共識 §4）**——CGU AIR 新學期金鑰已到手並實測（`gpt-5.4-mini` + `text-embedding-3-small`、鏈 `['cgu']`、USD 10 + 1,000 萬本地 tokens），**取消**所有 OpenAI 直連假設（C2 儲值、Day 0 `.env` 切換 `OPENAI_RELAY_URL`／清空 `CLAUDE_RELAY_URL`、月預算硬上限、D-8「OpenAI 直連」、R1、OP-2 `--provider openai`、QA-1a、PF-5、§9 成本列、10.6 4.1 AI 列與成本證據）；demo 週護欄改為 CGU `GET /me/usage`（`batch_verify_pending.py` 既有）+ `USE_WEB_SEARCH`；`gpt-5.4` 列為績效測試可選比較組（PF-6、D-8）；C11 CGU 申請標已完成；§1 成功定義 4 改寫。**來源品質與資料清潔（共識 §9）**——新增 FR-16 來源分級與顯示（P0）、FR-17 知識庫寫入門檻（P0）、FR-18 一次性冪等清洗腳本 `clean_sources_2026_09.py --dry-run`（P0；236 筆知識庫／52 無來源／Cofacts 33 筆逐筆確認、63 筆熱門／31 筆 Google News）、FR-19 web_search 網域限制（prompt 規則 P0、`allowed_domains` P1 視 OP-2）；§5 `sources[].tier`／`tier_label`、`verified`、`verification_status`、`source_tier`、`related_discussions`，`/api/knowledge` 只回 `verified=true`；§6 三張表加 `verified`／`source_tier`（`_load()` 預設 False）、6.4 加清洗檔；7.7「查核來源」行只放 Tier 1／2、無來源改「尚無查核機構證實」、分享文案加 `share_text_yellow_unverified`；7.8 加第 8 列「SAFE 未證實 → 黃」、綠燈需已證實；8.3 S2 元件 4 tier chip + 橫幅、狀態 10、S3／S4 規則；8.4 加「未經證實」欄；8.7 加 `tier_1_chip`／`tier_2_chip`／`no_verified_source_*`／`frame_yellow_no_source`／`knowledge_verified_note`、改 `sources_empty`；§9 加「資料品質」列；§10 加 OP-9、FN-12／13／14、UI-8、QA-5、PF-6，FN-6 改 8 列，4.2 彙總更新；§11 加「v1.2 範圍調整」、Day 0／1／2／2.5／4／6 併入、分鏡更新；§12 R1 改寫、加 R15～R17；§13 加 D-15～D-18；附錄 A 加 A17～A20。**為不超過 v1.1 可行性修正，`similar_news` 向量近鄰降 P1**（FR-02、S2 元件 5、FN-2c、A14、D-18）。**機器人 handle**——`@factcommons_tw` 佔位全數替換為已建立的 `@factcheck_tw_bot`（§0 慣例、§2、7.9 fixture、分鏡、C1／C7、D-3）；品牌名 3 候選保留，D-3 改為只選品牌名與顯示名稱。 |
+| v1.3 | 2026-09-15 | v1.2 審查修訂第二輪（21 條，全部採納）：**共識引用**——5.2 poll／6.2 `label_source`／6.3 `platform`／7.8 四處掃描事實改引「共識 §10」（§9 插入後改號）；§0 加註共識 §6「要買 OpenAI 額度」已被 §4 取代、本文件不採。**FR-16／17 內部一致**——`verified`／`source_tier` 改由 `PandasStore.save_record` 內部以 `tier_of(..., offline=True)` 計算（processor／`_index_factcheck_claim` 只傳 `label_source`），`test_cache_and_store` 五檔斷言不動（fixture `165.npa.gov.tw` = Tier 1）；`tier_of` 輸出統一為 int + `TIER_LABELS` 查表；Cofacts GraphQL 端點改 `https://api.cofacts.tw/graphql`（以程式碼為準）、同請求並行 + 總逾時 5 s + 程序內 LRU、§9 效能列註明另計；6.1 `tasks.parquet` 舊列 `verified` 一律 False（不在啟動路徑發網路請求）。**狀態推導**——5.3 明訂 `verification_status` 順序（rule → verified → unverified）、`rule`／`verified` 保證 `sources` 非空（`source_url` 補進 `sources`，FR-17／FR-18 規則 1）、UNVERIFIABLE／`ai_unavailable` 不觸發 `no_verified_source_*` 橫幅（S2 狀態 10 例外）；7.7 替代行只以 `verification_status=="unverified"` 觸發；S2 元件 4 同步。**FR-18**——加 `--retry-cofacts` 旗標定義；規則 4 熱門牆 Cofacts 列同樣逐筆查 GraphQL；`--apply` 通過 OP-9 後提交清洗後 `knowledge_base.parquet` 一次作新種子（FR-15 `.gitignore`、6.2、10.6 4.1、QA-4 例外同步）；OP-1 加 `stats.total ≥150`；D-17 門檻 >120 改 **>86**（與 OP-9 `verified ≥150` 一致，R15 同步）。**FR-19**——`allowed_domains` 固定 P1、OP-2 只記錄不升 P0（FR-19、OP-2、D-16、A20 統一）；預設清單 = `TIER1_DOMAINS`（≤20、無萬用字元、`gov.tw` 子網域涵蓋於 OP-2 驗證）；OP-2 拆「P0 條件（關 web_search 一次）」與「記錄項」，避免 400 觸發 4.3 中止。**時程**——Day 2.5 工時重排：後端契約 B 四項 + FN-2a／8／9 前移 Day 2 尾段，Day 2.5 只留 FR-18 全流程 + ALTER 回填 + FN-14，OP-5 由組員 A 主跑（§11「v1.2 範圍調整」⑤）。**其他**——FN-5 六種→七種並加「尚無查核機構證實 + 替代行」長度案例；FN-12 加 offline 案例與端點；S6 P1 加「知識庫未證實筆數」（5.1 `unverified_count` 用途對齊）；7.2 機器人帳號改「已建立 `@factcheck_tw_bot`」、§13 引言去掉「Day 1 建帳號／handle 綁死」；§0 狀態列補 Day 1 答 D-13／D-16／D-18。 |

@@ -56,7 +56,7 @@
 
 - 前端：Vercel（免費）。後端：demo 週跑負責人電腦 + Cloudflare Tunnel（免費、HTTPS）；報告後再評估 Fly.io／Render 免費層。
 - 要申請（皆免費）：Meta 開發者帳號、Meta App（Threads use case：threads_basic、threads_content_publish、threads_manage_replies、threads_manage_mentions）、機器人專用**公開** Threads 帳號、把負責人（與要示範的人）加為 Threads Tester、60 天長效 token。
-- 要買：OpenAI API 額度 USD 5–10。可選：網域（Vercel 子網域即可）。
+- 要買：**無**（2026-09-15 更新：AI 額度改用新學期 CGU 金鑰，見 §4；原「OpenAI API 額度 USD 5–10」取消）。可選：網域（Vercel 子網域即可）。
 
 ## 7. 流程與交付
 
