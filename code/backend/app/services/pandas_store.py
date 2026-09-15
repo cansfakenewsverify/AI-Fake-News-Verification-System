@@ -1,6 +1,7 @@
 """
 Pandas 資料儲存層 - 使用 Parquet 檔案儲存
 """
+import functools
 import json
 import pandas as pd
 import numpy as np
@@ -9,7 +10,17 @@ from typing import Dict, Any, Optional, List, Tuple
 import uuid
 from datetime import datetime
 
+from app.utils.parquet_io import atomic_write_parquet, path_lock, read_parquet_retry
 from app.utils.source_tier import TIER_LABELS, tier_of
+
+
+def _locked(method):
+    """同一行程內，知識庫的「讀 → 改 → 寫」一次只跑一個（避免執行緒互蓋 hit_count／新列）。"""
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with path_lock(self.knowledge_base_path):
+            return method(self, *args, **kwargs)
+    return wrapper
 
 # label_source 值域 ai|rule|gold|admin；以下三者為確定性標記，寫入即 verified（FR-17 (b)）
 DETERMINISTIC_LABEL_SOURCES = frozenset({"rule", "gold", "admin"})
@@ -91,7 +102,7 @@ class PandasStore:
 
     def _load_knowledge_base(self) -> pd.DataFrame:
         if self.knowledge_base_path.exists():
-            df = pd.read_parquet(self.knowledge_base_path)
+            df = read_parquet_retry(self.knowledge_base_path)
             # 補上新增欄位（舊資料相容；這就是本次唯一的「遷移」）
             for col, default in NEW_COLUMN_DEFAULTS.items():
                 if col not in df.columns:
@@ -102,11 +113,12 @@ class PandasStore:
         return pd.DataFrame(columns=KB_COLUMNS)
 
     def _save_knowledge_base(self, df: pd.DataFrame) -> None:
-        df.to_parquet(self.knowledge_base_path, index=False)
+        atomic_write_parquet(df, self.knowledge_base_path)
 
     # ──────────────────────────────────────────
     # Layer 0: URL 快取（相同網址直接命中）
     # ──────────────────────────────────────────
+    @_locked
     def find_by_url(self, url: str) -> Optional[Dict[str, Any]]:
         """以來源 URL 查找快取，命中時更新 hit_count。"""
         df = self._load_knowledge_base()
@@ -126,6 +138,7 @@ class PandasStore:
     # ──────────────────────────────────────────
     # Layer 1: Hash 快取（完全重複攔截）
     # ──────────────────────────────────────────
+    @_locked
     def find_by_hash(self, content_hash: str) -> Optional[Dict[str, Any]]:
         """根據 SHA-256 Hash 查找快取。"""
         df = self._load_knowledge_base()
@@ -145,6 +158,7 @@ class PandasStore:
     # ──────────────────────────────────────────
     # Layer 2: 向量相似度快取（語義重複攔截）
     # ──────────────────────────────────────────
+    @_locked
     def find_similar_by_vector(
         self,
         query_vector: List[float],
@@ -207,6 +221,7 @@ class PandasStore:
     # ──────────────────────────────────────────
     # 寫入快取
     # ──────────────────────────────────────────
+    @_locked
     def save_record(
         self,
         data_type: str,

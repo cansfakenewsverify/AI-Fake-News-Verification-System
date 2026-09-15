@@ -5,6 +5,7 @@ tasks.parquet 同時承載結果頁 /r/{id}（spec §6.1），因此：
 - 上限 5,000 筆，修剪只砍 status in (completed, failed) 中最舊者，不砍 pending/processing。
 - 舊檔（v1.0 前 9 欄）載入時缺欄位補預設，這就是唯一的「遷移」（不發網路請求、不重算）。
 """
+import functools
 import json
 import math
 from pathlib import Path
@@ -13,6 +14,17 @@ from datetime import datetime
 import uuid
 
 import pandas as pd
+
+from app.utils.parquet_io import atomic_write_parquet, path_lock, read_parquet_retry
+
+
+def _locked(method):
+    """同一行程內，tasks.parquet 的「讀 → 改 → 寫」一次只跑一個（輪詢寫入與處理器更新不互蓋）。"""
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with path_lock(self.tasks_path):
+            return method(self, *args, **kwargs)
+    return wrapper
 
 # 結果頁要能重新整理/分享，保留最近 N 筆；只修剪已結束的任務
 _MAX_TASKS = 5000
@@ -99,7 +111,7 @@ class TaskStore:
         if not self.tasks_path.exists():
             return pd.DataFrame(columns=_ALL_COLUMNS)
 
-        df = pd.read_parquet(self.tasks_path)
+        df = read_parquet_retry(self.tasks_path)
 
         for col in _BASE_COLUMNS:
             if col not in df.columns:
@@ -121,8 +133,8 @@ class TaskStore:
         return df
 
     def _save_tasks(self, df: pd.DataFrame) -> None:
-        """儲存任務 DataFrame"""
-        df.to_parquet(self.tasks_path, index=False)
+        """儲存任務 DataFrame（先寫暫存檔再替換，讀者不會讀到寫一半的檔案）"""
+        atomic_write_parquet(df, self.tasks_path)
 
     @staticmethod
     def _prune(df: pd.DataFrame) -> pd.DataFrame:
@@ -135,6 +147,7 @@ class TaskStore:
         drop_idx = prunable_idx[:excess]
         return df.drop(index=drop_idx).reset_index(drop=True)
 
+    @_locked
     def create_task(
         self,
         task_type: str,
@@ -191,6 +204,7 @@ class TaskStore:
         self._save_tasks(df)
         return task_id
 
+    @_locked
     def update_task(self, task_id: str, **fields: Any) -> None:
         """
         更新任務欄位（status、result_data、error_message 與 spec §6.1 新欄位）。
