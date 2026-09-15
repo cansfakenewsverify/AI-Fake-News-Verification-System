@@ -1,0 +1,6 @@
+{
+  "task_id": "fx-pending",
+  "result_id": "fx-pending",
+  "status": "pending",
+  "message": "任務已提交處理，請使用 task_id 查詢結果"
+}

@@ -193,6 +193,7 @@ export const EXTRA = {
   dot_pending: "未查證",
   back: "← 返回",
   home_recent_title: "最近查證",
+  home_recent_view: "查看", // S-03 最近查證列的「查看」→ /r/{id}（spec 8.3 S1 元件 4 有此字、8.7 無 key）
   home_examples_title: "試試看",
   home_threads_card_title: "Threads 查核機器人", // 依 Main.dc.html 說明卡標題
   btn_copy_code: "複製代碼", // S-12 /oauth/callback 複製鈕（8.7 只有 btn_copy_link）

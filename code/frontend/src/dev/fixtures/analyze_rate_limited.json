@@ -1,0 +1,6 @@
+{
+  "_status": 429,
+  "_headers": { "Retry-After": "30" },
+  "detail": "查證太頻繁，請稍後再試。",
+  "code": "rate_limited"
+}

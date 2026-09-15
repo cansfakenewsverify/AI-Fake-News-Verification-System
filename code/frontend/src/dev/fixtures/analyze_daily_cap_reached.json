@@ -1,0 +1,6 @@
+{
+  "_status": 429,
+  "_headers": { "Retry-After": "3600" },
+  "detail": "今日查證額度已用完",
+  "code": "daily_cap_reached"
+}

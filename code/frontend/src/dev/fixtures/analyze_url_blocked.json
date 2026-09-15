@@ -1,0 +1,5 @@
+{
+  "_status": 422,
+  "detail": "這個網址無法查證（內部或保留位址）。",
+  "code": "blocked_url"
+}
