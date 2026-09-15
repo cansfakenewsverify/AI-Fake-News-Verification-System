@@ -1,5 +1,12 @@
 # 資料清洗審閱（D-05）
 
+> ✅ **已套用（2026-09-16）**：負責人回覆「照你建議」＝ 1a 2a 3a。
+> 執行：還原種子 → `clean_sources_2026_09.py --apply --drop-ids data/clean_sources_drop_ids.txt` → 再 apply 一次確認冪等（規則影響筆數全為 0、factcheck.db 雜湊不變）。
+> 結果：**知識庫 236 → 218 筆，已證實 128 筆**（MISINFO 75／SCAM 29／SAFE 24；其中 113 筆有向量可參與語意命中），未證實 90 筆保留不刪；
+> **熱門牆 63 → 24 筆，全部已證實**（Google News 31 筆＋髒資料 8 筆刪除）。
+> 知識庫實際刪 18 筆（清單中「測試文字」那筆只存在於開發中寫入的暫存版本，種子檔本來就沒有）。
+> 備份：`data/knowledge_base.parquet.bak-20260916`、`data/factcheck.db.bak-20260916`；前後比較：`data/check_before_d05.txt`、`data/check_after_d05.txt`。
+
 > 產生：2026-09-15。依據：`scripts/clean_sources_2026_09.py --dry-run`（報告 `code/backend/data/clean_sources_report.txt`）＋本地模型 `gpt-oss:20b` 第二意見（`scripts/llm_second_opinion.py`，300 筆逐筆判斷，不花 OpenAI 額度）。
 > **目前沒有任何資料被改動**，這份只是提案。負責人回覆三個決定後，Claude 才執行 `--apply`（會先備份）。
 

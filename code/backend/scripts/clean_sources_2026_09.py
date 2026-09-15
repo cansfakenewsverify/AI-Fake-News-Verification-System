@@ -389,7 +389,8 @@ def _describe_change(row: Dict[str, Any], new: Dict[str, Any]) -> str:
 # ──────────────────────────────────────────
 # Knowledge-base pass
 # ──────────────────────────────────────────
-def run_kb(data_dir: Path, checker: CofactsChecker, apply: bool) -> Dict[str, Any]:
+def run_kb(data_dir: Path, checker: CofactsChecker, apply: bool,
+           drop_ids: Optional[set] = None) -> Dict[str, Any]:
     import pandas as pd
 
     from app.services.news_fetcher import _is_real_claim
@@ -409,6 +410,16 @@ def run_kb(data_dir: Path, checker: CofactsChecker, apply: bool) -> Dict[str, An
                          ("verified", None), ("related_discussions", None)):
         if col not in df.columns:
             df[col] = default
+
+    # D-05 決定 2：負責人核准的逐筆刪除（不是規則推導出來的，另外列出）
+    drop_ids = drop_ids or set()
+    drop_mask = df["id"].astype(str).isin(drop_ids)
+    dropped = df[drop_mask]
+    df = df[~drop_mask].reset_index(drop=True)
+    result["counts"]["owner_dropped"] = len(dropped)
+    lines.append(f"負責人核准刪除（D-05 決定 2）：{len(dropped)} 筆")
+    for rec in dropped.to_dict("records"):
+        lines.append(f"  {rec.get('id')} | {_row_title(rec)}")
 
     rule1_rows, rule2_rows = [], []
     affected: set = set()
@@ -716,7 +727,8 @@ def _ensure_trending_columns(con: sqlite3.Connection) -> None:
 
 
 def run_trending(data_dir: Path, checker: CofactsChecker, apply: bool,
-                 resolver: Optional[GoogleNewsResolver] = None) -> Dict[str, Any]:
+                 resolver: Optional[GoogleNewsResolver] = None,
+                 drop_ids: Optional[set] = None) -> Dict[str, Any]:
     path = data_dir / DB_FILE
     result: Dict[str, Any] = {"lines": [], "counts": {}, "backup": None}
     lines = result["lines"]
@@ -739,6 +751,13 @@ def run_trending(data_dir: Path, checker: CofactsChecker, apply: bool,
         con.close()
 
     plan = plan_trending(rows, checker, resolver)
+    owner_dropped = 0
+    for r in plan["rows"]:
+        if r["id"] in (drop_ids or set()) and r["id"] not in plan["delete"]:
+            plan["delete"][r["id"]] = "負責人核准刪除（D-05 決定 2）"
+            plan["updates"].pop(r["id"], None)
+            owner_dropped += 1
+    lines.append(f"負責人核准刪除（D-05 決定 2，不含規則 3 已刪者）：{owner_dropped} 筆")
     google_total = len(plan["google_lines"])
     resolved = len(plan["new_url"])
     deleted = len(plan["delete"])
@@ -859,7 +878,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--retry-cofacts", action="store_true",
                         help="re-query cached Cofacts lookups that timed out or errored")
     parser.add_argument("--data-dir", default=str(ROOT / "data"))
+    parser.add_argument("--drop-ids", default=None,
+                        help="owner-approved deletions: UTF-8 file of '<kb|trending>\\t<id>' lines (D-05)")
     return parser
+
+
+def load_drop_ids(path: Optional[str]) -> Dict[str, set]:
+    out: Dict[str, set] = {"kb": set(), "trending": set()}
+    if not path:
+        return out
+    for raw in Path(path).read_text(encoding="utf-8-sig").splitlines():
+        parts = raw.strip().split("\t")
+        if len(parts) == 2 and parts[0] in out and parts[1]:
+            out[parts[0]].add(parts[1])
+    return out
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -875,12 +907,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         "",
     ]
     impact: Dict[str, int] = {}
+    drops = load_drop_ids(args.drop_ids)
     if args.only in (None, "kb"):
-        kb = run_kb(data_dir, checker, apply=args.apply)
+        kb = run_kb(data_dir, checker, apply=args.apply, drop_ids=drops["kb"])
         lines += kb["lines"]
         impact.update({k: kb["counts"].get(k, 0) for k in ("rule1", "rule2")})
     if args.only in (None, "trending"):
-        tr = run_trending(data_dir, checker, apply=args.apply)
+        tr = run_trending(data_dir, checker, apply=args.apply, drop_ids=drops["trending"])
         lines += tr["lines"]
         impact.update({k: tr["counts"].get(k, 0) for k in ("rule3", "rule4")})
     lines += cofacts_lines(checker)

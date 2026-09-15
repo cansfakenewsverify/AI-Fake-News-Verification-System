@@ -314,6 +314,9 @@ API 文件：http://localhost:8000/docs
       `vercel.json`；`src/i18n.js` 文案表；舊查核儀移到 `legacy/`。pytest 133、前端 unit 156 全過
       ⚠️ 過渡狀態：D-05 清洗 apply 前，種子 236 筆一律 verified=false → **向量快取暫時不會命中**；
       B-15 前 SAFE 結果一律顯示黃燈「尚無查核機構證實」（沒有已證實來源就不給綠燈，依共識 §9）
+- [x] D-05 資料清洗已套用（2026-09-16，負責人核准）：知識庫 218 筆（verified 128，113 筆帶向量）、
+      熱門 24 筆全 verified；Google News 與徵才/小考題/TOP10/聊天碎片等髒資料已刪。
+      向量快取恢復命中（只比對 verified=true）。審閱紀錄 `docs/test/clean_sources_review.md`
 - [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證；權限要含 threads_manage_mentions）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy

@@ -364,6 +364,35 @@ def test_trending_rule_label_verified_true(tmp_path, fake_resolver):
     assert "熱門 label_source=rule 被降級：0 筆" in _report(tmp_path)
 
 
+def test_owner_drop_ids_removes_rows_and_is_idempotent(tmp_path, fake_resolver):
+    kb = make_kb_parquet(tmp_path)
+    db = make_trending_db(tmp_path, trending_rows_d04())
+    kb_ids = list(_rows_from_parquet(kb))
+    drop_file = tmp_path / "drop.txt"
+    drop_file.write_text(f"kb\t{kb_ids[0]}\ntrending\ttr-ai-mygopen\ntrending\ttr-google-bad\nbogus line\n",
+                         encoding="utf-8")
+
+    # dry-run: nothing written, report lists the owner-approved deletions
+    kb_sha, db_sha = _sha(kb), _sha(db)
+    assert clean.main(["--drop-ids", str(drop_file), "--data-dir", str(tmp_path)]) == 0
+    assert _sha(kb) == kb_sha and _sha(db) == db_sha
+    report = _report(tmp_path)
+    assert "負責人核准刪除（D-05 決定 2）：1 筆" in report
+    assert "負責人核准刪除（D-05 決定 2，不含規則 3 已刪者）：1 筆" in report  # tr-google-bad already rule 3
+
+    assert clean.main(["--apply", "--drop-ids", str(drop_file), "--data-dir", str(tmp_path)]) == 0
+    assert kb_ids[0] not in _rows_from_parquet(kb)
+    assert len(_rows_from_parquet(kb)) == len(kb_ids) - 1
+    rows = _db_rows(db)
+    assert "tr-ai-mygopen" not in rows and "tr-google-bad" not in rows
+
+    kb_after, db_after = _sha(kb), _sha(db)
+    assert clean.main(["--apply", "--drop-ids", str(drop_file), "--data-dir", str(tmp_path)]) == 0
+    assert "負責人核准刪除（D-05 決定 2）：0 筆" in _report(tmp_path)
+    assert len(_rows_from_parquet(kb)) == len(kb_ids) - 1 and len(_db_rows(db)) == len(rows)
+    assert _sha(db) == db_after
+
+
 def test_apply_twice_idempotent_with_backups(tmp_path, fake_resolver, monkeypatch):
     kb = make_kb_parquet(tmp_path)
     db = make_trending_db(tmp_path, trending_rows_d04())
