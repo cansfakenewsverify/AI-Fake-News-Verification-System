@@ -1,0 +1,240 @@
+{
+  "total": 10,
+  "records": [
+    {
+      "id": "kb-fx-01",
+      "data_type": "TEXT",
+      "raw_content": "【健保署通知】您的健保卡因系統升級即日起停用，請於 24 小時內點擊連結重新驗證身分，逾期將影響就醫權益。驗證網址：https://nhi-verify-tw.com/login",
+      "risk_type": "SCAM",
+      "category": "詐騙",
+      "summary": "健保署未發送此類簡訊，連結為釣魚網站，目的在竊取個資與信用卡資料，請勿點擊。",
+      "confidence_score": 0.97,
+      "sources": [
+        {
+          "title": "網傳健保卡停用需重新驗證？健保署：詐騙簡訊",
+          "url": "https://tfc-taiwan.org.tw/articles/12001",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "rule",
+      "last_result_id": null,
+      "hit_count": 37,
+      "created_at": "2026-09-15 08:12:00.000000"
+    },
+    {
+      "id": "kb-fx-02",
+      "data_type": "TEXT",
+      "raw_content": "網傳吃香蕉配優格會中毒！營養師說兩者一起吃會在胃裡產生毒素，很多人都不知道，快轉給家人朋友。",
+      "risk_type": "MISINFO",
+      "category": "健康",
+      "summary": "香蕉與優格並無食物相剋，MyGoPen 查證營養師指出無此禁忌，正常食用不會產生毒素。",
+      "confidence_score": 0.94,
+      "sources": [
+        {
+          "title": "【錯誤】網傳香蕉配優格會中毒？營養師：沒有食物相剋",
+          "url": "https://www.mygopen.com/2026/09/banana-yogurt.html",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "ai",
+      "last_result_id": "fx-red-misinfo",
+      "hit_count": 21,
+      "created_at": "2026-09-15 07:40:00.000000"
+    },
+    {
+      "id": "kb-fx-03",
+      "data_type": "TEXT",
+      "raw_content": "165 反詐騙專線提醒：遇到「保證獲利」請掛斷。任何自稱投資老師、要求下載 App 或加入群組的訊息，都是詐騙前兆。",
+      "risk_type": "SAFE",
+      "category": "反詐宣導",
+      "summary": "內容為內政部警政署 165 專線的官方反詐宣導，非詐騙訊息，可放心轉傳。",
+      "confidence_score": 0.9,
+      "sources": [
+        {
+          "title": "165 全民防騙網：投資詐騙手法",
+          "url": "https://165.npa.gov.tw/#/article/news/1",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "admin",
+      "last_result_id": null,
+      "hit_count": 12,
+      "created_at": "2026-09-14 22:05:00.000000"
+    },
+    {
+      "id": "kb-fx-04",
+      "data_type": "TEXT",
+      "raw_content": "LINE 官方公告：自年底起 LINE 將全面收費，若不想被收費，請將此訊息轉傳給 20 位好友，即可免費繼續使用。",
+      "risk_type": "MISINFO",
+      "category": "科技",
+      "summary": "LINE 台灣已多次澄清不會對一般用戶收費，此為流傳多年的轉傳型謠言。",
+      "confidence_score": 0.96,
+      "sources": [
+        {
+          "title": "網傳 LINE 年底開始收費？LINE 台灣：不實訊息",
+          "url": "https://tfc-taiwan.org.tw/articles/11500",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "gold",
+      "last_result_id": null,
+      "hit_count": 58,
+      "created_at": "2026-09-14 20:00:00.000000"
+    },
+    {
+      "id": "kb-fx-05",
+      "data_type": "URL",
+      "raw_content": "https://example-news-site.com/2026/09/typhoon-video",
+      "risk_type": "UNVERIFIABLE",
+      "category": "其他",
+      "summary": "系統無法讀取這個網址的內容，無法判讀。",
+      "confidence_score": 0.0,
+      "sources": [],
+      "source_tier": null,
+      "source_url": "https://example-news-site.com/2026/09/typhoon-video",
+      "label_source": "rule",
+      "last_result_id": null,
+      "hit_count": 3,
+      "created_at": "2026-09-14 18:30:00.000000"
+    },
+    {
+      "id": "kb-fx-06",
+      "data_type": "TEXT",
+      "raw_content": "網傳「新版身分證晶片會全天定位追蹤持有人」",
+      "risk_type": "MISINFO",
+      "category": "科技",
+      "summary": "媒體查核報導指出身分證晶片沒有定位功能，屬不實說法。",
+      "confidence_score": 0.91,
+      "sources": [
+        {
+          "title": "查核／網傳新版身分證晶片可定位追蹤？內政部：假的",
+          "url": "https://news.cts.com.tw/cts/life/202609/202609142000001.html",
+          "tier": 2,
+          "tier_label": "媒體查核報導"
+        },
+        {
+          "title": "【錯誤】網傳身分證晶片全天定位？",
+          "url": "https://www.mygopen.com/2026/09/id-card-chip.html",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "ai",
+      "last_result_id": null,
+      "hit_count": 5,
+      "created_at": "2026-09-14 12:00:00.000000"
+    },
+    {
+      "id": "kb-fx-07",
+      "data_type": "TEXT",
+      "raw_content": "您的包裹因地址不全無法配送，請於今日內點擊連結補填資料並支付 25 元重新配送費。",
+      "risk_type": "SCAM",
+      "category": "詐騙",
+      "summary": "假冒物流業者的簡訊詐騙，要求小額付款以騙取信用卡資料。",
+      "confidence_score": 0.95,
+      "sources": [
+        {
+          "title": "某人在社群分享的截圖",
+          "url": "https://www.facebook.com/groups/000000/posts/111111",
+          "tier": 3,
+          "tier_label": "相關討論（未查證）"
+        },
+        {
+          "title": "165 全民防騙網：假冒物流簡訊",
+          "url": "https://165.npa.gov.tw/#/article/news/2",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "ai",
+      "last_result_id": null,
+      "hit_count": 9,
+      "created_at": "2026-09-14 09:15:00.000000"
+    },
+    {
+      "id": "kb-fx-08",
+      "data_type": "TEXT",
+      "raw_content": "（長文測試）科學家發現一個小茶包，竟然會往你杯子裡釋放上百億個塑膠顆粒。他們做了個實驗，把一個沒有茶葉的塑膠茶包直接放進熱水裡，再把水放到電子顯微鏡下面觀察，結果發現數量驚人，所以大家以後千萬不要再用茶包泡茶了，改用茶葉加濾網才安全，也請轉傳給關心的家人朋友，讓大家一起遠離塑膠微粒的危害，保護自己也保護下一代的健康。",
+      "risk_type": "SAFE",
+      "category": "健康",
+      "summary": "（長摘要測試）部分塑膠材質茶包在高溫下確實可能釋出微塑膠，研究結果屬實，但釋出數量與健康風險仍在研究中；市售多數茶包為紙質或植物纖維，一般飲用無需恐慌。若仍有疑慮，可改用紙質茶包或茶葉搭配不鏽鋼濾網，並避免以過高溫度長時間浸泡。本則判定為內容大致正確、無明顯誤導。",
+      "confidence_score": 0.8,
+      "sources": [
+        {
+          "title": "查核／塑膠茶包會釋放微塑膠？研究怎麼說",
+          "url": "https://www.ettoday.net/news/20260913/000001.htm",
+          "tier": 2,
+          "tier_label": "媒體查核報導"
+        }
+      ],
+      "source_tier": 2,
+      "source_url": "",
+      "label_source": "ai",
+      "last_result_id": null,
+      "hit_count": 2,
+      "created_at": "2026-09-13 15:00:00.000000"
+    },
+    {
+      "id": "kb-fx-09",
+      "data_type": "TEXT",
+      "raw_content": "轉傳這串網址可以領取政府普發補助：https://gov-subsidy-claim-2026-taiwan-official-support-center.example.com/apply?ref=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "risk_type": "SCAM",
+      "category": "詐騙",
+      "summary": "政府補助不會以不明網址要求填寫帳戶資料，此為詐騙連結。",
+      "confidence_score": 0.93,
+      "sources": [
+        {
+          "title": "行政院：普發補助不會傳送連結",
+          "url": "https://www.ey.gov.tw/Page/9277F759E41CCD91/000000",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "rule",
+      "last_result_id": null,
+      "hit_count": 0,
+      "created_at": "2026-09-13 10:00:00.000000"
+    },
+    {
+      "id": "kb-fx-10",
+      "data_type": "TEXT",
+      "raw_content": "網傳颱風天把寶特瓶裝水放冷凍庫，停電時可以保持冰箱低溫",
+      "risk_type": "SAFE",
+      "category": "生活",
+      "summary": "此為常見的停電應變建議，內容正確。",
+      "confidence_score": 0.88,
+      "sources": [
+        {
+          "title": "颱風停電冰箱怎麼辦？",
+          "url": "https://www.mygopen.com/2026/09/fridge-typhoon.html",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "ai",
+      "last_result_id": null,
+      "hit_count": 1,
+      "created_at": "2026-09-12 08:00:00.000000"
+    }
+  ]
+}

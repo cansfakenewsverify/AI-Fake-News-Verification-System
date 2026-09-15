@@ -1,0 +1,53 @@
+{
+  "id": "fx-share-special-chars",
+  "status": "completed",
+  "input_type": "text",
+  "input_preview": "【A&B 購物】#限時搶購 100% 回饋 + 免運！點 https://ab-shop.example/?a=1&b=2#pay 輸入卡號領取",
+  "source_url": null,
+  "origin": "web",
+  "platform_post": null,
+  "created_at": "2026-09-15T15:30:00+08:00",
+  "completed_at": "2026-09-15T15:30:12+08:00",
+  "ai_unavailable": false,
+  "result": {
+    "result_id": "fx-share-special-chars",
+    "frame_type": "red",
+    "frame_label": "詐騙警告",
+    "ai_unavailable": false,
+    "is_risk": true,
+    "risk_type": "SCAM",
+    "category": "E-Commerce",
+    "category_label": "網購詐騙",
+    "confidence_score": 0.94,
+    "confidence_level": "高",
+    "confidence_note": "模型自評信心，未經機率校準（實際效能請參考評測報告）",
+    "summary": "假冒「A&B 購物」以 #限時搶購 名義要求輸入信用卡，網址 https://ab-shop.example/?a=1&b=2#pay 是釣魚網站，100% 回饋 + 免運都是話術。",
+    "explanation": "網址不是 A&B 購物官方網域，要求在簡訊連結輸入卡號是典型網購詐騙手法。",
+    "sources": [
+      {
+        "title": "假冒購物網站限時搶購簡訊詐騙提醒",
+        "url": "https://165.npa.gov.tw/#/article/news/5678",
+        "tier": 1,
+        "tier_label": "查核機構"
+      }
+    ],
+    "related_discussions": [],
+    "verified": true,
+    "verification_status": "verified",
+    "source_tier": 1,
+    "similar_news": [],
+    "cached": false,
+    "cache_layer": null,
+    "label_source": "ai",
+    "kb_id": "kb-ab-shop",
+    "analyzed_at": "2026-09-15T15:30:12+08:00",
+    "border_color": "紅色",
+    "display_info": "詐騙警告",
+    "related_links": ["https://165.npa.gov.tw/#/article/news/5678"]
+  },
+  "error": null,
+  "share": {
+    "text": "🔴 AI 判定這則訊息是詐騙：假冒「A&B 購物」以 #限時搶購 名義要求輸入信用卡，網址 https://ab-shop.example/?a=1&b=2#pay 是釣魚網站，100% …。查核來源：165.npa.gov.tw",
+    "url": "https://fcc-demo.vercel.app/r/fx-share-special-chars"
+  }
+}

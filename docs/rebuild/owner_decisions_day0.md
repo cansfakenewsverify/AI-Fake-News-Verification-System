@@ -19,6 +19,8 @@
 | 專題信箱 | `cans.fakenewsverify@gmail.com`（已填入 `public/privacy.html`、`public/data-deletion.html`） | 對話 |
 | GitHub 權限 | `soymilk0211` 已加為協作者（Write），邀請已接受，可推送 | 對話 + 截圖 |
 | 機器人顯示名稱 | 先不改（O-06 延後） | 對話 |
+| demo 影片製作 | **由 Claude 自動錄製網站畫面、配音、剪輯、上字幕**；配音用 CGU 閘道 `gpt-4o-mini-tts`（負責人試聽後選「自然的」）；已安裝 ffmpeg 9.0.1（winget `Gyan.FFmpeg`）。真實 Threads App／手機分享畫面不錄（範圍 A 用模擬模式） | 2026-09-16 對話 |
+| 資料清洗 D-05 | 1a 2a 3a（照建議），已套用 | 2026-09-16 對話 |
 | Vercel | 已建立：team `fakenewsverify`（Hobby）、project `fakenewsverify`、Root `code/frontend`。**PUBLIC_BASE_URL = `https://fakenewsverify.vercel.app`**；實測 `/`、`/privacy.html`（含信箱）、`/r/任意id`（SPA fallback）皆 200；CI（含前端 job）綠 | 2026-09-15 部署 |
 
 ## CGU 閘道本地模型（2026-09-15 實測，負責人要求「不要浪費」）

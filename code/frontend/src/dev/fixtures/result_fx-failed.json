@@ -1,0 +1,18 @@
+{
+  "id": "fx-failed",
+  "status": "failed",
+  "input_type": "text",
+  "input_preview": "健保卡即日起停用，請點連結重新驗證",
+  "source_url": null,
+  "origin": "web",
+  "platform_post": null,
+  "created_at": "2026-09-16T10:21:00+08:00",
+  "completed_at": null,
+  "ai_unavailable": false,
+  "result": null,
+  "error": {
+    "code": "analysis_failed",
+    "message": "查證失敗，請稍後再試。"
+  },
+  "share": null
+}

@@ -1,0 +1,58 @@
+{
+  "id": "fx-threads-origin",
+  "status": "completed",
+  "input_type": "text",
+  "input_preview": "健保卡即日起停用！請點 https://nhi-verify.xyz 重新驗證，逾期停卡",
+  "source_url": null,
+  "origin": "threads_sim",
+  "platform_post": {
+    "platform": "threads",
+    "post_id": "p100",
+    "permalink": "https://www.threads.com/@tester_a/post/p100",
+    "username": "tester_a"
+  },
+  "created_at": "2026-09-15T16:00:05+08:00",
+  "completed_at": "2026-09-15T16:00:19+08:00",
+  "ai_unavailable": false,
+  "result": {
+    "result_id": "fx-threads-origin",
+    "frame_type": "red",
+    "frame_label": "詐騙警告",
+    "ai_unavailable": false,
+    "is_risk": true,
+    "risk_type": "SCAM",
+    "category": "Phishing",
+    "category_label": "釣魚詐騙",
+    "confidence_score": 0.96,
+    "confidence_level": "高",
+    "confidence_note": "模型自評信心，未經機率校準（實際效能請參考評測報告）",
+    "summary": "健保署不會以簡訊或社群貼文要求點連結重新驗證健保卡，這是假冒政府機關的釣魚詐騙。",
+    "explanation": "連結網域 nhi-verify.xyz 並非健保署官方網域（nhi.gov.tw）。\n健保卡沒有「逾期停卡」需要線上驗證的規定，請勿點擊或輸入個資。",
+    "sources": [
+      {
+        "title": "假冒健保署簡訊詐騙，健保卡無須線上驗證",
+        "url": "https://165.npa.gov.tw/#/article/news/1234",
+        "tier": 1,
+        "tier_label": "查核機構"
+      }
+    ],
+    "related_discussions": [],
+    "verified": true,
+    "verification_status": "verified",
+    "source_tier": 1,
+    "similar_news": [],
+    "cached": true,
+    "cache_layer": "hash",
+    "label_source": "gold",
+    "kb_id": "kb-nhi-card",
+    "analyzed_at": "2026-09-15T16:00:19+08:00",
+    "border_color": "紅色",
+    "display_info": "詐騙警告",
+    "related_links": ["https://165.npa.gov.tw/#/article/news/1234"]
+  },
+  "error": null,
+  "share": {
+    "text": "🔴 AI 判定這則訊息是詐騙：健保署不會以簡訊或社群貼文要求點連結重新驗證健保卡，這是假冒政府機關的釣魚詐騙。查核來源：165.npa.gov.tw",
+    "url": "https://fcc-demo.vercel.app/r/fx-threads-origin"
+  }
+}

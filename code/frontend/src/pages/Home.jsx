@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Card from "../components/Card.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import Icon from "../components/Icon.jsx";
@@ -10,7 +11,7 @@ import { validateInput } from "../lib/validateInput.js";
 import BotHowtoCard from "./home/BotHowtoCard.jsx";
 import ExampleChips from "./home/ExampleChips.jsx";
 import RecentHistory from "./home/RecentHistory.jsx";
-import { useSubmitAnalysis } from "./home/useSubmitAnalysis.js";
+import { readHomePrefill, useSubmitAnalysis } from "./home/useSubmitAnalysis.js";
 
 // Home page "/" (spec 8.3 S1, 8.5 mobile order; Main.dc.html "S1").
 // Order: title (h1 home_tagline + home_sub) -> input card (+ quota card) -> examples (only without
@@ -27,6 +28,8 @@ import { useSubmitAnalysis } from "./home/useSubmitAnalysis.js";
 //   history_empty are hidden; clearing asks ConfirmDialog (confirm_clear) first and then moves focus
 //   to the empty-state line, because the clear button it came from no longer exists. Without usable
 //   storage the empty-state line reads history_unavailable and everything else keeps working.
+// - Prefill (S-04): "reanalyze" on /r/{id} without a stored input navigates here with router state
+//   {prefill: {mode, value}} (the saved input_preview); the input card starts filled and nothing is sent.
 // - All user-visible text comes from i18n.js (this file must stay free of Han characters).
 
 const MODES = ["text", "url"];
@@ -68,8 +71,10 @@ function QuotaCard() {
 export default function Home() {
   useDocumentTitle();
   const inputRef = useRef(null);
-  const [mode, setMode] = useState("text");
-  const [value, setValue] = useState("");
+  const location = useLocation();
+  const [prefill] = useState(() => readHomePrefill(location.state));
+  const [mode, setMode] = useState(prefill?.mode ?? "text");
+  const [value, setValue] = useState(prefill?.value ?? "");
   const [error, setError] = useState(null);
   const [quotaReached, setQuotaReached] = useState(false);
   const { submit, submitting } = useSubmitAnalysis();

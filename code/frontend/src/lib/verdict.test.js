@@ -7,6 +7,7 @@ import {
   showSources,
   canShare,
   cacheChipKey,
+  confidenceChipKey,
   labelSourceKey,
   tierCaption,
 } from "./verdict.js";
@@ -61,6 +62,11 @@ const cases = [
   ["tier 2", () => tierCaption(2), "tier_2_chip"],
   ["tier 3 -> null", () => tierCaption(3), null],
   ["tier missing -> null", () => tierCaption(undefined), null],
+  ["confidence high", () => confidenceChipKey("高"), "confidence_chip_high"],
+  ["confidence mid", () => confidenceChipKey("中"), "confidence_chip_mid"],
+  ["confidence low", () => confidenceChipKey("低"), "confidence_chip_low"],
+  ["confidence missing -> null", () => confidenceChipKey(undefined), null],
+  ["confidence unknown -> null", () => confidenceChipKey("toString"), null],
 ];
 
 function pick(v) {
@@ -79,6 +85,7 @@ test("verdict: all i18n keys used exist", () => {
     "frame_yellow_unverifiable", "frame_grey", "chip_live", "chip_cache_url", "chip_cache_hash",
     "chip_cache_vector", "label_source_ai", "label_source_rule", "label_source_gold",
     "label_source_admin", "tier_1_chip", "tier_2_chip",
+    "confidence_chip_high", "confidence_chip_mid", "confidence_chip_low",
   ];
   for (const k of keys) assert.notEqual(t(k), k, `missing i18n key ${k}`);
 });

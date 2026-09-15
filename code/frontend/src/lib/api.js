@@ -127,7 +127,7 @@ function withQuery(path, params = {}) {
  * 發出請求並正規化錯誤。
  * @returns {Promise<any>} 解析後的 JSON（成功回應；含 202）
  */
-export async function request(path, { method = "GET", body, timeoutMs, signal, headers = {} } = {}) {
+export async function request(path, { method = "GET", body, timeoutMs, signal, headers = {}, cache } = {}) {
   const upper = method.toUpperCase();
   const limit = timeoutMs ?? (upper === "GET" ? DEFAULT_GET_TIMEOUT_MS : DEFAULT_POST_TIMEOUT_MS);
 
@@ -154,6 +154,7 @@ export async function request(path, { method = "GET", body, timeoutMs, signal, h
   });
 
   const init = { method: upper, signal: controller.signal, headers: { Accept: "application/json", ...headers } };
+  if (cache) init.cache = cache; // fetch RequestCache mode, e.g. "no-store"
   const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   if (body !== undefined) {
     if (isForm) {
@@ -282,6 +283,8 @@ const TERMINAL = new Set(["completed", "failed"]);
  * 每 intervalMs 查一次 /api/result/{id}，completed／failed 即停。
  * @returns {Promise<{timedOut: boolean, last: any}>}
  * 404 拋 ApiError(code="result_not_found")；其他錯誤照拋；signal 中止拋 AbortError。
+ * 輪詢請求帶 cache:"no-store"：/api/result 回 Cache-Control: max-age=5（spec §5.3），
+ * 不略過 HTTP 快取時 2 秒後與 4 秒後的輪詢會拿到快取的 pending，完成最多晚 5 秒才被看到（S-04 實測）。
  */
 export async function pollResult(id, { intervalMs = 2000, maxMs = 90000, onUpdate, signal } = {}) {
   const started = Date.now();
@@ -293,6 +296,7 @@ export async function pollResult(id, { intervalMs = 2000, maxMs = 90000, onUpdat
       last = await getResult(id, {
         signal,
         timeoutMs: Math.min(DEFAULT_GET_TIMEOUT_MS, Math.max(remaining, 1)),
+        cache: "no-store",
       });
     } catch (err) {
       // 單次請求被「剩餘時間」截斷而逾時 → 視為整體輪詢超時，而非網路錯誤

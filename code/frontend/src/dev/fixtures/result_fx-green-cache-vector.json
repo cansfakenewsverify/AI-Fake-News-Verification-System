@@ -1,0 +1,53 @@
+{
+  "id": "fx-green-cache-vector",
+  "status": "completed",
+  "input_type": "text",
+  "input_preview": "165 反詐騙專線提醒：遇到「保證獲利」請掛斷",
+  "source_url": null,
+  "origin": "web",
+  "platform_post": null,
+  "created_at": "2026-09-15T14:31:58+08:00",
+  "completed_at": "2026-09-15T14:32:04+08:00",
+  "ai_unavailable": false,
+  "result": {
+    "result_id": "fx-green-cache-vector",
+    "frame_type": "green",
+    "frame_label": "查無異常",
+    "ai_unavailable": false,
+    "is_risk": false,
+    "risk_type": "SAFE",
+    "category": "Safe",
+    "category_label": "安全資訊",
+    "confidence_score": 0.9,
+    "confidence_level": "高",
+    "confidence_note": "模型自評信心，未經機率校準（實際效能請參考評測報告）",
+    "summary": "這是警政署 165 反詐騙專線的官方宣導內容，「保證獲利」確為假投資詐騙常見話術，訊息本身並非詐騙或假訊息。",
+    "explanation": "訊息內容與警政署 165 全民防騙網的宣導一致，沒有可疑連結、也沒有要求提供個資或匯款。",
+    "sources": [
+      {
+        "title": "【正確】網傳「165 提醒：遇到保證獲利請掛斷」？警政署證實為官方反詐宣導",
+        "url": "https://tfc-taiwan.org.tw/articles/12345",
+        "tier": 1,
+        "tier_label": "查核機構"
+      }
+    ],
+    "related_discussions": [],
+    "verified": true,
+    "verification_status": "verified",
+    "source_tier": 1,
+    "similar_news": [],
+    "cached": true,
+    "cache_layer": "vector",
+    "label_source": "ai",
+    "kb_id": "kb-165-guarantee",
+    "analyzed_at": "2026-09-15T14:32:04+08:00",
+    "border_color": "綠色",
+    "display_info": "查無異常",
+    "related_links": ["https://tfc-taiwan.org.tw/articles/12345"]
+  },
+  "error": null,
+  "share": {
+    "text": "🟢 AI 查證這則訊息沒有發現異常：這是警政署 165 反詐騙專線的官方宣導內容，「保證獲利」確為假投資詐騙常見話術，訊息本身並非詐騙或假訊息",
+    "url": "https://fcc-demo.vercel.app/r/fx-green-cache-vector"
+  }
+}

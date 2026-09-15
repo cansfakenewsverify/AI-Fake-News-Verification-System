@@ -1,0 +1,53 @@
+{
+  "id": "fx-yellow-unverified-safe",
+  "status": "completed",
+  "input_type": "text",
+  "input_preview": "公費流感疫苗 10 月 1 日起開打，65 歲以上長者與學童可至合約院所接種，請攜帶健保卡。",
+  "source_url": null,
+  "origin": "web",
+  "platform_post": null,
+  "created_at": "2026-09-15T15:10:00+08:00",
+  "completed_at": "2026-09-15T15:10:13+08:00",
+  "ai_unavailable": false,
+  "result": {
+    "result_id": "fx-yellow-unverified-safe",
+    "frame_type": "yellow",
+    "frame_label": "尚無查核機構證實",
+    "ai_unavailable": false,
+    "is_risk": false,
+    "risk_type": "SAFE",
+    "category": "Safe",
+    "category_label": "安全資訊",
+    "confidence_score": 0.72,
+    "confidence_level": "中",
+    "confidence_note": "模型自評信心，未經機率校準（實際效能請參考評測報告）",
+    "summary": "流感疫苗開打訊息與歷年公費時程一致，沒有可疑連結、索取個資或誇大宣稱，但目前沒有查核機構針對這則訊息做出判定。",
+    "explanation": "訊息沒有要求點擊連結、匯款或提供個資，接種資格與歷年疾管署公告相近。\n實際開打日期與對象仍請以疾管署當年度公告為準。",
+    "sources": [],
+    "related_discussions": [
+      {
+        "title": "Dcard 討論：今年流感疫苗什麼時候打",
+        "url": "https://www.dcard.tw/f/health/p/260000001",
+        "tier": 3,
+        "tier_label": "相關討論（未查證）"
+      }
+    ],
+    "verified": false,
+    "verification_status": "unverified",
+    "source_tier": null,
+    "similar_news": [],
+    "cached": false,
+    "cache_layer": null,
+    "label_source": "ai",
+    "kb_id": "kb-flu-vaccine",
+    "analyzed_at": "2026-09-15T15:10:13+08:00",
+    "border_color": "黃色",
+    "display_info": "尚無查核機構證實",
+    "related_links": []
+  },
+  "error": null,
+  "share": {
+    "text": "🟡 這則訊息尚無查核機構證實：流感疫苗開打訊息與歷年公費時程一致，沒有可疑連結、索取個資或誇大宣稱，但目前沒有查核機構針對這則訊息做出判定。轉傳前請先查證",
+    "url": "https://fcc-demo.vercel.app/r/fx-yellow-unverified-safe"
+  }
+}

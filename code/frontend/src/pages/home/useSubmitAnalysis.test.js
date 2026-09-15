@@ -5,9 +5,11 @@ import { t } from "../../i18n.js";
 import { ApiError, analyzeText, analyzeUrl, configureFixtures } from "../../lib/api.js";
 import {
   DEFAULT_RETRY_AFTER_SECONDS,
+  homePrefillState,
   inputStorageKey,
   loadSubmittedInput,
   previewOf,
+  readHomePrefill,
   resultIdOf,
   saveSubmittedInput,
   submitErrorFeedback,
@@ -133,6 +135,22 @@ test("submitted input helpers swallow storage failures and reject bad data", () 
   assert.equal(loadSubmittedInput("bad-json", storage), null);
   assert.equal(loadSubmittedInput("bad-type", storage), null);
   assert.equal(loadSubmittedInput("empty", storage), null);
+});
+
+test("home prefill state round-trips text and url, and skips image or empty input", () => {
+  assert.deepEqual(homePrefillState("text", "hello"), { prefill: { mode: "text", value: "hello" } });
+  assert.deepEqual(readHomePrefill(homePrefillState("text", "hello")), { mode: "text", value: "hello" });
+  assert.deepEqual(readHomePrefill(homePrefillState("url", "https://example.com")), {
+    mode: "url",
+    value: "https://example.com",
+  });
+  assert.equal(homePrefillState("image", "[x]"), null);
+  assert.equal(homePrefillState("text", "   "), null);
+  assert.equal(homePrefillState(undefined, "x"), null);
+  assert.equal(readHomePrefill(null), null);
+  assert.equal(readHomePrefill({ prefill: { mode: "image", value: "x" } }), null);
+  assert.equal(readHomePrefill({ prefill: { mode: "text", value: 5 } }), null);
+  assert.equal(readHomePrefill({ other: true }), null);
 });
 
 test("previewOf collapses whitespace into one line", () => {

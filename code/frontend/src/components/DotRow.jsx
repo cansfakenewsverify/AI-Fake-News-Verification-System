@@ -6,13 +6,17 @@ import { listVerdict } from "../lib/verdict.js";
 // ＋標題（16 --c-ink，最多 2 行截斷）＋可選次文字行 meta（機構・日期・label_source，13px --c-ink-3，不用 chip）。
 // to → 站內 Link（/r/{id}）；href → 外連 <a target="_blank" rel="noopener">；兩者皆無 → 純區塊。
 // 顏色只來自 listVerdict()（最近查證有 frame_type 時以後端 frame_type 為準）。
+// lines：標題最多行數，預設 2；知識庫 raw_content 傳 3（S-10，spec §8.3 S4）。
+
+const TITLE_CLAMP = { 2: "line-clamp-2", 3: "line-clamp-3" };
 
 function metaText(meta) {
   return Array.isArray(meta) ? meta.filter((part) => part != null && part !== "").join("・") : meta;
 }
 
-export default function DotRow({ item, title, meta, to, href, className = "", style }) {
+export default function DotRow({ item, title, meta, to, href, lines = 2, className = "", style }) {
   const verdict = listVerdict(item);
+  const clampClass = TITLE_CLAMP[lines] || TITLE_CLAMP[2];
   const text = title ?? item?.title ?? item?.preview ?? item?.raw_content ?? "";
   const metaContent = metaText(meta);
 
@@ -28,7 +32,7 @@ export default function DotRow({ item, title, meta, to, href, className = "", st
           {verdict.label}
         </span>
         <span
-          className="line-clamp-2 min-w-0 flex-1"
+          className={`${clampClass} min-w-0 flex-1`}
           style={{ fontSize: 16, lineHeight: "24px", color: "var(--c-ink)", overflowWrap: "anywhere" }}
         >
           {text}

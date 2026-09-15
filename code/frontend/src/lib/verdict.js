@@ -78,6 +78,12 @@ export function cacheChipKey(cache_layer) {
   return ["url", "hash", "vector"].includes(cache_layer) ? `chip_cache_${cache_layer}` : "chip_live";
 }
 
+/** confidence_level（後端 高／中／低，spec §5.3）→ confidence_chip_* key；缺值或未知回 null（不渲染信心 chip）。 */
+export function confidenceChipKey(confidence_level) {
+  const keys = { 高: "confidence_chip_high", 中: "confidence_chip_mid", 低: "confidence_chip_low" };
+  return Object.prototype.hasOwnProperty.call(keys, confidence_level) ? keys[confidence_level] : null;
+}
+
 /** label_source → i18n key；未知值回 null（呼叫端不渲染）。 */
 export function labelSourceKey(label_source) {
   return ["ai", "rule", "gold", "admin"].includes(label_source) ? `label_source_${label_source}` : null;

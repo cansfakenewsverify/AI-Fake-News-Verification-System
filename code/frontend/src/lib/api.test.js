@@ -153,6 +153,17 @@ test("pollResult stops on third response (completed); onUpdate called 3 times", 
   assert.equal(out.last.status, "completed");
 });
 
+test("pollResult bypasses the HTTP cache (backend sends Cache-Control: max-age=5)", async () => {
+  const calls = mockFetch((_url, _init, n) => jsonResponse(200, { id: "t5", status: n < 2 ? "pending" : "completed" }));
+  await pollResult("t5", { intervalMs: 5, maxMs: 5000 });
+  assert.equal(calls.length, 2);
+  for (const call of calls) assert.equal(call.init.cache, "no-store");
+  // plain requests keep the browser default
+  const plain = mockFetch(() => jsonResponse(200, { id: "t5", status: "completed" }));
+  await getResult("t5");
+  assert.equal("cache" in plain[0].init, false);
+});
+
 test("pollResult stops on failed", async () => {
   mockFetch(() => jsonResponse(200, { id: "t2", status: "failed", error: { code: "analysis_failed" } }));
   const out = await pollResult("t2", { intervalMs: 5, maxMs: 5000 });

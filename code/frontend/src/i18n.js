@@ -205,6 +205,9 @@ export const EXTRA = {
   input_mode_label: "輸入模式", // P-16 模式 tablist aria-label（依 Main.dc.html）
   input_label: "要查證的內容", // P-16 textarea／網址輸入框 aria-label（依 Main.dc.html；placeholder 不當標籤）
   btn_cancel: "取消", // P-17 ConfirmDialog 取消鈕（8.7 只有確認側 btn_clear_history）
+  btn_refresh: "重新整理", // S-04 超時態重新開始輪詢（spec 8.3 S2 狀態 2 有此字、8.7 無 key）
+  result_steps_label: "查證進度", // S-04 三步指示 <ol aria-label>（依 ResultStates.dc.html）
+  excerpt_expand: "展開全文", // S-05 摘錄卡超過 3 行的展開鈕 aria-label（依 Result.dc.html）
 };
 
 const PLACEHOLDER = /\{([A-Za-z_][A-Za-z0-9_]*)(?:≤(\d+))?\}/g;

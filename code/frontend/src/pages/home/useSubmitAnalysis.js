@@ -58,6 +58,24 @@ export function loadSubmittedInput(id, storage = defaultSessionStorage()) {
   }
 }
 
+// Home prefill (S-04 "reanalyze" without a stored input, e.g. a /r/{id} link opened from Threads):
+// the result page navigates to "/" with router state {prefill: {mode, value}}; Home fills the input card
+// from it and never submits by itself. Router state keeps the text out of the URL.
+
+/** Router state for navigate("/", {state}) that prefills the home input; null for image or empty input. */
+export function homePrefillState(inputType, content) {
+  const mode = inputType === "url" ? "url" : inputType === "text" ? "text" : null;
+  if (!mode || typeof content !== "string" || content.trim() === "") return null;
+  return { prefill: { mode, value: content } };
+}
+
+/** Reads homePrefillState() back from location.state: {mode: "text"|"url", value} or null. */
+export function readHomePrefill(state) {
+  const prefill = state && typeof state === "object" ? state.prefill : null;
+  if (!prefill || (prefill.mode !== "text" && prefill.mode !== "url")) return null;
+  return typeof prefill.value === "string" && prefill.value !== "" ? { mode: prefill.mode, value: prefill.value } : null;
+}
+
 /** One-line history preview: whitespace runs collapse to a single space (history.js caps it at 80). */
 export function previewOf(content) {
   return String(content ?? "").replace(/\s+/g, " ").trim();

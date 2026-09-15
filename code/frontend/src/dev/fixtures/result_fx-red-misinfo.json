@@ -1,0 +1,62 @@
+{
+  "id": "fx-red-misinfo",
+  "status": "completed",
+  "input_type": "text",
+  "input_preview": "網傳吃香蕉配優格會中毒！香蕉含高鉀，優格含乳酸菌，兩者在腸胃中會產生化學反應形成毒素，輕則腹瀉，重則腎衰竭。很多人天天這樣吃早餐都不知道，請務必轉給身邊的家人朋友，讓大家都知道這個飲食禁忌，早餐千萬不要再這樣搭配了，營養師私下都不敢說。",
+  "source_url": null,
+  "origin": "web",
+  "platform_post": null,
+  "created_at": "2026-09-15T14:32:02+08:00",
+  "completed_at": "2026-09-15T14:32:14+08:00",
+  "ai_unavailable": false,
+  "result": {
+    "result_id": "fx-red-misinfo",
+    "frame_type": "red",
+    "frame_label": "假訊息",
+    "ai_unavailable": false,
+    "is_risk": true,
+    "risk_type": "MISINFO",
+    "category": "Health_Rumor",
+    "category_label": "健康謠言",
+    "confidence_score": 0.93,
+    "confidence_level": "高",
+    "confidence_note": "模型自評信心，未經機率校準（實際效能請參考評測報告）",
+    "summary": "香蕉與優格一起吃不會產生毒素，這是流傳多年的食安謠言，營養師與查核機構皆已闢謠。",
+    "explanation": "香蕉含鉀、優格含乳酸菌，兩者並不會在腸胃中產生化學反應或毒素。\n營養師指出兩者搭配反而是常見的健康早餐；腎功能不佳者需控制鉀攝取，與是否同時吃優格無關。",
+    "sources": [
+      {
+        "title": "【錯誤】網傳「吃香蕉配優格會中毒」？營養師：無此禁忌",
+        "url": "https://www.mygopen.com/2026/09/banana-yogurt.html",
+        "tier": 1,
+        "tier_label": "查核機構"
+      },
+      {
+        "title": "香蕉配優格會中毒？營養師闢謠：無科學根據、可安心食用",
+        "url": "https://news.cts.com.tw/cts/life/202609/202609152000000.html",
+        "tier": 2,
+        "tier_label": "媒體查核報導"
+      }
+    ],
+    "related_discussions": [],
+    "verified": true,
+    "verification_status": "verified",
+    "source_tier": 1,
+    "similar_news": [],
+    "cached": false,
+    "cache_layer": null,
+    "label_source": "ai",
+    "kb_id": "kb-banana-yogurt",
+    "analyzed_at": "2026-09-15T14:32:14+08:00",
+    "border_color": "紅色",
+    "display_info": "假訊息",
+    "related_links": [
+      "https://www.mygopen.com/2026/09/banana-yogurt.html",
+      "https://news.cts.com.tw/cts/life/202609/202609152000000.html"
+    ]
+  },
+  "error": null,
+  "share": {
+    "text": "🔴 AI 判定這則訊息是假訊息：香蕉與優格一起吃不會產生毒素，這是流傳多年的食安謠言，營養師與查核機構皆已闢謠。查核來源：mygopen.com",
+    "url": "https://fcc-demo.vercel.app/r/fx-red-misinfo"
+  }
+}

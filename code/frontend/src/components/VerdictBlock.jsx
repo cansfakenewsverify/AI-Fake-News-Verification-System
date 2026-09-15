@@ -8,6 +8,8 @@ import Icon from "./Icon.jsx";
 // 全寬、-soft 底、無邊框、上下內距 24；12px 實心圓點＋frame_label（頁面唯一 <h1>，24/700 同色）
 // ＋category_label 14 --c-ink-2；右上 chips 插槽（手機寬度不足時整組換到下一行）。
 // grey（AI 不可用）以「!」圖示取代圓點；載入時 fade-in ≤200ms（reduced-motion 關閉）。
+// children（選填）：標題列之下的整列內容（S-05 點 chip 展開的 confidence_note／cache_hint、S-06 灰卡內文），
+// 由呼叫端自帶 w-full；隱藏時請在外層加 hidden，避免多出一行 flex 間距。
 // 注意：red 在 red-soft 上只有 3:1，僅限此處 24px 粗體大字使用。
 
 const FALLBACK_LABEL_KEY = {
@@ -17,7 +19,15 @@ const FALLBACK_LABEL_KEY = {
   grey: "frame_grey",
 };
 
-export default function VerdictBlock({ frameType, frameLabel, categoryLabel, chips, className = "", style }) {
+export default function VerdictBlock({
+  frameType,
+  frameLabel,
+  categoryLabel,
+  chips,
+  children,
+  className = "",
+  style,
+}) {
   const { tone, fg, soft } = toneOf(frameType);
   const headingId = useId();
   // 後端契約保證 frame_label 有值；缺值時才以同色系通用文案保底
@@ -52,6 +62,7 @@ export default function VerdictBlock({ frameType, frameLabel, categoryLabel, chi
           {chips}
         </div>
       ) : null}
+      {children}
     </section>
   );
 }
