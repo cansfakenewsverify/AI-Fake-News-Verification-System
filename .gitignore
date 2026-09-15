@@ -50,6 +50,7 @@ code/backend/data/*.bak-*
 code/backend/data/uploads/
 code/backend/data/check_*.txt
 code/backend/data/fix_labels_report.txt
+code/backend/data/llm_second_opinion.csv
 docs/test/op7_legacy/
 # Fallback: stores use Path("data") relative to CWD; running the backend or a
 # script from the repo root would create <root>/data/*.parquet / *.db.
