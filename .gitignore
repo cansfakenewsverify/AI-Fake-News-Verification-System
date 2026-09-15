@@ -82,6 +82,9 @@ backend_data/
 *.tmp
 tmp/
 
+# ── Demo video (large binary; share via cloud, not git) ──
+docs/demo/*.mp4
+
 # ── Local tooling ──────────────────────────────
 .claude/
 plantuml-*.jar
