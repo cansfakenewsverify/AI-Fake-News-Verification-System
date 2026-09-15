@@ -1,0 +1,21 @@
+# OP-7 API checks: backend (current HEAD code) started with cwd = scratch op7_root holding the legacy files
+# run at (local): 2026-09-16 03:54:10
+
+GET /health -> 200 (18.4 ms) {"status": "healthy", "ai_available": false, "threads_mode": "off", "scheduler": {"enabled": false, "interval_hours": 6}, "daily_ai_calls": null}
+GET /api/knowledge/stats -> 200 (232.0 ms) {"total": 0, "by_risk": {}, "counts": {"scam": 0, "misinfo": 0, "safe": 0, "unverifiable": 0}, "unverified_count": 236}
+GET /api/knowledge?limit=60 -> 200 (57.1 ms) records=0 total=0
+GET /api/trending?limit=20 -> 200 (36.9 ms) records=20
+  first record keys=['ai_score', 'ai_summary', 'category', 'created_at', 'id', 'is_trending', 'label_source', 'news_title', 'platform', 'post_id', 'result_id', 'risk_type', 'source_tier', 'source_url', 'verified']
+  new-field values on first 5 records: [{"verified": null, "source_tier": null, "label_source": "rule", "risk_type": "MISINFO"}, {"verified": null, "source_tier": null, "label_source": "rule", "risk_type": "MISINFO"}, {"verified": null, "source_tier": null, "label_source": "rule", "risk_type": "MISINFO"}, {"verified": null, "source_tier": null, "label_source": "rule", "risk_type": "MISINFO"}, {"verified": null, "source_tier": null, "label_source": "ai", "risk_type": "SAFE"}]
+GET /api/result/9ace5494-d3ca-4990-a639-000dded4857c (legacy completed) -> 200 (38.6 ms) {"status": "completed", "ai_unavailable": false, "error": null, "result.verification_status": "unverified", "result.verified": false, "result.label_source": "ai", "result.source_tier": null, "result.similar_news": [], "result.frame_type": null, "share": false}
+GET /api/result/d26375e2-2438-4315-8641-ea9d690667e3 (legacy completed) -> 200 (37.8 ms) {"status": "completed", "ai_unavailable": false, "error": null, "result.verification_status": "unverified", "result.verified": false, "result.label_source": "ai", "result.source_tier": null, "result.similar_news": [], "result.frame_type": null, "share": false}
+GET /api/result/9ee5a769-26fb-4dcf-8bd0-ee0a3c418038 (legacy pending) -> 200 (27.3 ms) {"status": "pending", "ai_unavailable": false, "error": null, "result.verification_status": null, "result.verified": null, "result.label_source": null, "result.source_tier": null, "result.similar_news": null, "result.frame_type": null, "share": false}
+GET /api/result/cd2d57bd-167c-4c41-b1be-ffadc8087476 (legacy pending) -> 200 (38.5 ms) {"status": "pending", "ai_unavailable": false, "error": null, "result.verification_status": null, "result.verified": null, "result.label_source": null, "result.source_tier": null, "result.similar_news": null, "result.frame_type": null, "share": false}
+GET /api/result/9aaf1943-e724-4238-9fed-9f3f0b9809dd (legacy failed) -> 200 (61.4 ms) {"status": "failed", "ai_unavailable": false, "error": {"code": "analysis_failed", "message": "查證失敗，請稍後再試。"}, "result.verification_status": null, "result.verified": null, "result.label_source": null, "result.source_tier": null, "result.similar_news": null, "result.frame_type": null, "share": false}
+GET /api/result/1d89efbe-e724-4779-bd5e-d06b884b3ee6 (legacy failed) -> 200 (31.8 ms) {"status": "failed", "ai_unavailable": false, "error": {"code": "analysis_failed", "message": "查證失敗，請稍後再試。"}, "result.verification_status": null, "result.verified": null, "result.label_source": null, "result.source_tier": null, "result.similar_news": null, "result.frame_type": null, "share": false}
+GET /api/threads/status -> 200 (6.7 ms) mode=off
+
+factcheck.db after startup: rows=63; columns added by init_sql_db (name, type, default)=[('platform', 'VARCHAR(20)', None), ('post_id', 'VARCHAR(64)', None), ('label_source', 'VARCHAR(10)', None), ('result_id', 'VARCHAR(36)', None), ('verified', 'BOOLEAN', None), ('source_tier', 'INTEGER', None)]
+  value distribution of added columns: {"platform": [[null, 63]], "post_id": [[null, 63]], "label_source": [["ai", 38], ["rule", 25]], "result_id": [[null, 63]], "verified": [[null, 63]], "source_tier": [[null, 63]]}
+knowledge_base.parquet after: rows=236 columns_unchanged=True
+tasks.parquet after: rows=33 columns_unchanged=True

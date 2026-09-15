@@ -1,0 +1,22 @@
+# OP-7 check_db.py AFTER: same legacy copy after the current backend started on it (init_sql_db ALTER at startup) and served /health, /api/trending, /api/knowledge*, /api/result/{legacy ids}, /api/threads/status
+
+=== Parquet knowledge_base ===
+total: 236
+columns missing in file (counted as None): verified, source_tier, label_source
+verified: true=0 false=0 null=236
+source_tier: None=236
+label_source: None=236
+content_vector: with_vector=200 no_vector=36
+content_vector non-1536-dim rows: 18 (dims: 3072=13, 768=5)
+risk_type: MISINFO=114, SAFE=63, SCAM=59
+
+=== SQLite fact_check_records (trending) ===
+total: 63
+verified: true=0 false=0 null=63
+source_url contains news.google.com: 31
+risk_type: MISINFO=30, SAFE=13, UNVERIFIABLE=12, SCAM=8
+label_source: ai=38, rule=25
+source_tier: None=63
+
+# diff BEFORE vs AFTER (check_db.py output bodies):
+(identical)

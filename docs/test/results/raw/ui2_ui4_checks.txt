@@ -1,0 +1,144 @@
+# UI-2 (360x780) and UI-4 (theme) programmatic checks, headless Edge via CDP against 127.0.0.1:5310 (real backend)
+
+## UI-2 (per page: scrollWidth vs innerWidth, tab bar, result action bar before/after scrolling to the bottom)
+[
+ {
+  "path": "/",
+  "innerWidth": 360,
+  "innerHeight": 780,
+  "scrollWidth": 360,
+  "overflowX": false,
+  "tabBar": {
+   "position": "fixed",
+   "rect": {
+    "top": 723,
+    "bottom": 780,
+    "height": 57
+   },
+   "inlineStyle": "padding-bottom: env(safe-area-inset-bottom);"
+  },
+  "actionBarTop": null
+ },
+ {
+  "path": "/r/8e659c33-6587-4d12-81fc-b116c7785107",
+  "innerWidth": 360,
+  "innerHeight": 780,
+  "scrollWidth": 360,
+  "overflowX": false,
+  "tabBar": {
+   "position": "fixed",
+   "rect": {
+    "top": 723,
+    "bottom": 780,
+    "height": 57
+   },
+   "inlineStyle": "padding-bottom: env(safe-area-inset-bottom);"
+  },
+  "actionBarTop": {
+   "position": "sticky",
+   "rect": {
+    "top": 595,
+    "bottom": 724,
+    "height": 129
+   },
+   "inlineStyle": "bottom: calc(var(--tabbar-h, 0px) + env(safe-area-inset-bottom)); padding: 12px 16px;",
+   "visible": true
+  },
+  "afterScroll": {
+   "scrollY": 270,
+   "bar": {
+    "top": 443,
+    "bottom": 572
+   },
+   "nav": {
+    "top": 723,
+    "bottom": 780
+   },
+   "barVisible": true,
+   "barAboveTabBar": true,
+   "disclaimer": {
+    "top": 403,
+    "bottom": 419
+   },
+   "disclaimerNotCovered": true
+  }
+ },
+ {
+  "path": "/trending",
+  "innerWidth": 360,
+  "innerHeight": 780,
+  "scrollWidth": 360,
+  "overflowX": false,
+  "tabBar": {
+   "position": "fixed",
+   "rect": {
+    "top": 723,
+    "bottom": 780,
+    "height": 57
+   },
+   "inlineStyle": "padding-bottom: env(safe-area-inset-bottom);"
+  },
+  "actionBarTop": null
+ },
+ {
+  "path": "/knowledge",
+  "innerWidth": 360,
+  "innerHeight": 780,
+  "scrollWidth": 360,
+  "overflowX": false,
+  "tabBar": {
+   "position": "fixed",
+   "rect": {
+    "top": 723,
+    "bottom": 780,
+    "height": 57
+   },
+   "inlineStyle": "padding-bottom: env(safe-area-inset-bottom);"
+  },
+  "actionBarTop": null
+ }
+]
+
+## UI-4 (initial = fresh profile without fcc_theme under emulated prefers-color-scheme; toggled = after clicking 切換深淺色; reloaded = after Page.reload)
+{
+ "light": {
+  "initial": {
+   "dataTheme": "light",
+   "stored": null,
+   "toggle": "深色",
+   "bg": "rgb(255, 255, 255)"
+  },
+  "toggled": {
+   "dataTheme": "dark",
+   "stored": "dark",
+   "toggle": "淺色",
+   "bg": "rgb(15, 17, 21)"
+  },
+  "reloaded": {
+   "dataTheme": "dark",
+   "stored": "dark",
+   "toggle": "淺色",
+   "bg": "rgb(15, 17, 21)"
+  }
+ },
+ "dark": {
+  "initial": {
+   "dataTheme": "dark",
+   "stored": null,
+   "toggle": "淺色",
+   "bg": "rgb(15, 17, 21)"
+  },
+  "toggled": {
+   "dataTheme": "light",
+   "stored": "light",
+   "toggle": "深色",
+   "bg": "rgb(255, 255, 255)"
+  },
+  "reloaded": {
+   "dataTheme": "light",
+   "stored": "light",
+   "toggle": "深色",
+   "bg": "rgb(255, 255, 255)"
+  }
+ }
+}

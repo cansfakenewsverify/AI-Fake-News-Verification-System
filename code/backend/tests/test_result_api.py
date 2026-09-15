@@ -144,6 +144,21 @@ def test_ai_unavailable_grey_share_null(client, store):
     assert body["share"] is None
 
 
+def test_legacy_fallback_task_marked_ai_unavailable(client, store):
+    """v1.0 前的舊任務沒有 ai_unavailable 欄位；AI 失敗的舊結果仍要回 ai_unavailable 且不給分享（測試報告 D-1）。"""
+    tid = store.create_task("analyze_text", "舊任務", input_type="text")
+    legacy = {
+        "is_risk": False, "risk_type": "SAFE", "category": "Irrelevant", "confidence_score": 0.0,
+        "summary": "AI 分析暫時無法使用", "explanation": "AI 服務呼叫失敗", "sources": [],
+    }
+    store.update_task(tid, status="completed", result_data=json.dumps(legacy, ensure_ascii=False))
+    body = client.get(f"/api/result/{tid}").json()
+    assert body["status"] == "completed"
+    assert body["ai_unavailable"] is True
+    assert body["result"]["ai_unavailable"] is True
+    assert body["share"] is None
+
+
 def test_share_text_unverified_red_has_no_source_tail(client, store):
     tid = store.create_task("analyze_text", "某則謠言", input_type="text")
     _complete(store, tid, {

@@ -1,0 +1,173 @@
+# OP-9 supplementary re-run (scratch copy; repo data untouched): scripts/clean_sources_2026_09.py on a copy of the committed seed
+# copy source: knowledge_base.parquet + factcheck.db from the pre-test backup (sha256 B4F49CD7... / 880DAB98...), clean_sources_cache.json from code/backend/data
+# run at: 2026-09-16 03:58:12 +0800
+
+== initial
+  b4f49cd7b9f29451  mtime=1789502292  knowledge_base.parquet
+  880dab98e5f5f613  mtime=1789502292  factcheck.db
+
+== 1) --dry-run
+[AI] 未設定可用 AI provider 金鑰 / BASE_URL，AI 分析將回傳 fallback 結果
+[AI] 未設定可用 AI provider 金鑰 / BASE_URL，AI 分析將回傳 fallback 結果
+FR-18 clean_sources_2026_09 report (DRY-RUN)
+generated: 2026-09-16T03:58:12
+data dir: <scratch>\op9_root\data
+
+=== 知識庫 knowledge_base.parquet（規則 1、2） ===
+負責人核准刪除（D-05 決定 2）：0 筆
+知識庫總筆數：218
+規則 1（來源補齊／分級／Tier 3 移至 related_discussions）影響：0 筆
+規則 2（非真實主張或 Cofacts 無回覆 → verified=false、不索引）影響：0 筆
+清洗後 verified：true=128 false=90
+label_source=rule 被降級：0 筆
+label_source in (rule, gold, admin) 被降級：0 筆
+QA-5 檢核範圍：label_source rule=0, gold=0, admin=0（共 0 筆受保護）；其餘 ai=218
+QA-5 注意：本知識庫沒有任何 rule/gold/admin 列（缺 label_source 欄位時一律視為 ai），上面的「被降級：0 筆」為空集合檢核，不能證明規則索引的主張未被降級；D-05 前請負責人決定舊的規則索引列如何處理（TIER1_DOMAINS 或 label_source 回填）
+清洗後 verified=false 依 source_url 網域分組（總數／其中原本非 false）：共 90 筆
+  (無 source_url): 72 / 0
+  news.google.com: 11 / 0
+  cofacts.tw: 4 / 0
+  tfc-taiwan.org.tw: 3 / 0
+
+(無)
+
+(無)
+
+=== 熱門 fact_check_records（規則 3、4） ===
+負責人核准刪除（D-05 決定 2，不含規則 3 已刪者）：0 筆
+熱門總筆數：24
+規則 3（news.google.com 轉址解析／去重／刪除）影響：0 筆（Google News 0 筆：解析成功 0；刪除合計 0，含去重）
+規則 4（verified／source_tier 回填）影響：0 筆
+清洗後熱門筆數：24；verified=true 24
+熱門 label_source=rule 被降級：0 筆
+熱門 label_source=rule 被刪除：0 筆
+熱門 label_source in (rule, gold, admin) 被刪除：0 筆
+熱門刪除依 label_source／risk_type 分組：共 0 筆
+  (無)
+
+(無)
+(無)
+
+(無)
+
+=== Cofacts 文章查詢結論 ===
+合計：有回覆=19, 無回覆=4；本次網路查詢 0 次
+
+各規則影響筆數：rule1=0, rule2=0, rule3=0, rule4=0
+-- after dry-run
+  b4f49cd7b9f29451  mtime=1789502292  knowledge_base.parquet
+  880dab98e5f5f613  mtime=1789502292  factcheck.db
+
+== 2) --apply (first apply on the already-cleaned seed)
+[AI] 未設定可用 AI provider 金鑰 / BASE_URL，AI 分析將回傳 fallback 結果
+[AI] 未設定可用 AI provider 金鑰 / BASE_URL，AI 分析將回傳 fallback 結果
+FR-18 clean_sources_2026_09 report (APPLY)
+generated: 2026-09-16T03:58:15
+data dir: <scratch>\op9_root\data
+
+=== 知識庫 knowledge_base.parquet（規則 1、2） ===
+負責人核准刪除（D-05 決定 2）：0 筆
+知識庫總筆數：218
+規則 1（來源補齊／分級／Tier 3 移至 related_discussions）影響：0 筆
+規則 2（非真實主張或 Cofacts 無回覆 → verified=false、不索引）影響：0 筆
+清洗後 verified：true=128 false=90
+label_source=rule 被降級：0 筆
+label_source in (rule, gold, admin) 被降級：0 筆
+QA-5 檢核範圍：label_source rule=0, gold=0, admin=0（共 0 筆受保護）；其餘 ai=218
+QA-5 注意：本知識庫沒有任何 rule/gold/admin 列（缺 label_source 欄位時一律視為 ai），上面的「被降級：0 筆」為空集合檢核，不能證明規則索引的主張未被降級；D-05 前請負責人決定舊的規則索引列如何處理（TIER1_DOMAINS 或 label_source 回填）
+清洗後 verified=false 依 source_url 網域分組（總數／其中原本非 false）：共 90 筆
+  (無 source_url): 72 / 0
+  news.google.com: 11 / 0
+  cofacts.tw: 4 / 0
+  tfc-taiwan.org.tw: 3 / 0
+
+(無)
+
+(無)
+
+[apply] 已寫入 <scratch>\op9_root\data\knowledge_base.parquet（備份 knowledge_base.parquet.bak-20260916）
+=== 熱門 fact_check_records（規則 3、4） ===
+負責人核准刪除（D-05 決定 2，不含規則 3 已刪者）：0 筆
+熱門總筆數：24
+規則 3（news.google.com 轉址解析／去重／刪除）影響：0 筆（Google News 0 筆：解析成功 0；刪除合計 0，含去重）
+規則 4（verified／source_tier 回填）影響：0 筆
+清洗後熱門筆數：24；verified=true 24
+熱門 label_source=rule 被降級：0 筆
+熱門 label_source=rule 被刪除：0 筆
+熱門 label_source in (rule, gold, admin) 被刪除：0 筆
+熱門刪除依 label_source／risk_type 分組：共 0 筆
+  (無)
+
+(無)
+(無)
+
+(無)
+
+[apply] 已寫入 <scratch>\op9_root\data\factcheck.db（備份 factcheck.db.bak-20260916）
+=== Cofacts 文章查詢結論 ===
+合計：有回覆=19, 無回覆=4；本次網路查詢 0 次
+
+各規則影響筆數：rule1=0, rule2=0, rule3=0, rule4=0
+-- after apply #1
+  b4f49cd7b9f29451  mtime=1789502296  knowledge_base.parquet
+  880dab98e5f5f613  mtime=1789502292  factcheck.db
+  file: clean_sources_cache.json
+  file: clean_sources_report.txt
+  file: factcheck.db
+  file: factcheck.db.bak-20260916
+  file: knowledge_base.parquet
+  file: knowledge_base.parquet.bak-20260916
+
+== 3) --apply again
+[AI] 未設定可用 AI provider 金鑰 / BASE_URL，AI 分析將回傳 fallback 結果
+[AI] 未設定可用 AI provider 金鑰 / BASE_URL，AI 分析將回傳 fallback 結果
+FR-18 clean_sources_2026_09 report (APPLY)
+generated: 2026-09-16T03:58:18
+data dir: <scratch>\op9_root\data
+
+=== 知識庫 knowledge_base.parquet（規則 1、2） ===
+負責人核准刪除（D-05 決定 2）：0 筆
+知識庫總筆數：218
+規則 1（來源補齊／分級／Tier 3 移至 related_discussions）影響：0 筆
+規則 2（非真實主張或 Cofacts 無回覆 → verified=false、不索引）影響：0 筆
+清洗後 verified：true=128 false=90
+label_source=rule 被降級：0 筆
+label_source in (rule, gold, admin) 被降級：0 筆
+QA-5 檢核範圍：label_source rule=0, gold=0, admin=0（共 0 筆受保護）；其餘 ai=218
+QA-5 注意：本知識庫沒有任何 rule/gold/admin 列（缺 label_source 欄位時一律視為 ai），上面的「被降級：0 筆」為空集合檢核，不能證明規則索引的主張未被降級；D-05 前請負責人決定舊的規則索引列如何處理（TIER1_DOMAINS 或 label_source 回填）
+清洗後 verified=false 依 source_url 網域分組（總數／其中原本非 false）：共 90 筆
+  (無 source_url): 72 / 0
+  news.google.com: 11 / 0
+  cofacts.tw: 4 / 0
+  tfc-taiwan.org.tw: 3 / 0
+
+(無)
+
+(無)
+
+[apply] 已寫入 <scratch>\op9_root\data\knowledge_base.parquet（備份 knowledge_base.parquet.bak-20260916）
+=== 熱門 fact_check_records（規則 3、4） ===
+負責人核准刪除（D-05 決定 2，不含規則 3 已刪者）：0 筆
+熱門總筆數：24
+規則 3（news.google.com 轉址解析／去重／刪除）影響：0 筆（Google News 0 筆：解析成功 0；刪除合計 0，含去重）
+規則 4（verified／source_tier 回填）影響：0 筆
+清洗後熱門筆數：24；verified=true 24
+熱門 label_source=rule 被降級：0 筆
+熱門 label_source=rule 被刪除：0 筆
+熱門 label_source in (rule, gold, admin) 被刪除：0 筆
+熱門刪除依 label_source／risk_type 分組：共 0 筆
+  (無)
+
+(無)
+(無)
+
+(無)
+
+[apply] 已寫入 <scratch>\op9_root\data\factcheck.db（備份 factcheck.db.bak-20260916）
+=== Cofacts 文章查詢結論 ===
+合計：有回覆=19, 無回覆=4；本次網路查詢 0 次
+
+各規則影響筆數：rule1=0, rule2=0, rule3=0, rule4=0
+-- after apply #2
+  b4f49cd7b9f29451  mtime=1789502299  knowledge_base.parquet
+  880dab98e5f5f613  mtime=1789502292  factcheck.db

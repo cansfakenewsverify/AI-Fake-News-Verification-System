@@ -1,0 +1,20 @@
+# UI-5 keyboard walk-through (headless Edge 1280x800, real backend via 127.0.0.1:5310)
+# text submitted (KB exact text, expected hash-cache hit): 台灣即將被聯合國除名，因為政府簽了密約要把國土割讓出去，媒體都不敢報
+
+Tab 1: a "全民查證公社" outline=solid 2px
+Tab 2: a "查證" outline=solid 2px
+Tab 3: a "熱門" outline=solid 2px
+Tab 4: a "知識庫" outline=solid 2px
+Tab 5: a "機器人" outline=solid 2px
+Tab 6: button "切換深淺色" outline=solid 2px
+Tab 7: button[role=tab][aria-selected=true] "文字" outline=solid 2px
+  ArrowRight -> button[role=tab][aria-selected=true] "網址" outline=solid 2px ; url input present=true
+  ArrowLeft  -> button[role=tab][aria-selected=true] "文字" outline=solid 2px ; textarea present=true
+Tab 8: textarea "要查證的內容" outline=solid 2px
+  typed 34 chars into the textarea (Input.insertText while focused)
+Tab 9: button "開始查證" outline=solid 2px
+  Enter pressed on the submit button
+  navigated=true completed=true after 2400 ms -> {"path":"/r/73acf2c1-d9e6-4d63-bc9c-bbf99ae99271","h1":["假訊息"],"chip":true}
+
+result: reachedTextarea=true reachedSubmit=true arrowKeysOnModeTabs=true
+console errors: []

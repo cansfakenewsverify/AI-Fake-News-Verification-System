@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from app.api.analyze import MSG_ANALYSIS_FAILED, api_error, task_result_payload
 from app.services.task_store import TaskStore, input_type_from_task_type
 from app.utils.share import build_share
+from app.utils.verdict import is_fallback
 
 router = APIRouter(prefix="/api/result", tags=["result"])
 task_store = TaskStore()
@@ -90,7 +91,14 @@ def build_result_response(task: Dict[str, Any], base_url: Optional[str] = None) 
     input_type = task.get("input_type") or input_type_from_task_type(task.get("task_type"))
 
     result = task_result_payload(task) if status == "completed" else None
-    ai_unavailable = bool(task.get("ai_unavailable")) or bool((result or {}).get("ai_unavailable"))
+    # v1.0 前的舊任務沒有 ai_unavailable 欄位（載入時補 False）；AI 失敗的舊結果要從內容判斷，
+    # 否則會把 fallback 當有效判定顯示並提供分享（測試報告 D-1）
+    legacy_fallback = result is not None and is_fallback(result)
+    if legacy_fallback and isinstance(result, dict):
+        result["ai_unavailable"] = True
+    ai_unavailable = (bool(task.get("ai_unavailable"))
+                      or bool((result or {}).get("ai_unavailable"))
+                      or legacy_fallback)
 
     error = None
     if status == "failed":

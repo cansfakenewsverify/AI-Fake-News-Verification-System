@@ -1,0 +1,44 @@
+# Backend runtime notes (OP-1 pre-check / OP-7): start-up timing and access-log status counts
+# start-up timing = PowerShell Start-Process time -> first HTTP 200 from GET /health (polled every 500 ms, so resolution ~0.5 s)
+
+== 8030 (THREADS_MODE=sim, repo data, started 2026-09-16 03:17:31 +08:00): healthy after 1.89 s
+-- uvicorn / app start-up log (stderr, first lines) --
+INFO:     Started server process [95048]
+INFO:     Waiting for application startup.
+03:17:32 [INFO] app.main: Threads mode: sim
+03:17:32 [INFO] app.main: Scheduler starting:
+03:17:32 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+03:17:32 [INFO] app.main:   - Threads bot   : poll mentions every 600min
+03:17:32 [INFO] apscheduler.scheduler: Added job "run_poll_quietly" to job store "default"
+03:17:32 [INFO] apscheduler.scheduler: Scheduler started
+03:17:32 [INFO] app.main: App started [LIVE] - http://localhost:8000/docs
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8030 (Press CTRL+C to quit)
+03:23:54 [INFO] app.workers.pandas_task_processor: verification {"result_id": "6c5a5e39-686d-4c06-b538-f5826e53dd8a", "origin": "web", "cache_layer": "hash", "provider": null, "elapsed_ms": 163, "tier_ms": null, "usd": null}
+-- access log status counts (all requests during the run) --
+    320 200
+      3 202
+      2 401
+      3 404
+total requests: 328
+401 lines:
+INFO:     127.0.0.1:6933 - "POST /api/threads/poll HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:6934 - "POST /api/threads/poll HTTP/1.1" 401 Unauthorized
+404 lines:
+INFO:     127.0.0.1:6935 - "GET /api/result/00000000-0000-4000-8000-000000000000 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:13723 - "GET /api/result/00000000-0000-4000-8000-000000000000 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:10520 - "GET /api/result/00000000-0000-4000-8000-000000000000 HTTP/1.1" 404 Not Found
+
+== 8031 (THREADS_MODE=off, scratch copy of docs/test/op7_legacy, no .env, started 2026-09-16 03:53 +08:00): healthy after 2.17 s
+-- uvicorn / app start-up log (stderr, first lines) --
+INFO:     Started server process [110724]
+INFO:     Waiting for application startup.
+03:53:37 [INFO] app.main: Threads mode: off
+03:53:37 [INFO] app.main: App started [LIVE] - http://localhost:8000/docs
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8031 (Press CTRL+C to quit)
+03:54:11 [WARNING] app.api.result: result 9aaf1943-e724-4238-9fed-9f3f0b9809dd failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+03:54:11 [WARNING] app.api.result: result 1d89efbe-e724-4779-bd5e-d06b884b3ee6 failed: 爬取失敗: [0;31mERROR:[0m unable to download video data: HTTP Error 403: Forbidden
+-- access log status counts --
+     48 200
+total requests: 48

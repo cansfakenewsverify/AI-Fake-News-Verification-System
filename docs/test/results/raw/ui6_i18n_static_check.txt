@@ -1,0 +1,52 @@
+# UI-6 static check of code/frontend/src/i18n.js against docs/rebuild/01_spec.md §8.7
+
+spec §8.7 keys parsed: 139; verbatim equal: 135; differing or not directly comparable: 4
+DIFF confidence_chip
+  spec: "信心 {高|中|低}"
+  impl: undefined
+DIFF frame_yellow_no_source
+  spec: "尚無查核機構證實（7.8 新列；與 `frame_yellow_unverifiable`「無法查證」不同：後者是讀不到內容，前者是讀得到但找不到已判定的查核來源）"
+  impl: "尚無查核機構證實"
+DIFF knowledge_stats
+  spec: "共 {total} 筆・詐騙 {scam}・假訊息 {misinfo}・安全 {safe}・無法查證 {unv}（只計 `verified=true`，FR-17）"
+  impl: "共 {total} 筆・詐騙 {scam}・假訊息 {misinfo}・安全 {safe}・無法查證 {unv}"
+DIFF nav_bot
+  spec: "機器人（`nav_history`「紀錄」隨 `/history` 降 P2 保留 key、本次不顯示）"
+  impl: "機器人"
+
+spec keys missing in STRINGS: ["confidence_chip"]
+
+ASCII words (4+ letters) in user-visible values, URLs removed (word: keys):
+  BOT_HANDLE: bot_howto, dev_mode_notice
+  BRAND: page_title_suffix
+  CONTACT_EMAIL: deletion_body
+  Cofacts: no_verified_source_body, trending_sub
+  Cookie: privacy_not
+  LINE: input_placeholder_text
+  Meta: dev_mode_notice
+  MyGoPen: no_verified_source_body, trending_sub
+  Review: dev_mode_notice
+  THREADS_MODE: threads_off
+  Threads: input_placeholder_text, unverifiable_threads_hint, btn_share_threads, btn_share_opened, toast_share, from_threads (+10)
+  WEBP: upload_hint, err_image_type
+  checked: threads_last_poll
+  code: error_server
+  datetime: analyzed_at
+  errors: threads_last_poll
+  frame_label: similar_item
+  http: err_invalid_url
+  https: err_invalid_url
+  limit: threads_daily
+  misinfo: knowledge_stats
+  replied: threads_last_poll
+  safe: knowledge_stats
+  scam: knowledge_stats
+  scheduler_state: trending_sub
+  skipped: threads_last_poll
+  source_domain: share_text_red_scam, share_text_red_misinfo
+  summary: share_text_red_scam, share_text_red_misinfo, share_text_yellow, share_text_green, share_text_yellow_unverified
+  time: trending_updated, threads_last_poll
+  token: threads_mode_invalid, threads_off, threads_token_days, oauth_cb_body
+  total: knowledge_stats, knowledge_end
+  usage: threads_daily
+  username: from_threads

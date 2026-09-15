@@ -1,0 +1,38 @@
+# OP-7 legacy completed tasks: stored result_data vs GET /api/result (port 8031, legacy copy)
+{
+ "completed_legacy_tasks": 28,
+ "stored_result_has_frame_type": 22,
+ "stored_result_is_fallback": 17,
+ "fallback_but_api_ai_unavailable_false": 17,
+ "api_frame_type_null": 6,
+ "api_share_null": 6
+}
+
+{"id": "9ace5494-d3ca-4990-a639-000dded4857c", "stored_has_frame_type": false, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": null, "api_share": false, "summary_head": "AI 分析暫時無法使用"}
+{"id": "d26375e2-2438-4315-8641-ea9d690667e3", "stored_has_frame_type": false, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": null, "api_share": false, "summary_head": "AI 分析暫時無法使用"}
+{"id": "7d8e4c18-0f55-48c1-8b26-8b0390033f06", "stored_has_frame_type": false, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": null, "api_share": false, "summary_head": "AI 分析暫時無法使用"}
+{"id": "4b84850a-d635-4d8a-a6e7-14e4edd677bd", "stored_has_frame_type": false, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": null, "api_share": false, "summary_head": "AI 分析暫時無法使用"}
+{"id": "170848df-7200-45a6-a3a1-d33a24e7680d", "stored_has_frame_type": false, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": null, "api_share": false, "summary_head": "AI 分析暫時無法使用"}
+{"id": "d30d1f71-746a-4668-8ae4-f2c92ea74f50", "stored_has_frame_type": false, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": null, "api_share": false, "summary_head": "AI 分析暫時無法使用"}
+{"id": "d52e84e8-77e6-46d4-880b-e1de5f8cd495", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "9779823e-2467-4328-9221-5390c08a1512", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "f6267789-e02e-455d-8f2e-a56bf8f68087", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "194e8bb7-16b1-46d6-9d33-8ac7eb3ab862", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "21fc94ad-b1d3-4b19-8dfc-48f9854dbd70", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "b6a54190-bb6a-4294-8ac1-27a459cdb7c4", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "eefbc72c-f994-4ba7-a52b-0ea1e5f8b677", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "3c09959b-a357-4344-9421-3873cf6ba509", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "red", "api_share": true, "summary_head": "網傳「日本青森發生7.4大地"}
+{"id": "9241a622-51a1-412e-9a46-40c7b90da9f8", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "red", "api_share": true, "summary_head": "此為已被查核的假訊息：「美日"}
+{"id": "d5edea87-127e-406f-be7a-fe98b267fc40", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "green", "api_share": true, "summary_head": "內容說明大蒜中的蒜素如何生成"}
+{"id": "5225067e-7f2b-4513-8175-b39ca0ca14ba", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "red", "api_share": true, "summary_head": "內容聲稱透過實驗證明大蒜汁能"}
+{"id": "665b112e-4a93-425e-a847-cbcc5d86289f", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "green", "api_share": true, "summary_head": "德國駐台處長示警，指出中國和"}
+{"id": "cf6c08b5-90fd-496b-bbcc-3065b63c236d", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "39ea84ff-eb08-45e0-aae6-067fb6a639fa", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "8b014b3c-5c2b-4221-b157-2e42f066f04f", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "8d72c1c4-702c-4d95-aebf-551804f5e90a", "stored_has_frame_type": true, "stored_is_fallback": true, "api_ai_unavailable": false, "api_frame_type": "yellow", "api_share": true, "summary_head": "AI 分析暫時無法使用"}
+{"id": "eac95aa7-becc-4a60-bda5-f3177fc16a5b", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "red", "api_share": true, "summary_head": "宣稱加入LINE群由「老師帶"}
+{"id": "b06903d5-0617-445c-9b9e-6aacdaa5a8b6", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "red", "api_share": true, "summary_head": "宣稱加入LINE群由「老師帶"}
+{"id": "3d3f8cf3-9f38-47e3-86b6-da4bc98dc895", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "red", "api_share": true, "summary_head": "宣稱「車停紅白結界罰3.6萬"}
+{"id": "7ca8e9fb-72b5-4693-8c1d-fcc3057bc140", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "red", "api_share": true, "summary_head": "宣稱加入 LINE 群組「飆"}
+{"id": "7b158a50-e268-4bbc-ad20-966fd835ce21", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "red", "api_share": true, "summary_head": "以「飆股天地LINE群」名義"}
+{"id": "0a904625-a563-4d58-9033-7289915010eb", "stored_has_frame_type": true, "stored_is_fallback": false, "api_ai_unavailable": false, "api_frame_type": "red", "api_share": true, "summary_head": "以「飆股天地LINE群」名義"}
