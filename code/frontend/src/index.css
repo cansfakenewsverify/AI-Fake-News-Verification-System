@@ -39,6 +39,7 @@
   --radius-btn: 10px;
   --radius-chip: 999px;
   --shadow-card: 0 1px 2px rgba(17, 17, 17, 0.04);
+  --c-backdrop: rgba(17, 17, 17, 0.4); /* 對話框遮罩（P-17 ConfirmDialog ::backdrop） */
 
   --font-stack: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
 }
@@ -67,6 +68,7 @@
   --c-grey-soft: #22262F;
 
   --shadow-card: none;
+  --c-backdrop: rgba(0, 0, 0, 0.6);
 }
 
 /* token → Tailwind 工具類（bg-surface、text-ink、border-line、text-red …） */

@@ -200,6 +200,10 @@ export const EXTRA = {
   rel_minutes_ago: "{n} 分鐘前",
   rel_hours_ago: "{n} 小時前",
   rel_month_day: "{m}/{d}",
+  nav_main_label: "主要導覽", // P-14 分頁列／桌機導覽 <nav aria-label>（依 Main.dc.html）
+  input_mode_label: "輸入模式", // P-16 模式 tablist aria-label（依 Main.dc.html）
+  input_label: "要查證的內容", // P-16 textarea／網址輸入框 aria-label（依 Main.dc.html；placeholder 不當標籤）
+  btn_cancel: "取消", // P-17 ConfirmDialog 取消鈕（8.7 只有確認側 btn_clear_history）
 };
 
 const PLACEHOLDER = /\{([A-Za-z_][A-Za-z0-9_]*)(?:≤(\d+))?\}/g;

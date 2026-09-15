@@ -45,6 +45,27 @@ const PAIRS = [
   ["c-grey", "c-grey-soft", 4.5],
   ["c-green", "c-green-soft", 4.5],
   ["c-red", "c-red-soft", 3.0],
+  // 元件實際使用的組合（P-14～P-17）：
+  // DotRow 13px 判定文字與 InputCard inline 錯誤字（在頁面底或卡片底上）
+  ["c-red", "c-bg", 4.5],
+  ["c-red", "c-surface", 4.5],
+  ["c-yellow", "c-bg", 4.5],
+  ["c-yellow", "c-surface", 4.5],
+  ["c-green", "c-bg", 4.5],
+  ["c-green", "c-surface", 4.5],
+  ["c-grey", "c-bg", 4.5],
+  ["c-grey", "c-surface", 4.5],
+  // VerdictBlock category_label（14px --c-ink-2 在各 -soft 底上）
+  ["c-ink-2", "c-red-soft", 4.5],
+  ["c-ink-2", "c-yellow-soft", 4.5],
+  ["c-ink-2", "c-green-soft", 4.5],
+  ["c-ink-2", "c-grey-soft", 4.5],
+  // Chip cache／neutral、篩選選中與 Toast（反白）、分段 tab 未選、分頁列當前格
+  ["c-accent", "c-accent-soft", 4.5],
+  ["c-ink-2", "c-accent-soft", 4.5],
+  ["c-ink-inverse", "c-ink", 4.5],
+  ["c-ink-2", "c-line", 4.5],
+  ["c-accent", "c-bg", 4.5],
 ];
 
 test("contrast helper matches known values", () => {

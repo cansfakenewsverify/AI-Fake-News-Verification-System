@@ -1,0 +1,7 @@
+{
+  "status": "healthy",
+  "ai_available": true,
+  "threads_mode": "sim",
+  "scheduler": { "enabled": false, "interval_hours": 6 },
+  "daily_ai_calls": null
+}

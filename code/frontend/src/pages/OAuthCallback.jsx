@@ -49,7 +49,7 @@ export default function OAuthCallback() {
   }
 
   return (
-    <main style={{ padding: "24px 16px", maxWidth: 640, margin: "0 auto" }}>
+    <div style={{ padding: "24px 0" }}>
       <Card>
         <h1 className="t-h1" style={{ margin: 0 }}>{title}</h1>
         {code ? (
@@ -83,6 +83,6 @@ export default function OAuthCallback() {
           )
         )}
       </Card>
-    </main>
+    </div>
   );
 }

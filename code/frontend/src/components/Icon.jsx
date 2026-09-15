@@ -52,6 +52,19 @@ const PATHS = {
     </>
   ),
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  // 無外圈的「!」「?」幾何記號（P-17 EmptyState；外圈由容器提供）
+  exclamation: (
+    <>
+      <path d="M12 5v9" />
+      <path d="M12 19h.01" />
+    </>
+  ),
+  question: (
+    <>
+      <path d="M8.5 8.5a3.5 3.5 0 0 1 7 0c0 2.5-3.5 3-3.5 5.5" />
+      <path d="M12 19h.01" />
+    </>
+  ),
   alert: (
     <>
       <circle cx="12" cy="12" r="9" />
