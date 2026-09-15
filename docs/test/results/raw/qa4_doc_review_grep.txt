@@ -1,0 +1,262 @@
+# QA-4 documentation consistency review -- raw grep evidence  2026-09-16 03:34:48 +0800  HEAD=c114413
+# files: CLAUDE.md, README.md, code/backend/.env.example (read-only; nothing was edited)
+
+## [1] Threads permission list (spec 7.1: threads_basic, threads_content_publish, threads_manage_replies, threads_manage_mentions; threads_read_replies NOT needed)
+CLAUDE.md:320:- [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證；權限要含 threads_manage_mentions）
+CLAUDE.md:358:   綁定機器人用的 Threads 帳號，申請權限：`threads_basic`、`threads_content_publish`、
+CLAUDE.md:359:   `threads_read_replies`、`threads_manage_replies`（mentions 權限名以官方文件為準；
+code/backend/.env.example:53:# → 取得長效 access token（60 天）與 user id。四權限：threads_basic,
+code/backend/.env.example:54:# threads_content_publish, threads_manage_replies, threads_manage_mentions
+
+## [2] CLAUDE.md section 2 table row '影片語音轉文字'
+CLAUDE.md:47:| 影片語音轉文字 | myai168 或 CGU AIR `/audio/transcriptions` | `whisper-1` / `gpt-4o-mini-transcribe` | `STT_MODEL` / `CGU_STT_MODEL` |
+
+## [3] ENABLE_THREADS_BOT / STT keys
+CLAUDE.md:47:| 影片語音轉文字 | myai168 或 CGU AIR `/audio/transcriptions` | `whisper-1` / `gpt-4o-mini-transcribe` | `STT_MODEL` / `CGU_STT_MODEL` |
+CLAUDE.md:124:│   │   ├── ai_service.py       ★多 provider AI(myai168 OpenAI/Claude + CGU AIR)、web_search、STT、embedding
+CLAUDE.md:125:│   │   ├── crawler.py          爬蟲 + 影片字幕/whisper 逐字稿（阻塞 IO 皆走 to_thread）
+CLAUDE.md:362:   `THREADS_ACCESS_TOKEN` / `THREADS_USER_ID`、`ENABLE_THREADS_BOT=true`，重啟後端。
+README.md:49:| **多模態輸入** | 文字 / 網址 / 圖片三種模式，圖片支援拖曳上傳；影片自動抓字幕或 whisper 逐字稿 |
+README.md:172:| `ENABLE_THREADS_BOT` | `false` | Threads 查核機器人（需 Meta token） |
+
+## [4] legacy/ marking (files: legacy/fake-news-detector.html, legacy/_run_detector.bat exist; root copies missing)
+README.md
+_run_detector.bat
+fake-news-detector.html
+CLAUDE.md:25:  伺服器端搜尋）；單檔查核儀（根目錄 `fake-news-detector.html`）**降級為離線備援**——斷網/後端掛掉時
+CLAUDE.md:26:  雙擊即可 demo（前端啟發式＋範例資料），需要接後端時手動跑 `_run_detector.bat`（8090，CORS 已允許）。
+CLAUDE.md:163:fake-news-detector.html         ★單檔查核儀(根目錄)：設計token+環形儀表盤+掃描動畫+三視圖(檢測/熱門/資料庫)
+CLAUDE.md:167:_run_detector.bat               手動啟動查核儀靜態伺服器(8090)——離線備援要接後端時才用
+CLAUDE.md:256:- [x] 新增單檔查核儀 `fake-news-detector.html`：設計token系統+環形儀表盤+掃描動畫+三視圖；
+CLAUDE.md:260:      新增 `_run_detector.bat`(http.server 8090)
+CLAUDE.md:299:      查核儀降級為離線備援（雙擊 = 純離線模式；_run_detector.bat = 接後端模式）
+CLAUDE.md:314:      `vercel.json`；`src/i18n.js` 文案表；舊查核儀移到 `legacy/`。pytest 133、前端 unit 156 全過
+README.md:38:> **前端唯一介面為 `code/frontend`（React）**。舊版單檔查核儀已封存於 `legacy/`，不再維護。
+README.md:70:- 舊版單檔查核儀已封存於 `legacy/`（不再維護）
+README.md:85:├── legacy/                      ← 已封存、不再維護（舊版單檔查核儀 fake-news-detector.html、_run_detector.bat）
+
+## [5] AI engine: CGU AIR sole provider / myai168 disabled / /me/usage
+CLAUDE.md:11:> ✅ **已恢復（2026-07-11）**：已切換 `AI_PROVIDER=cgu`（`CGU_API_KEY` 與 embedding 同一把 CGU 金鑰），
+CLAUDE.md:12:> 真 AI 分析恢復正常（實測 SCAM 判定 14s、信心 0.95）。**注意 CGU 是獨立 $20 預算**，用量可查 `/v1/me/usage`。
+CLAUDE.md:13:> myai168 仍然額度用盡＋`gpt-5-mini` 下架：備援順序 cgu→openai→claude 中，後兩個目前打了也會失敗（無害，只是 log 有錯誤）。
+CLAUDE.md:14:> myai168 儲值後可把 `AI_PROVIDER` 切回 `openai`。排查手冊見第 2 節「🚨 AI 全部壞掉時的排查與恢復」。
+CLAUDE.md:35:目前保留原本 myai168 方案，並新增 CGU AIR Gateway 選項。用 `.env` 的 `AI_PROVIDER` 選擇：
+CLAUDE.md:37:- `AI_PROVIDER=openai`：myai168 OpenAI Responses API（原本方案）
+CLAUDE.md:38:- `AI_PROVIDER=claude`：myai168 Anthropic Messages API（原本方案）
+CLAUDE.md:39:- `AI_PROVIDER=cgu`：CGU AIR Gateway OpenAI-compatible Responses API（新增方案）
+CLAUDE.md:43:| myai168 OpenAI 分析 | `https://www.myai168.com/cgu/api/openai/v1` | `gpt-5-mini` | `MYAI_API_KEY` / `OPENAI_RELAY_URL` / `OPENAI_MODEL` |
+CLAUDE.md:44:| myai168 Claude 分析 | `https://www.myai168.com/cgu/api/anthropic/v1` | `claude-opus-4-8` | `MYAI_API_KEY` / `CLAUDE_RELAY_URL` / `CLAUDE_MODEL` |
+CLAUDE.md:47:| 影片語音轉文字 | myai168 或 CGU AIR `/audio/transcriptions` | `whisper-1` / `gpt-4o-mini-transcribe` | `STT_MODEL` / `CGU_STT_MODEL` |
+CLAUDE.md:49:- **多 provider fallback**：`AI_PROVIDER=cgu` 時順序為 `cgu -> openai -> claude`；`openai` 時為 `openai -> claude -> cgu`；`claude` 時為 `claude -> openai -> cgu`。只有設定好 key/base 的 provider 會被加入。實作在 `app/services/ai_service.py` 的 `_run_analysis()`。
+CLAUDE.md:51:- myai168 與 CGU 是**兩個不同的閘道、不同金鑰、不同額度池**。CGU 有 `/v1/me/usage` 可查用量（$20 OpenAI 預算）。CGU 教學頁：`https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html`。
+CLAUDE.md:59:- ⚠️ **myai168 anthropic 中繼不支援 hosted web_search**：claude 帶 web_search 會 HTTP 400 (unsupported_tool)。
+CLAUDE.md:62:  代表 myai168 額度或模型出問題；此時 AI 回「AI 分析暫時無法使用」，前端(查核儀/React)會 fallback。可考慮改 `AI_PROVIDER=cgu`。
+CLAUDE.md:67:- `[AI] claude HTTP 402: insufficient_credits「You need to top up!」` → **myai168 點數燒完**（claude/openai 共用 `MYAI_API_KEY` 同一額度池）
+CLAUDE.md:71:1. **myai168 儲值** → claude/openai 立即恢復（同一額度池）。
+CLAUDE.md:72:2. **換 openai 模型**：把 `OPENAI_MODEL=gpt-5-mini` 改成網關還有定價的型號（去 myai168 後台查可用清單）。
+CLAUDE.md:73:3. **改用 CGU 網關**：`AI_PROVIDER=cgu`（獨立 $20 預算、不同金鑰池；用量查詢見本節上方）。
+CLAUDE.md:124:│   │   ├── ai_service.py       ★多 provider AI(myai168 OpenAI/Claude + CGU AIR)、web_search、STT、embedding
+CLAUDE.md:245:- [x] 新增 CGU AIR Gateway provider（AI_PROVIDER=cgu），保留 myai168 OpenAI/Claude 舊方案
+CLAUDE.md:266:- [x] claude 引擎跳過 web_search（myai168 anthropic 中繼不支援 hosted 工具）
+README.md:10:整合 **myai168 OpenAI/Claude** 與 **CGU AIR Gateway** 多 AI provider，加上多元事實查核資料來源，提供**自動化假訊息辨識**與**熱門詐騙趨勢追蹤**的全端應用程式。
+README.md:36:**首次使用前**：複製 `code/backend/.env.example` 為 `code/backend/.env`，填入 `MYAI_API_KEY` 或 `CGU_API_KEY`，並用 `AI_PROVIDER=openai` / `claude` / `cgu` 選擇 AI 方案。
+README.md:50:| **多 AI Provider** | myai168 OpenAI/Claude + CGU AIR Gateway，`AI_PROVIDER` 切換、自動備援 |
+README.md:63:- myai168 OpenAI/Claude + CGU AIR Gateway（OpenAI-compatible Responses API）
+README.md:64:- CGU embedding（text-embedding-3-small, 1536 維）/ Gemini 備援
+README.md:166:| `AI_PROVIDER` | `openai` | `openai` / `claude` 使用 myai168；`cgu` 使用 CGU AIR Gateway |
+README.md:167:| `MYAI_API_KEY` | 空 | myai168 OpenAI/Claude 共用金鑰 |
+README.md:209:- **石岱勳** — Prompt Engineering、Gemini API 邏輯實作
+code/backend/.env.example:3:AI_PROVIDER=cgu
+code/backend/.env.example:23:# ── 已停用（保留 provider 程式供日後切回）──────────────────
+code/backend/.env.example:24:# myai168 OpenAI / Claude 中繼。要切回時取消註解並設 AI_PROVIDER=openai 或 claude。
+code/backend/.env.example:27:# OPENAI_RELAY_URL=https://www.myai168.com/cgu/api/openai/v1
+code/backend/.env.example:29:# CLAUDE_RELAY_URL=https://www.myai168.com/cgu/api/anthropic/v1
+
+## [6] source-tier rules in CLAUDE.md section 9 (Tier definition / only Tier 1-2 shown / KB write gate)
+## 9. 標記規則（重要，勿退回舊邏輯）
+- **只有「確定不實」才標 MISINFO**：Cofacts 文章需有 `RUMOR` 回覆；MyGoPen/TFC
+  標題需帶【錯誤/誤導/謠言/不實/易誤解/假】。其餘一律 `PENDING`（未查證），不要因為
+  「來自查核網站」就整批標成假訊息（這是先前的 bug）。
+- **主流媒體「查核報導」判定對象是被查核的主張，不是報導本身**（2026-07 修的 bug：
+  同一 SIM 卡謠言，ETtoday 報導被標 MISINFO、華視報導被標 SAFE）。三道防線：
+  ① `_title_indicates_debunk()`：標題同時含查核語境詞(查核/闢謠/澄清/網傳…)＋不實判定詞
+  (不實/假的/過度誇大/打臉…) → 確定性標 MISINFO（可覆寫 AI 誤標的 SAFE，零 AI 成本）；
+  ② AI 分析新聞時帶 `_NEWS_ANALYSIS_GUIDANCE` 補充指示（判主張不判報導）；
+  ③ 既有資料修復：`scripts/fix_factcheck_labels.py`（冪等、支援 --dry-run，
+  同時清 RSS 殘留的 &nbsp; 等 HTML entities；`_strip_html` 已改為會解 entities）。
+- `_is_real_claim()`：純網址 / 無中文 / 標籤雲 / 太短 → 不索引進 knowledge_base。
+
+CLAUDE.md:135:│   ├── utils/source_tier.py    來源分級 Tier 1/2/3（只有 Tier 1/2 可當「查核來源」；共識 §9）
+CLAUDE.md:250:      MyGoPen·TFC【錯誤/誤導/假】標籤）；Cofacts 改抓 RUMOR-verified；其餘標 PENDING
+CLAUDE.md:308:      ai_service 系統 prompt 加 FR-19 來源規則；新增 `app/utils/source_tier.py`（Tier 1/2/3、
+CLAUDE.md:309:      Cofacts 回覆查詢、離線模式不發請求）＋ tests/test_source_tier.py；pytest 65 passed
+CLAUDE.md:311:      單一權威 + `is_fallback` 唯一判斷點）；PandasStore 寫入門檻（verified/source_tier，向量層只比對
+CLAUDE.md:312:      verified=true）；news_fetcher 阻塞呼叫全改 to_thread；移除 Serper/Google News/Playwright/yt-dlp；
+CLAUDE.md:315:      ⚠️ 過渡狀態：D-05 清洗 apply 前，種子 236 筆一律 verified=false → **向量快取暫時不會命中**；
+CLAUDE.md:317:- [x] D-05 資料清洗已套用（2026-09-16，負責人核准）：知識庫 218 筆（verified 128，113 筆帶向量）、
+CLAUDE.md:318:      熱門 24 筆全 verified；Google News 與徵才/小考題/TOP10/聊天碎片等髒資料已刪。
+CLAUDE.md:319:      向量快取恢復命中（只比對 verified=true）。審閱紀錄 `docs/test/clean_sources_review.md`
+
+## [7] BOT_HANDLE=factcheck_tw_bot
+code/backend/.env.example:70:BOT_HANDLE=factcheck_tw_bot
+
+## [8] 'runtime changes need no commit' + FR-18 seed exception
+CLAUDE.md:154:│   ├── knowledge_base.parquet  三層快取知識庫     [★已提交 178 筆 demo 種子；
+CLAUDE.md:155:│   │                            是 runtime 快取，用過後會顯示 modified→那些變動不用 commit]
+CLAUDE.md:231:- runtime 檔（`*.db`、`*.parquet`）已 gitignore，不要提交。
+CLAUDE.md:315:      ⚠️ 過渡狀態：D-05 清洗 apply 前，種子 236 筆一律 verified=false → **向量快取暫時不會命中**；
+CLAUDE.md:317:- [x] D-05 資料清洗已套用（2026-09-16，負責人核准）：知識庫 218 筆（verified 128，113 筆帶向量）、
+## .gitignore says:
+37:# knowledge_base.parquet is NOT ignored: it is the committed demo seed.
+
+## [9] endpoints / settings named by spec vs docs (count of occurrences)
+/api/result  CLAUDE.md=0 README.md=0 .env.example=0
+/api/threads/replies  CLAUDE.md=0 README.md=0 .env.example=0
+/api/health  CLAUDE.md=0 README.md=0 .env.example=0
+THREADS_MODE  CLAUDE.md=0 README.md=0 .env.example=1
+PUBLIC_BASE_URL  CLAUDE.md=0 README.md=0 .env.example=1
+ADMIN_TOKEN  CLAUDE.md=0 README.md=0 .env.example=1
+CONTACT_EMAIL  CLAUDE.md=0 README.md=0 .env.example=1
+BRAND_NAME  CLAUDE.md=0 README.md=0 .env.example=1
+THREADS_APP_ID  CLAUDE.md=0 README.md=0 .env.example=1
+AI_TIMEOUT_SECONDS  CLAUDE.md=0 README.md=0 .env.example=1
+WEB_SEARCH_ALLOWED_DOMAINS  CLAUDE.md=0 README.md=0 .env.example=1
+BOT_HANDLE  CLAUDE.md=0 README.md=0 .env.example=1
+CGU_REASONING_EFFORT  CLAUDE.md=0 README.md=0 .env.example=1
+## actual routes (code/backend/app):
+api/admin.py:22:router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
+api/admin.py:100:@router.post("/tasks/{task_id}/override")
+api/analyze.py:23:router = APIRouter(prefix="/api/analyze", tags=["analyze"])
+api/analyze.py:249:@router.post("/text")
+api/analyze.py:275:@router.post("/url")
+api/analyze.py:308:@router.post("/sync", response_model=AnalysisResult)
+api/analyze.py:345:@router.post("/image")
+api/analyze.py:408:@router.get(
+api/analyze.py:438:@router.get("/task/{task_id}/status")
+api/feedback.py:12:router = APIRouter(prefix="/api/feedback", tags=["feedback"])
+api/feedback.py:34:@router.post("/tasks/{task_id}")
+api/knowledge.py:25:router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
+api/knowledge.py:130:@router.get("/stats")
+api/knowledge.py:150:@router.get("")
+api/result.py:23:router = APIRouter(prefix="/api/result", tags=["result"])
+api/result.py:121:@router.get("/{result_id}")
+api/threads.py:35:router = APIRouter(prefix="/api/threads", tags=["threads"])
+api/threads.py:139:@router.get("/status")
+api/threads.py:146:@router.get("/replies")
+api/threads.py:169:@router.post("/poll", status_code=202)
+api/trending.py:12:router = APIRouter(prefix="/api/trending", tags=["trending"])
+api/trending.py:24:@router.get("")
+api/trending.py:55:@router.post("/refresh", dependencies=[Depends(require_admin)])
+main.py:187:@app.get("/docs", include_in_schema=False)
+main.py:197:@app.get("/")
+main.py:202:@app.get("/health")
+main.py:203:@app.get("/api/health")
+## removed keys absent from .env.example (spec 7.11):
+ENABLE_THREADS_BOT in .env.example: 0
+SERPER_API_KEY in .env.example: 0
+GOOGLE_API_KEY in .env.example: 0
+EMBEDDING_MODEL in .env.example: 0
+STT_MODEL in .env.example: 0
+CGU_STT_MODEL in .env.example: 0
+CRAWL_WITH_SCREENSHOT in .env.example: 0
+SEARCH_RESULTS_LIMIT in .env.example: 0
+
+## [10] stale facts in docs
+CLAUDE.md:7:最後更新重點：新增 **pytest 單元測試（tests/，31 個）+ GitHub Actions CI**；React 前端現代簡約化
+CLAUDE.md:11:> ✅ **已恢復（2026-07-11）**：已切換 `AI_PROVIDER=cgu`（`CGU_API_KEY` 與 embedding 同一把 CGU 金鑰），
+CLAUDE.md:12:> 真 AI 分析恢復正常（實測 SCAM 判定 14s、信心 0.95）。**注意 CGU 是獨立 $20 預算**，用量可查 `/v1/me/usage`。
+CLAUDE.md:26:  雙擊即可 demo（前端啟發式＋範例資料），需要接後端時手動跑 `_run_detector.bat`（8090，CORS 已允許）。
+CLAUDE.md:27:  start.bat/start.sh 只啟動後端 + React（2026-07 整合決策：功能重疊造成三處同步維護成本）。
+CLAUDE.md:51:- myai168 與 CGU 是**兩個不同的閘道、不同金鑰、不同額度池**。CGU 有 `/v1/me/usage` 可查用量（$20 OpenAI 預算）。CGU 教學頁：`https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html`。
+CLAUDE.md:54:- 學校點數**有限**。`api_anthropic`(Claude Opus) 每次 ~135–1143 點；`api_openai`(gpt-5) 便宜約 10 倍。
+CLAUDE.md:55:- `gpt-5` 是**推理模型**，預設思考很久（~20s/次、貴）。用 `gpt-5-mini` + `OPENAI_REASONING_EFFORT=minimal`（~6s/次、便宜）。
+CLAUDE.md:57:- ⚠️ **minimal 推理與 web_search 不相容**：gpt-5-mini 在 `OPENAI_REASONING_EFFORT=minimal` 下帶 web_search 會 HTTP 400。
+CLAUDE.md:58:  `ai_service._responses_analyze` 已自動在 minimal 時跳過 web_search（openai/cgu 共用此引擎），否則每次都失敗後 fallback 到貴 10 倍的 claude。
+CLAUDE.md:59:- ⚠️ **myai168 anthropic 中繼不支援 hosted web_search**：claude 帶 web_search 會 HTTP 400 (unsupported_tool)。
+CLAUDE.md:61:- ⚠️ **點數會用盡**：claude 402 `insufficient_credits`(需儲值)、openai 400 `no_pricing_info`(模型下架/換 `OPENAI_MODEL`)
+CLAUDE.md:65:### 🚨 AI 全部壞掉時的排查與恢復（2026-07 實際遇到，下一個接手請照這做）
+CLAUDE.md:66:**症狀**：檢測/評測回「AI 分析暫時無法使用」(risk_type=SAFE、confidence=0)；後端 log 出現：
+CLAUDE.md:67:- `[AI] claude HTTP 402: insufficient_credits「You need to top up!」` → **myai168 點數燒完**（claude/openai 共用 `MYAI_API_KEY` 同一額度池）
+CLAUDE.md:68:- `[AI] openai HTTP 400: no_pricing_info「Please use other models!」` → **`OPENAI_MODEL`(gpt-5-mini) 在網關下架/沒定價**
+CLAUDE.md:73:3. **改用 CGU 網關**：`AI_PROVIDER=cgu`（獨立 $20 預算、不同金鑰池；用量查詢見本節上方）。
+CLAUDE.md:82:> 實作細節：AI 掛掉時 `/api/analyze/sync` 仍回 **HTTP 200** 的 fallback JSON（SAFE、confidence 0、
+CLAUDE.md:91:文字輸入 → L0(skip) → L1: 內容 Hash → L2: 向量(以「使用者原文」比對，先於爬蟲!) → 爬蟲 → L3: AI
+CLAUDE.md:92:網址輸入 → L0: URL 快取 → L1: Hash → 爬蟲 → L2: 向量(以爬到的內文比對) → L3: AI
+CLAUDE.md:96:- **文字輸入的向量層在爬蟲之前、比對對象是使用者原文**（2026-07 修正：舊版拿爬完的
+CLAUDE.md:99:- Layer 2 門檻 `SIMILARITY_THRESHOLD=0.75`：**實測校準**（text-embedding-3-small、繁中）
+CLAUDE.md:100:  改寫版同一謠言 0.79~0.82、不同支謠言 ≤0.68、不同主題 ≤0.52；舊值 0.88 會把改寫版全擋掉。
+CLAUDE.md:133:│   │   └── threads_service.py   Threads Graph API 客戶端 + 回覆格式化(500字上限)
+CLAUDE.md:145:│   └── seed_data.py            灌範本
+CLAUDE.md:146:├── tests/                      ★pytest 單元測試(31 tests、離線零點數；CI 每次 push 自動跑)
+CLAUDE.md:149:│   ├── test_ai_service_contract.py  JSON解析/fallback字樣契約/紅黃綠框/Threads回覆500字
+CLAUDE.md:156:│   ├── eval_set.csv            150 筆標註資料(50/50/50)
+CLAUDE.md:167:_run_detector.bat               手動啟動查核儀靜態伺服器(8090)——離線備援要接後端時才用
+CLAUDE.md:182:.\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000
+CLAUDE.md:184:# React 深色前端（單獨跑，靠 vite proxy /api→8000）
+CLAUDE.md:192:.\venv\Scripts\python scripts\evaluate.py --seed-db --delay 0
+CLAUDE.md:204:# 單元測試（31 tests、離線、零點數；GitHub Actions 每次 push 也會自動跑）
+CLAUDE.md:208:API 文件：http://localhost:8000/docs
+CLAUDE.md:214:- 資料集 `data/eval_set.csv`：150 筆（SCAM/MISINFO/SAFE 各 50），含刻意設計的「像詐騙的合法官方訊息」當難題。
+CLAUDE.md:215:- 最新結果（gpt-5-mini）：**accuracy 96.0%、macro-F1 0.960**。
+CLAUDE.md:216:- 二分類偽陽性/偽陰性：**FN=0（從不漏判風險）、FP=5（誤報合法警示/政策）**。
+CLAUDE.md:223:- **Windows 主控台是 cp950**：`print()` **不要放 emoji / ✓✗**（會 `UnicodeEncodeError` 崩潰）。中文可以（Big5）。要輸出給人看的結果，寫成 UTF-8 檔再讀。
+CLAUDE.md:224:- **`requirements.txt` 只能放 ASCII**：pip 讀 requirements 用系統編碼（cp950），
+CLAUDE.md:225:  放中文註解會讓 `pip install -r` 直接 UnicodeDecodeError（start.bat 就炸在這，2026-07 踩過）。
+CLAUDE.md:230:  （AI 呼叫 timeout 150s）。照 `pandas_task_processor.py` 的做法包 `asyncio.to_thread`。
+CLAUDE.md:233:- 大檔（如報告影片 895MB、plantuml jar）放雲端或 gitignore，不進 git（GitHub 單檔上限 100MB）。
+CLAUDE.md:234:- PostgreSQL/Redis 死碼已全數移除（2026-07）：不要再引用 `app/database.py`、PG models、
+CLAUDE.md:243:- [x] 評測系統 + 150 筆資料集 + FP/FN 分析（accuracy 96%、FN=0）
+CLAUDE.md:257:      熱門/資料庫接真後端、離線 fallback；分類中文化、198筆顯示前60；localStorage 歷史
+CLAUDE.md:260:      新增 `_run_detector.bat`(http.server 8090)
+CLAUDE.md:261:- [x] 一鍵啟動加 React：`start.bat`/`start.sh` 同時開後端 + 查核儀(8090) + React(5173)
+CLAUDE.md:267:- [x] 修 bug：AI 額度用盡時 `/sync` 回 200 fallback，查核儀誤換算成「可信度 2/高風險/即時 AI」
+CLAUDE.md:269:- [x] 效能：阻塞呼叫（AI/embedding/爬蟲/來源驗證/yt-dlp）改 `asyncio.to_thread`；
+CLAUDE.md:273:      `.env.example` CORS 補 8090、`start-debug.bat` 修攤平後路徑
+CLAUDE.md:274:- [x] 修 start.bat pip 報錯：requirements.txt 中文註解 → cp950 UnicodeDecodeError；
+CLAUDE.md:280:- [x] 單元測試 + CI：tests/ 31 個 pytest（快取/標記規則/fallback契約/API冒煙/URL過濾，
+CLAUDE.md:285:      永遠過不了門檻）；門檻 0.88→0.75（實測校準，見第 3 節）；回應加 cached/cache_layer
+CLAUDE.md:287:- [x] 自主掃描優化第二輪（2026-07-12）：修「文字輸入分析對象被爬到的網頁偷換」
+CLAUDE.md:289:      news_fetcher print 外部文字 cp950 崩潰 → _print 安全輸出；TaskStore 修剪(500筆)；
+CLAUDE.md:293:      （MISINFO 30/SAFE 13/SCAM 8/UNVERIFIABLE 12）、知識庫 236 筆(200 帶向量)、
+CLAUDE.md:294:      三輪批次總花費 $0.127（CGU $20 額度）
+CLAUDE.md:300:- [x] 文件一致性大掃描（2026-07-12）：根 README 全面重寫（原本還在講 factcheck_system
+CLAUDE.md:301:      路徑/PG+Redis 部署/0.88 門檻、結構樹有不存在的目錄）＋ CI/評測徽章；
+CLAUDE.md:304:- [x] 2026-09 重做流程啟動：`docs/rebuild/` 依序為 00_consensus（grill 共識）→ 01_spec（功能+UX v1.3）
+CLAUDE.md:305:      → 02_mockup_brief + mockup/（設計畫布 .dc.html）→ 03_tickets（109 張票，依賴/排程/驗收指令）。
+CLAUDE.md:306:      **之後的實作一律照 03_tickets.md 的票做**；來源分級規則見共識 §9（只有已判定的查核來源才算來源）
+CLAUDE.md:307:- [x] 票 P-01／B-01／B-12 完成：Vite 釘 8.3.0 穩定版＋plugin-react ^5.2.0（移除 overrides）；
+CLAUDE.md:310:- [x] 票第二批（B-04/05/07/08/10/11/13/14、T-07、P-02/03/04/05/06）：`app/utils/verdict.py`（紅黃綠 8 列
+CLAUDE.md:312:      verified=true）；news_fetcher 阻塞呼叫全改 to_thread；移除 Serper/Google News/Playwright/yt-dlp；
+CLAUDE.md:313:      tasks.parquet 擴欄＋上限 5000；threads_state 原子寫入；CI 加前端 job；`public/` 三個靜態頁；
+CLAUDE.md:315:      ⚠️ 過渡狀態：D-05 清洗 apply 前，種子 236 筆一律 verified=false → **向量快取暫時不會命中**；
+CLAUDE.md:317:- [x] D-05 資料清洗已套用（2026-09-16，負責人核准）：知識庫 218 筆（verified 128，113 筆帶向量）、
+CLAUDE.md:318:      熱門 24 筆全 verified；Google News 與徵才/小考題/TOP10/聊天碎片等髒資料已刪。
+CLAUDE.md:321:- [ ] （選）擴充 eval_set 到 300 筆、做信心校準
+CLAUDE.md:328:- **主流媒體「查核報導」判定對象是被查核的主張，不是報導本身**（2026-07 修的 bug：
+CLAUDE.md:337:## 10. 查證紀錄儲存 & 是否需要登入
+CLAUDE.md:354:紅黃綠判定＋查核來源（≤500 字，AI 產出的幻覺連結已被 url_validator 過濾）。
+CLAUDE.md:361:2. 取得**長效 access token（60 天，要記得換）**與帳號 user id，填入 `.env`：
+CLAUDE.md:369:API 實作依 2026-01 官方文件：https://developers.facebook.com/docs/threads
+README.md:5:![React 19](https://img.shields.io/badge/Frontend-React%2019-61DAFB?logo=react&logoColor=white)
+README.md:6:![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)
+README.md:7:![SQLite + Parquet](https://img.shields.io/badge/Storage-SQLite%20%2B%20Parquet-336791)
+README.md:8:![Accuracy 96%](https://img.shields.io/badge/Eval-accuracy%2096%25%20%2F%20FN%3D0-success)
+README.md:14:> 支援文字、網址、圖片三種輸入；150 筆標註集評測 **accuracy 96%、漏判 FN=0**。
+README.md:46:| **三層智能快取** | URL（完全相符）→ Hash（內容相符）→ Vector（語義相似，門檻 0.75 實測校準），「換句話說的謠言」也命中，省下最貴的 AI 呼叫 |
+README.md:54:| **可驗證品質** | 150 筆標註集評測（accuracy 96%、FN=0）＋ 31 個單元測試＋ GitHub Actions CI |
+README.md:66:- Trafilatura + BeautifulSoup4 + Playwright + yt-dlp（爬蟲/影音）
+README.md:73:- pytest（31 tests，離線零 AI 成本）+ GitHub Actions CI
+README.md:95:│   │   ├── tests/               ← 31 個單元測試（CI 自動跑）
+README.md:139:curl -X POST http://localhost:8000/api/analyze/sync \
+README.md:144:curl "http://localhost:8000/api/trending?limit=10"
+README.md:145:curl "http://localhost:8000/api/knowledge?q=詐騙&limit=20"
+README.md:148:open http://localhost:8000/docs
+README.md:174:| `SIMILARITY_THRESHOLD` | `0.75` | 向量快取命中門檻（實測校準值） |
+README.md:182:150 筆人工標註資料集（SCAM/MISINFO/SAFE 各 50，含刻意設計的「像詐騙的合法官方訊息」難題）：
+README.md:186:| Accuracy | **96.0%** |
+README.md:187:| Macro-F1 | 0.960 |
+README.md:188:| 偽陰性 FN（漏判風險） | **0** |
+## actual: pytest collects 477 tests; config AI_TIMEOUT_SECONDS=60; CGU quota_usd=10.0 (from /me/usage); scripts/seed_data.py missing
+
+## [11] QA-4 deliverable docs/test/doc_review.md
+ls: cannot access 'docs/test/doc_review.md': No such file or directory

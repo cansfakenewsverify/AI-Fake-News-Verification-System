@@ -1,0 +1,35 @@
+# QA-1b old vs new comparison (computed from files, zero AI calls)  2026-09-16 03:38:07 +0800
+# old = code/backend/data/eval_archive_gpt5mini_2026-06/eval_predictions.csv (committed 9d63eef, 2026-06-06, gpt-5-mini via myai168)
+# new = code/backend/data/eval_predictions.csv (this run 2026-09-16, gpt-5.4-mini via CGU AIR)
+## old evaluate.py web_search setting at commit 9d63eef:
+9d63eef 2026-06-06 14:48:38 +0800 Add 150-case eval results on gpt-5-mini (96.0% accuracy)
+
+ assets/confusion_matrix.png                        | Bin 34940 -> 36987 bytes
+ .../factcheck_system/data/eval_predictions.csv     | 151 +++++++++++++++++++++
+ code/backend/factcheck_system/data/eval_report.csv |  10 +-
+ 3 files changed, 156 insertions(+), 5 deletions(-)
+50:    res = ai.analyze_content(content, url=url or None, use_web_search=False)
+## old: n=150 errored=0 accuracy=0.960 macroF1=0.960
+   confusion matrix rows=gold cols=pred [SCAM, MISINFO, SAFE]: [[50, 0, 0], [1, 49, 0], [5, 0, 45]]
+   confidence min 0.60 / median 0.90 / mean 0.899 ; items with conf < 0.80: 11 ; < 0.70: 2
+## new: n=150 errored=0 accuracy=1.000 macroF1=1.000
+   confusion matrix rows=gold cols=pred [SCAM, MISINFO, SAFE]: [[50, 0, 0], [0, 50, 0], [0, 0, 50]]
+   confidence min 0.68 / median 0.97 / mean 0.959 ; items with conf < 0.80: 2 ; < 0.70: 1
+## items whose prediction changed old -> new: 6
+   id=96 gold=MISINFO old=SCAM(0.90) new=MISINFO(0.88) note=愛心轉傳騙局
+   id=107 gold=SAFE old=SCAM(0.90) new=SAFE(0.98) note=官方反詐宣導
+   id=126 gold=SAFE old=SCAM(0.95) new=SAFE(0.97) note=真實疫情警示_易誤判恐慌
+   id=127 gold=SAFE old=SCAM(0.90) new=SAFE(0.93) note=真實反詐宣導
+   id=131 gold=SAFE old=SCAM(0.95) new=SAFE(0.97) note=真實政府補助_易誤判詐騙
+   id=140 gold=SAFE old=SCAM(0.90) new=SAFE(0.93) note=真實政策_含防詐提醒
+## new-model low-confidence items (conf < 0.85):
+   id=124 gold=SAFE new=SAFE conf=0.68 (old SAFE 0.85) note=官方政策
+   id=114 gold=SAFE new=SAFE conf=0.78 (old SAFE 0.60) note=官方藝文資訊
+## statistics
+   old accuracy 144/150 = 0.960, 95% Clopper-Pearson CI [0.915, 0.985]
+   new accuracy 150/150 = 1.000, 95% Clopper-Pearson CI [0.976, 1.000]
+   old specificity (SAFE kept SAFE, binary) 45/50, 95% CI [0.782, 0.967]
+   new specificity 50/50, 95% CI [0.929, 1.000]
+   old recall on RISK 100/100, 95% CI [0.964, 1.000]
+   new recall on RISK 100/100, 95% CI [0.964, 1.000]
+   exact McNemar (paired, discordant b=6 old-wrong/new-right, c=0): two-sided p = 0.0312

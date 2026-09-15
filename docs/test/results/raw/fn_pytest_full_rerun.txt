@@ -1,0 +1,11 @@
+# command: (cwd=code\backend) .\venv\Scripts\python -m pytest tests -q   (full-suite reruns #2 and #3, to characterize the intermittent failure seen in run #1; evaluate.py running concurrently)
+## full run #2 started 2026-09-16 03:16:50 +0800
+## exit code: 0
+477 passed in 39.42s
+## full run #3 started 2026-09-16 03:17:31 +0800
+## exit code: 0
+477 passed in 38.85s
+# protected data sha256 after reruns:
+b4f49cd7b9f29451b63b2d321e63ecd7bb42690e54a60056273e7c9323d71caa *data/knowledge_base.parquet
+59074ec3012c4ed0a2ad3a890c81e29a6940ae4d78433ebf8e509d02b79efa34 *data/tasks.parquet
+880dab98e5f5f613a01d341bd98400eac322fa4e779da7017fa61d0807ab8451 *data/factcheck.db

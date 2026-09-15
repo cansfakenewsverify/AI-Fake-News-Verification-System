@@ -1,0 +1,23 @@
+# QA-5 number verification  2026-09-16 03:33:06 +0800
+# sources: git HEAD:code/backend/data/knowledge_base.parquet (committed D-05 seed, commit db8c62d); read-only copy of code/backend/data/factcheck.db (sha256 880dab98e5f5f613..., mtime 2026-09-16 00:07:36.648163200 +0800, unchanged since D-05 apply)
+# note: the live knowledge_base.parquet was being modified by another agent's backend (231 rows at 03:31), so the committed seed is the reference
+## knowledge base (committed seed)
+rows = 218 | verified true = 128 | false = 90
+verified rows by risk_type = {'MISINFO': 75, 'SCAM': 29, 'SAFE': 24}
+verified rows with 1536-dim vector = 102
+label_source counts = {'ai': 218}
+source_tier counts = {1.0: 128, nan: 87, 2.0: 3}
+## trending (fact_check_records)
+rows = 24
+verified = {1: 24}
+source_url like %news.google.com% = 0
+risk_type = {'MISINFO': 15, 'SAFE': 2, 'SCAM': 7}
+label_source = {'ai': 9, 'rule': 15}
+## clean_sources_cache.json: top-level keys = ['1fppgs5afzpo2', '1zqlnrse8rpqv', '236p4q2fmierk', '27w8rnl02x5n9', '2eptz6ce6pyqi'] | cofacts entries = 27
+## vector dimensions (0 = no vector): all rows {768: 5, 3072: 8, 0: 30, 1536: 175} | verified rows {768: 5, 3072: 6, 1536: 102, 0: 15}
+verified rows with any vector = 113 (review doc: 113) ; with 1536-dim = 102
+## trending: backup code/backend/data/factcheck.db.bak-20260916 (read-only copy) vs current factcheck.db copy
+backup rows 63 | has label_source column: True | current rows 24
+deleted rows 39 | of which news.google.com 31
+deleted rows by label_source {'ai': 29, 'rule': 10}
+deleted rule rows that are news.google.com 10

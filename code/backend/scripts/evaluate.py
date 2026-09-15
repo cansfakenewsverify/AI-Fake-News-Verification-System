@@ -225,7 +225,10 @@ def _save_error_cases(valid: pd.DataFrame):
     """把判錯案例輸出成 CSV，標註偽陽性/偽陰性，供論文錯誤分析。"""
     wrong = valid[valid["gold"] != valid["pred"]].copy()
     if wrong.empty:
-        print("  (無判錯案例)")
+        # 仍要覆寫成只有表頭的空檔，否則會留下上一次評測的舊錯誤案例
+        pd.DataFrame(columns=["id", "gold", "pred", "error_type", "confidence", "note", "content"]).to_csv(
+            ERRORS_PATH, index=False, encoding="utf-8-sig")
+        print(f"  (無判錯案例，已清空 {ERRORS_PATH})")
         return
     # 用 id 補回完整內容與備註
     try:

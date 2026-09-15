@@ -1,0 +1,25 @@
+# start-up checks against http://127.0.0.1:8030
+# run at (local): 2026-09-16 03:23:42
+
+GET /health -> HTTP 200 (4.1 ms)
+{"status": "healthy", "ai_available": true, "threads_mode": "sim", "scheduler": {"enabled": false, "interval_hours": 6}, "daily_ai_calls": null}
+
+GET /api/health -> HTTP 200 (25.7 ms)
+{"status": "healthy", "ai_available": true, "threads_mode": "sim", "scheduler": {"enabled": false, "interval_hours": 6}, "daily_ai_calls": null}
+
+GET /api/knowledge/stats -> HTTP 200 (230.8 ms)
+{"total": 128, "by_risk": {"MISINFO": 75, "SCAM": 29, "SAFE": 24}, "counts": {"scam": 29, "misinfo": 75, "safe": 24, "unverifiable": 0}, "unverified_count": 90}
+
+GET /api/threads/status -> HTTP 200 (9.1 ms)
+{"enabled": true, "mode": "sim", "configured": true, "poll_minutes": 600, "replied_count": 0, "last_poll_at": null, "last_poll_stats": null, "last_error": null, "backoff_until": null, "token_expires_at": null, "token_days_left": null, "authorized_at": null, "auth_days_left": null, "reply_quota": null, "daily_replies": 0, "daily_cap": 50, "dev_mode_notice": "目前為開發模式：只有被加入為測試人員的 Threads 帳號 @factcheck_tw_bot 才會收到回覆。公開服務需通過 Meta App Review 與企業驗證，為本專題論文所述之上線條件。", "sim_mentions_path": "data/threads_sim/mentions.json"}
+
+GET /api/trending?limit=20 -> HTTP 200 (51.1 ms): records=12, records mentioning news.google.com=0
+risk_type/verified per record: [["SAFE", true], ["MISINFO", true], ["MISINFO", true], ["MISINFO", true], ["MISINFO", true], ["MISINFO", true], ["MISINFO", true], ["MISINFO", true], ["SAFE", true], ["MISINFO", true], ["MISINFO", true], ["MISINFO", true]]
+
+GET /api/knowledge?limit=60 -> HTTP 200 (1125.0 ms): records=60, total=128, verified=false rows in list=0
+
+GET /api/knowledge?q=( -> HTTP 200 (74.2 ms)
+
+POST /api/threads/poll (no X-Admin-Token) -> HTTP 401 (19.4 ms) {"detail": "需要管理權限：請在 X-Admin-Token 標頭提供正確的管理 token。", "code": "unauthorized"}
+POST /api/threads/poll (wrong X-Admin-Token) -> HTTP 401 (6.2 ms) {"detail": "需要管理權限：請在 X-Admin-Token 標頭提供正確的管理 token。", "code": "unauthorized"}
+GET /api/result/00000000-0000-4000-8000-000000000000 -> HTTP 404 (22.0 ms) {"detail": "找不到這筆查證", "code": "result_not_found"}

@@ -1,0 +1,59 @@
+# FN-* per-item runs: (cwd=code\backend) .\venv\Scripts\python -m pytest <files> -q -p no:warnings   started 2026-09-16 03:35:09 +0800
+
+## FN-1: pytest tests/test_ai_service_contract.py tests/test_cache_and_store.py tests/test_marking_rules.py tests/test_api.py tests/test_url_validator.py tests/test_processor_flow.py tests/test_ai_prompt_rules.py tests/test_keyword_search_missing.py -q
+37 passed in 2.12s
+## FN-1 exit code: 0
+
+## FN-2a: pytest tests/test_safe_url.py tests/test_analyze_api.py::test_url_invalid_422_invalid_url -q
+53 passed in 8.87s
+## FN-2a exit code: 0
+
+## FN-3: pytest tests/test_result_api.py tests/test_health.py -q
+38 passed in 2.18s
+## FN-3 exit code: 0
+
+## FN-4: pytest tests/test_threads_bot_sim.py -q
+73 passed in 7.69s
+## FN-4 exit code: 0
+
+## FN-5: pytest tests/test_threads_reply_format.py -q
+21 passed in 0.32s
+## FN-5 exit code: 0
+
+## FN-6: pytest tests/test_verdict.py::test_frame_of_table tests/test_verdict.py::test_frame_of_green_requires_all_three_conditions tests/test_ai_service_contract.py::test_frame_mapping -q
+23 passed in 1.09s
+## FN-6 exit code: 0
+
+## FN-7: pytest tests/test_verdict.py::test_is_fallback_contract tests/test_verdict.py::test_is_fallback_each_condition tests/test_ai_service_contract.py::test_fallback_summary_prefix_is_stable -q
+8 passed in 1.04s
+## FN-7 exit code: 0
+
+## FN-8: pytest tests/test_knowledge_api.py -q
+8 passed in 3.83s
+## FN-8 exit code: 0
+
+## FN-9: pytest tests/test_admin_auth.py -q
+10 passed in 1.92s
+## FN-9 exit code: 0
+
+## FN-11: pytest tests/test_cache_and_store.py tests/test_kb_write_gate.py -q
+29 passed in 4.55s
+## FN-11 exit code: 0
+
+## FN-12: pytest tests/test_source_tier.py -q
+32 passed in 2.71s
+## FN-12 exit code: 0
+
+## FN-13: pytest tests/test_kb_write_gate.py -q
+22 passed in 3.54s
+## FN-13 exit code: 0
+
+## FN-14: pytest tests/test_clean_sources.py -q
+11 passed in 2.06s
+## FN-14 exit code: 0
+
+## FN-2b / FN-2c / FN-10: no test file exists (grep of tests/ for 415|413 image upload, similar_news vector neighbours, DAILY_AI_CALL_CAP):
+   no matches in tests/
+   DAILY_AI_CALL_CAP not referenced in app/
+215:        "similar_news": [],
+479:            ai_service.analyze_content, content, url=url, context={"similar_news": []}

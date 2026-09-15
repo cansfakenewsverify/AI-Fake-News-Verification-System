@@ -1,0 +1,13 @@
+# OP-2: scripts/test_ai_provider.py --provider cgu
+# started (local): 2026-09-16 03:16:42 +0800
+# cwd: code/backend; .env loaded by pydantic (not read by the tester); no env overrides
+
+[test] AI_PROVIDER=cgu
+[test] provider order=['cgu']
+[test] analyze result:
+{'is_risk': False, 'risk_type': 'SAFE', 'category': 'Safe', 'confidence_score': 0.99, 'summary': '這是一則明確標示為 API 測試用途的訊息，未包含金錢、連結、個資、健康、政治或其他可疑宣稱，屬於安全內容。', 'explanation': '內容直接說明自己是系統/API 測試訊息，並要求判斷為安全，不涉及詐騙、釣魚、假訊息或誤導性宣稱，因此判定為安全。', 'sources': [], 'model': 'gpt-5.4-mini', 'usage': {'input_tokens': 1259, 'output_tokens': 304}, 'provider': 'cgu'}
+[test] embedding dim=1536
+[v] AI provider 測試完成
+
+# exit_code: 0
+# wall_seconds: 8.43 (from shell timestamps 1789499802.19 -> 1789499810.62)

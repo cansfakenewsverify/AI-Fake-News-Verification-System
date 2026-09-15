@@ -21,7 +21,8 @@ import pandas as pd
 _LOCKS = defaultdict(threading.RLock)
 _LOCKS_GUARD = threading.Lock()
 
-_RETRY_DELAYS = (0.02, 0.05, 0.1, 0.2, 0.4, 0.8)
+# 總等待約 5 秒：Windows 上防毒或另一個讀者短暫持有檔案時，os.replace／讀取都可能暫時 PermissionError
+_RETRY_DELAYS = (0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.5, 0.6, 0.7, 0.8, 0.8)
 
 
 def path_lock(path: Path) -> threading.RLock:

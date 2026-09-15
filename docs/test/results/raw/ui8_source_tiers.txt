@@ -1,0 +1,35 @@
+# UI-8 source discipline check (DOM audit of real result pages + tier_of(url, title, offline=True))
+
+S2_ui8-01_375_light.png | UI-8 抽查：result_id=8e659c33-6587-4d12-81fc-b116c7785107 | source links=1 tier chips=1 chip texts=['查核機構'] | offline tiers=[1] | hosts=['www.mygopen.com'] | OK
+S2_ui8-02_375_light.png | UI-8 抽查：result_id=72affe6e-f88b-4dae-aa86-c7d1074480f8 | source links=1 tier chips=1 chip texts=['查核機構'] | offline tiers=[1] | hosts=['www.mygopen.com'] | OK
+S2_ui8-03_375_light.png | UI-8 抽查：result_id=a55e408f-784a-4ca8-ac41-2cca8b8d3e0d | source links=1 tier chips=1 chip texts=['查核機構'] | offline tiers=[1] | hosts=['www.mygopen.com'] | OK
+S2_ui8-04_375_light.png | UI-8 抽查：result_id=0b13b8c6-5277-4e63-9f81-43ebdadf52e6 | source links=1 tier chips=1 chip texts=['查核機構'] | offline tiers=[1] | hosts=['www.mygopen.com'] | OK
+S2_ui8-05_375_light.png | UI-8 抽查：result_id=3a7ffe9b-64cc-4e24-bc0c-ab06d4931f17 | source links=1 tier chips=1 chip texts=['查核機構'] | offline tiers=[1] | hosts=['www.mygopen.com'] | OK
+S2_ui8-06_375_light.png | UI-8 抽查：result_id=18b459c5-52c2-4dd6-ba3b-7826b61cf7ed | source links=1 tier chips=1 chip texts=['查核機構'] | offline tiers=[1] | hosts=['www.mygopen.com'] | OK
+S2_ui8-07_375_light.png | UI-8 抽查：result_id=285fc072-0674-4ce0-8dfb-a202772a9e6d | source links=1 tier chips=1 chip texts=['查核機構'] | offline tiers=[1] | hosts=['tfc-taiwan.org.tw'] | OK
+S2_ui8-08_375_light.png | UI-8 抽查：result_id=393b3929-d6b5-429f-b88c-4ddb831b81d1 | source links=1 tier chips=1 chip texts=['查核機構'] | offline tiers=[1] | hosts=['tfc-taiwan.org.tw'] | OK
+S2_ui8-09_375_light.png | UI-8 抽查：result_id=5e641af6-b227-4544-88a5-42eaa286b705 | source links=1 tier chips=1 chip texts=['查核機構'] | offline tiers=[3] | hosts=['cofacts.tw'] | CHECK
+S2_ui8-10_375_light.png | UI-8 抽查：result_id=9d5656b6-5b7a-45ba-812a-775855e68d20 | source links=1 tier chips=1 chip texts=['查核機構'] | offline tiers=[1] | hosts=['165.npa.gov.tw'] | OK
+
+pages OK: 9/10
+S3_success_375_light.png: news.google.com in DOM = False
+S3_filter_empty_375_light.png: news.google.com in DOM = False
+S3_loading_375_light.png: news.google.com in DOM = False
+S3_error_375_light.png: news.google.com in DOM = False
+S3_empty_375_light.png: news.google.com in DOM = False
+S3_pending_chip_375_light.png: news.google.com in DOM = False
+S3_success_1280_light.png: news.google.com in DOM = False
+S3_filter_empty_1280_light.png: news.google.com in DOM = False
+S3_loading_1280_light.png: news.google.com in DOM = False
+S3_error_1280_light.png: news.google.com in DOM = False
+S3_empty_1280_light.png: news.google.com in DOM = False
+S3_pending_chip_1280_light.png: news.google.com in DOM = False
+S2_success_375_light.png: banner '尚無查核機構證實' = True, h1=['假訊息']
+S2_success_1280_light.png: banner '尚無查核機構證實' = True, h1=['詐騙警告']
+S2_unverified_red_375_light.png: banner '尚無查核機構證實' = True, h1=['詐騙警告']
+S2_unverified_safe_375_light.png: banner '尚無查核機構證實' = True, h1=['尚無查核機構證實']
+S2_unverified_red_1280_light.png: banner '尚無查核機構證實' = True, h1=['詐騙警告']
+S2_unverified_safe_1280_light.png: banner '尚無查核機構證實' = True, h1=['尚無查核機構證實']
+S2_success_375_dark.png: banner '尚無查核機構證實' = True, h1=['假訊息']
+S2_unverified_safe_375_dark.png: banner '尚無查核機構證實' = True, h1=['尚無查核機構證實']
+S2_unverified_safe_1280_dark.png: banner '尚無查核機構證實' = True, h1=['尚無查核機構證實']

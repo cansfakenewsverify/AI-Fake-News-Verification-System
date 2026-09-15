@@ -1,0 +1,30 @@
+# command: gh run list --limit 3   (read-only; queried 2026-09-16 03:19:41 +0800)
+completed	success	修 bug：送出查證後結果頁偶發 500（讀到寫一半的 tasks.parquet）	ci	main	push	35008720030	1m10s	2026-09-15T18:38:23Z
+completed	success	O-18 / O-19：demo 影片 v0.3.0 製作紀錄（影片檔不進 git）	ci	main	push	35008438974	50s	2026-09-15T18:35:35Z
+completed	success	實作票 S-04 ~ S-10：結果頁（全狀態＋分享到 Threads）、熱門牆、知識庫	ci	main	push	34998460386	57s	2026-09-15T16:59:45Z
+# exit code: 0
+
+# supplementary (read-only): gh run list --limit 10 --json databaseId,headSha,status,conclusion,event,createdAt,displayTitle,workflowName
+[{"conclusion":"success","createdAt":"2026-09-15T18:38:23Z","databaseId":35008720030,"displayTitle":"修 bug：送出查證後結果頁偶發 500（讀到寫一半的 tasks.parquet）","event":"push","headSha":"c114413e36f09a889e33d060c42e44178b3cf95f","status":"completed","workflowName":"ci"},{"conclusion":"success","createdAt":"2026-09-15T18:35:35Z","databaseId":35008438974,"displayTitle":"O-18 / O-19：demo 影片 v0.3.0 製作紀錄（影片檔不進 git）","event":"push","headSha":"f8ac2b603234163e6345f0e67b78d95da6bd3eba","status":"completed","workflowName":"ci"},{"conclusion":"success","createdAt":"2026-09-15T16:59:45Z","databaseId":34998460386,"displayTitle":"實作票 S-04 ~ S-10：結果頁（全狀態＋分享到 Threads）、熱門牆、知識庫","event":"push","headSha":"38bc5f5fa5c9290d4ae37aafc1395a0c1d2d2c1d","status":"completed","workflowName":"ci"},{"conclusion":"success","createdAt":"2026-09-15T16:09:18Z","databaseId":34993170670,"displayTitle":"D-05 資料清洗套用（負責人核准 1a 2a 3a）：提交乾淨的知識庫種子","event":"push","headSha":"db8c62d432425cf38210714cac7379297228f52a","status":"completed","workflowName":"ci"},{"conclusion":"success","createdAt":"2026-09-15T16:02:01Z","databaseId":34992383288,"displayTitle":"實作票 T-10 / T-11：Threads 狀態與回覆 API、錄影用重置與輪詢指令","event":"push","headSha":"14cf5926ca8929fa5212f349bdff2b7ad7fd5ed6","status":"completed","workflowName":"ci"},{"conclusion":"success","createdAt":"2026-09-15T16:01:30Z","databaseId":34992323897,"displayTitle":"實作票 S-01 ~ S-03：新版首頁取代舊畫面（輸入、送出、最近查證）","event":"push","headSha":"6c0e9d1e946b90561d1dd7c84baef8d2b45c7850","status":"completed","workflowName":"ci"},{"conclusion":"success","createdAt":"2026-09-15T15:53:58Z","databaseId":34991504857,"displayTitle":"D-05 審閱文件：資料清洗三個待決定事項與 27 筆髒資料刪除清單（尚未套用）","event":"push","headSha":"4c451f81eff981f11bd5c79360e43c7ce9521c5c","status":"completed","workflowName":"ci"},{"conclusion":"success","createdAt":"2026-09-15T12:26:15Z","databaseId":34968837721,"displayTitle":"實作票 P-14 ~ P-17：前端外殼、判定元件、輸入卡、提示與對話框元件","event":"push","headSha":"3eca633b77693d98455be6464f0f7540782d65b6","status":"completed","workflowName":"ci"},{"conclusion":"success","createdAt":"2026-09-15T12:15:11Z","databaseId":34967780307,"displayTitle":"實作票 T-08 / T-09：Threads 單則 mention 處理、輪詢互斥鎖與 since 游標","event":"push","headSha":"93dc049d5ff0f41ed63ec84a95f0c3ae8338455e","status":"completed","workflowName":"ci"},{"conclusion":"success","createdAt":"2026-09-15T12:12:37Z","databaseId":34967537881,"displayTitle":"O-17 / O-20：3 分鐘 demo 影片分鏡與旁白、進度報告簡報大綱（範圍 A、模擬模式）","event":"push","headSha":"deeee99efef5b0e9d6a40e16c381abeca093cbbf","status":"completed","workflowName":"ci"}]
+
+# local HEAD: c114413e36f09a889e33d060c42e44178b3cf95f
+# origin/main: c114413e36f09a889e33d060c42e44178b3cf95f
+
+# supplementary (read-only): gh run view 35008720030 --json jobs (latest run on HEAD c114413)
+frontend: success | steps: Set up job=success, Run actions/checkout@v4=success, Run actions/setup-node@v4=success, Install dependencies=success, Build=success, Unit tests=success, Post Run actions/setup-node@v4=success, Post Run actions/checkout@v4=success, Complete job=success
+test: success | steps: Set up job=success, Run actions/checkout@v4=success, Run actions/setup-python@v5=success, Install dependencies=success, Run unit tests=success, Post Run actions/setup-python@v5=success, Post Run actions/checkout@v4=success, Complete job=success
+
+# supplementary (read-only): conclusions of the last 200 runs grouped (gh run list --limit 200 --json conclusion,createdAt)
+[{"conclusion":"success","count":22,"newest":"2026-09-15T18:38:23Z","oldest":"2026-07-12T03:57:07Z"}]
+
+# non-success runs since 2026-09-14 (rebuild start):
+[]
+# count of runs since 2026-09-14:
+15
+
+# supplementary (read-only): step timings of run 35008720030 (gh run view --json jobs)
+frontend / Install dependencies: success started 2026-09-15T18:38:39Z completed 2026-09-15T18:38:42Z
+frontend / Build: success started 2026-09-15T18:38:42Z completed 2026-09-15T18:38:43Z
+frontend / Unit tests: success started 2026-09-15T18:38:43Z completed 2026-09-15T18:38:44Z
+test / Install dependencies: success started 2026-09-15T18:38:37Z completed 2026-09-15T18:39:10Z
+test / Run unit tests: success started 2026-09-15T18:39:10Z completed 2026-09-15T18:39:29Z

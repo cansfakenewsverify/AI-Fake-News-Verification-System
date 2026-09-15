@@ -1,0 +1,171 @@
+# FN-2a ad-hoc check (offline, scratch test, not committed): all 10 BLOCKED_SAMPLES of tests/test_safe_url.py posted to /api/analyze/url and /api/analyze/sync
+# command: (cwd=code\backend) .\venv\Scripts\python -m pytest <scratchpad>/fnqa_agent/adhoc/test_fn2a_endpoint_all10.py -q -p fnqa_netguard  (network guard on)
+...................F                                                     [100%]
+================================== FAILURES ===================================
+_ test_blocked_sample_rejected_at_endpoint[ftp://example.com/file-/api/analyze/sync] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F3A45E13D0>
+calls = <tests.test_safe_url.calls.<locals>.Recorder object at 0x000001F3A45E3020>
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-358/test_blocked_sample_rejected_a19')
+path = '/api/analyze/sync', url = 'ftp://example.com/file'
+dns = {'example.com': ['93.184.216.34']}
+
+    @pytest.mark.parametrize("path", ["/api/analyze/url", "/api/analyze/sync"])
+    @pytest.mark.parametrize("url,dns", BLOCKED_SAMPLES, ids=[u for u, _ in BLOCKED_SAMPLES])
+    def test_blocked_sample_rejected_at_endpoint(monkeypatch, calls, tmp_path, path, url, dns):  # noqa: F811
+        monkeypatch.setattr(su.socket, "getaddrinfo", _fake_getaddrinfo(dns))
+        ts = TaskStore(data_dir=str(tmp_path))
+        monkeypatch.setattr(analyze_api, "task_store", ts)
+        monkeypatch.setattr(analyze_api.settings, "DEMO_MODE", False)
+        created, enqueued, processed = [], [], []
+        real_create = ts.create_task
+        monkeypatch.setattr(ts, "create_task", lambda *a, **k: (created.append(a), real_create(*a, **k))[1])
+        monkeypatch.setattr(analyze_api, "enqueue_analysis_task", lambda *a: enqueued.append(a))
+    
+        async def fake_process(*a):
+            processed.append(a)
+            return {}
+    
+        monkeypatch.setattr(proc, "process_analysis_task_async", fake_process)
+>       resp = TestClient(app).post(path, json={"content": url})
+
+C:\Users\user\AppData\Local\Temp\claude\C--Users-user-OneDrive----AI-Fake-News-Verification-System\4ca91489-55cb-4794-b2ba-cff44a29bcbd\scratchpad\fnqa_agent\adhoc\test_fn2a_endpoint_all10.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\starlette\testclient.py:560: in post
+    return super().post(
+venv\Lib\site-packages\httpx\_client.py:1144: in post
+    return self.request(
+venv\Lib\site-packages\starlette\testclient.py:459: in request
+    return super().request(
+venv\Lib\site-packages\httpx\_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+venv\Lib\site-packages\httpx\_client.py:914: in send
+    response = self._send_handling_auth(
+venv\Lib\site-packages\httpx\_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+venv\Lib\site-packages\httpx\_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+venv\Lib\site-packages\httpx\_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+venv\Lib\site-packages\starlette\testclient.py:362: in handle_request
+    raise exc
+venv\Lib\site-packages\starlette\testclient.py:359: in handle_request
+    portal.call(self.app, scope, receive, send)
+venv\Lib\site-packages\anyio\from_thread.py:334: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\_base.py:456: in result
+    return self.__get_result()
+C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\_base.py:401: in __get_result
+    raise self._exception
+venv\Lib\site-packages\anyio\from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+venv\Lib\site-packages\fastapi\applications.py:1159: in __call__
+    await super().__call__(scope, receive, send)
+venv\Lib\site-packages\starlette\applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+venv\Lib\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+venv\Lib\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+venv\Lib\site-packages\starlette\middleware\cors.py:88: in __call__
+    await self.app(scope, receive, send)
+venv\Lib\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+venv\Lib\site-packages\starlette\routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+venv\Lib\site-packages\starlette\routing.py:680: in app
+    await route.handle(scope, receive, send)
+venv\Lib\site-packages\starlette\routing.py:276: in handle
+    await self.app(scope, receive, send)
+venv\Lib\site-packages\fastapi\routing.py:134: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+venv\Lib\site-packages\fastapi\routing.py:120: in app
+    response = await f(request)
+venv\Lib\site-packages\fastapi\routing.py:695: in app
+    content = await serialize_response(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    async def serialize_response(
+        *,
+        field: ModelField | None = None,
+        response_content: Any,
+        include: IncEx | None = None,
+        exclude: IncEx | None = None,
+        by_alias: bool = True,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        is_coroutine: bool = True,
+        endpoint_ctx: EndpointContext | None = None,
+        dump_json: bool = False,
+    ) -> Any:
+        if field:
+            if is_coroutine:
+                value, errors = field.validate(response_content, {}, loc=("response",))
+            else:
+                value, errors = await run_in_threadpool(
+                    field.validate, response_content, {}, loc=("response",)
+                )
+            if errors:
+                ctx = endpoint_ctx or EndpointContext()
+>               raise ResponseValidationError(
+                    errors=errors,
+                    body=response_content,
+                    endpoint_ctx=ctx,
+                )
+E               fastapi.exceptions.ResponseValidationError: 7 validation errors:
+E                 {'type': 'missing', 'loc': ('response', 'is_risk'), 'msg': 'Field required', 'input': {'result_id': 'b21e438a-792d-41b4-bc3b-9706f1093999', 'ai_unavailable': False, 'similar_news': [], 'category_label': '其他', 'label_source': 'ai', 'analyzed_at': '2026-09-16T03:36:47+08:00', 'verification_status': 'unverified', 'verified': False, 'source_tier': None, 'related_discussions': [], 'border_color': '', 'display_info': '', 'related_links': []}}
+E                 {'type': 'missing', 'loc': ('response', 'risk_type'), 'msg': 'Field required', 'input': {'result_id': 'b21e438a-792d-41b4-bc3b-9706f1093999', 'ai_unavailable': False, 'similar_news': [], 'category_label': '其他', 'label_source': 'ai', 'analyzed_at': '2026-09-16T03:36:47+08:00', 'verification_status': 'unverified', 'verified': False, 'source_tier': None, 'related_discussions': [], 'border_color': '', 'display_info': '', 'related_links': []}}
+E                 {'type': 'missing', 'loc': ('response', 'category'), 'msg': 'Field required', 'input': {'result_id': 'b21e438a-792d-41b4-bc3b-9706f1093999', 'ai_unavailable': False, 'similar_news': [], 'category_label': '其他', 'label_source': 'ai', 'analyzed_at': '2026-09-16T03:36:47+08:00', 'verification_status': 'unverified', 'verified': False, 'source_tier': None, 'related_discussions': [], 'border_color': '', 'display_info': '', 'related_links': []}}
+E                 {'type': 'missing', 'loc': ('response', 'confidence_score'), 'msg': 'Field required', 'input': {'result_id': 'b21e438a-792d-41b4-bc3b-9706f1093999', 'ai_unavailable': False, 'similar_news': [], 'category_label': '其他', 'label_source': 'ai', 'analyzed_at': '2026-09-16T03:36:47+08:00', 'verification_status': 'unverified', 'verified': False, 'source_tier': None, 'related_discussions': [], 'border_color': '', 'display_info': '', 'related_links': []}}
+E                 {'type': 'missing', 'loc': ('response', 'summary'), 'msg': 'Field required', 'input': {'result_id': 'b21e438a-792d-41b4-bc3b-9706f1093999', 'ai_unavailable': False, 'similar_news': [], 'category_label': '其他', 'label_source': 'ai', 'analyzed_at': '2026-09-16T03:36:47+08:00', 'verification_status': 'unverified', 'verified': False, 'source_tier': None, 'related_discussions': [], 'border_color': '', 'display_info': '', 'related_links': []}}
+E                 {'type': 'missing', 'loc': ('response', 'explanation'), 'msg': 'Field required', 'input': {'result_id': 'b21e438a-792d-41b4-bc3b-9706f1093999', 'ai_unavailable': False, 'similar_news': [], 'category_label': '其他', 'label_source': 'ai', 'analyzed_at': '2026-09-16T03:36:47+08:00', 'verification_status': 'unverified', 'verified': False, 'source_tier': None, 'related_discussions': [], 'border_color': '', 'display_info': '', 'related_links': []}}
+E                 {'type': 'missing', 'loc': ('response', 'sources'), 'msg': 'Field required', 'input': {'result_id': 'b21e438a-792d-41b4-bc3b-9706f1093999', 'ai_unavailable': False, 'similar_news': [], 'category_label': '其他', 'label_source': 'ai', 'analyzed_at': '2026-09-16T03:36:47+08:00', 'verification_status': 'unverified', 'verified': False, 'source_tier': None, 'related_discussions': [], 'border_color': '', 'display_info': '', 'related_links': []}}
+E               
+E                 File "C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\app\api\analyze.py", line 308, in analyze_sync
+E                   POST /api/analyze/sync
+
+venv\Lib\site-packages\fastapi\routing.py:300: ResponseValidationError
+=========================== short test summary info ===========================
+FAILED ::test_blocked_sample_rejected_at_endpoint[ftp://example.com/file-/api/analyze/sync]
+1 failed, 19 passed in 2.06s
+# exit code: 1
+# per-sample results (path | url | HTTP | code | outbound requests | task created):
+  /api/analyze/url | http://127.0.0.1/ | 422 | blocked_url | 0 | False
+  /api/analyze/sync | http://127.0.0.1/ | 422 | blocked_url | 0 | False
+  /api/analyze/url | http://10.0.0.5/admin | 422 | blocked_url | 0 | False
+  /api/analyze/sync | http://10.0.0.5/admin | 422 | blocked_url | 0 | False
+  /api/analyze/url | http://172.16.3.4/ | 422 | blocked_url | 0 | False
+  /api/analyze/sync | http://172.16.3.4/ | 422 | blocked_url | 0 | False
+  /api/analyze/url | http://192.168.1.1/ | 422 | blocked_url | 0 | False
+  /api/analyze/sync | http://192.168.1.1/ | 422 | blocked_url | 0 | False
+  /api/analyze/url | http://169.254.169.254/latest/meta-data | 422 | blocked_url | 0 | False
+  /api/analyze/sync | http://169.254.169.254/latest/meta-data | 422 | blocked_url | 0 | False
+  /api/analyze/url | http://[::1]/ | 422 | blocked_url | 0 | False
+  /api/analyze/sync | http://[::1]/ | 422 | blocked_url | 0 | False
+  /api/analyze/url | http://[fd00::1]/ | 422 | blocked_url | 0 | False
+  /api/analyze/sync | http://[fd00::1]/ | 422 | blocked_url | 0 | False
+  /api/analyze/url | http://localhost/ | 422 | blocked_url | 0 | False
+  /api/analyze/sync | http://localhost/ | 422 | blocked_url | 0 | False
+  /api/analyze/url | http://printer.local/ | 422 | blocked_url | 0 | False
+  /api/analyze/sync | http://printer.local/ | 422 | blocked_url | 0 | False
+  /api/analyze/url | ftp://example.com/file | 422 | invalid_url | 0 | False
+# summary: HTTP {422: 19}  codes {'blocked_url': 18, 'invalid_url': 1}  netguard blocked attempts 0
+# interpretation (FN/QA test agent):
+#  - 9 private / loopback / link-local / .local samples: both endpoints -> HTTP 422 code=blocked_url, 0 outbound requests, no task created.
+#  - protocol sample ftp://example.com/file:
+#      /api/analyze/url  -> HTTP 422 code=invalid_url (rejected before safe_url; not the literal 'blocked_url'), 0 requests.
+#      /api/analyze/sync -> not a URL for /sync auto-detection (only http/https), so it is accepted as TEXT input and a task is created;
+#                           the FAILED line above is an artefact of this ad-hoc harness (its stub processor returns {} so the
+#                           response model fails validation). No outbound request was made (netguard blocked attempts = 0).
+#  - The committed suite covers all 10 samples at the safe_url layer (BlockedURL, 0 requests) and endpoint 422 blocked_url for 2 samples.

@@ -1,0 +1,30 @@
+# frontend production build (same as npm run build = vite build; --outDir redirected to scratch so code/frontend/dist is untouched)
+# command: npx vite build --outDir <scratch>/opuipf/dist_build --emptyOutDir
+# node v24.15.0, started 2026-09-16 03:29:01 +0800
+
+vite v8.3.0 building client environment for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 113 modules transformed.
+rendering chunks...
+computing gzip size...
+../../../../../AppData/Local/Temp/claude/C--Users-user-OneDrive----AI-Fake-News-Verification-System/4ca91489-55cb-4794-b2ba-cff44a29bcbd/scratchpad/opuipf/dist_build/index.html                   1.28 kB │ gzip:   0.68 kB
+../../../../../AppData/Local/Temp/claude/C--Users-user-OneDrive----AI-Fake-News-Verification-System/4ca91489-55cb-4794-b2ba-cff44a29bcbd/scratchpad/opuipf/dist_build/assets/index-BAyMNAWe.css   14.75 kB │ gzip:   4.18 kB
+../../../../../AppData/Local/Temp/claude/C--Users-user-OneDrive----AI-Fake-News-Verification-System/4ca91489-55cb-4794-b2ba-cff44a29bcbd/scratchpad/opuipf/dist_build/assets/index-Zf5TthD4.js   369.50 kB │ gzip: 115.85 kB
+
+✓ built in 558ms
+
+# exit_code=0 build_wall_ms=1913
+# file sizes (bytes) and gzip sizes:
+./assets/index-BAyMNAWe.css bytes=14758 gzip9=4195
+./assets/index-Zf5TthD4.js bytes=369500 gzip9=114177
+./data-deletion.html bytes=2018 gzip9=1204
+./deauthorize.html bytes=1865 gzip9=1075
+./index.html bytes=1280 gzip9=698
+./og.png bytes=3159 gzip9=226
+./privacy.html bytes=3216 gzip9=1862
+./vite.svg bytes=1497 gzip9=780
+# total bytes: 397293
+# js+css bytes: 384258

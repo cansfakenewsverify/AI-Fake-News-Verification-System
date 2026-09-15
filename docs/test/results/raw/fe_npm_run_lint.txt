@@ -1,0 +1,8 @@
+# command: (cwd=code\frontend) npm run lint
+# started: 2026-09-16 03:19:23 +0800  node v24.15.0  npm 11.12.1
+
+> fake-news-frontend@0.0.0 lint
+> eslint .
+
+# exit code: 0
+# wall time (s): 3

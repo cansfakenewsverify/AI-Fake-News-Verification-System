@@ -1,0 +1,70 @@
+===== round 1 =====
+# reset-sim start (local ms epoch): 1789500477620  03:27:57
+[reset-sim] data/threads_sim/mentions.json 不存在，已從 scripts/threads_sim_mentions.example.json 複製
+[reset-sim] 已清空 data/threads_sim/replies.jsonl（原 0 行）
+[reset-sim] data/threads_replies.jsonl：移除 mode=sim 0 行，保留其他 0 行
+[reset-sim] state：replied_ids 移除模擬 id 0 個（保留 0 個），last_since 歸零
+[reset-sim] 離線預熱：已預熱 1 則／已存在 0 則
+[reset-sim]   p100：已預熱（gold，詐騙警告，sources: 1 x tier1；已寫入向量）
+[reset-sim] 完成。後端排程每 600 分鐘也會自動輪詢，請在那之前執行 --poll（錄影時可把 THREADS_POLL_MINUTES 調大）
+# reset-sim exit=0 end: 1789500482448  03:28:02
+# poll start (local ms epoch): 1789500482537  03:28:02
+[poll] 觸發一輪輪詢：http://127.0.0.1:8030（THREADS_MODE=sim）
+[poll] 202 已開始，每 2 秒檢查 last_poll_at ...
+[poll] 本輪結果：checked=3 replied=3 skipped=0 errors=0
+poll -> mention m1 -> cache hash -> sources: 1 x tier1 -> reply sim_reply_1
+       result_id=06347c19-ca22-4d73-b02c-f419db84ef84 frame_type=red
+poll -> mention m2 -> fixed reply (media_only) -> reply sim_reply_2
+poll -> mention m3 -> fixed reply (unreadable) -> reply sim_reply_3
+[poll] 最新判定回覆：result_id=06347c19-ca22-4d73-b02c-f419db84ef84 frame_type=red cache_layer=hash
+[poll] 回覆全文：data/threads_sim/replies.jsonl
+[poll] replied=3
+# poll exit=0 end: 1789500485932  03:28:05  script_wall_ms=3395
+# replies.jsonl lines now: 3
+
+===== round 2 =====
+# reset-sim start (local ms epoch): 1789500486099  03:28:06
+[reset-sim] 已清空 data/threads_sim/replies.jsonl（原 3 行）
+[reset-sim] data/threads_replies.jsonl：移除 mode=sim 3 行，保留其他 0 行
+[reset-sim] state：replied_ids 移除模擬 id 3 個（保留 0 個），last_since 歸零
+[reset-sim] 離線預熱：已預熱 0 則／已存在 1 則
+[reset-sim]   p100：已存在（知識庫已有已證實的同內容列，label_source=gold）
+[reset-sim] 完成。後端排程每 600 分鐘也會自動輪詢，請在那之前執行 --poll（錄影時可把 THREADS_POLL_MINUTES 調大）
+# reset-sim exit=0 end: 1789500487280  03:28:07
+# poll start (local ms epoch): 1789500487367  03:28:07
+[poll] 觸發一輪輪詢：http://127.0.0.1:8030（THREADS_MODE=sim）
+[poll] 202 已開始，每 2 秒檢查 last_poll_at ...
+[poll] 本輪結果：checked=3 replied=3 skipped=0 errors=0
+poll -> mention m1 -> cache hash -> sources: 1 x tier1 -> reply sim_reply_1
+       result_id=8b894479-48f9-4d54-be43-8d788d1d4b64 frame_type=red
+poll -> mention m2 -> fixed reply (media_only) -> reply sim_reply_2
+poll -> mention m3 -> fixed reply (unreadable) -> reply sim_reply_3
+[poll] 最新判定回覆：result_id=8b894479-48f9-4d54-be43-8d788d1d4b64 frame_type=red cache_layer=hash
+[poll] 回覆全文：data/threads_sim/replies.jsonl
+[poll] replied=3
+# poll exit=0 end: 1789500490726  03:28:10  script_wall_ms=3359
+# replies.jsonl lines now: 3
+
+===== round 3 =====
+# reset-sim start (local ms epoch): 1789500490919  03:28:10
+[reset-sim] 已清空 data/threads_sim/replies.jsonl（原 3 行）
+[reset-sim] data/threads_replies.jsonl：移除 mode=sim 3 行，保留其他 0 行
+[reset-sim] state：replied_ids 移除模擬 id 3 個（保留 0 個），last_since 歸零
+[reset-sim] 離線預熱：已預熱 0 則／已存在 1 則
+[reset-sim]   p100：已存在（知識庫已有已證實的同內容列，label_source=gold）
+[reset-sim] 完成。後端排程每 600 分鐘也會自動輪詢，請在那之前執行 --poll（錄影時可把 THREADS_POLL_MINUTES 調大）
+# reset-sim exit=0 end: 1789500492037  03:28:12
+# poll start (local ms epoch): 1789500492113  03:28:12
+[poll] 觸發一輪輪詢：http://127.0.0.1:8030（THREADS_MODE=sim）
+[poll] 202 已開始，每 2 秒檢查 last_poll_at ...
+[poll] 本輪結果：checked=3 replied=3 skipped=0 errors=0
+poll -> mention m1 -> cache hash -> sources: 1 x tier1 -> reply sim_reply_1
+       result_id=92269ab8-00a1-40c0-a8e0-f5a76e34e559 frame_type=red
+poll -> mention m2 -> fixed reply (media_only) -> reply sim_reply_2
+poll -> mention m3 -> fixed reply (unreadable) -> reply sim_reply_3
+[poll] 最新判定回覆：result_id=92269ab8-00a1-40c0-a8e0-f5a76e34e559 frame_type=red cache_layer=hash
+[poll] 回覆全文：data/threads_sim/replies.jsonl
+[poll] replied=3
+# poll exit=0 end: 1789500495438  03:28:15  script_wall_ms=3325
+# replies.jsonl lines now: 3
+

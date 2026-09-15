@@ -1,0 +1,143 @@
+# command: (cwd=code\backend) .\venv\Scripts\python -m pytest tests -q
+# started: 2026-09-16 03:14:38 +0800  HEAD=c114413
+# protected data sha256 before:
+b4f49cd7b9f29451b63b2d321e63ecd7bb42690e54a60056273e7c9323d71caa *data/knowledge_base.parquet
+59074ec3012c4ed0a2ad3a890c81e29a6940ae4d78433ebf8e509d02b79efa34 *data/tasks.parquet
+880dab98e5f5f613a01d341bd98400eac322fa4e779da7017fa61d0807ab8451 *data/factcheck.db
+........................................................................ [ 15%]
+.............................................................F.......... [ 30%]
+........................................................................ [ 45%]
+........................................................................ [ 60%]
+........................................................................ [ 75%]
+........................................................................ [ 90%]
+.............................................                            [100%]
+================================== FAILURES ===================================
+_______ test_concurrent_task_updates_do_not_lose_writes_or_break_reads ________
+
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-335/test_concurrent_task_updates_d0')
+
+    def test_concurrent_task_updates_do_not_lose_writes_or_break_reads(tmp_path):
+        store = TaskStore(data_dir=str(tmp_path))
+        ids = [store.create_task("analyze_text", f"訊息 {i}") for i in range(8)]
+        errors = []
+    
+        def writer(task_id):
+            try:
+                for step in range(5):
+                    store.update_task(task_id, status="processing" if step < 4 else "completed")
+            except Exception as exc:  # pragma: no cover - 失敗時由斷言報出
+                errors.append(exc)
+    
+        def reader():
+            try:
+                for _ in range(40):
+                    for task_id in ids:
+                        store.get_task(task_id)
+            except Exception as exc:  # pragma: no cover
+                errors.append(exc)
+    
+        threads = [threading.Thread(target=writer, args=(i,)) for i in ids] + [threading.Thread(target=reader)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+    
+>       assert errors == []
+E       AssertionError: assert [PermissionError(13, '存取被拒。')] == []
+E         Left contains one more item: PermissionError(13, '存取被拒。')
+E         Use -v to get more diff
+
+tests\test_parquet_io.py:96: AssertionError
+============================== warnings summary ===============================
+venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+app\config.py:9
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\app\config.py:9: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Settings(BaseSettings):
+
+tests/test_admin_auth.py: 2 warnings
+tests/test_analyze_api.py: 7 warnings
+tests/test_cache_and_store.py: 1 warning
+tests/test_kb_write_gate.py: 16 warnings
+tests/test_keyword_search_missing.py: 1 warning
+tests/test_parquet_io.py: 8 warnings
+tests/test_processor_flow.py: 2 warnings
+tests/test_result_api.py: 12 warnings
+tests/test_safe_url.py: 14 warnings
+tests/test_task_store_schema.py: 9 warnings
+tests/test_threads_api.py: 4 warnings
+tests/test_threads_bot_sim.py: 39 warnings
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\app\services\task_store.py:167: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_admin_auth.py: 2 warnings
+tests/test_kb_write_gate.py: 16 warnings
+tests/test_keyword_search_missing.py: 1 warning
+tests/test_processor_flow.py: 2 warnings
+tests/test_result_api.py: 6 warnings
+tests/test_safe_url.py: 14 warnings
+tests/test_threads_api.py: 4 warnings
+tests/test_threads_bot_sim.py: 37 warnings
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\app\workers\pandas_task_processor.py:343: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    completed_at=datetime.utcnow(),
+
+tests/test_admin_auth.py: 4 warnings
+tests/test_analyze_api.py: 1 warning
+tests/test_cache_and_store.py: 1 warning
+tests/test_kb_write_gate.py: 32 warnings
+tests/test_keyword_search_missing.py: 2 warnings
+tests/test_parquet_io.py: 36 warnings
+tests/test_processor_flow.py: 4 warnings
+tests/test_result_api.py: 9 warnings
+tests/test_safe_url.py: 28 warnings
+tests/test_task_store_schema.py: 5 warnings
+tests/test_threads_api.py: 11 warnings
+tests/test_threads_bot_sim.py: 64 warnings
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\app\services\task_store.py:220: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    df.loc[mask, "updated_at"] = datetime.utcnow()
+
+tests/test_admin_auth.py::test_override_sets_label_source_admin
+tests/test_admin_auth.py::test_override_without_kb_id_leaves_kb_untouched
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\app\services\audit_store.py:79: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.utcnow(),
+
+tests/test_admin_auth.py::test_override_sets_label_source_admin
+tests/test_admin_auth.py::test_override_without_kb_id_leaves_kb_untouched
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\app\services\audit_store.py:81: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+    df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
+
+tests/test_knowledge_api.py::test_record_fields_and_raw_content_truncated
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\app\services\pandas_store.py:281: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+    df = pd.concat([df[common_cols], new_row[common_cols]], ignore_index=True)
+
+tests/test_news_fetcher_async.py::test_analyze_record_dead_tier1_verified_false
+tests/test_news_fetcher_async.py::test_analyze_record_tier3_moved_to_related
+tests/test_news_fetcher_async.py::test_analyze_record_tier1_source_url_verified_true
+tests/test_news_fetcher_async.py::test_analyze_record_cache_hit_ignores_unvalidated_cached_sources
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\app\services\news_fetcher.py:458: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    rec.updated_at = datetime.utcnow()
+
+tests/test_task_store_schema.py::test_create_task_with_origin_threads
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\tests\test_task_store_schema.py:122: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    completed_at=datetime.utcnow(),
+
+tests/test_threads_api.py: 34 warnings
+  C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\venv\Lib\site-packages\starlette\testclient.py:453: DeprecationWarning: You should not use the 'timeout' argument with the TestClient. See https://github.com/Kludex/starlette/issues/1108 for more information.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_parquet_io.py::test_concurrent_task_updates_do_not_lose_writes_or_break_reads
+1 failed, 476 passed, 440 warnings in 42.20s
+# exit code: 1
+# wall time (s): not captured (bc unavailable in shell); pytest-reported duration 42.20 s
+# note: the single failure (test_parquet_io.py::test_concurrent_task_updates_do_not_lose_writes_or_break_reads,
+#       PermissionError 13 on Windows) did not reproduce in 10 isolated reruns of test_parquet_io.py
+#       (fn_pytest_parquet_io_rerun.txt) nor in full reruns #2/#3 (fn_pytest_full_rerun.txt) nor in the
+#       network-guarded full run (fn_pytest_netguard.txt) -> intermittent (flaky) on Windows.
+# protected data sha256 after:
+b4f49cd7b9f29451b63b2d321e63ecd7bb42690e54a60056273e7c9323d71caa *data/knowledge_base.parquet
+59074ec3012c4ed0a2ad3a890c81e29a6940ae4d78433ebf8e509d02b79efa34 *data/tasks.parquet
+880dab98e5f5f613a01d341bd98400eac322fa4e779da7017fa61d0807ab8451 *data/factcheck.db

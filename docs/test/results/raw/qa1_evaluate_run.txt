@@ -1,0 +1,184 @@
+===== [watchdog] start 2026-09-16 03:14:22+0800 cwd=code\backend cmd: .\venv\Scripts\python scripts\evaluate.py --delay 0 =====
+載入 150 筆標註資料：C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\data\eval_set.csv
+（提醒：評測會呼叫真實 AI，請確認 .env 金鑰已設定且有額度/點數）
+
+[1/150] id=1 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[2/150] id=2 gold=SCAM    pred=SCAM    conf=0.99 [v] OK
+[3/150] id=3 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[4/150] id=4 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[5/150] id=5 gold=SCAM    pred=SCAM    conf=0.99 [v] OK
+[6/150] id=6 gold=SCAM    pred=SCAM    conf=0.99 [v] OK
+[7/150] id=7 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[8/150] id=8 gold=SCAM    pred=SCAM    conf=0.96 [v] OK
+[9/150] id=9 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[10/150] id=10 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[11/150] id=11 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[12/150] id=12 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[13/150] id=13 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[14/150] id=14 gold=SCAM    pred=SCAM    conf=0.99 [v] OK
+[15/150] id=15 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[16/150] id=16 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[17/150] id=17 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[18/150] id=18 gold=SCAM    pred=SCAM    conf=0.99 [v] OK
+[19/150] id=19 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[20/150] id=20 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[21/150] id=21 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[22/150] id=22 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[23/150] id=23 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[24/150] id=24 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[25/150] id=25 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[26/150] id=26 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[27/150] id=27 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[28/150] id=28 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[29/150] id=29 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[30/150] id=30 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[31/150] id=31 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[32/150] id=32 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[33/150] id=33 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[34/150] id=34 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[35/150] id=35 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[36/150] id=36 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[37/150] id=37 gold=SCAM    pred=SCAM    conf=0.99 [v] OK
+[38/150] id=38 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[39/150] id=39 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[40/150] id=40 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[41/150] id=41 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[42/150] id=42 gold=SCAM    pred=SCAM    conf=0.93 [v] OK
+[43/150] id=43 gold=SCAM    pred=SCAM    conf=0.99 [v] OK
+[44/150] id=44 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[45/150] id=45 gold=SCAM    pred=SCAM    conf=0.99 [v] OK
+[46/150] id=46 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[47/150] id=47 gold=SCAM    pred=SCAM    conf=0.97 [v] OK
+[48/150] id=48 gold=SCAM    pred=SCAM    conf=0.95 [v] OK
+[49/150] id=49 gold=SCAM    pred=SCAM    conf=0.99 [v] OK
+[50/150] id=50 gold=SCAM    pred=SCAM    conf=0.98 [v] OK
+[51/150] id=51 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[52/150] id=52 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[53/150] id=53 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[54/150] id=54 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[55/150] id=55 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[56/150] id=56 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[57/150] id=57 gold=MISINFO pred=MISINFO conf=0.97 [v] OK
+[58/150] id=58 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[59/150] id=59 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[60/150] id=60 gold=MISINFO pred=MISINFO conf=0.92 [v] OK
+[61/150] id=61 gold=MISINFO pred=MISINFO conf=0.97 [v] OK
+[62/150] id=62 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[63/150] id=63 gold=MISINFO pred=MISINFO conf=0.97 [v] OK
+[64/150] id=64 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[65/150] id=65 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[66/150] id=66 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[67/150] id=67 gold=MISINFO pred=MISINFO conf=0.95 [v] OK
+[68/150] id=68 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[69/150] id=69 gold=MISINFO pred=MISINFO conf=0.86 [v] OK
+[70/150] id=70 gold=MISINFO pred=MISINFO conf=0.97 [v] OK
+[71/150] id=71 gold=MISINFO pred=MISINFO conf=0.95 [v] OK
+[72/150] id=72 gold=MISINFO pred=MISINFO conf=0.93 [v] OK
+[73/150] id=73 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[74/150] id=74 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[75/150] id=75 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[76/150] id=76 gold=MISINFO pred=MISINFO conf=0.95 [v] OK
+[77/150] id=77 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[78/150] id=78 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[79/150] id=79 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[80/150] id=80 gold=MISINFO pred=MISINFO conf=0.93 [v] OK
+[81/150] id=81 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[82/150] id=82 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[83/150] id=83 gold=MISINFO pred=MISINFO conf=0.93 [v] OK
+[84/150] id=84 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[85/150] id=85 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[86/150] id=86 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[87/150] id=87 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[88/150] id=88 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[89/150] id=89 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[90/150] id=90 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[91/150] id=91 gold=MISINFO pred=MISINFO conf=0.94 [v] OK
+[92/150] id=92 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[93/150] id=93 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[94/150] id=94 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[95/150] id=95 gold=MISINFO pred=MISINFO conf=0.95 [v] OK
+[96/150] id=96 gold=MISINFO pred=MISINFO conf=0.88 [v] OK
+[97/150] id=97 gold=MISINFO pred=MISINFO conf=0.98 [v] OK
+[98/150] id=98 gold=MISINFO pred=MISINFO conf=0.95 [v] OK
+[99/150] id=99 gold=MISINFO pred=MISINFO conf=0.96 [v] OK
+[100/150] id=100 gold=MISINFO pred=MISINFO conf=0.92 [v] OK
+[101/150] id=101 gold=SAFE    pred=SAFE    conf=0.95 [v] OK
+[102/150] id=102 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[103/150] id=103 gold=SAFE    pred=SAFE    conf=0.97 [v] OK
+[104/150] id=104 gold=SAFE    pred=SAFE    conf=0.86 [v] OK
+[105/150] id=105 gold=SAFE    pred=SAFE    conf=0.94 [v] OK
+[106/150] id=106 gold=SAFE    pred=SAFE    conf=0.92 [v] OK
+[107/150] id=107 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[108/150] id=108 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[109/150] id=109 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[110/150] id=110 gold=SAFE    pred=SAFE    conf=0.95 [v] OK
+[111/150] id=111 gold=SAFE    pred=SAFE    conf=0.99 [v] OK
+[112/150] id=112 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[113/150] id=113 gold=SAFE    pred=SAFE    conf=0.99 [v] OK
+[114/150] id=114 gold=SAFE    pred=SAFE    conf=0.78 [v] OK
+[115/150] id=115 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[116/150] id=116 gold=SAFE    pred=SAFE    conf=0.96 [v] OK
+[117/150] id=117 gold=SAFE    pred=SAFE    conf=0.93 [v] OK
+[118/150] id=118 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[119/150] id=119 gold=SAFE    pred=SAFE    conf=0.89 [v] OK
+[120/150] id=120 gold=SAFE    pred=SAFE    conf=0.97 [v] OK
+[121/150] id=121 gold=SAFE    pred=SAFE    conf=0.96 [v] OK
+[122/150] id=122 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[123/150] id=123 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[124/150] id=124 gold=SAFE    pred=SAFE    conf=0.68 [v] OK
+[125/150] id=125 gold=SAFE    pred=SAFE    conf=0.92 [v] OK
+[126/150] id=126 gold=SAFE    pred=SAFE    conf=0.97 [v] OK
+[127/150] id=127 gold=SAFE    pred=SAFE    conf=0.93 [v] OK
+[128/150] id=128 gold=SAFE    pred=SAFE    conf=0.99 [v] OK
+[129/150] id=129 gold=SAFE    pred=SAFE    conf=0.94 [v] OK
+[130/150] id=130 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[131/150] id=131 gold=SAFE    pred=SAFE    conf=0.97 [v] OK
+[132/150] id=132 gold=SAFE    pred=SAFE    conf=0.99 [v] OK
+[133/150] id=133 gold=SAFE    pred=SAFE    conf=0.96 [v] OK
+[134/150] id=134 gold=SAFE    pred=SAFE    conf=0.96 [v] OK
+[135/150] id=135 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[136/150] id=136 gold=SAFE    pred=SAFE    conf=0.87 [v] OK
+[137/150] id=137 gold=SAFE    pred=SAFE    conf=0.94 [v] OK
+[138/150] id=138 gold=SAFE    pred=SAFE    conf=0.96 [v] OK
+[139/150] id=139 gold=SAFE    pred=SAFE    conf=0.99 [v] OK
+[140/150] id=140 gold=SAFE    pred=SAFE    conf=0.93 [v] OK
+[141/150] id=141 gold=SAFE    pred=SAFE    conf=0.96 [v] OK
+[142/150] id=142 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[143/150] id=143 gold=SAFE    pred=SAFE    conf=0.98 [v] OK
+[144/150] id=144 gold=SAFE    pred=SAFE    conf=0.99 [v] OK
+[145/150] id=145 gold=SAFE    pred=SAFE    conf=0.96 [v] OK
+[146/150] id=146 gold=SAFE    pred=SAFE    conf=0.96 [v] OK
+[147/150] id=147 gold=SAFE    pred=SAFE    conf=0.99 [v] OK
+[148/150] id=148 gold=SAFE    pred=SAFE    conf=0.96 [v] OK
+[149/150] id=149 gold=SAFE    pred=SAFE    conf=0.89 [v] OK
+[150/150] id=150 gold=SAFE    pred=SAFE    conf=0.97 [v] OK
+
+========================================================
+  評測結果（有效 150 筆，分析失敗 0 筆）
+========================================================
+  整體準確率 Accuracy : 1.000
+  Macro-F1           : 1.000
+
+  各類別 Precision / Recall / F1：
+    SCAM      P=1.000  R=1.000  F1=1.000  (n=50)
+    MISINFO   P=1.000  R=1.000  F1=1.000  (n=50)
+    SAFE      P=1.000  R=1.000  F1=1.000  (n=50)
+
+  混淆矩陣（列=真實，欄=預測）：
+               SCAM  MISINFO     SAFE
+    SCAM           50        0        0
+    MISINFO         0       50        0
+    SAFE            0        0       50
+
+  二分類（風險 vs 安全）— 偽陽性/偽陰性：
+    TP=100  FP(偽陽性/誤報)=0  FN(偽陰性/漏報)=0  TN=50
+    Precision=1.000  Recall=1.000  Specificity=1.000
+    偽陽性率 FPR=0.000  偽陰性率 FNR=0.000
+  [v] 偽陽性/偽陰性指標已存：C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\data\eval_binary.csv
+  (無判錯案例)
+
+  [v] 報告已存：C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\data\eval_report.csv
+  [v] 混淆矩陣圖已存：C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\assets\confusion_matrix.png
+
+ 評測完成。
+===== [watchdog2] evaluate.py finished=True at 2026-09-16 03:29:39+0800 =====

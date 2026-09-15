@@ -1,0 +1,21 @@
+# command: (cwd=code\frontend) npm run build
+# started: 2026-09-16 03:19:27 +0800  node v24.15.0  npm 11.12.1
+
+> fake-news-frontend@0.0.0 build
+> vite build
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+Browserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 113 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   1.28 kB │ gzip:   0.68 kB
+dist/assets/index-BAyMNAWe.css   14.75 kB │ gzip:   4.18 kB
+dist/assets/index-Zf5TthD4.js   369.50 kB │ gzip: 115.85 kB
+
+[32m✓ built in 598ms[39m
+# exit code: 0
+# wall time (s): 2

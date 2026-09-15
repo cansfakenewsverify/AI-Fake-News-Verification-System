@@ -1,0 +1,24 @@
+# command: (cwd=code\backend) PYTHONPATH=<scratchpad>/fnqa_agent .\venv\Scripts\python -m pytest tests -q -p fnqa_netguard
+# purpose: spec 10.2 goal row 'zero paid calls' -- plugin blocks and records every non-loopback socket connect / DNS lookup during the full suite
+# started: 2026-09-16 03:25:18 +0800
+........................................................................ [ 15%]
+........................................................................ [ 30%]
+........................................................................ [ 45%]
+........................................................................ [ 60%]
+........................................................................ [ 75%]
+........................................................................ [ 90%]
+.............................................                            [100%]
+477 passed in 36.45s
+# exit code: 0
+# netguard result (blocked attempts):
+{
+ "exitstatus": 0,
+ "blocked_attempt_count": 0,
+ "blocked_attempts": []
+}
+# positive control (same plugin, 3 scratch tests that attempt DNS / requests.get / raw connect; they PASS only if the guard blocks):
+# command: (cwd=code\backend) PYTHONPATH=<scratchpad>/fnqa_agent .\venv\Scripts\python -m pytest <scratchpad>/fnqa_agent/control -q -p fnqa_netguard
+...                                                                      [100%]
+3 passed in 0.16s
+# exit code: 0
+# control blocked_attempt_count = 3  kinds = ['connect', 'getaddrinfo']

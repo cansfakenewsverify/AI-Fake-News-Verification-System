@@ -1,0 +1,69 @@
+# QA-2: (cwd=code\backend) .\venv\Scripts\python scripts\evaluate.py --report-only   (zero AI calls)
+# started 2026-09-16 03:31:49 +0800
+## sha256 before
+96642a9964c31fe2dc0d1b02bf6d86d2d7884203681278bc3401dad2a87b765f *data/eval_report.csv
+40684e07f1de2cfe9469c812a3fcafa0542273a22adb3926d3e2cfca812b7313 *data/eval_binary.csv
+f11d90185555c6f847722a1ede25ec696ad2bdb2c57398f618d4f26ad397fe27 *data/eval_errors.csv
+f413fe16007fdbe53192dbfbb5470e48d13f38037947db6ace873b13b39c4220 *../../assets/confusion_matrix.png
+重算報告：150 筆（未呼叫 AI、零點數）
+
+
+========================================================
+  評測結果（有效 150 筆，分析失敗 0 筆）
+========================================================
+  整體準確率 Accuracy : 1.000
+  Macro-F1           : 1.000
+
+  各類別 Precision / Recall / F1：
+    SCAM      P=1.000  R=1.000  F1=1.000  (n=50)
+    MISINFO   P=1.000  R=1.000  F1=1.000  (n=50)
+    SAFE      P=1.000  R=1.000  F1=1.000  (n=50)
+
+  混淆矩陣（列=真實，欄=預測）：
+               SCAM  MISINFO     SAFE
+    SCAM           50        0        0
+    MISINFO         0       50        0
+    SAFE            0        0       50
+
+  二分類（風險 vs 安全）— 偽陽性/偽陰性：
+    TP=100  FP(偽陽性/誤報)=0  FN(偽陰性/漏報)=0  TN=50
+    Precision=1.000  Recall=1.000  Specificity=1.000
+    偽陽性率 FPR=0.000  偽陰性率 FNR=0.000
+  [v] 偽陽性/偽陰性指標已存：C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\data\eval_binary.csv
+  (無判錯案例)
+
+  [v] 報告已存：C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\code\backend\data\eval_report.csv
+  [v] 混淆矩陣圖已存：C:\Users\user\OneDrive\桌面\AI-Fake-News-Verification-System\assets\confusion_matrix.png
+
+ 報告重算完成。
+# exit code: 0
+## sha256 after
+96642a9964c31fe2dc0d1b02bf6d86d2d7884203681278bc3401dad2a87b765f *data/eval_report.csv
+40684e07f1de2cfe9469c812a3fcafa0542273a22adb3926d3e2cfca812b7313 *data/eval_binary.csv
+f11d90185555c6f847722a1ede25ec696ad2bdb2c57398f618d4f26ad397fe27 *data/eval_errors.csv
+f413fe16007fdbe53192dbfbb5470e48d13f38037947db6ace873b13b39c4220 *../../assets/confusion_matrix.png
+## header columns of eval_report.csv / eval_predictions.csv / eval_errors.csv (QA-2 requires provider/model/date/use_web_search/elapsed_ms)
+﻿label,precision,recall,f1,support
+﻿id,gold,pred,confidence,correct,errored,content
+﻿id,gold,pred,error_type,confidence,note,content
+## evaluate.py supports --timing?
+                   [--resume] [--seed-db] [--report-only]
+  --seed-db      ��P�諸�רҼg�J knowledge_base�A�إߥi���Ϊ��d�ҧ֨�
+  --report-only  �u�β{�� eval_predictions.csv ������С]���I�s AI�B�����I�ơ^
+7:    # 先確認 .env 內 AI provider 金鑰（如 CGU_API_KEY）已設定（評測一定要呼叫真實 AI）
+47:    res = ai.analyze_content(content, url=url or None, use_web_search=False)
+
+## evaluate.py --help (re-run with PYTHONIOENCODING=utf-8; the excerpt above was cp950-garbled)
+usage: evaluate.py [-h] [--input INPUT] [--limit LIMIT] [--delay DELAY]
+                   [--resume] [--seed-db] [--report-only]
+
+判定引擎評測
+
+options:
+  -h, --help     show this help message and exit
+  --input INPUT  標註資料 CSV
+  --limit LIMIT  只跑前 N 筆（0=全部）
+  --delay DELAY  每筆間隔秒數（避免限流）
+  --resume       從上次中斷處續跑
+  --seed-db      把判對的案例寫入 knowledge_base，建立可重用的查證快取
+  --report-only  只用現有 eval_predictions.csv 重算指標（不呼叫 AI、不花點數）
