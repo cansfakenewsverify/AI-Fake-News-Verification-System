@@ -72,6 +72,18 @@ canvas.json：兩頁。`page-1`「畫面」放 Main／Result／Trending／Knowle
 
 全部逐字取自 `01_spec.md` 8.7（key 對應）；Threads 回覆文案取 7.7。範例資料可用真實查核標題（MyGoPen／TFC 公開報導標題），來源網域必須是 Tier 1／2（`mygopen.com`、`tfc-taiwan.org.tw`、`cofacts.tw`、`*.gov.tw`、主流媒體查核報導）。不要 lorem ipsum、不要「歡迎使用」。
 
+## 7. grill with mockup 結論（2026-09-15，負責人看過畫布後）
+
+畫布：https://claude.ai/artifact/A4UtUPgSwRCfHAmAKM6TKh
+
+1. **方向定案：A**（淺色、黑白為底、單一強調色、紅黃綠只用在判定）。B／C 不採用。
+2. 「結果頁 3 秒看懂燈號＋摘要」：負責人暫不判斷，**移到實作後的 visual review（介面測試 3.3）驗收**，屆時用真手機測。
+3. **強調色要換**，不用 `#2F4BFF`。候選（都避開紅黃綠色相）：(a) 墨黑無彩 `#111111`（連結加底線，最像 Threads）、(b) 茄紫 `#6D3FC0`、(c) 石板藍 `#3B5B8C`。負責人未選前實作以 (a) 為預設；值只存在 `--c-accent` 一個 token，換色＝改一行。
+4. 審查留下的兩項由 Claude 依規格定案：
+   - chip 視覺高 28px，但可點的 chip（信心、快取、篩選）外層 hit area 必須 ≥44px。
+   - `label_source` 在熱門牆與知識庫**一律用 13px 次文字**顯示（不用 chip），兩頁一致。
+5. 下一站：ticket（primitives → screens），產出 `docs/rebuild/03_tickets.md`。
+
 ## 6. 驗收（reviewer 逐條勾）
 
 1. §4 清單指定的狀態都有對應畫面或疊放卡（mockup 只做「決定方向」所需的主要狀態；8.4 狀態表的每一格由實作階段的 visual review＝介面測試 3.3 逐格驗收，不在 mockup 補齊）。
