@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+  <style>
+    /* ===== 全民查證公社 · 設計 token（02_mockup_brief.md §2 定案值） ===== */
+    :root {
+      --c-bg: #FFFFFF;
+      --c-surface: #F7F7F8;
+      --c-ink: #111111;
+      --c-ink-2: #4B5563;
+      --c-ink-3: #6B7280;
+      --c-line: #E5E7EB;
+      --c-accent: #2F4BFF;
+      --c-accent-soft: #EEF1FF;
+      --c-red: #D92D20;
+      --c-red-soft: #FEF3F2;
+      --c-yellow: #B54708;
+      --c-yellow-soft: #FEF0C7;
+      --c-green: #067647;
+      --c-green-soft: #ECFDF3;
+      --c-grey: #4B5563;
+      --c-grey-soft: #F2F4F7;
+      --radius-card: 12px;
+      --radius-btn: 10px;
+      --radius-chip: 999px;
+      --shadow-card: 0 1px 2px rgba(17,17,17,.04);
+      --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    body { margin: 0; }
+    a { color: #2F4BFF; } a:hover { color: #1E34C7; }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* ===== 字級（px／行高／字重） ===== */
+    .t-h1   { margin: 0; font-size: 24px; line-height: 32px; font-weight: 700; }
+    .t-h2   { margin: 0; font-size: 18px; line-height: 26px; font-weight: 700; }
+    .t-body { margin: 0; font-size: 16px; line-height: 24px; font-weight: 400; }
+    .t-sub  { margin: 0; font-size: 14px; line-height: 20px; font-weight: 400; }
+    .t-chip { margin: 0; font-size: 13px; line-height: 16px; font-weight: 500; }
+    .t-fine { margin: 0; font-size: 13px; line-height: 16px; font-weight: 400; }
+
+    /* ===== 元件類別（brief §3；畫面檔請同時保留 inline style） ===== */
+    .fcc-card { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--radius-card); padding: 16px; box-shadow: var(--shadow-card); }
+    .fcc-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; padding: 0 16px; border-radius: var(--radius-btn); font-family: var(--font); font-size: 16px; line-height: 24px; font-weight: 500; text-decoration: none; cursor: pointer; }
+    .fcc-btn-primary { background: var(--c-ink); color: #FFFFFF; border: 1px solid var(--c-ink); }
+    .fcc-btn-secondary { background: #FFFFFF; color: var(--c-ink); border: 1px solid var(--c-line); }
+    .fcc-btn-text { background: transparent; color: var(--c-accent); border: 1px solid transparent; }
+    .fcc-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--radius-chip); font-family: var(--font); font-size: 13px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+    .fcc-chip-cache { background: var(--c-accent-soft); color: var(--c-accent); }
+    .fcc-chip-live, .fcc-chip-conf { background: #FFFFFF; color: var(--c-ink); border: 1px solid var(--c-line); }
+    .fcc-chip-pending { background: var(--c-grey-soft); color: var(--c-grey); }
+    .fcc-chip-filter { background: #FFFFFF; color: var(--c-ink-2); border: 1px solid var(--c-line); }
+    .fcc-chip-filter-on { background: var(--c-ink); color: #FFFFFF; border: 1px solid var(--c-ink); }
+    .fcc-verdict { display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 24px 16px; border: 0; }
+    .fcc-dot { display: inline-block; flex: none; border-radius: 50%; }
+    .fcc-source-row { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 0; border-bottom: 1px solid var(--c-line); color: inherit; text-decoration: none; }
+    .fcc-skel { height: 14px; background: var(--c-line); border-radius: 8px; }
+    .fcc-banner { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 16px; background: var(--c-yellow-soft); color: var(--c-yellow); font-size: 14px; line-height: 20px; }
+    .fcc-topbar { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; background: #FFFFFF; border-bottom: 1px solid var(--c-line); }
+    .fcc-tabbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #FFFFFF; border-top: 1px solid var(--c-line); padding-bottom: 16px; }
+    .fcc-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 56px; border-top: 2px solid transparent; color: var(--c-ink-2); font-size: 13px; line-height: 16px; text-decoration: none; }
+    .fcc-tab-on { color: var(--c-accent); border-top-color: var(--c-accent); }
+    .fcc-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 3px; background: var(--c-line); border-radius: var(--radius-btn); }
+    .fcc-seg-item { display: flex; align-items: center; justify-content: center; height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--c-ink-2); font-family: var(--font); font-size: 15px; line-height: 20px; font-weight: 500; cursor: pointer; }
+    .fcc-seg-on { background: #FFFFFF; color: var(--c-ink); box-shadow: var(--shadow-card); }
+    .fcc-footer { padding: 16px; color: var(--c-ink-3); font-size: 13px; line-height: 16px; text-align: center; }
+  </style>
+</helmet>
+<div style="width: 390px; min-height: 844px; background: #FFFFFF; font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif; color: #111111; box-sizing: border-box; display: flex; flex-direction: column;">
+
+  <!-- 頂欄（返回變體） -->
+  <header class="fcc-topbar" style="display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; background: #FFFFFF; border-bottom: 1px solid #E5E7EB; flex: none;">
+    <a href="#" style="display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: #111111; font-size: 16px; line-height: 24px; font-weight: 500; text-decoration: none;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="M12 5l-7 7 7 7"></path></svg><span>返回</span></a>
+    <button type="button" aria-label="切換深淺色" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; background: transparent; border: 0; color: #4B5563; font-family: inherit; font-size: 14px; line-height: 20px; cursor: pointer;">深色</button>
+  </header>
+
+  <!-- 燈號區塊：紅燈 假訊息（7.8：is_risk && MISINFO → red／frame_red_misinfo） -->
+  <section class="fcc-verdict" style="display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 24px 16px; background: #FEF3F2; border: 0; flex: none;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+      <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+        <div style="display: flex; align-items: center; gap: 10px;"><span class="fcc-dot" aria-hidden="true" style="display: inline-block; flex: none; width: 12px; height: 12px; border-radius: 50%; background: #D92D20;"></span><h1 class="t-h1" style="margin: 0; font-size: 24px; line-height: 32px; font-weight: 700; color: #D92D20;">假訊息</h1></div>
+        <p class="t-sub" style="margin: 0; font-size: 14px; line-height: 20px; color: #4B5563;">健康謠言</p>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <span class="fcc-chip fcc-chip-conf" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #FFFFFF; color: #111111; border: 1px solid #E5E7EB; font-size: 13px; line-height: 16px; font-weight: 500; white-space: nowrap;">信心 高</span>
+        <span class="fcc-chip fcc-chip-live" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #FFFFFF; color: #111111; border: 1px solid #E5E7EB; font-size: 13px; line-height: 16px; font-weight: 500; white-space: nowrap;">AI 即時判定</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 內容區 -->
+  <main style="display: flex; flex-direction: column; gap: 24px; padding: 24px 16px 16px; flex: 1; min-width: 0;">
+
+    <!-- 1. 你查的內容 -->
+    <section style="display: flex; flex-direction: column; gap: 8px;">
+      <h2 class="t-h2" style="margin: 0; font-size: 18px; line-height: 26px; font-weight: 700; color: #111111;">你查的內容</h2>
+      <div class="fcc-card" style="background: #F7F7F8; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(17,17,17,.04); display: flex; flex-direction: column; gap: 4px;">
+        <p class="t-body" style="margin: 0; font-size: 16px; line-height: 24px; color: #111111; word-break: break-word;">網傳吃香蕉配優格會中毒！香蕉含高鉀，優格含乳酸菌，兩者在腸胃中會產生化學反應形成毒素，輕則腹瀉，重則腎衰竭。很多人天天這樣吃早餐都不知道，請務必轉給身邊的家人朋友…</p>
+        <div style="display: flex; justify-content: flex-end;">
+          <button type="button" aria-expanded="false" aria-label="展開全文" style="display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: transparent; border: 0; color: #4B5563; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 判讀摘要 + 詳細說明（折疊） -->
+    <section style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <h2 class="t-h2" style="margin: 0; font-size: 18px; line-height: 26px; font-weight: 700; color: #111111;">判讀摘要</h2>
+        <p class="t-body" style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 700; color: #111111;">香蕉與優格一起吃不會產生毒素，這是流傳多年的食安謠言，營養師與查核機構皆已闢謠。</p>
+      </div>
+      <button type="button" aria-expanded="false" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 48px; padding: 0; background: transparent; border: 0; border-top: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB; color: #111111; font-family: inherit; font-size: 16px; line-height: 24px; font-weight: 500; text-align: left; cursor: pointer;"><span>詳細說明</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4B5563" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none;"><path d="M6 9l6 6 6-6"></path></svg></button>
+    </section>
+
+    <!-- 3. 查核來源（只列 Tier 1／2） -->
+    <section style="display: flex; flex-direction: column; gap: 8px;">
+      <h2 class="t-h2" style="margin: 0; font-size: 18px; line-height: 26px; font-weight: 700; color: #111111;">查核來源</h2>
+      <div style="display: flex; flex-direction: column; gap: 0;">
+        <a href="#" rel="noopener" class="fcc-source-row" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 0; border-bottom: 1px solid #E5E7EB; color: inherit; text-decoration: none;">
+          <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+            <span style="font-size: 13px; line-height: 16px; color: #4B5563;">查核機構</span>
+            <span style="font-size: 16px; line-height: 24px; color: #111111;">【錯誤】網傳「吃香蕉配優格會中毒」？營養師：無此禁忌</span>
+            <span style="font-size: 13px; line-height: 16px; color: #6B7280; word-break: break-all;">mygopen.com</span>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none;"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></svg>
+        </a>
+        <a href="#" rel="noopener" class="fcc-source-row" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 0; border-bottom: 1px solid #E5E7EB; color: inherit; text-decoration: none;">
+          <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+            <span style="font-size: 13px; line-height: 16px; color: #4B5563;">媒體查核報導</span>
+            <span style="font-size: 16px; line-height: 24px; color: #111111;">香蕉配優格會中毒？營養師闢謠：無科學根據、可安心食用</span>
+            <span style="font-size: 13px; line-height: 16px; color: #6B7280; word-break: break-all;">news.cts.com.tw</span>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none;"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></svg>
+        </a>
+      </div>
+    </section>
+
+    <!-- 4. 知識庫中的相似查證（向量近鄰；內連 /r/{id}） -->
+    <section style="display: flex; flex-direction: column; gap: 8px;">
+      <h2 class="t-h2" style="margin: 0; font-size: 18px; line-height: 26px; font-weight: 700; color: #111111;">知識庫中的相似查證</h2>
+      <div style="display: flex; flex-direction: column; gap: 0;">
+        <a href="#" class="fcc-source-row" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 0; border-bottom: 1px solid #E5E7EB; color: inherit; text-decoration: none;">
+          <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="fcc-dot" aria-hidden="true" style="display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #D92D20;"></span><span style="font-size: 13px; line-height: 16px; font-weight: 500; color: #D92D20;">相似度 82%・假訊息</span></div>
+            <span style="font-size: 16px; line-height: 24px; color: #111111;">香蕉和優格一起吃會在胃裡產生毒素，長期會傷腎！醫生都不敢說的秘密，快轉給家人</span>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; transform: rotate(-90deg);"><path d="M6 9l6 6 6-6"></path></svg>
+        </a>
+        <a href="#" class="fcc-source-row" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 0; border-bottom: 1px solid #E5E7EB; color: inherit; text-decoration: none;">
+          <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="fcc-dot" aria-hidden="true" style="display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #D92D20;"></span><span style="font-size: 13px; line-height: 16px; font-weight: 500; color: #D92D20;">相似度 71%・假訊息</span></div>
+            <span style="font-size: 16px; line-height: 24px; color: #111111;">早上空腹吃香蕉會讓血液中的鎂含量暴增，造成心血管負擔，嚴重會猝死</span>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; transform: rotate(-90deg);"><path d="M6 9l6 6 6-6"></path></svg>
+        </a>
+      </div>
+    </section>
+
+    <!-- 5. 頁尾細字：analyzed_at／label_source_ai／disclaimer_short -->
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <p class="t-fine" style="margin: 0; font-size: 13px; line-height: 16px; color: #6B7280;">查證時間 2026-09-15 14:32・AI 判定</p>
+      <p class="t-fine" style="margin: 0; font-size: 13px; line-height: 16px; color: #6B7280;">判讀由 AI 自動產生，僅供參考，請自行查證。</p>
+    </div>
+
+  </main>
+
+  <!-- 全站頁尾 -->
+  <footer class="fcc-footer" style="padding: 0 16px 16px; color: #6B7280; font-size: 13px; line-height: 16px; text-align: center; flex: none;">隱私政策 · 資料刪除 · 本站判讀由 AI 產生，僅供參考</footer>
+
+  <!-- 動作列（手機 sticky 於視窗底部、分頁列之上） -->
+  <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; background: #FFFFFF; border-top: 1px solid #E5E7EB; flex: none;">
+    <button type="button" class="fcc-btn fcc-btn-primary" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; padding: 0 16px; background: #111111; color: #FFFFFF; border: 1px solid #111111; border-radius: 10px; font-family: inherit; font-size: 16px; line-height: 24px; font-weight: 500; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.5"></circle><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="19" r="2.5"></circle><path d="M8.2 10.8l7.6-4.6"></path><path d="M8.2 13.2l7.6 4.6"></path></svg><span>分享到 Threads</span></button>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+      <button type="button" class="fcc-btn fcc-btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; padding: 0 16px; background: #FFFFFF; color: #111111; border: 1px solid #E5E7EB; border-radius: 10px; font-family: inherit; font-size: 16px; line-height: 24px; font-weight: 500; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a1 1 0 0 1 1-1h10"></path></svg><span>複製連結</span></button>
+      <button type="button" class="fcc-btn fcc-btn-text" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; padding: 0 16px; background: transparent; color: #2F4BFF; border: 1px solid transparent; border-radius: 10px; font-family: inherit; font-size: 16px; line-height: 24px; font-weight: 500; cursor: pointer;">再查一則</button>
+    </div>
+  </div>
+
+  <!-- 底部分頁列（結果頁 /r/{id} 不屬於任一分頁：無選中格） -->
+  <nav class="fcc-tabbar" aria-label="主要導覽" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #FFFFFF; border-top: 1px solid #E5E7EB; padding-bottom: 16px; flex: none;">
+    <a href="#" class="fcc-tab" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 56px; border-top: 2px solid transparent; color: #4B5563; font-size: 13px; line-height: 16px; text-decoration: none;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7"></path><path d="M6 9.5V20h12V9.5"></path><path d="M10 20v-6h4v6"></path></svg><span>查證</span></a>
+    <a href="#" class="fcc-tab" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 56px; border-top: 2px solid transparent; color: #4B5563; font-size: 13px; line-height: 16px; text-decoration: none;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.5 3.5 4.5 5 4.5 9.5a4.5 4.5 0 0 1-9 0c0-2 1-3.5 2-4.5.5 1.5 1.5 2.5 2.5 3C12.5 9 11.5 6 12 3z"></path></svg><span>熱門</span></a>
+    <a href="#" class="fcc-tab" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 56px; border-top: 2px solid transparent; color: #4B5563; font-size: 13px; line-height: 16px; text-decoration: none;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"></path><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"></path></svg><span>知識庫</span></a>
+  </nav>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+  <style>
+    /* ===== 全民查證公社 · 設計 token（02_mockup_brief.md §2 定案值） ===== */
+    :root {
+      --c-bg: #FFFFFF;
+      --c-surface: #F7F7F8;
+      --c-ink: #111111;
+      --c-ink-2: #4B5563;
+      --c-ink-3: #6B7280;
+      --c-line: #E5E7EB;
+      --c-accent: #2F4BFF;
+      --c-accent-soft: #EEF1FF;
+      --c-red: #D92D20;
+      --c-red-soft: #FEF3F2;
+      --c-yellow: #B54708;
+      --c-yellow-soft: #FEF0C7;
+      --c-green: #067647;
+      --c-green-soft: #ECFDF3;
+      --c-grey: #4B5563;
+      --c-grey-soft: #F2F4F7;
+      --radius-card: 12px;
+      --radius-btn: 10px;
+      --radius-chip: 999px;
+      --shadow-card: 0 1px 2px rgba(17,17,17,.04);
+      --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    body { margin: 0; }
+    a { color: #2F4BFF; } a:hover { color: #1E34C7; }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* ===== 字級（px／行高／字重） ===== */
+    .t-h1   { margin: 0; font-size: 24px; line-height: 32px; font-weight: 700; }
+    .t-h2   { margin: 0; font-size: 18px; line-height: 26px; font-weight: 700; }
+    .t-body { margin: 0; font-size: 16px; line-height: 24px; font-weight: 400; }
+    .t-sub  { margin: 0; font-size: 14px; line-height: 20px; font-weight: 400; }
+    .t-chip { margin: 0; font-size: 13px; line-height: 16px; font-weight: 500; }
+    .t-fine { margin: 0; font-size: 13px; line-height: 16px; font-weight: 400; }
+
+    /* ===== 元件類別（brief §3；畫面檔請同時保留 inline style） ===== */
+    .fcc-card { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--radius-card); padding: 16px; box-shadow: var(--shadow-card); }
+    .fcc-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; padding: 0 16px; border-radius: var(--radius-btn); font-family: var(--font); font-size: 16px; line-height: 24px; font-weight: 500; text-decoration: none; cursor: pointer; }
+    .fcc-btn-primary { background: var(--c-ink); color: #FFFFFF; border: 1px solid var(--c-ink); }
+    .fcc-btn-secondary { background: #FFFFFF; color: var(--c-ink); border: 1px solid var(--c-line); }
+    .fcc-btn-text { background: transparent; color: var(--c-accent); border: 1px solid transparent; }
+    .fcc-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--radius-chip); font-family: var(--font); font-size: 13px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+    .fcc-chip-cache { background: var(--c-accent-soft); color: var(--c-accent); }
+    .fcc-chip-live, .fcc-chip-conf { background: #FFFFFF; color: var(--c-ink); border: 1px solid var(--c-line); }
+    .fcc-chip-pending { background: var(--c-grey-soft); color: var(--c-grey); }
+    .fcc-chip-filter { background: #FFFFFF; color: var(--c-ink-2); border: 1px solid var(--c-line); }
+    .fcc-chip-filter-on { background: var(--c-ink); color: #FFFFFF; border: 1px solid var(--c-ink); }
+    .fcc-verdict { display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 24px 16px; border: 0; }
+    .fcc-dot { display: inline-block; flex: none; border-radius: 50%; }
+    .fcc-source-row { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 0; border-bottom: 1px solid var(--c-line); color: inherit; text-decoration: none; }
+    .fcc-skel { height: 14px; background: var(--c-line); border-radius: 8px; }
+    .fcc-banner { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 16px; background: var(--c-yellow-soft); color: var(--c-yellow); font-size: 14px; line-height: 20px; }
+    .fcc-topbar { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; background: #FFFFFF; border-bottom: 1px solid var(--c-line); }
+    .fcc-tabbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #FFFFFF; border-top: 1px solid var(--c-line); padding-bottom: 16px; }
+    .fcc-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 56px; border-top: 2px solid transparent; color: var(--c-ink-2); font-size: 13px; line-height: 16px; text-decoration: none; }
+    .fcc-tab-on { color: var(--c-accent); border-top-color: var(--c-accent); }
+    .fcc-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 3px; background: var(--c-line); border-radius: var(--radius-btn); }
+    .fcc-seg-item { display: flex; align-items: center; justify-content: center; height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--c-ink-2); font-family: var(--font); font-size: 15px; line-height: 20px; font-weight: 500; cursor: pointer; }
+    .fcc-seg-on { background: #FFFFFF; color: var(--c-ink); box-shadow: var(--shadow-card); }
+    .fcc-footer { padding: 16px; color: var(--c-ink-3); font-size: 13px; line-height: 16px; text-align: center; }
+  </style>
+</helmet>
+<div style="width: 390px; min-height: 1100px; background: #FFFFFF; font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif; color: #111111; box-sizing: border-box; display: flex; flex-direction: column;">
+
+  <!-- 3.1 頂欄（品牌名版） -->
+  <header class="fcc-topbar" style="display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; background: #FFFFFF; border-bottom: 1px solid #E5E7EB;">
+    <a href="#" style="display: inline-flex; align-items: center; min-height: 44px; color: #111111; font-size: 16px; line-height: 24px; font-weight: 500; text-decoration: none;">全民查證公社</a>
+    <button type="button" aria-label="切換深淺色" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; background: transparent; border: 0; color: #4B5563; font-family: inherit; font-size: 14px; line-height: 20px; cursor: pointer;">深色</button>
+  </header>
+
+  <!-- S3 內容區 -->
+  <main style="display: flex; flex-direction: column; gap: 16px; padding: 24px 16px 24px 16px; background: #FFFFFF;">
+
+    <!-- 標題區：trending_title + trending_sub（scheduler_off）+ trending_updated -->
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <h1 class="t-h1" style="margin: 0; font-size: 24px; line-height: 32px; font-weight: 700; color: #111111;">今日熱門查核</h1>
+      <p class="t-sub" style="margin: 0; font-size: 14px; line-height: 20px; color: #4B5563;">來源：MyGoPen、台灣事實查核中心、Cofacts。目前為手動更新</p>
+      <p class="t-fine" style="margin: 0; font-size: 13px; line-height: 16px; color: #6B7280;">資料更新時間：2026-09-15 08:30</p>
+    </div>
+
+    <!-- 篩選 chip 列（全部 選中；flex + gap、可換行、不橫向溢出） -->
+    <div role="group" aria-label="篩選判定" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; overflow-x: hidden;">
+      <button type="button" aria-pressed="true" class="fcc-chip fcc-chip-filter-on" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #111111; color: #FFFFFF; border: 1px solid #111111; font-family: inherit; font-size: 13px; line-height: 16px; font-weight: 500; white-space: nowrap; cursor: pointer;">全部</button>
+      <button type="button" aria-pressed="false" class="fcc-chip fcc-chip-filter" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #FFFFFF; color: #4B5563; border: 1px solid #E5E7EB; font-family: inherit; font-size: 13px; line-height: 16px; font-weight: 500; white-space: nowrap; cursor: pointer;">詐騙</button>
+      <button type="button" aria-pressed="false" class="fcc-chip fcc-chip-filter" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #FFFFFF; color: #4B5563; border: 1px solid #E5E7EB; font-family: inherit; font-size: 13px; line-height: 16px; font-weight: 500; white-space: nowrap; cursor: pointer;">假訊息</button>
+      <button type="button" aria-pressed="false" class="fcc-chip fcc-chip-filter" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #FFFFFF; color: #4B5563; border: 1px solid #E5E7EB; font-family: inherit; font-size: 13px; line-height: 16px; font-weight: 500; white-space: nowrap; cursor: pointer;">安全</button>
+      <button type="button" aria-pressed="false" class="fcc-chip fcc-chip-filter" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #FFFFFF; color: #4B5563; border: 1px solid #E5E7EB; font-family: inherit; font-size: 13px; line-height: 16px; font-weight: 500; white-space: nowrap; cursor: pointer;">未查證</button>
+    </div>
+
+    <!-- 卡片列表（載入完成、6 張；燈號點 + 判定字 + 標題 ≤2 行 + 機構 + 日期 + label_source 小字） -->
+    <div aria-label="熱門查核列表" style="display: flex; flex-direction: column; gap: 12px;">
+
+      <!-- 1 詐騙・MyGoPen・查核機構標記 -->
+      <a href="#" class="fcc-card" style="display: flex; flex-direction: column; gap: 10px; background: #F7F7F8; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(17,17,17,.04); color: inherit; text-decoration: none; max-width: 100%;">
+        <div style="display: flex; align-items: flex-start; gap: 8px; min-height: 24px;"><span class="fcc-dot" aria-hidden="true" style="display: inline-block; flex: none; width: 8px; height: 8px; margin-top: 8px; border-radius: 50%; background: #D92D20;"></span><span style="flex: none; font-size: 13px; line-height: 24px; font-weight: 500; color: #D92D20;">詐騙</span><span style="flex: 1; min-width: 0; font-size: 16px; line-height: 24px; color: #111111; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">【詐騙】網傳「健保卡即日起停用，請點連結重新驗證」？假冒健保署的釣魚簡訊，勿點連結</span></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px;">
+          <span style="font-size: 13px; line-height: 20px; color: #4B5563; min-width: 0;">MyGoPen・2026-09-15</span>
+          <span style="flex: none; font-size: 13px; line-height: 16px; color: #6B7280;">查核機構標記</span>
+        </div>
+      </a>
+
+      <!-- 2 假訊息・台灣事實查核中心・查核機構標記 -->
+      <a href="#" class="fcc-card" style="display: flex; flex-direction: column; gap: 10px; background: #F7F7F8; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(17,17,17,.04); color: inherit; text-decoration: none; max-width: 100%;">
+        <div style="display: flex; align-items: flex-start; gap: 8px; min-height: 24px;"><span class="fcc-dot" aria-hidden="true" style="display: inline-block; flex: none; width: 8px; height: 8px; margin-top: 8px; border-radius: 50%; background: #D92D20;"></span><span style="flex: none; font-size: 13px; line-height: 24px; font-weight: 500; color: #D92D20;">假訊息</span><span style="flex: 1; min-width: 0; font-size: 16px; line-height: 24px; color: #111111; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">【錯誤】網傳「颱風過後自來水加了大量氯，煮沸後也不能喝」？自來水公司：加氯量符合標準</span></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px;">
+          <span style="font-size: 13px; line-height: 20px; color: #4B5563; min-width: 0;">台灣事實查核中心・2026-09-15</span>
+          <span style="flex: none; font-size: 13px; line-height: 16px; color: #6B7280;">查核機構標記</span>
+        </div>
+      </a>
+
+      <!-- 3 安全・Cofacts・AI 判定 -->
+      <a href="#" class="fcc-card" style="display: flex; flex-direction: column; gap: 10px; background: #F7F7F8; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(17,17,17,.04); color: inherit; text-decoration: none; max-width: 100%;">
+        <div style="display: flex; align-items: flex-start; gap: 8px; min-height: 24px;"><span class="fcc-dot" aria-hidden="true" style="display: inline-block; flex: none; width: 8px; height: 8px; margin-top: 8px; border-radius: 50%; background: #067647;"></span><span style="flex: none; font-size: 13px; line-height: 24px; font-weight: 500; color: #067647;">安全</span><span style="flex: 1; min-width: 0; font-size: 16px; line-height: 24px; color: #111111; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">165 反詐騙專線提醒：遇到「保證獲利」投資邀約請直接掛斷，並撥打 165 查證</span></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px;">
+          <span style="font-size: 13px; line-height: 20px; color: #4B5563; min-width: 0;">Cofacts・2026-09-14</span>
+          <span style="flex: none; font-size: 13px; line-height: 16px; color: #6B7280;">AI 判定</span>
+        </div>
+      </a>
+
+      <!-- 4 假訊息・MyGoPen・查核機構標記 -->
+      <a href="#" class="fcc-card" style="display: flex; flex-direction: column; gap: 10px; background: #F7F7F8; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(17,17,17,.04); color: inherit; text-decoration: none; max-width: 100%;">
+        <div style="display: flex; align-items: flex-start; gap: 8px; min-height: 24px;"><span class="fcc-dot" aria-hidden="true" style="display: inline-block; flex: none; width: 8px; height: 8px; margin-top: 8px; border-radius: 50%; background: #D92D20;"></span><span style="flex: none; font-size: 13px; line-height: 24px; font-weight: 500; color: #D92D20;">假訊息</span><span style="flex: 1; min-width: 0; font-size: 16px; line-height: 24px; color: #111111; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">【錯誤】網傳「新版身分證晶片會全天定位追蹤持有人」？內政部：晶片無定位功能</span></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px;">
+          <span style="font-size: 13px; line-height: 20px; color: #4B5563; min-width: 0;">MyGoPen・2026-09-14</span>
+          <span style="flex: none; font-size: 13px; line-height: 16px; color: #6B7280;">查核機構標記</span>
+        </div>
+      </a>
+
+      <!-- 5 未查證・Cofacts・灰 chip_pending（不上紅黃綠） -->
+      <a href="#" class="fcc-card" style="display: flex; flex-direction: column; gap: 10px; background: #F7F7F8; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(17,17,17,.04); color: inherit; text-decoration: none; max-width: 100%;">
+        <div style="display: flex; align-items: flex-start; gap: 8px; min-height: 24px;"><span class="fcc-dot" aria-hidden="true" style="display: inline-block; flex: none; width: 8px; height: 8px; margin-top: 8px; border-radius: 50%; background: #4B5563;"></span><span style="flex: none; font-size: 13px; line-height: 24px; font-weight: 500; color: #4B5563;">未查證</span><span style="flex: 1; min-width: 0; font-size: 16px; line-height: 24px; color: #111111; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">網傳颱風假期間全市路邊停車格全面免費、違停不開單，請大家互相轉告</span></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px;">
+          <span style="font-size: 13px; line-height: 20px; color: #4B5563; min-width: 0;">Cofacts・2026-09-14</span>
+          <span class="fcc-chip fcc-chip-pending" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #F2F4F7; color: #4B5563; font-size: 13px; line-height: 16px; font-weight: 500; white-space: nowrap;">未查證</span>
+        </div>
+      </a>
+
+      <!-- 6 詐騙・台灣事實查核中心・查核機構標記 -->
+      <a href="#" class="fcc-card" style="display: flex; flex-direction: column; gap: 10px; background: #F7F7F8; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(17,17,17,.04); color: inherit; text-decoration: none; max-width: 100%;">
+        <div style="display: flex; align-items: flex-start; gap: 8px; min-height: 24px;"><span class="fcc-dot" aria-hidden="true" style="display: inline-block; flex: none; width: 8px; height: 8px; margin-top: 8px; border-radius: 50%; background: #D92D20;"></span><span style="flex: none; font-size: 13px; line-height: 24px; font-weight: 500; color: #D92D20;">詐騙</span><span style="flex: 1; min-width: 0; font-size: 16px; line-height: 24px; color: #111111; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">【詐騙】網傳「台電通知：電費逾期未繳今晚斷電，請點連結補繳」？台電：不會以簡訊附連結催繳</span></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px;">
+          <span style="font-size: 13px; line-height: 20px; color: #4B5563; min-width: 0;">台灣事實查核中心・2026-09-13</span>
+          <span style="flex: none; font-size: 13px; line-height: 16px; color: #6B7280;">查核機構標記</span>
+        </div>
+      </a>
+
+    </div>
+  </main>
+
+  <!-- 頁尾 -->
+  <footer class="fcc-footer" style="padding: 16px; color: #6B7280; font-size: 13px; line-height: 16px; text-align: center;">隱私政策 · 資料刪除 · 本站判讀由 AI 產生，僅供參考</footer>
+
+  <!-- 3.2 底部分頁列（熱門 選中） -->
+  <nav class="fcc-tabbar" aria-label="主要導覽" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #FFFFFF; border-top: 1px solid #E5E7EB; padding-bottom: 16px;">
+    <a href="#" class="fcc-tab" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 56px; border-top: 2px solid transparent; color: #4B5563; font-size: 13px; line-height: 16px; text-decoration: none;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7"></path><path d="M6 9.5V20h12V9.5"></path><path d="M10 20v-6h4v6"></path></svg><span>查證</span></a>
+    <a href="#" aria-current="page" class="fcc-tab fcc-tab-on" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 56px; border-top: 2px solid #2F4BFF; color: #2F4BFF; font-size: 13px; line-height: 16px; text-decoration: none;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.5 3.5 4.5 5 4.5 9.5a4.5 4.5 0 0 1-9 0c0-2 1-3.5 2-4.5.5 1.5 1.5 2.5 2.5 3C12.5 9 11.5 6 12 3z"></path></svg><span>熱門</span></a>
+    <a href="#" class="fcc-tab" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 56px; border-top: 2px solid transparent; color: #4B5563; font-size: 13px; line-height: 16px; text-decoration: none;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"></path><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"></path></svg><span>知識庫</span></a>
+  </nav>
+
+</div>
+</x-dc>
+</body>
+</html>
