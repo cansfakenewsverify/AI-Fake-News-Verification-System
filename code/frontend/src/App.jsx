@@ -180,14 +180,14 @@ function TrendingSection() {
         try {
           const res = await fetch('/api/trending?limit=6');
           if (res.ok) setRecords((await res.json()).records || []);
-        } catch {}
+        } catch { /* 單次輪詢失敗忽略，下一輪再試 */ }
         if (attempts >= maxAttempts) {
           setRefreshing(false);
           clearInterval(pollRef.current);
           pollRef.current = null;
         }
       }, 3000);
-    } catch (e) { setRefreshing(false); }
+    } catch { setRefreshing(false); }
   };
 
   return (
@@ -358,7 +358,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    try { localStorage.setItem('factscan_theme', theme); } catch {}
+    try { localStorage.setItem('factscan_theme', theme); } catch { /* localStorage 不可用時略過 */ }
   }, [theme]);
 
   useEffect(() => () => {

@@ -132,6 +132,7 @@ code/backend/
 │   │   ├── search_service.py    RSS/Cofacts 聚合
 │   │   └── threads_service.py   Threads Graph API 客戶端 + 回覆格式化(500字上限)
 │   ├── utils/url_validator.py  過濾 AI 幻覺出的死連結
+│   ├── utils/source_tier.py    來源分級 Tier 1/2/3（只有 Tier 1/2 可當「查核來源」；共識 §9）
 │   └── workers/
 │       ├── pandas_task_processor.py  ★三層快取主流程（AI/embedding 走 to_thread 不卡 event loop）
 │       └── threads_bot.py       Threads 機器人輪詢（mentions→分析→回覆，已回覆 id 存 data/threads_state.json）
@@ -300,7 +301,13 @@ API 文件：http://localhost:8000/docs
       路徑/PG+Redis 部署/0.88 門檻、結構樹有不存在的目錄）＋ CI/評測徽章；
       SCHEMA.md 修 768→1536 維、快取流程圖、UNVERIFIABLE 狀態、單寫者注意；
       前端 README 補 Knowledge/主題/token；React 補 UNVERIFIABLE 樣式（原誤顯示「待分析」）
-- [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證）
+- [x] 2026-09 重做流程啟動：`docs/rebuild/` 依序為 00_consensus（grill 共識）→ 01_spec（功能+UX v1.3）
+      → 02_mockup_brief + mockup/（設計畫布 .dc.html）→ 03_tickets（109 張票，依賴/排程/驗收指令）。
+      **之後的實作一律照 03_tickets.md 的票做**；來源分級規則見共識 §9（只有已判定的查核來源才算來源）
+- [x] 票 P-01／B-01／B-12 完成：Vite 釘 8.3.0 穩定版＋plugin-react ^5.2.0（移除 overrides）；
+      ai_service 系統 prompt 加 FR-19 來源規則；新增 `app/utils/source_tier.py`（Tier 1/2/3、
+      Cofacts 回覆查詢、離線模式不發請求）＋ tests/test_source_tier.py；pytest 65 passed
+- [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證；權限要含 threads_manage_mentions）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 

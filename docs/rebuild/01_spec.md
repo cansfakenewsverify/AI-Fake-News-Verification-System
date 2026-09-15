@@ -1082,7 +1082,7 @@ Threads 回覆與分享專用文案見 7.7。
 | D-10 | FR-12 每日貼文是否有餘裕實作 | 範圍 | 僅留 spec（本次不做） | — |
 | D-11 | 回覆發佈主路徑：共識的兩段式 + `FINISHED` 檢查（預設）vs `auto_publish_text` 單步（需 Day 2.5 OP-5 自貼試發成立） | 7.6 | 兩段式；OP-5 成立後可切 | Day 2.5 後 |
 | D-12 | Threads 回覆第一行是否附 `category_label`（「🔴 詐騙警告｜釣魚詐騙」） | 7.7 字數、`category` 未驗證的誤標風險 | 不附（回到共識格式）；若附，`verdict.py` 對未知 category 回退「AI 查核」並加測試 | Day 5 |
-| D-13 | 同意新增 `react-router-dom`（非 UI 套件，路由基礎設施）；Vite 8 beta 是否降回 Vite 7 穩定版 | 8.1、CI／Vercel build | 同意；`npm run build` 失敗即降 Vite 7 | Day 1 |
+| D-13 | 同意新增 `react-router-dom`（非 UI 套件，路由基礎設施）；Vite 8 beta 是否降回 Vite 7 穩定版 | 8.1、CI／Vercel build | 同意；`npm run build` 失敗即降 Vite 7（**P-01 結果 2026-09-15**：原 `8.0.0-beta.16` build 成功，未降版；因 Vite 8 已出穩定版且 beta 不滿足 plugin-react peer `^8.0.0`，改釘 `vite 8.3.0`＋`@vitejs/plugin-react ^5.2.0`，移除 `overrides`；Node 20.20.2 下 `npm ci && npm run build && npm run lint` 皆通過） | Day 1 |
 | D-14 | 是否接受附錄 A 標「未獲同意即採預設」的範圍決策（A4／A6／A10 已依審查縮減） | 範圍 | 接受縮減後版本 | Day 1 |
 | D-15 | Tier 1 白名單 `TIER1_DOMAINS` 初版確認：`tfc-taiwan.org.tw`、`mygopen.com`、`cofacts.tw`／`cofacts.g0v.tw`（須有 RUMOR／NOT_RUMOR 回覆）、`*.gov.tw`（精確尾綴）、`who.int`、`cdc.gov`；是否加 165 反詐騙（`165.npa.gov.tw` 已含於 gov.tw）、`fda.gov.tw`（已含）、其他（如 `rumor.taipei`、`fact.check` 類）？ | FR-16 分級、FR-18 清洗結果 | 依上列初版；不加其他 | **Day 2.5 上午**（清洗 dry-run 前） |
 | D-16 | FR-19 `allowed_domains`（**維持 P1，不升 P0**）：若 OP-2 實測 CGU 閘道支援，是否於 Day 6 下午有餘裕時順手做（約 30 分鐘）？ | web_search 來源品質 | 支援且 Day 6 有餘裕即做；不支援則不做 | Day 1（OP-2 後） |
