@@ -6,7 +6,7 @@ from app.main import app
 
 def test_health_and_root():
     with TestClient(app) as client:
-        assert client.get("/health").json() == {"status": "healthy"}
+        assert client.get("/health").json()["status"] == "healthy"
         assert "version" in client.get("/").json()
 
 

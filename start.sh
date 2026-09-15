@@ -17,10 +17,13 @@ command -v python3 &>/dev/null || { echo "[錯誤] 需要 Python 3.11+"; exit 1;
 command -v node    &>/dev/null || { echo "[錯誤] 需要 Node.js 18+"; exit 1; }
 
 # ── 建立 .env（若不存在）────────────────────────────────────
+# spec §5.6：首次建立的 .env 若 ADMIN_TOKEN 為空，自動寫入 32 字亂數（不印出 token 本體）
 if [ ! -f "$BACKEND_DIR/.env" ]; then
     cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
     echo "[設定] 已建立 .env，請填入 API 金鑰"
 fi
+# 每次啟動都確保 ADMIN_TOKEN 有值（空行或缺行就補上 32 字亂數，不印出 token）
+python3 "$BACKEND_DIR/scripts/ensure_admin_token.py" "$BACKEND_DIR/.env"
 
 # ── 後端虛擬環境 + 套件 ────────────────────────────────────
 if [ ! -d "$VENV" ]; then

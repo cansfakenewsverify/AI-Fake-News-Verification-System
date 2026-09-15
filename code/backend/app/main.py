@@ -21,6 +21,10 @@ from app.api import (
     threads as threads_api, result as result_api,
 )
 from app.database_sql import init_sql_db
+from app.services.ai_service import AIService
+from app.utils.admin_auth import AdminAuthError, admin_auth_error_handler
+
+APP_VERSION = "0.3.0"
 
 # ── Logging setup ────────────────────────────────────────────
 logging.basicConfig(
@@ -29,6 +33,11 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 logger = logging.getLogger("app.main")
+
+
+def trending_scheduler_enabled() -> bool:
+    """熱門新聞排程是否會啟動：lifespan 與 /health 共用同一判斷，S3 文案才不會與實際不符。"""
+    return bool(settings.ENABLE_SCHEDULER and not settings.DEMO_MODE)
 
 
 # ── Lifespan handler (replaces deprecated @app.on_event) ────
@@ -45,7 +54,7 @@ async def lifespan(app: FastAPI):
     # 兩個排程都預設關閉（省 AI 點數）：
     #   ENABLE_SCHEDULER=true    → 自動抓熱門新聞
     #   THREADS_MODE=live|sim    → Threads 查核機器人輪詢 mentions（DEMO_MODE 不影響）
-    want_trending = settings.ENABLE_SCHEDULER and not settings.DEMO_MODE
+    want_trending = trending_scheduler_enabled()
     threads_mode = settings.threads_mode_effective
     want_threads = threads_mode in ("live", "sim")
     logger.info("Threads mode: %s", threads_mode)
@@ -108,7 +117,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="AI Fake News Verification System API",
-    version="0.2.0",
+    version=APP_VERSION,
     docs_url=None,
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -155,6 +164,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         },
     )
 
+
+# 管理端點 401 unauthorized／403 admin_disabled → {detail, code}（spec §5.6、§5.7）
+app.add_exception_handler(AdminAuthError, admin_auth_error_handler)
+
 # Routes
 app.include_router(analyze.router)
 app.include_router(admin_api.router)
@@ -182,9 +195,26 @@ async def custom_swagger_ui_html():
 
 @app.get("/")
 async def root():
-    return {"message": "AI Fake News Verification System", "version": "0.2.0", "docs": "/docs"}
+    return {"message": "AI Fake News Verification System", "version": APP_VERSION, "docs": "/docs"}
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health_check():
-    return {"status": "healthy"}
+    """
+    健康檢查（spec §5.1）：只讀設定，不呼叫任何付費 API、不發網路請求。
+    /api/health 是同一個 handler 的別名：前端 dev proxy 與 Vercel rewrite 只轉 /api（spec §8.2）。
+    """
+    return {
+        "status": "healthy",
+        # provider 鏈非空 = 至少一個 provider 設定完整（不代表額度還夠）
+        "ai_available": AIService().available,
+        "threads_mode": settings.threads_mode_effective,
+        # S3 trending_sub 的 scheduler_on / scheduler_off 文案來源（FR-06 驗收 3）
+        "scheduler": {
+            "enabled": trending_scheduler_enabled(),
+            "interval_hours": int(settings.TRENDING_FETCH_INTERVAL_HOURS),
+        },
+        # FR-14 每日 AI 額度護欄（P1）實作前固定 null
+        "daily_ai_calls": None,
+    }

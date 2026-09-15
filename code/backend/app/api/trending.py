@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database_sql import get_sql_db
 from app.models.fact_check_record import FactCheckRecord
+from app.utils.admin_auth import require_admin
 
 router = APIRouter(prefix="/api/trending", tags=["trending"])
 
@@ -51,10 +52,11 @@ def get_trending(
     return {"total": len(records), "records": [r.to_dict() for r in records]}
 
 
-@router.post("/refresh")
+@router.post("/refresh", dependencies=[Depends(require_admin)])
 async def trigger_refresh(background_tasks: BackgroundTasks):
     """
     Manually trigger a trending news fetch in background.
+    Requires X-Admin-Token (spec §5.2 / §5.6: 401 unauthorized, 403 admin_disabled).
     Requires a configured AI provider and DEMO_MODE=false to produce real results.
     """
     from app.services.news_fetcher import run_trending_fetch

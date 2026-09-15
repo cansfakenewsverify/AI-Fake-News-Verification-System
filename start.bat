@@ -29,13 +29,16 @@ set BACKEND_DIR=%ROOT%code\backend
 set FRONTEND_DIR=%ROOT%code\frontend
 set VENV=%BACKEND_DIR%\venv
 
-:: Copy .env
+:: Copy .env (first run only)
+:: spec 5.6: the new .env gets a random 32-char ADMIN_TOKEN if it is empty (token never printed)
 if not exist "%BACKEND_DIR%\.env" (
     echo [Setup] Creating .env from .env.example ...
     copy "%BACKEND_DIR%\.env.example" "%BACKEND_DIR%\.env" >nul
     echo [Setup] Edit %BACKEND_DIR%\.env and fill in API keys
     echo.
 )
+:: Every launch: make sure ADMIN_TOKEN is set (fills an empty or missing line; token never printed)
+python "%BACKEND_DIR%\scripts\ensure_admin_token.py" "%BACKEND_DIR%\.env"
 
 :: Create virtualenv
 echo [3/5] Setting up Python virtual environment...
