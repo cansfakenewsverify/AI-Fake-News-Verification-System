@@ -135,7 +135,7 @@
   2. 每張卡顯示燈號點、標題、來源機構、日期、`label_source` 小字（「查核機構標記」／「AI 判定」）；PENDING／UNVERIFIABLE 顯示灰色「未查證」chip，不用紅黃綠。
   3. 「立即更新」按鈕對一般訪客**移除**（`POST /api/trending/refresh` 改需管理 token）；改顯示「資料更新時間：{max(created_at)}」與排程狀態文案（不再硬編「每 6 小時」）。
   4. 後端不可用 → 顯示錯誤態「暫時連不上伺服器」而非空狀態（修正 App.jsx:159 靜默 return）。
-  5. 卡片點擊：有 `result_id` → `/r/{id}`，否則外連 `source_url`（`rel="noopener"`）。
+  5. 卡片點擊：有 `result_id` → `/r/{id}`，否則外連 `source_url`（`rel="noopener"`）。**D-01 註記：`result_id` 本次不回填**（新聞分析不建任務），熱門卡一律外連 `source_url`。**D-01 決策（`verified` 單一定義）**：熱門列 `verified` 只依 6.3 由 `label_source` 與 `source_url` 的分級決定，AI 回傳的 `sources` 只影響知識庫列的 `verified`（FR-17 (a)，經 url_validator）；`_save_rss_record`／`_analyze_record` 與 FR-18 規則 4 用同一公式，規則 4 重跑結果收斂。
   6. `source_url` 不得為 `news.google.com` 轉址（FR-18 清洗後 + `_save_rss_record` 不再寫入 Google News 來源）；`label_source="ai"` 且 `verified=false` 的記錄一律顯示灰色 `chip_pending`、不顯示紅黃綠。
 
 ### FR-07 知識庫搜尋（P0）
@@ -440,8 +440,8 @@
 | `platform` | String(20) NULL | 共識 §10；`rss`／`cofacts`／`threads`；FR-12 每日貼文寫 `"threads"` 防重發 |
 | `post_id` | String(64) NULL | Threads media id |
 | `label_source` | String(10) NULL | 值域同 6.2 `ai\|rule\|gold\|admin`（`_save_rss_record` 規則分支寫 `rule`，`_analyze_record` 寫 `ai`；只加寫入欄位，**不改**規則函式本身） |
-| `result_id` | String(36) NULL | 熱門卡可連 `/r/{id}` |
-| `verified` | Boolean NULL | FR-16／18：`rule` → true；`ai` 且 `source_url` 為 Tier 1／2 → true；其餘 false；S3 `verified=false` 顯示 `chip_pending` |
+| `result_id` | String(36) NULL | 熱門卡可連 `/r/{id}`（D-01：本次不回填，新聞分析不建任務，熱門卡一律外連） |
+| `verified` | Boolean NULL | FR-16／18：`rule`／`gold`／`admin` → true；`ai` 且 `source_url` 為 Tier 1／2 → true；其餘 false；S3 `verified=false` 顯示 `chip_pending`。**D-01 決策：此為唯一定義**——管線寫入（`news_fetcher._fill_record_provenance`，`_save_rss_record` 與 `_analyze_record` 共用）與 FR-18 規則 4 同公式；AI 回傳 `sources`（含快取命中列的舊來源）不參與熱門列 `verified`，只決定知識庫列 `verified`（6.2、FR-17 (a)）。`_analyze_record` 對 `source_url` 線上分級（Cofacts 查回覆），`_save_rss_record` 離線；Cofacts 離線得 3 時不降級先前的 1／2 |
 | `source_tier` | Integer NULL | `tier_of(source_url, title)` 結果，由 FR-18 回填、`_save_rss_record` 新寫入時計算 |
 
 遷移：`init_sql_db()`（database_sql.py:29-31）在 `create_all` 後執行冪等 `ALTER TABLE fact_check_records ADD COLUMN …`（先 `PRAGMA table_info` 檢查）。`to_dict()` 回傳新欄位。既有 63 筆 `label_source` 回填：`category in ("已查核假訊息","官方衛教","官方資訊")` → `rule`，其餘非 NULL `risk_type` → `ai`；`label_source=rule` 時前端顯示「查核機構標記」而非信心。`verified`／`source_tier` 回填與 Google News 轉址列清理由 FR-18 腳本負責（不放在 `init_sql_db()`，避免啟動時發網路請求）。

@@ -1,173 +1,158 @@
 @import "tailwindcss";
 
 /* ============================================================
-   設計 TOKEN（現代簡約：低對比邊框、柔和陰影、青綠單一強調色）
-   深色為預設；data-theme="light" 覆蓋同一組 token
+   設計 TOKEN（brief §2、§7；spec §8.1、§8.6）
+   方向 A：淺色預設、黑白為底、單一強調色；紅黃綠只用於判定
+   （燈號區塊、判定 chip、燈號點）。
+   深色覆寫在 :root[data-theme="dark"]；主題由 index.html 首繪前
+   inline script 與 src/lib/theme.js 設定（localStorage fcc_theme
+   → prefers-color-scheme）。
+   強調色只存在 --c-accent 一個 token（負責人選色前預設墨黑，換色＝改一行）。
+   對比由 src/lib/contrast.test.js 讀本檔驗證。
+   注意：紅字 --c-red 放在 --c-red-soft 上只達 3:1，限 24px 粗體大字
+   （燈號區塊 frame_label）；紅色小字不得放在 red-soft 上。
    ============================================================ */
 :root {
-  --c-bg-base:      #0b0f16;
-  --c-bg-surface:   #101722;
-  --c-bg-elevated:  #172130;
-  --c-bg-input:     #0c121b;
-  --c-border:       #1d2735;
-  --c-border-strong:#2c3a4e;
+  color-scheme: light;
 
-  --c-text-primary:   #eaeff7;
-  --c-text-secondary: #9fb0c4;
-  --c-text-muted:     #77899f;
+  --c-bg: #FFFFFF;
+  --c-surface: #F7F7F8;
+  --c-ink: #111111;
+  --c-ink-2: #4B5563;
+  --c-ink-3: #6B7280;
+  --c-ink-inverse: #FFFFFF;
+  --c-line: #E5E7EB;
 
-  --c-accent:       #35dcc4;
-  --c-accent-strong:#5eead6;
-  --c-accent-ink:   #04221d;
-  --c-accent-soft:  rgba(53,220,196,0.12);
-  --c-accent-line:  rgba(53,220,196,0.40);
+  --c-accent: #111111;
+  --c-accent-soft: #EFEFEF;
 
-  --c-risk-high: #fb7069;
-  --c-risk-mid:  #e6b540;
-  --c-risk-low:  #4ecb74;
-  --c-risk-high-soft: rgba(251,112,105,0.13);
-  --c-risk-mid-soft:  rgba(230,181,64,0.13);
-  --c-risk-low-soft:  rgba(78,203,116,0.12);
-  --c-muted-soft:     rgba(126,144,166,0.13);
-  --c-topbar-bg:      rgba(11,15,22,0.72);
+  --c-red: #D92D20;
+  --c-red-soft: #FEF3F2;
+  --c-yellow: #B54708;
+  --c-yellow-soft: #FEF0C7;
+  --c-green: #067647;
+  --c-green-soft: #ECFDF3;
+  --c-grey: #4B5563;
+  --c-grey-soft: #F2F4F7;
 
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.30), 0 12px 32px -16px rgba(0,0,0,0.45);
-  --shadow-pop:  0 2px 6px rgba(0,0,0,0.35), 0 20px 48px -20px rgba(0,0,0,0.55);
+  --radius-card: 12px;
+  --radius-btn: 10px;
+  --radius-chip: 999px;
+  --shadow-card: 0 1px 2px rgba(17, 17, 17, 0.04);
+
+  --font-stack: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
 }
 
-:root[data-theme="light"] {
-  --c-bg-base:      #f3f5f9;
-  --c-bg-surface:   #ffffff;
-  --c-bg-elevated:  #f0f3f8;
-  --c-bg-input:     #f6f8fb;
-  --c-border:       #e4e9f1;
-  --c-border-strong:#cbd5e2;
-  --c-text-primary:   #131e2c;
-  --c-text-secondary: #47576b;
-  --c-text-muted:     #6d7b8d;
-  --c-accent:       #0d9488;
-  --c-accent-strong:#0f766e;
-  --c-accent-ink:   #ffffff;
-  --c-accent-soft:  rgba(13,148,136,0.09);
-  --c-accent-line:  rgba(13,148,136,0.35);
-  --c-risk-high: #dc2626;
-  --c-risk-mid:  #b45309;
-  --c-risk-low:  #15803d;
-  --c-risk-high-soft: rgba(220,38,38,0.09);
-  --c-risk-mid-soft:  rgba(180,83,9,0.10);
-  --c-risk-low-soft:  rgba(21,128,61,0.10);
-  --c-muted-soft:     rgba(100,114,132,0.10);
-  --c-topbar-bg:      rgba(255,255,255,0.78);
+:root[data-theme="dark"] {
+  color-scheme: dark;
 
-  --shadow-card: 0 1px 2px rgba(19,30,44,0.04), 0 10px 28px -18px rgba(19,30,44,0.14);
-  --shadow-pop:  0 2px 6px rgba(19,30,44,0.06), 0 18px 44px -20px rgba(19,30,44,0.20);
-}
-:root[data-theme="light"] .app-bg {
-  background-image:
-    radial-gradient(1100px 520px at 82% -8%, rgba(13,148,136,0.06), transparent 60%),
-    radial-gradient(900px 480px at 0% 0%, rgba(13,148,136,0.035), transparent 55%);
-}
-:root[data-theme="light"] .shimmer {
-  background: linear-gradient(90deg, #e9edf4 0%, #f5f8fc 50%, #e9edf4 100%);
-  background-size: 1000px 100%;
+  --c-bg: #0F1115;
+  --c-surface: #171A21;
+  --c-ink: #F3F4F6;
+  --c-ink-2: #9CA3AF;
+  --c-ink-3: #8B93A1;
+  --c-ink-inverse: #0F1115;
+  --c-line: #2A2F3A;
+
+  --c-accent: #F3F4F6;
+  --c-accent-soft: #252A34;
+
+  --c-red: #F97066;
+  --c-red-soft: #3A1D1C;
+  --c-yellow: #FDB022;
+  --c-yellow-soft: #33280F;
+  --c-green: #32D583;
+  --c-green-soft: #11291D;
+  --c-grey: #A7AEBB;
+  --c-grey-soft: #22262F;
+
+  --shadow-card: none;
 }
 
+/* token → Tailwind 工具類（bg-surface、text-ink、border-line、text-red …） */
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-ink: var(--c-ink);
+  --color-ink-2: var(--c-ink-2);
+  --color-ink-3: var(--c-ink-3);
+  --color-ink-inverse: var(--c-ink-inverse);
+  --color-line: var(--c-line);
+  --color-accent: var(--c-accent);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-red: var(--c-red);
+  --color-red-soft: var(--c-red-soft);
+  --color-yellow: var(--c-yellow);
+  --color-yellow-soft: var(--c-yellow-soft);
+  --color-green: var(--c-green);
+  --color-green-soft: var(--c-green-soft);
+  --color-grey: var(--c-grey);
+  --color-grey-soft: var(--c-grey-soft);
+  --font-sans: var(--font-stack);
+}
+
+/* ---------- 全域（放 base layer，工具類可覆寫） ---------- */
+@layer base {
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC',
-    'Microsoft JhengHei', 'PingFang TC', 'Roboto', sans-serif;
+  font-family: var(--font-stack);
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--c-ink);
+  background-color: var(--c-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "tnum" 1;   /* 數字等寬，統計卡不跳動 */
-  color: var(--c-text-primary);
-  background-color: var(--c-bg-base);
 }
 
-/* 整體背景：深色 + 頂部一抹青綠光暈（收斂、不搶戲） */
-.app-bg {
-  background-color: var(--c-bg-base);
-  background-image:
-    radial-gradient(1100px 520px at 82% -8%, rgba(53,220,196,0.07), transparent 60%),
-    radial-gradient(900px 480px at 0% 0%, rgba(53,220,196,0.035), transparent 55%);
-  background-attachment: fixed;
+/* 強調色為墨黑時無法只靠顏色辨識連結 → 一律底線 */
+a {
+  color: var(--c-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-/* 卡片陰影：覆蓋 Tailwind 的黑色系陰影，改用主題感知的柔和陰影
-   （unlayered 規則會蓋過 @layer utilities，深淺色各自成立） */
-.shadow-sm { box-shadow: var(--shadow-card); }
-.hover\:shadow-md:hover { box-shadow: var(--shadow-pop); }
-
-/* 焦點環（鍵盤可達） */
+/* 焦點環（鍵盤可達，spec §8.6） */
 :focus-visible {
   outline: 2px solid var(--c-accent);
   outline-offset: 2px;
-  border-radius: 8px;
+}
 }
 
-/* 細捲軸 */
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--c-border-strong);
-  border-radius: 999px;
-  border: 3px solid transparent;
-  background-clip: content-box;
-}
-::-webkit-scrollbar-thumb:hover { background: var(--c-text-muted); background-clip: content-box; }
-
-/* AI 分析中 shimmer */
+/* ---------- 動效 keyframes（只有 shimmer 與 fade-in ≤200ms，spec §8.1） ---------- */
 @keyframes shimmer {
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+  0% { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
 }
-.shimmer {
-  background: linear-gradient(90deg, #121a26 0%, #1c2737 50%, #121a26 100%);
-  background-size: 1000px 100%;
-  animation: shimmer 1.8s infinite linear;
-}
-
-/* 卡片淡入 */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.fade-in { animation: fadeIn 0.28s ease-out; }
 
-/* 分析中微脈動 */
-@keyframes softPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.82; }
-}
-.analyzing-pulse { animation: softPulse 1.6s ease-in-out infinite; }
+/* ---------- 字級（brief §2；最小 13px） ---------- */
+@layer components {
+.t-h1 { font-size: 24px; line-height: 32px; font-weight: 700; }
+.t-h2 { font-size: 18px; line-height: 26px; font-weight: 700; }
+.t-body { font-size: 16px; line-height: 24px; font-weight: 400; }
+.t-sub { font-size: 14px; line-height: 20px; font-weight: 400; }
+.t-chip { font-size: 13px; line-height: 16px; font-weight: 500; }
+.t-caption { font-size: 13px; line-height: 16px; font-weight: 400; }
 
-/* 主按鈕：青綠、微漸層、hover 輕浮起 */
-.btn-primary {
-  background: linear-gradient(180deg, var(--c-accent-strong), var(--c-accent));
-  color: var(--c-accent-ink);
-  transition: all 0.18s ease;
-  box-shadow: 0 1px 3px rgba(53,220,196,0.22);
-}
-:root[data-theme="light"] .btn-primary {
-  background: linear-gradient(180deg, #12a99b, var(--c-accent));
-}
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.06);
-  box-shadow: 0 6px 18px -4px rgba(53,220,196,0.35);
-}
-.btn-primary:active:not(:disabled) { transform: translateY(0); }
-.btn-primary:disabled {
-  background: var(--c-border-strong);
-  color: var(--c-text-muted);
-  cursor: not-allowed;
-  box-shadow: none;
+/* 動效類別 */
+.shimmer {
+  background: linear-gradient(90deg, var(--c-line) 0%, var(--c-surface) 50%, var(--c-line) 100%);
+  background-size: 1200px 100%;
+  animation: shimmer 1.6s infinite linear;
 }
 
-/* 語意記號（取代大顆 emoji 的幾何符號） */
-.risk-glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  line-height: 1;
+.fade-in { animation: fadeIn 180ms ease-out; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

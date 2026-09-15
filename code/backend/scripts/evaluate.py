@@ -4,7 +4,7 @@
 這是論文「系統有效性」的核心數據來源。
 
 用法：
-    # 先確認 .env 內 GOOGLE_API_KEY 已設定（評測一定要呼叫真實 AI）
+    # 先確認 .env 內 AI provider 金鑰（如 CGU_API_KEY）已設定（評測一定要呼叫真實 AI）
     python scripts/evaluate.py                       # 跑完整 data/eval_set.csv
     python scripts/evaluate.py --limit 10            # 只跑前 10 筆（測試用）
     python scripts/evaluate.py --delay 3             # 每筆間隔 3 秒（避開 API 限流）

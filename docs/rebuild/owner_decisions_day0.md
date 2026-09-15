@@ -19,7 +19,7 @@
 | 專題信箱 | `cans.fakenewsverify@gmail.com`（已填入 `public/privacy.html`、`public/data-deletion.html`） | 對話 |
 | GitHub 權限 | `soymilk0211` 已加為協作者（Write），邀請已接受，可推送 | 對話 + 截圖 |
 | 機器人顯示名稱 | 先不改（O-06 延後） | 對話 |
-| Vercel | 負責人要逐步教學後自己建立 | 對話 |
+| Vercel | 已建立：team `fakenewsverify`（Hobby）、project `fakenewsverify`、Root `code/frontend`。**PUBLIC_BASE_URL = `https://fakenewsverify.vercel.app`**；實測 `/`、`/privacy.html`（含信箱）、`/r/任意id`（SPA fallback）皆 200；CI（含前端 job）綠 | 2026-09-15 部署 |
 
 ## CGU 閘道本地模型（2026-09-15 實測，負責人要求「不要浪費」）
 
@@ -29,6 +29,12 @@
 | `bge-m3:latest` | 可用，1024 維，約 10 秒 | 中文 embedding 候選；換用需重算 236 筆向量並重新校準 0.75 門檻 | 報告後評估 |
 | `translategemma:latest` | 可用，翻譯品質正常，首次 70 秒 | 英文查核來源（WHO、CDC）標題翻成繁中顯示 | 報告後、低優先 |
 | `glm-ocr` / `deepseek-ocr` | **目前不可用**：閘道轉發圖片格式錯誤（OpenAI 陣列格式 502；Ollama `images` 欄位回空或逾時） | 圖片查證 FR-03：截圖先 OCR 成文字再走文字管線（比送多模態模型省） | 需先問 CGU 管理員正確傳圖方式 |
+
+## 待負責人確認的文案（非 spec 8.7 逐字，O-01／O-28 一併確認）
+
+| key | 暫用字串 | 用處 | 說明 |
+|---|---|---|---|
+| `btn_copy_code` | 複製代碼 | S-12 `/oauth/callback` 複製鈕（`src/i18n.js` `EXTRA`） | 8.7 只有 `btn_copy_link`「複製連結」／`btn_copied`；授權碼不是連結，另立此 key。負責人確認後回寫 spec 8.7，或改用其他字樣 |
 
 ## 尚未提供（不擋實作）
 

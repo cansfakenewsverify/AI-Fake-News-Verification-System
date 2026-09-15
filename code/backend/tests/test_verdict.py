@@ -213,6 +213,10 @@ def test_retry_pending_stops_on_ratelimit(monkeypatch):
 
 def test_processor_frame_for_fallback_is_grey():
     # 任務處理器的框映射委派 verdict.frame_of：fallback（SAFE、信心 0）必須灰卡，不是黃框（spec §5.5、§7.8）
-    from app.workers.pandas_task_processor import _ai_result_to_frame
+    # B-15 刪除 _ai_result_to_frame 薄包裝：處理器的 _build_result 直接呼叫 verdict.frame_of
+    from app.workers.pandas_task_processor import _build_result
     res = _default_fallback_result("cgu HTTP 429: Too Many Requests")
-    assert _ai_result_to_frame(res) == ("grey", "AI 暫時無法使用")
+    assert frame_of(res)[:2] == ("grey", "AI 暫時無法使用")
+    built = _build_result(res)
+    assert (built["frame_type"], built["frame_label"]) == ("grey", "AI 暫時無法使用")
+    assert built["ai_unavailable"] is True

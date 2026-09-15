@@ -3,15 +3,85 @@
 
 DEMO_MODE=True 時：暫停真實 API，立即回傳紅黃綠框 mock 結果，來源鎖定 Google 首頁
 """
+import asyncio
 import json
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel, Field
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import Literal
+from urllib.parse import urlparse
+
+from fastapi import APIRouter, UploadFile, File
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, field_validator
+from pydantic_core import PydanticCustomError
 from app.config import settings
 from app.workers.task_queue import enqueue_analysis_task
 from app.services.task_store import TaskStore
+from app.utils import safe_url
+from app.utils.labels import CATEGORY_LABEL_UNKNOWN, category_label
 
 router = APIRouter(prefix="/api/analyze", tags=["analyze"])
 task_store = TaskStore()
+logger = logging.getLogger(__name__)
+
+# spec §5.7 / §8.7 通用文案（原始例外只進 log，不回給客戶端）
+MSG_INVALID_URL = "這不是有效的網址，請以 http:// 或 https:// 開頭。"
+MSG_ANALYSIS_FAILED = "查證失敗，請稍後再試。"
+MSG_TASK_CREATE_FAILED = "建立查證任務失敗，請稍後再試。"
+MSG_BLOCKED_URL = "這個網址無法查證（內部或保留位址）。"
+
+
+TZ_TAIPEI = timezone(timedelta(hours=8))
+
+
+def _now_taipei_iso() -> str:
+    return datetime.now(TZ_TAIPEI).isoformat(timespec="seconds")
+
+
+def _task_time_iso(task: dict) -> str:
+    """舊任務沒有 analyzed_at：退用 completed_at（TaskStore 存 naive UTC）轉 +08:00。"""
+    value = (task or {}).get("completed_at") or (task or {}).get("created_at")
+    if value is None or value == "":
+        return ""
+    try:
+        dt = value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(TZ_TAIPEI).isoformat(timespec="seconds")
+    except (TypeError, ValueError, AttributeError):  # 含 pandas NaT
+        return ""
+
+
+def api_error(status_code: int, detail: str, code: str) -> JSONResponse:
+    """spec §5.7 錯誤格式：{"detail": 人可讀繁中, "code": 機器碼}"""
+    return JSONResponse(status_code=status_code, content={"detail": detail, "code": code})
+
+
+def is_valid_http_url(content: str) -> bool:
+    """FR-02：strip 後以 http:// 或 https:// 開頭，且 urlparse 取得到 host。"""
+    text = (content or "").strip()
+    if not text.lower().startswith(("http://", "https://")):
+        return False
+    try:
+        return bool(urlparse(text).hostname)
+    except ValueError:
+        return False
+
+
+async def blocked_url_response(url: str) -> JSONResponse | None:
+    """
+    FR-02 驗收 2：建立任務前做 SSRF 檢查（只做 DNS 解析，不發 HTTP 請求）。
+    被拒 → 422 blocked_url；DNS 解析失敗不算 SSRF，放行交給處理器回 UNVERIFIABLE。
+    """
+    try:
+        await asyncio.to_thread(safe_url.check_url, url)
+    except safe_url.BlockedURL as e:
+        logger.info("blocked_url: %s", e.reason)
+        return api_error(422, MSG_BLOCKED_URL, "blocked_url")
+    except safe_url.SafeFetchError:
+        pass
+    return None
+
 
 # 成果展示用：鎖死回傳 Google 首頁
 DEMO_SOURCE_URL = "https://www.google.com/"
@@ -86,10 +156,22 @@ class AnalyzeTextRequest(BaseModel):
     """文字分析請求（空字串直接 422，不浪費爬蟲/AI 資源）"""
     content: str = Field(..., min_length=1, max_length=20000)
 
+    @field_validator("content")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        # 只有空白也視為空字串（FR-01 驗收 4），不送 AI
+        if not value.strip():
+            raise PydanticCustomError(
+                "string_too_short", "String should have at least 1 character",
+                {"min_length": 1},
+            )
+        return value
+
 
 class AnalyzeResponse(BaseModel):
     """分析回應（非 Demo 模式）"""
     task_id: str
+    result_id: str | None = None             # = task_id（spec §5.2）
     status: str
     message: str
 
@@ -128,6 +210,40 @@ class AnalysisResult(BaseModel):
     sources: list
     cached: bool | None = None                # 是否命中快取（未呼叫 AI）
     cache_layer: str | None = None            # 命中哪一層：url / hash / vector
+    # ── v2 欄位（spec §5.4）──
+    # 必填、非 null：處理器任何路徑漏填都會在 response_model 驗證時被抓到
+    result_id: str
+    ai_unavailable: bool
+    similar_news: list
+    category_label: str
+    label_source: str
+    analyzed_at: str
+    verified: bool
+    verification_status: Literal["verified", "rule", "unverified"]
+    source_tier: int | None                   # 無 Tier 1/2 來源時為 null（spec §5.4）
+    related_discussions: list
+    kb_id: str | None = None
+
+
+def _with_v2_defaults(payload: dict, result_id: str, analyzed_at: str = "") -> dict:
+    """
+    舊任務（v2 前寫入的 result_data）與 DEMO 結果缺 §5.4 v2 欄位時補保守預設
+    （spec §6：舊列 verified=False、unverified），讓必填的 response_model 不因舊資料 500。
+    處理器新產生的結果已帶齊，setdefault 不會覆寫。
+    """
+    payload["result_id"] = payload.get("result_id") or result_id
+    payload.setdefault("ai_unavailable", False)
+    payload.setdefault("similar_news", [])
+    if not payload.get("category_label"):
+        payload["category_label"] = category_label(payload.get("category")) or CATEGORY_LABEL_UNKNOWN
+    payload["label_source"] = payload.get("label_source") or "ai"
+    payload["analyzed_at"] = payload.get("analyzed_at") or analyzed_at
+    if payload.get("verification_status") not in ("verified", "rule", "unverified"):
+        payload["verification_status"] = "unverified"
+    payload["verified"] = payload["verification_status"] != "unverified"
+    payload.setdefault("source_tier", None)
+    payload.setdefault("related_discussions", [])
+    return payload
 
 
 @router.post("/text")
@@ -141,15 +257,19 @@ async def analyze_text(
     if settings.DEMO_MODE:
         return _get_demo_result("red")
     try:
-        task_id = task_store.create_task("analyze_text", request.content)
+        task_id = task_store.create_task(
+            "analyze_text", request.content, input_type="text", origin="web",
+        )
         enqueue_analysis_task(task_id, request.content, "text")
         return AnalyzeResponse(
             task_id=task_id,
+            result_id=task_id,
             status="pending",
             message="任務已提交處理，請使用 task_id 查詢結果",
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"建立任務失敗: {str(e)}")
+    except Exception:
+        logger.exception("analyze_text: create task failed")
+        return api_error(500, MSG_TASK_CREATE_FAILED, "analysis_failed")
 
 
 @router.post("/url")
@@ -157,12 +277,32 @@ async def analyze_url(
     request: AnalyzeTextRequest,
 ):
     """
-    分析 URL
+    分析 URL（FR-02）：伺服器端驗證網址，不再委派 /text。
     DEMO_MODE 時：立即回傳黃框 mock 結果。
     """
+    if not is_valid_http_url(request.content):
+        return api_error(422, MSG_INVALID_URL, "invalid_url")
+    url = request.content.strip()
+    blocked = await blocked_url_response(url)
+    if blocked is not None:
+        return blocked
     if settings.DEMO_MODE:
         return _get_demo_result("yellow")
-    return await analyze_text(request)
+    try:
+        task_id = task_store.create_task(
+            "analyze_url", url, input_type="url", origin="web",
+        )
+        # 處理器以 input_type="url" 寫知識庫 data_type="URL"
+        enqueue_analysis_task(task_id, url, "url")
+        return AnalyzeResponse(
+            task_id=task_id,
+            result_id=task_id,
+            status="pending",
+            message="任務已提交處理，請使用 task_id 查詢結果",
+        )
+    except Exception:
+        logger.exception("analyze_url: create task failed")
+        return api_error(500, MSG_TASK_CREATE_FAILED, "analysis_failed")
 
 
 @router.post("/sync", response_model=AnalysisResult)
@@ -174,21 +314,32 @@ async def analyze_sync(
     一次請求直接回傳最終結果，不需輪詢 task_id。
     內部直接 await 完整三層快取 + AI 流程。
     """
+    is_url = request.content.strip().lower().startswith(("http://", "https://"))
+    content = request.content.strip() if is_url else request.content
+    if is_url:
+        if not is_valid_http_url(content):
+            return api_error(422, MSG_INVALID_URL, "invalid_url")
+        blocked = await blocked_url_response(content)
+        if blocked is not None:
+            return blocked
     if settings.DEMO_MODE:
-        is_url = request.content.strip().startswith(("http://", "https://"))
-        return _decorate_display_fields(
-            _get_demo_result("yellow" if is_url else "red")
+        return _with_v2_defaults(
+            _get_demo_result("yellow" if is_url else "red"), "demo", _now_taipei_iso(),
         )
     try:
         from app.workers.pandas_task_processor import process_analysis_task_async
 
-        is_url = request.content.strip().startswith(("http://", "https://"))
         input_type = "url" if is_url else "text"
-        task_id = task_store.create_task(f"analyze_{input_type}", request.content)
-        result = await process_analysis_task_async(task_id, request.content, input_type)
-        return _decorate_display_fields(result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"分析失敗: {str(e)}")
+        task_id = task_store.create_task(
+            f"analyze_{input_type}", content,
+            input_type=input_type, origin="web",
+        )
+        result = await process_analysis_task_async(task_id, content, input_type)
+        result = dict(result or {})
+        return _decorate_display_fields(_with_v2_defaults(result, task_id, _now_taipei_iso()))
+    except Exception:
+        logger.exception("analyze_sync failed")
+        return api_error(500, MSG_ANALYSIS_FAILED, "analysis_failed")
 
 
 @router.post("/image")
@@ -210,6 +361,7 @@ async def analyze_image(
         task_id = task_store.create_task(
             "analyze_image",
             file.filename or "uploaded_image",
+            input_type="image", origin="web",
         )
         # 專題規格：圖片分析需儲存至暫存檔並傳路徑給處理器
         data_dir = "data"
@@ -229,47 +381,58 @@ async def analyze_image(
             status="pending",
             message="圖片分析任務已提交處理",
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"建立任務失敗: {str(e)}")
+    except Exception:
+        logger.exception("analyze_image: create task failed")
+        return api_error(500, MSG_TASK_CREATE_FAILED, "analysis_failed")
 
 
-@router.get("/task/{task_id}", response_model=AnalysisResult)
+def task_result_payload(task: dict) -> dict | None:
+    """
+    completed 任務的 result 物件（spec §5.4：/api/analyze/task/{id} 與 /api/result/{id}.result 同結構）。
+    result_data 缺或格式錯誤 → None（原因只進 log）。
+    """
+    raw = (task or {}).get("result_data")
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        logger.warning("task %s: result_data is not valid JSON", (task or {}).get("id"))
+        return None
+    if not isinstance(data, dict):
+        return None
+    _with_v2_defaults(data, str(task.get("id") or ""), _task_time_iso(task))
+    return _decorate_display_fields(data)
+
+
+@router.get(
+    "/task/{task_id}",
+    response_model=AnalysisResult,
+    responses={202: {"description": "任務處理中：{task_id, status}"}},
+)
 async def get_task_result(
     task_id: str,
 ):
     """
-    查詢任務結果
+    查詢任務結果（舊端點，保留相容；新前端改用 /api/result/{id}）。
+    pending／processing → 202 {task_id, status}（不再回 SAFE 佔位，spec §5.1）。
     """
-    task = task_store.get_task(task_id)
+    task = await asyncio.to_thread(task_store.get_task, task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="任務不存在")
+        return api_error(404, "任務不存在", "task_not_found")
 
     status = task.get("status")
     if status in ("pending", "processing"):
-        return _decorate_display_fields({
-            "is_risk": False,
-            "risk_type": "SAFE",
-            "category": "Irrelevant",
-            "confidence_score": 0.0,
-            "summary": "任務處理中...",
-            "explanation": "請稍後再試",
-            "sources": [],
-        })
+        return JSONResponse(status_code=202, content={"task_id": task_id, "status": status})
 
     if status == "failed":
-        raise HTTPException(
-            status_code=500,
-            detail=f"任務執行失敗: {task.get('error_message')}",
-        )
+        logger.warning("task %s failed: %s", task_id, task.get("error_message"))
+        return api_error(500, MSG_ANALYSIS_FAILED, "analysis_failed")
 
-    result_data = task.get("result_data")
-    if result_data:
-        try:
-            return _decorate_display_fields(json.loads(result_data))
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=500, detail="任務結果格式錯誤")
-
-    raise HTTPException(status_code=404, detail="結果尚未準備好")
+    payload = task_result_payload(task)
+    if payload is not None:
+        return payload
+    return api_error(500, MSG_ANALYSIS_FAILED, "analysis_failed")
 
 
 @router.get("/task/{task_id}/status")
@@ -281,7 +444,7 @@ async def get_task_status(
     """
     task = task_store.get_task(task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="任務不存在")
+        return api_error(404, "任務不存在", "task_not_found")
 
     return {
         "task_id": task["id"],

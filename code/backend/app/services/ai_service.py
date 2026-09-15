@@ -8,14 +8,14 @@ AI 分析服務 — 支援 myai168 與 CGU AIR Gateway。
 
 其他能力：
 - 圖片查證：Claude / OpenAI-compatible 視覺（OCR + 判讀，依模型支援度）
-- 影片語音轉文字：/audio/transcriptions，無字幕時的後備
-- Embedding：CGU AIR /embeddings 主，Gemini 備援
+- Embedding：CGU AIR /embeddings（失敗回空陣列，向量層自動停用）
 """
 import base64
 import json
 import logging
-import os
 import re
+import threading
+import time
 from typing import Dict, List, Optional, Any, Tuple
 
 import requests
@@ -23,6 +23,22 @@ import requests
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# spec §9 可靠性：一次分析（含 provider fallback 鏈）總時長上限 = AI_TIMEOUT_SECONDS。
+# requests 的 timeout 只是「連線／單次讀取閒置」上限，不是整體請求時間，
+# 因此 _run_analysis 另設 wall-clock 期限：每次呼叫的 timeout 取「剩餘時間」，
+# 期限到就不再嘗試下一個 provider。AIService 單例會被多個 to_thread 同時使用，
+# 期限存在 thread-local 以免互相覆寫。
+_deadline_local = threading.local()
+
+
+def _request_timeout() -> float:
+    """目前這個執行緒的單次請求 timeout（秒）：不超過 AI_TIMEOUT_SECONDS 與剩餘預算。"""
+    limit = float(settings.AI_TIMEOUT_SECONDS)
+    deadline = getattr(_deadline_local, "deadline", None)
+    if deadline is None:
+        return limit
+    return max(1.0, min(limit, deadline - time.monotonic()))
 
 
 # V4.1 System Prompt（嚴格版本）
@@ -219,7 +235,7 @@ class AIService:
         # openai 引擎的 web_search 仍照常（見 _responses_analyze）。use_web_search 參數保留以維持簽名。
         _ = use_web_search
         headers = {"x-api-key": self.myai_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
-        r = requests.post(f"{self.claude_base}/messages", headers=headers, json=body, timeout=150)
+        r = requests.post(f"{self.claude_base}/messages", headers=headers, json=body, timeout=_request_timeout())
         r.raise_for_status()
         data = r.json()
         text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
@@ -230,7 +246,26 @@ class AIService:
         cites = self._claude_citations(data)
         if cites:
             result["sources"] = cites
+        result["model"] = self.claude_model
+        usage = self._usage_of(data)
+        if usage:
+            result["usage"] = usage
         return result
+
+    @staticmethod
+    def _usage_of(data: dict) -> Optional[Dict[str, int]]:
+        """回應的 token 用量（Responses: input/output_tokens；Messages 同名）。只供 log 估算成本。"""
+        usage = (data or {}).get("usage") if isinstance(data, dict) else None
+        if not isinstance(usage, dict):
+            return None
+        try:
+            tin = int(usage.get("input_tokens") or usage.get("prompt_tokens") or 0)
+            tout = int(usage.get("output_tokens") or usage.get("completion_tokens") or 0)
+        except (TypeError, ValueError):
+            return None
+        if not tin and not tout:
+            return None
+        return {"input_tokens": tin, "output_tokens": tout}
 
     @staticmethod
     def _claude_citations(data: dict) -> List[Dict[str, str]]:
@@ -282,7 +317,7 @@ class AIService:
         if use_web_search and effort != "minimal":
             body["tools"] = [{"type": "web_search"}]
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        r = requests.post(f"{base_url}/responses", headers=headers, json=body, timeout=150)
+        r = requests.post(f"{base_url}/responses", headers=headers, json=body, timeout=_request_timeout())
         r.raise_for_status()
         data = r.json()
         text = self._openai_output_text(data)
@@ -293,6 +328,10 @@ class AIService:
         cites = self._openai_citations(data)
         if cites:
             result["sources"] = cites
+        result["model"] = model
+        usage = self._usage_of(data)
+        if usage:
+            result["usage"] = usage
         return result
 
     # ── myai168 OpenAI 引擎 ─────────────────────────────────────
@@ -348,15 +387,34 @@ class AIService:
 
     # ── 引擎排程：主→備援，最後無工具再試一次 ───────────────────
     def _run_analysis(self, prompt_text: str, image: Optional[dict] = None, use_web_search: bool = True) -> Dict[str, Any]:
+        """整條 fallback 鏈共用 AI_TIMEOUT_SECONDS 的 wall-clock 預算（spec §9）。"""
+        _deadline_local.deadline = time.monotonic() + float(settings.AI_TIMEOUT_SECONDS)
+        try:
+            return self._run_analysis_chain(prompt_text, image, use_web_search)
+        finally:
+            _deadline_local.deadline = None
+
+    @staticmethod
+    def _budget_left() -> bool:
+        deadline = getattr(_deadline_local, "deadline", None)
+        return deadline is None or time.monotonic() < deadline
+
+    def _run_analysis_chain(self, prompt_text: str, image: Optional[dict], use_web_search: bool) -> Dict[str, Any]:
         last_err = ""
         for prov in self.providers:
+            if not self._budget_left():
+                last_err = last_err or "AI 分析逾時"
+                print(f"[AI] 超過 AI_TIMEOUT_SECONDS 總預算，略過 {prov}")
+                break
             try:
                 fn = {
                     "claude": self._claude_analyze,
                     "openai": self._openai_analyze,
                     "cgu": self._cgu_analyze,
                 }[prov]
-                return fn(prompt_text, image, use_web_search)
+                result = fn(prompt_text, image, use_web_search)
+                result["provider"] = prov  # 實際回應的 provider（fallback 時不是 providers[0]）
+                return result
             except requests.exceptions.HTTPError as e:
                 last_err = f"{prov} HTTP {getattr(e.response,'status_code','?')}: {(getattr(e.response,'text','') or '')[:160]}"
                 print(f"[AI] {last_err}")
@@ -364,7 +422,7 @@ class AIService:
                 last_err = f"{prov}: {e}"
                 print(f"[AI] {last_err}")
         # 最後手段：主引擎關閉 web_search 再試（避免搜尋雜訊導致 JSON 解析失敗）
-        if use_web_search and self.providers:
+        if use_web_search and self.providers and self._budget_left():
             prov = self.providers[0]
             try:
                 fn = {
@@ -372,7 +430,9 @@ class AIService:
                     "openai": self._openai_analyze,
                     "cgu": self._cgu_analyze,
                 }[prov]
-                return fn(prompt_text, image, False)
+                result = fn(prompt_text, image, False)
+                result["provider"] = prov
+                return result
             except Exception as e:
                 last_err = f"{prov}(no-search): {e}"
         return _default_fallback_result(last_err or "所有 AI 供應商皆失敗")
@@ -438,40 +498,12 @@ class AIService:
         # 圖片分析不開 web_search（穩定優先）
         return self._run_analysis(full_prompt, image={"b64": b64, "mime": mime}, use_web_search=False)
 
-    # ── 對外：影片語音轉文字（whisper STT）──────────────────────
-    def transcribe_audio(self, file_path: str) -> str:
-        """把音訊檔轉成逐字稿（影片無字幕時的後備）。失敗回空字串。"""
-        if not self._available or not os.path.isfile(file_path):
-            return ""
-        if self.provider_available.get("cgu") and (settings.AI_PROVIDER or "").lower() == "cgu":
-            base = self.cgu_base
-            key = self.cgu_key
-            model = settings.CGU_STT_MODEL or settings.STT_MODEL
-        else:
-            base = self.openai_base if self.provider_available.get("openai") else self.cgu_base
-            key = self.myai_key if self.provider_available.get("openai") else self.cgu_key
-            model = settings.STT_MODEL if self.provider_available.get("openai") else settings.CGU_STT_MODEL
-        try:
-            with open(file_path, "rb") as f:
-                r = requests.post(
-                    f"{base}/audio/transcriptions",
-                    headers={"Authorization": f"Bearer {key}"},
-                    files={"file": (os.path.basename(file_path), f, "audio/mpeg")},
-                    data={"model": model, "language": "zh", "response_format": "json"},
-                    timeout=180,
-                )
-            r.raise_for_status()
-            return (r.json().get("text", "") or "").strip()
-        except Exception as e:
-            print(f"[AI] 語音轉文字失敗: {e}")
-            return ""
-
-    # ── 對外：Embedding（CGU LLM Gateway 主、Gemini 備援）────────
+    # ── 對外：Embedding（CGU LLM Gateway）────────
     def generate_embedding(self, text: str) -> List[float]:
         """
         產生文字向量供 Layer 2 語義快取使用。
-        主：CGU LLM Gateway（OpenAI 相容 /embeddings）。
-        備援：Gemini（若有 GOOGLE_API_KEY）。皆無則回傳空陣列（向量層自動停用）。
+        CGU LLM Gateway（OpenAI 相容 /embeddings）。未設定或失敗時回傳空陣列
+        （向量層自動停用）；刻意不做其他模型備援，避免不同維度向量汙染知識庫。
         """
         base = (settings.EMBED_RELAY_URL or "").rstrip("/")
         key = (settings.EMBED_API_KEY or settings.CGU_API_KEY or "").strip()
@@ -486,15 +518,5 @@ class AIService:
                 r.raise_for_status()
                 return list(r.json()["data"][0]["embedding"])
             except Exception as e:
-                print(f"[AI] CGU embedding 失敗，改用後備：{e}")
-
-        gkey = (settings.GOOGLE_API_KEY or "").strip()
-        if gkey:
-            try:
-                from google import genai
-                client = genai.Client(api_key=gkey)
-                res = client.models.embed_content(model=settings.EMBEDDING_MODEL, contents=text)
-                return list(res.embeddings[0].values)
-            except Exception as e:
-                print(f"[AI] Gemini embedding 失敗（向量層停用）：{e}")
+                print(f"[AI] CGU embedding 失敗（向量層停用）：{e}")
         return []

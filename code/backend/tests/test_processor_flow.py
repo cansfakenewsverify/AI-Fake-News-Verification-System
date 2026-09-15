@@ -1,5 +1,6 @@
 """任務處理器流程測試（全 mock、離線）：
-守住「文字輸入的分析對象是使用者原文，不是爬到的網頁」這條 2026-07 修正。
+守住「文字輸入的分析對象是使用者原文」這條 2026-07 修正，
+以及 FR-01「文字輸入不爬、不送搜尋引擎」（B-03，FN-1 例外）。
 """
 import asyncio
 
@@ -17,17 +18,26 @@ AI_OK = {
 
 
 class FakeCrawler:
-    """回傳一個「爬到的查核文章」，內容刻意與使用者訊息不同。"""
+    """文字輸入絕不能碰到爬蟲（FR-01）：一被呼叫就失敗。"""
+    calls = 0
+
     async def process_input(self, data, input_type):
-        assert input_type == "keyword"
+        FakeCrawler.calls += 1
+        raise AssertionError("文字輸入不得呼叫 crawler.process_input")
+
+
+class CountingCrawler:
+    """只計數、回假成功結果（不拋例外），讓 calls==0 的斷言真正有意義：
+    若流程誤呼叫爬蟲，會拿到一份「偷換過的網頁內容」並繼續跑完，只有計數能抓到。"""
+    calls = 0
+
+    async def process_input(self, data, input_type):
+        CountingCrawler.calls += 1
         return {
             "success": True,
-            "url": "https://factcheck.example.com/a1",
-            "title": "查核報導標題",
-            "content": "這是查核網站文章的全文，不是使用者的訊息。" * 5,
-            "date": "2026-07-01",
-            "source": "查核站",
-            "similar_news": [{"title": "相關報導", "url": "https://news.example.com/b"}],
+            "url": "https://example.com/crawled",
+            "title": "爬到的網頁",
+            "content": "這是爬蟲抓回來的網頁內容，不是使用者原文。",
         }
 
 
@@ -48,28 +58,46 @@ class FakeVector:
         return []          # 向量層停用，逼流程走到 AI
 
 
-def test_text_input_analyzes_user_text_not_crawled_page(tmp_path, monkeypatch):
-    fake_ai = FakeAI()
+def _patch(monkeypatch, tmp_path, fake_ai):
+    FakeCrawler.calls = 0
     monkeypatch.setattr(proc, "TaskStore", lambda: TaskStore(data_dir=str(tmp_path)))
     monkeypatch.setattr(proc, "PandasStore", lambda: PandasStore(data_dir=str(tmp_path)))
     monkeypatch.setattr(proc, "CrawlerService", FakeCrawler)
     monkeypatch.setattr(proc, "AIService", lambda: fake_ai)
     monkeypatch.setattr(proc, "VectorService", FakeVector)
 
+
+def _run(tmp_path):
     ts = TaskStore(data_dir=str(tmp_path))
     tid = ts.create_task("analyze_text", USER_TEXT)
-    result = asyncio.run(proc.process_analysis_task_async(tid, USER_TEXT, "text"))
+    return asyncio.run(proc.process_analysis_task_async(tid, USER_TEXT, "text"))
 
-    # 分析對象必須是使用者原文（勿退回：舊版會被爬到的網頁全文取代）
+
+def test_text_input_analyzes_user_text_not_crawled_page(tmp_path, monkeypatch):
+    fake_ai = FakeAI()
+    _patch(monkeypatch, tmp_path, fake_ai)
+    result = _run(tmp_path)
+
+    # 分析對象必須是使用者原文
     assert fake_ai.seen_content == USER_TEXT
-    assert fake_ai.seen_url is None                      # 文字輸入不該掛搜尋結果的網址
-    # 爬到的網頁降級為 similar_news 參考脈絡
-    urls = [n.get("url") for n in result["similar_news"]]
-    assert "https://factcheck.example.com/a1" in urls
-    assert "https://news.example.com/b" in urls
+    assert fake_ai.seen_url is None
+    # v1.2：similar_news 固定回空（向量近鄰降 P1）
+    assert result["similar_news"] == []
     # 結果與快取寫入
     assert result["risk_type"] == "SCAM" and result["cached"] is False
     store = PandasStore(data_dir=str(tmp_path))
     df = store.get_all_records()
     assert len(df) == 1
     assert df.iloc[0]["raw_content"] == USER_TEXT        # 存原文，向量比對才一致
+
+
+def test_text_input_never_calls_crawler(tmp_path, monkeypatch):
+    fake_ai = FakeAI()
+    _patch(monkeypatch, tmp_path, fake_ai)
+    CountingCrawler.calls = 0
+    monkeypatch.setattr(proc, "CrawlerService", CountingCrawler)
+    result = _run(tmp_path)
+
+    assert CountingCrawler.calls == 0
+    assert fake_ai.seen_content == USER_TEXT
+    assert result["risk_type"] == "SCAM"

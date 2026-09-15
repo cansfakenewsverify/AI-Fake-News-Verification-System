@@ -6,8 +6,11 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html
 
@@ -15,7 +18,7 @@ from app.config import settings
 from app.api import (
     analyze, admin as admin_api, feedback as feedback_api,
     trending as trending_api, knowledge as knowledge_api,
-    threads as threads_api,
+    threads as threads_api, result as result_api,
 )
 from app.database_sql import init_sql_db
 
@@ -35,12 +38,17 @@ async def lifespan(app: FastAPI):
     # Startup
     init_sql_db()
 
+    from app.utils.share import warn_if_public_base_url_missing
+    warn_if_public_base_url_missing()
+
     scheduler = None
     # 兩個排程都預設關閉（省 AI 點數）：
     #   ENABLE_SCHEDULER=true    → 自動抓熱門新聞
-    #   ENABLE_THREADS_BOT=true  → Threads 查核機器人輪詢 mentions
+    #   THREADS_MODE=live|sim    → Threads 查核機器人輪詢 mentions（DEMO_MODE 不影響）
     want_trending = settings.ENABLE_SCHEDULER and not settings.DEMO_MODE
-    want_threads = settings.ENABLE_THREADS_BOT and not settings.DEMO_MODE
+    threads_mode = settings.threads_mode_effective
+    want_threads = threads_mode in ("live", "sim")
+    logger.info("Threads mode: %s", threads_mode)
     if want_trending or want_threads:
         try:
             from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -109,10 +117,43 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    # 無 cookie / 登入：不需要 credentials（spec §9 安全：CORS）
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── 422 錯誤格式（spec §5.7）─────────────────────────────────
+_MSG_EMPTY = "請先貼上要查證的內容。"
+_MSG_TOO_LONG = "內容超過 20,000 字，請刪減後再試。"
+_MSG_INVALID = "輸入格式不正確，請檢查後再試。"
+
+
+def _validation_message(errors) -> str:
+    """把 pydantic 錯誤陣列轉成一句繁中（文案取自 spec §8.7 err_empty／err_too_long）。"""
+    for err in errors or []:
+        etype = str(err.get("type") or "")
+        if etype in ("string_too_short", "missing"):
+            return _MSG_EMPTY
+        if etype == "string_too_long":
+            return _MSG_TOO_LONG
+    return _MSG_INVALID
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    # ctx 內可能帶例外物件（無法 JSON 序列化），轉成字串再輸出
+    detail = jsonable_encoder(errors, custom_encoder={Exception: str})
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": detail,
+            "code": "validation_error",
+            "message": _validation_message(errors),
+        },
+    )
 
 # Routes
 app.include_router(analyze.router)
@@ -121,6 +162,7 @@ app.include_router(feedback_api.router)
 app.include_router(trending_api.router)
 app.include_router(knowledge_api.router)
 app.include_router(threads_api.router)
+app.include_router(result_api.router)
 
 # Static
 _static_dir = Path(__file__).resolve().parent.parent / "static"

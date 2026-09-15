@@ -23,6 +23,8 @@ from app.services.vector_service import VectorService
 from app.services.pandas_store import PandasStore
 from app.services.cache_service import CacheService
 from app.utils.verdict import is_fallback
+from app.utils.source_tier import tier_of, grade_sources
+from app.utils.url_validator import filter_valid_sources
 from app.models.fact_check_record import FactCheckRecord
 from app.database_sql import SessionLocal
 
@@ -194,6 +196,39 @@ def _index_factcheck_claim(url: str, title: str, source_meta: dict):
     _print(f"[NewsFetcher]   indexed claim: '{claim}' -> MISINFO")
 
 
+_DETERMINISTIC_LABELS = ("rule", "gold", "admin")
+
+
+def _platform_of(url: str) -> str:
+    return "cofacts" if "cofacts.tw" in (url or "") else "rss"
+
+
+def _merge_source_tier(prior, url: str, tier: int) -> int:
+    """Cofacts 網址離線／查詢失敗時一律得 3；不可因此把先前線上分級（清洗腳本 FR-18
+    規則 4 或 _analyze_record 的線上查詢）得到的 1/2 降級（與 clean_sources grade_url 同規則）。"""
+    if tier == 3 and _platform_of(url) == "cofacts" and prior in (1, 2):
+        return int(prior)
+    return tier
+
+
+def _fill_record_provenance(rec, url: str, title: str, tier=None) -> None:
+    """補寫 platform / source_tier / verified，唯一定義 = spec 6.3（與 FR-18 規則 4 相同）：
+    label_source in (rule, gold, admin) → True；ai 且 source_url 為 Tier 1/2 → True；其餘 False。
+    trending 列的 verified 只看 source_url（RSS 餵來的真實網址），不看 AI 回的 sources——
+    AI sources 經 url_validator + 分級後只決定「知識庫列」的 verified（spec 6.2 / FR-17 (a)）。
+    tier=None 時零網路：tier_of(offline=True)。"""
+    rec.platform = rec.platform or _platform_of(url)
+    if tier is None:
+        tier = tier_of(url, title, offline=True)
+    rec.source_tier = _merge_source_tier(rec.source_tier, url, tier)
+    if rec.label_source in _DETERMINISTIC_LABELS:
+        rec.verified = True
+    elif rec.label_source == "ai":
+        rec.verified = rec.source_tier in (1, 2)
+    else:
+        rec.verified = False
+
+
 def _save_rss_record(item: dict):
     """Phase 1: insert/update trending record + index claim if fact-check source."""
     db = SessionLocal()
@@ -221,6 +256,7 @@ def _save_rss_record(item: dict):
                 rec.risk_type = "SAFE"
                 rec.category = source["category"]
                 rec.ai_score = 0.9
+                rec.label_source = "rule"
         elif source and source.get("is_factcheck") and confirmed_false:
             # 只有「明確被判定為假訊息」才標 MISINFO
             rec.risk_type = "MISINFO"
@@ -228,6 +264,7 @@ def _save_rss_record(item: dict):
             rec.ai_score = 0.95
             claim = _extract_claim_from_title(title)
             rec.ai_summary = f"[{source['name']}] {claim or title}"
+            rec.label_source = "rule"
         elif not source and _title_indicates_debunk(title) and \
                 rec.risk_type in (None, "", "PENDING", "UNKNOWN", "SAFE"):
             # 主流媒體轉載查核結果：標題明示不實判定 → 確定性標 MISINFO
@@ -237,6 +274,10 @@ def _save_rss_record(item: dict):
             rec.ai_score = 0.9
             claim = _extract_claim_from_title(title)
             rec.ai_summary = f"[事實查核報導] {claim or title}"
+            rec.label_source = "rule"
+
+        # D-01 / spec 6.3：判斷樹之後只補寫欄位（不影響上面任何判定）
+        _fill_record_provenance(rec, url, title)
 
         db.commit()
 
@@ -341,6 +382,8 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
         # 阻塞 IO（Parquet 讀寫、AI HTTP 呼叫）一律走 to_thread，不卡 event loop（CLAUDE.md §7）
         cached = await asyncio.to_thread(_pandas_store.find_by_hash, content_hash)
         if cached and isinstance(cached.get("ai_analysis"), dict) and not is_fallback(cached["ai_analysis"]):
+            # 快取命中只沿用判定（risk_type/summary/category）；快取列的 sources 不寫進
+            # SQLite、也不參與 trending verified（該值只由 source_url 決定，見 _fill_record_provenance）
             ai_result = cached["ai_analysis"]
         else:
             ai_result = await asyncio.to_thread(
@@ -349,11 +392,16 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
                 context={"extra_instructions": _NEWS_ANALYSIS_GUIDANCE},
             )
             if ai_result and not is_fallback(ai_result):
+                # FR-17 (a)：Tier 1/2 必須先通過 url_validator，再分級（比照 B-15）
+                tiered, related = await _validate_and_grade(ai_result.get("sources") or [])
+                ai_result = {**ai_result, "sources": tiered}
                 try:
                     await asyncio.to_thread(
                         _pandas_store.save_record,
                         data_type="URL", raw_content=content,
                         content_hash=content_hash, ai_result=ai_result, source_url=url,
+                        label_source="ai", verified=bool(tiered),
+                        related_discussions=related,
                     )
                 except Exception:
                     pass
@@ -367,13 +415,35 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
             return "ratelimit"   # 呼叫端中止本輪批次，避免每筆都打完整 fallback 鏈燒點數
         return "ai_unavailable"   # AI 暫時失敗（額度/網路）：保留 PENDING，額度恢復後再試
 
+    # trending 列 source_tier：對 source_url 本身分級（Cofacts 需線上查回覆，grade_sources
+    # 內部已 to_thread + 總逾時；非 Cofacts 零網路）
+    try:
+        graded, _rel, _ms = await grade_sources([{"url": url, "title": title}])
+        url_tier = int(graded[0]["tier"]) if graded else 3
+    except Exception as e:
+        _print(f"[NewsFetcher] source tier error: {e}")
+        url_tier = 3
+
     # SQLite 寫入是阻塞 IO → to_thread（CLAUDE.md §7）
-    await asyncio.to_thread(_apply_ai_result, url, ai_result, content, title)
+    await asyncio.to_thread(_apply_ai_result, url, ai_result, content, title, url_tier)
     return "ok"
 
 
-def _apply_ai_result(url: str, ai_result: dict, content: str, title: str) -> None:
-    """把 AI 判定寫回熱門記錄（同步，供 asyncio.to_thread 呼叫）。"""
+async def _validate_and_grade(sources: list):
+    """url_validator（阻塞 → to_thread）→ grade_sources。回傳 (Tier 1/2, Tier 3)。"""
+    try:
+        valid = await asyncio.to_thread(filter_valid_sources, sources)
+    except Exception as e:
+        _print(f"[NewsFetcher] URL validation error: {e}")
+        valid = []   # 驗證失敗 → 保守視為無可信來源
+    tiered, related, _tier_ms = await grade_sources(valid)
+    return tiered, related
+
+
+def _apply_ai_result(url: str, ai_result: dict, content: str, title: str,
+                     url_tier=None) -> None:
+    """把 AI 判定寫回熱門記錄（同步，供 asyncio.to_thread 呼叫）。
+    url_tier：source_url 的分級（None → 離線 tier_of）；verified 依 spec 6.3 由它決定。"""
     db = SessionLocal()
     try:
         rec = db.query(FactCheckRecord).filter_by(source_url=url).first()
@@ -383,6 +453,8 @@ def _apply_ai_result(url: str, ai_result: dict, content: str, title: str) -> Non
             rec.risk_type = ai_result.get("risk_type")
             rec.category = ai_result.get("category")
             rec.content = content[:2000]
+            rec.label_source = "ai"
+            _fill_record_provenance(rec, url, title, tier=url_tier)
             rec.updated_at = datetime.utcnow()
             db.commit()
             _print(f"[NewsFetcher]   AI done: {rec.risk_type} - {title[:30]}")

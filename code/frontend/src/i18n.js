@@ -195,6 +195,11 @@ export const EXTRA = {
   home_recent_title: "最近查證",
   home_examples_title: "試試看",
   home_threads_card_title: "Threads 查核機器人", // 依 Main.dc.html 說明卡標題
+  btn_copy_code: "複製代碼", // S-12 /oauth/callback 複製鈕（8.7 只有 btn_copy_link）
+  rel_just_now: "剛剛", // P-12 history.relativeTime（S-03 最近查證）
+  rel_minutes_ago: "{n} 分鐘前",
+  rel_hours_ago: "{n} 小時前",
+  rel_month_day: "{m}/{d}",
 };
 
 const PLACEHOLDER = /\{([A-Za-z_][A-Za-z0-9_]*)(?:≤(\d+))?\}/g;

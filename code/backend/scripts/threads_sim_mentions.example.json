@@ -1,0 +1,29 @@
+{
+  "_comment": "THREADS_MODE=sim 範例（spec 7.9）。複製到 data/threads_sim/mentions.json 使用；media_type 值為推測，live 實測後更正。",
+  "_comment_sim_error": "錯誤注入 _sim_error {on,http}：reply_to／get_mentions 以 mention 為單位；get_post 以『貼文』為單位——mention 上的 get_post 注入會讓它 replied_to 的那則貼文對所有 mention 都讀不到（例：另加一則也回覆 p102 的 mention 一樣 403；若在 p100 上加第二個 @ 並帶 get_post 注入，m1 也會變 403）。要只讓一則讀不到，請讓它指向專用的 post id，或直接在 posts 項目上放 _sim_error。reply_to 寫 replies.jsonl；publish_text 另寫 posts.jsonl。",
+  "bot": {"id": "bot001", "username": "factcheck_tw_bot"},
+  "posts": {
+    "p100": {"id": "p100", "username": "tester_a", "media_type": "TEXT_POST",
+             "text": "健保卡即日起停用！請點 https://nhi-verify.xyz 重新驗證，逾期停卡",
+             "permalink": "https://www.threads.com/@tester_a/post/p100"},
+    "p101": {"id": "p101", "username": "tester_c", "media_type": "IMAGE",
+             "text": "",
+             "permalink": "https://www.threads.com/@tester_c/post/p101"},
+    "p102": {"id": "p102", "username": "private_user", "media_type": "TEXT_POST",
+             "text": "（sim：此貼文無讀取權限）",
+             "permalink": "https://www.threads.com/@private_user/post/p102"}
+  },
+  "mentions": [
+    {"id": "m1", "username": "tester_b", "text": "@factcheck_tw_bot 這真的嗎",
+     "media_type": "TEXT_POST", "replied_to": {"id": "p100"}, "timestamp": "2026-09-14T08:00:00+0000",
+     "permalink": "https://www.threads.com/@tester_b/post/m1"},
+    {"id": "m2", "username": "tester_b", "text": "@factcheck_tw_bot 這張圖是真的嗎",
+     "media_type": "TEXT_POST", "replied_to": {"id": "p101"}, "timestamp": "2026-09-14T08:05:00+0000",
+     "permalink": "https://www.threads.com/@tester_b/post/m2"},
+    {"id": "m3", "username": "tester_b", "text": "@factcheck_tw_bot 幫我查",
+     "media_type": "TEXT_POST", "replied_to": {"id": "p102"}, "timestamp": "2026-09-14T08:10:00+0000",
+     "permalink": "https://www.threads.com/@tester_b/post/m3",
+     "_sim_error": {"on": "get_post", "http": 403}}
+  ],
+  "publishing_limit": {"reply_quota_usage": 3, "reply_config": {"quota_total": 1000}}
+}

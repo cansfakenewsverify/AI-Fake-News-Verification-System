@@ -20,15 +20,10 @@ apscheduler>=3.10.0
 trafilatura>=1.8.0
 beautifulsoup4>=4.12.2
 requests>=2.31.0
-# TEMPORARY: still used by crawler.search_keyword_and_crawl (keyword path).
-# Remove together with that path in ticket B-03.
-googlesearch-python>=1.2.0
 
-# AI and NLP (analysis calls the relay APIs via requests directly;
-# google-genai is only the embedding fallback)
+# AI: analysis and embeddings call the relay APIs via requests directly.
 # NOTE: keep this file ASCII-only -- pip decodes it with the console
 # codepage (cp950) on Windows and non-ASCII bytes crash the install.
-google-genai>=0.2.0
 
 # Utilities
 python-multipart>=0.0.6

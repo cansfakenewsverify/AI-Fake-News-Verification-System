@@ -1,10 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>fake-news-frontend</title>
+    <script>
+      // 首繪前設定 data-theme（與 src/lib/theme.js 同規則：fcc_theme -> prefers-color-scheme），避免閃白
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem("fcc_theme"); } catch (e) { t = null; }
+        if (t !== "dark" && t !== "light") {
+          try { t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; } catch (e) { t = "light"; }
+        }
+        document.documentElement.setAttribute("data-theme", t);
+      })();
+    </script>
+    <title>全民查證公社</title>
+    <meta name="description" content="貼上訊息，10 秒知道真假" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="全民查證公社" />
+    <meta property="og:description" content="貼上訊息，10 秒知道真假" />
+    <meta property="og:image" content="/og.png" />
   </head>
   <body>
     <div id="root"></div>

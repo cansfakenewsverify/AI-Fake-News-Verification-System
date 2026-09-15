@@ -22,7 +22,7 @@ def _is_cofacts(rec: FactCheckRecord) -> bool:
 
 @router.get("")
 def get_trending(
-    limit: int = Query(default=10, le=50),
+    limit: int = Query(default=10, ge=1, le=50),
     risk_type: str = Query(default=None),
     db: Session = Depends(get_sql_db),
 ):
@@ -55,7 +55,7 @@ def get_trending(
 async def trigger_refresh(background_tasks: BackgroundTasks):
     """
     Manually trigger a trending news fetch in background.
-    Requires GOOGLE_API_KEY and DEMO_MODE=false to produce real results.
+    Requires a configured AI provider and DEMO_MODE=false to produce real results.
     """
     from app.services.news_fetcher import run_trending_fetch
     # FastAPI BackgroundTasks handles async functions natively

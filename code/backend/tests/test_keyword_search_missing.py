@@ -1,11 +1,12 @@
 """googlesearch 套件缺席時的回歸測試（全離線、零點數）。
 
-B-04 移除依賴後、B-03 移除關鍵字路徑前的過渡期：全新安裝若沒有
-googlesearch-python，文字查證不得因「爬取失敗」變成 HTTP 500，
-必須照常以使用者原文走到 AI 分析。
+B-03 已移除關鍵字爬取路徑（FR-01）：全新安裝沒有 googlesearch-python，
+文字查證仍必須照常以使用者原文走到 AI 分析，且 crawler 只接受網址型別。
 """
 import asyncio
 import sys
+
+import pytest
 
 import app.workers.pandas_task_processor as proc
 from app.services.crawler import CrawlerService
@@ -32,7 +33,7 @@ class FakeAI:
 
 class FakeVector:
     def vectorize_content(self, text):
-        return []  # 向量層停用，逼流程走到爬蟲與 AI
+        return []  # 向量層停用，逼流程走到 AI
 
 
 def _block_network(monkeypatch):
@@ -42,13 +43,11 @@ def _block_network(monkeypatch):
     monkeypatch.setattr("requests.post", _no_net)
 
 
-def test_keyword_crawl_soft_fails_without_googlesearch(monkeypatch):
+def test_crawler_rejects_keyword_type(monkeypatch):
     _block_network(monkeypatch)
-    monkeypatch.setitem(sys.modules, "googlesearch", None)  # import 會丟 ImportError
-    res = asyncio.run(CrawlerService.process_input(USER_TEXT, "keyword"))
-    assert res["success"] is True
-    assert res["content"] == USER_TEXT
-    assert res["similar_news"] == []
+    assert not hasattr(CrawlerService, "search_keyword_and_crawl")
+    with pytest.raises(ValueError):
+        asyncio.run(CrawlerService.process_input(USER_TEXT, "keyword"))
 
 
 def test_text_input_reaches_ai_without_googlesearch(tmp_path, monkeypatch):
@@ -59,7 +58,7 @@ def test_text_input_reaches_ai_without_googlesearch(tmp_path, monkeypatch):
     monkeypatch.setattr(proc, "PandasStore", lambda: PandasStore(data_dir=str(tmp_path)))
     monkeypatch.setattr(proc, "AIService", lambda: fake_ai)
     monkeypatch.setattr(proc, "VectorService", FakeVector)
-    # CrawlerService 用真的，驗證它在缺套件時不會讓流程丟「爬取失敗」
+    # CrawlerService 用真的：文字輸入根本不該碰到它
 
     ts = TaskStore(data_dir=str(tmp_path))
     tid = ts.create_task("analyze_text", USER_TEXT)
@@ -67,3 +66,4 @@ def test_text_input_reaches_ai_without_googlesearch(tmp_path, monkeypatch):
 
     assert fake_ai.seen_content == USER_TEXT
     assert result["risk_type"] == "MISINFO"
+    assert result["similar_news"] == []

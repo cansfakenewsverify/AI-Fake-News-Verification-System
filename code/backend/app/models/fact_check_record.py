@@ -3,7 +3,7 @@ FactCheckRecord - SQLAlchemy model for trending news analysis results.
 """
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Text, Float, Boolean, DateTime
+from sqlalchemy import Column, String, Text, Float, Boolean, DateTime, Integer
 from app.database_sql import Base
 
 
@@ -21,6 +21,13 @@ class FactCheckRecord(Base):
     is_trending = Column(Boolean, default=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # spec 6.3 new columns (D-01). Old DBs get them via init_sql_db() idempotent ALTER.
+    platform = Column(String(20), nullable=True)       # rss | cofacts | threads
+    post_id = Column(String(64), nullable=True)        # Threads media id
+    label_source = Column(String(10), nullable=True)   # ai | rule | gold | admin
+    result_id = Column(String(36), nullable=True)      # not backfilled (news analysis creates no task)
+    verified = Column(Boolean, nullable=True)
+    source_tier = Column(Integer, nullable=True)
 
     def to_dict(self) -> dict:
         return {
@@ -32,5 +39,11 @@ class FactCheckRecord(Base):
             "risk_type": self.risk_type,
             "category": self.category,
             "is_trending": self.is_trending,
+            "platform": self.platform,
+            "post_id": self.post_id,
+            "label_source": self.label_source,
+            "result_id": self.result_id,
+            "verified": self.verified,
+            "source_tier": self.source_tier,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
