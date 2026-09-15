@@ -24,8 +24,6 @@ if errorlevel 1 (
 )
 
 :: Paths (backend flattened to code\backend)
-:: The single-file detector (fake-news-detector.html) is an OFFLINE BACKUP:
-:: double-click it directly, or run _run_detector.bat to serve it on :8090.
 set ROOT=%~dp0
 set BACKEND_DIR=%ROOT%code\backend
 set FRONTEND_DIR=%ROOT%code\frontend
@@ -94,8 +92,6 @@ echo  ========================================
 echo   Done!
 echo   Main UI (React) : http://localhost:5173
 echo   Backend API     : http://localhost:8000/docs
-echo   Offline backup  : double-click fake-news-detector.html
-echo                     (works even without backend / network)
 echo  ========================================
 echo.
 echo  This window can be closed.

@@ -4,18 +4,17 @@ SearchService - fetch trending fake-news / fact-check articles from multiple sou
 Sources:
   1. MyGoPen RSS              (Taiwan fact-checker, reliable)
   2. TFC (台灣事實查核中心)    (try multiple URLs)
-  3. Google News Taiwan RSS   (general news, search-based)
-  4. Cofacts API              (collaborative fact-check, optional)
-  5. Serper API               (paid keyword search, optional)
+  3. Cofacts API              (collaborative fact-check, RUMOR-verified only)
+
+Keyword search engines / aggregators are intentionally not used (FR-15):
+aggregator items have no fact-check label and are always Tier 3.
 """
 import html
-import time
 import re
 import requests
-from urllib.parse import quote
 from typing import List, Dict
+from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
-from app.config import settings
 
 
 # RSS feeds - direct
@@ -25,21 +24,6 @@ RSS_FEEDS = [
     {"url": "https://tfc-taiwan.org.tw/feed/", "name": "TFC"},
     {"url": "https://tfc-taiwan.org.tw/feed", "name": "TFC"},
     {"url": "https://tfc-taiwan.org.tw/?feed=rss2", "name": "TFC"},
-]
-
-# Google News RSS searches (gives diverse current news)
-GOOGLE_NEWS_QUERIES = [
-    "台灣 詐騙 最新",
-    "假訊息 闢謠",
-    "事實查核",
-    "假新聞 台灣",
-]
-
-TRENDING_KEYWORDS = [
-    "台灣詐騙新聞",
-    "假訊息 台灣",
-    "投資詐騙",
-    "健康謠言",
 ]
 
 _SKIP_DOMAINS = {
@@ -52,6 +36,12 @@ def _is_valid_url(url: str) -> bool:
     if not url or not url.startswith("http"):
         return False
     return not any(d in url for d in _SKIP_DOMAINS)
+
+
+def _is_aggregator_url(url: str) -> bool:
+    """Defensive filter used by fetch_rss_items: drop aggregator (Tier 3, unlabeled) items."""
+    host = (urlparse(url or "").hostname or "").lower()
+    return host == "news.google.com" or host.endswith(".news.google.com")
 
 
 def _strip_html(text: str) -> str:
@@ -117,7 +107,7 @@ class SearchService:
 
     @staticmethod
     def fetch_rss_items(num_per_feed: int = 4) -> List[Dict]:
-        """Aggregate items from all configured RSS feeds and Google News searches."""
+        """Aggregate items from the fact-checker RSS feeds and Cofacts."""
         all_items = []
         seen_urls = set()
         seen_tfc = False  # only need one working TFC URL
@@ -148,30 +138,6 @@ class SearchService:
             except Exception as e:
                 print(f"[SearchService] {feed['name']} error: {e}")
 
-        # ── Google News RSS searches ────────────────────────────
-        for q in GOOGLE_NEWS_QUERIES:
-            try:
-                gn_url = (
-                    f"https://news.google.com/rss/search?q={quote(q)}"
-                    f"&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
-                )
-                resp = requests.get(gn_url, timeout=10, headers={
-                    "User-Agent": "Mozilla/5.0"
-                })
-                if resp.status_code != 200:
-                    continue
-                items = _parse_rss_xml(resp.content, f"GoogleNews:{q}", num_per_feed)
-                added = 0
-                for it in items[:num_per_feed]:
-                    if it["url"] not in seen_urls:
-                        seen_urls.add(it["url"])
-                        all_items.append(it)
-                        added += 1
-                print(f"[SearchService] GoogleNews '{q}': +{added}")
-            except Exception as e:
-                print(f"[SearchService] GoogleNews '{q}' error: {e}")
-            time.sleep(0.5)
-
         # ── Cofacts API (collaborative fact-checks) ─────────────
         try:
             cofacts_items = SearchService._fetch_cofacts(num=num_per_feed * 2)
@@ -185,7 +151,8 @@ class SearchService:
         except Exception as e:
             print(f"[SearchService] Cofacts error: {e}")
 
-        return all_items
+        # FR-06 acceptance 6: aggregator items must never reach _save_rss_record.
+        return [it for it in all_items if not _is_aggregator_url(it.get("url", ""))]
 
     @staticmethod
     def _fetch_cofacts(num: int = 5) -> List[Dict]:
@@ -242,43 +209,4 @@ class SearchService:
                     break
             return items
         except Exception:
-            return []
-
-    @staticmethod
-    def search_urls(keyword: str, num_results: int = 5) -> List[str]:
-        serper_key = getattr(settings, "SERPER_API_KEY", "").strip()
-        if serper_key:
-            return SearchService._serper_search(keyword, num_results, serper_key)
-        return SearchService._google_search(keyword, num_results)
-
-    @staticmethod
-    def _serper_search(keyword: str, num: int, api_key: str) -> List[str]:
-        try:
-            resp = requests.post(
-                "https://google.serper.dev/news",
-                headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
-                json={"q": keyword, "gl": "tw", "hl": "zh-tw", "num": num},
-                timeout=10,
-            )
-            resp.raise_for_status()
-            items = resp.json().get("news", [])
-            return [i["link"] for i in items if _is_valid_url(i.get("link", ""))][:num]
-        except Exception as e:
-            print(f"[SearchService] Serper error: {e}")
-            return []
-
-    @staticmethod
-    def _google_search(keyword: str, num: int) -> List[str]:
-        try:
-            from googlesearch import search
-            urls = []
-            for url in search(keyword, num_results=num * 2, lang="zh-TW", sleep_interval=1):
-                if _is_valid_url(url):
-                    urls.append(url)
-                if len(urls) >= num:
-                    break
-                time.sleep(0.3)
-            return urls
-        except Exception as e:
-            print(f"[SearchService] googlesearch error: {e}")
             return []

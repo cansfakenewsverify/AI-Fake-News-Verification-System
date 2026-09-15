@@ -1,32 +1,21 @@
 """
-爬蟲服務 - 處理 URL、影音、圖片等多種輸入格式
+爬蟲服務 - 處理一般網頁 URL（trafilatura + requests 備援）
 
-專題規格 F1.4: 擷取標題、發布時間、來源媒體、內文、原始新聞截圖
-專題規格 F1.3: 依據關鍵字執行搜尋查找相關新聞
+FR-15：不再以無頭瀏覽器爬封閉平台、不再下載影音；影音 / FB / IG 網址
+由 process_input 直接回 unsupported_platform，不發出任何網路請求。
 """
-import re
 import asyncio
-import tempfile
-import os
-from typing import Dict, Optional, Tuple, Any, List
+from typing import Dict, Optional, Tuple, Any
 from urllib.parse import urlparse
 import trafilatura
 import requests
-try:
-    from playwright.async_api import async_playwright
-except ImportError:
-    async_playwright = None
-try:
-    import yt_dlp
-except ImportError:
-    yt_dlp = None
 from app.config import settings
 
 
 class CrawlerService:
     """爬蟲服務類別"""
     
-    # 封閉平台列表（需要 Headless Browser）
+    # 封閉平台列表（不支援爬取，回 unsupported_platform）
     CLOSED_PLATFORMS = ['facebook.com', 'instagram.com', 'fb.com', 'm.facebook.com']
     
     # 影音平台列表
@@ -103,15 +92,10 @@ class CrawlerService:
                         'date': metadata.date if metadata else None,
                         'source': metadata.sitename if metadata else None,
                     }
-                    if getattr(settings, 'CRAWL_WITH_SCREENSHOT', False) and async_playwright:
-                        result = await CrawlerService._add_screenshot(url, result)
                     return result
-            
+
             # 如果 Trafilatura 失敗，嘗試使用 requests + BeautifulSoup
-            base = await CrawlerService._fallback_crawl(url)
-            if base.get('success') and getattr(settings, 'CRAWL_WITH_SCREENSHOT', False) and async_playwright:
-                base = await CrawlerService._add_screenshot(url, base)
-            return base
+            return await CrawlerService._fallback_crawl(url)
             
         except Exception as e:
             return {
@@ -166,280 +150,26 @@ class CrawlerService:
             }
 
     @staticmethod
-    async def _add_screenshot(url: str, result: Dict[str, Any]) -> Dict[str, Any]:
-        """F1.4: 對爬取結果追加原始新聞截圖"""
-        try:
-            tmpdir = tempfile.gettempdir()
-            path = os.path.join(tmpdir, f"screenshot_{abs(hash(url)) % 10**8}.png")
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                page = await browser.new_page()
-                await page.set_viewport_size({"width": 1280, "height": 720})
-                await page.goto(url, wait_until="domcontentloaded", timeout=15000)
-                await page.wait_for_timeout(1500)
-                await page.screenshot(path=path, full_page=False)
-                await browser.close()
-            result['screenshot_path'] = path
-        except Exception as e:
-            result['screenshot_path'] = None
-        return result
-    
-    @staticmethod
-    async def crawl_closed_platform(url: str) -> Dict[str, Any]:
-        """
-        Pipeline C: 爬取封閉平台（FB/IG）- 使用 Headless Browser 截圖
-        
-        Args:
-            url: 目標 URL
-            
-        Returns:
-            包含截圖路徑和 OCR 文字的字典
-        """
-        try:
-            if async_playwright is None:
-                return {
-                    'success': False,
-                    'error': 'Playwright 未安裝，無法處理封閉平台',
-                    'url': url
-                }
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                page = await browser.new_page()
-                
-                # 設定視窗大小
-                await page.set_viewport_size({"width": 1920, "height": 1080})
-                
-                # 訪問頁面
-                await page.goto(url, wait_until="networkidle", timeout=30000)
-                
-                # 等待內容載入
-                await page.wait_for_timeout(2000)
-                
-                # 截圖（使用 tempfile 以跨平台）
-                td = tempfile.gettempdir()
-                screenshot_path = os.path.join(td, f"screenshot_{abs(hash(url)) % 10**8}.png")
-                await page.screenshot(path=screenshot_path, full_page=True)
-                
-                # 取得頁面文字（部分內容可能可以取得）
-                page_text = await page.evaluate("() => document.body.innerText")
-                
-                await browser.close()
-                
-                content = (page_text or "")[:settings.MAX_CONTENT_LENGTH]
-                return {
-                    'success': True,
-                    'url': url,
-                    'title': None,
-                    'content': content,
-                    'date': None,
-                    'source': 'closed_platform',
-                    'screenshot_path': screenshot_path,
-                    'platform': 'closed_platform',
-                }
-                
-        except Exception as e:
-            return {
-                'success': False,
-                'error': str(e),
-                'url': url
-            }
-    
-    @staticmethod
-    async def download_video(url: str, platform: str) -> Dict[str, Any]:
-        """
-        Pipeline B: 下載影音並提取資訊
-
-        Args:
-            url: 影音 URL
-            platform: 平台名稱（youtube, tiktok 等）
-
-        Returns:
-            包含影片資訊、字幕、截圖的字典
-        """
-        # yt-dlp / 字幕下載 / whisper 全是同步阻塞，整段丟執行緒
-        return await asyncio.to_thread(CrawlerService._download_video_sync, url, platform)
-
-    @staticmethod
-    def _download_video_sync(url: str, platform: str) -> Dict[str, Any]:
-        try:
-            if yt_dlp is None:
-                return {
-                    'success': False,
-                    'error': 'yt-dlp 未安裝，無法下載影音',
-                    'url': url
-                }
-            # 只取 metadata 與字幕，不下載整支影片
-            # （省頻寬、避免 /tmp 在 Windows 失敗；分析只需要逐字稿）
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'skip_download': True,
-            }
-
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-
-                # 關鍵：把「影片裡講的話」轉成逐字稿（之前只抓描述）
-                transcript = CrawlerService._extract_transcript(info)
-                # 無字幕時的後備：下載音軌走 whisper 語音轉文字
-                if not transcript:
-                    transcript = CrawlerService._stt_from_audio(url)
-
-                desc = (info.get('description') or '')[:settings.MAX_CONTENT_LENGTH]
-                title = info.get('title') or ''
-
-                # content 以逐字稿為主，輔以標題與描述，讓 AI 真正分析到影片內容
-                parts = []
-                if title:
-                    parts.append(f"【影片標題】{title}")
-                if transcript:
-                    parts.append(f"【影片逐字稿】{transcript}")
-                if desc:
-                    parts.append(f"【影片描述】{desc}")
-                content = "\n".join(parts) or str(title or '')
-
-                return {
-                    'success': True,
-                    'url': url,
-                    'platform': platform,
-                    'video_path': None,
-                    'title': title,
-                    'content': content[:settings.MAX_CONTENT_LENGTH],
-                    'date': info.get('upload_date'),
-                    'source': info.get('uploader'),
-                    'duration': info.get('duration'),
-                    'has_transcript': bool(transcript),
-                    'subtitles': info.get('subtitles') or info.get('automatic_captions') or {},
-                    'thumbnail': info.get('thumbnail'),
-                }
-
-        except Exception as e:
-            return {
-                'success': False,
-                'error': str(e),
-                'url': url
-            }
-
-    @staticmethod
-    def _extract_transcript(info: dict, max_chars: int = 8000) -> str:
-        """
-        從 yt-dlp info 取出字幕並轉成純文字逐字稿。
-        優先：人工字幕 > 自動字幕；語言優先中文 > 英文 > 第一個可用。
-        """
-        import requests as _rq
-
-        subs = info.get("subtitles") or {}
-        auto = info.get("automatic_captions") or {}
-        tracks = subs or auto  # 人工字幕優先，沒有才用自動字幕
-        if not tracks:
-            return ""
-
-        # 選語言
-        lang = None
-        for pref in ("zh-Hant", "zh-TW", "zh", "zh-Hans", "en", "en-US"):
-            if pref in tracks:
-                lang = pref
-                break
-        if lang is None:
-            lang = next(iter(tracks))
-
-        fmts = tracks.get(lang) or []
-        # 偏好純文字易解析的格式
-        chosen = None
-        for ext in ("vtt", "srv1", "srv3", "ttml"):
-            for f in fmts:
-                if f.get("ext") == ext and f.get("url"):
-                    chosen = f
-                    break
-            if chosen:
-                break
-        if chosen is None and fmts:
-            chosen = fmts[0]
-        if not chosen or not chosen.get("url"):
-            return ""
-
-        try:
-            r = _rq.get(chosen["url"], timeout=30)
-            r.raise_for_status()
-            raw = r.text
-        except Exception:
-            return ""
-
-        return CrawlerService._parse_subtitle_text(raw)[:max_chars]
-
-    @staticmethod
-    def _parse_subtitle_text(raw: str) -> str:
-        """把 VTT / TTML 字幕轉成純文字（去時間軸、去標籤、去重複行）。"""
-        import re
-
-        lines = []
-        for line in raw.splitlines():
-            s = line.strip()
-            if not s:
-                continue
-            if s.startswith(("WEBVTT", "NOTE", "Kind:", "Language:")):
-                continue
-            if "-->" in s:          # 時間軸行
-                continue
-            if s.isdigit():         # cue 編號
-                continue
-            s = re.sub(r"<[^>]+>", "", s)   # 去掉 <c>、<00:00:00.000> 等標籤
-            s = re.sub(r"&nbsp;", " ", s)
-            s = s.strip()
-            if s:
-                lines.append(s)
-
-        # 去除連續重複（自動字幕常見的滾動重複）
-        deduped = []
-        for s in lines:
-            if not deduped or deduped[-1] != s:
-                deduped.append(s)
-        return " ".join(deduped)
-
-    @staticmethod
-    def _stt_from_audio(url: str, max_chars: int = 8000) -> str:
-        """
-        無字幕影片的後備：下載最小音軌，走學校中繼 whisper 語音轉文字。
-        失敗（無 yt-dlp / 下載失敗 / 檔案過大）一律回空字串，不影響主流程。
-        """
-        if yt_dlp is None:
-            return ""
-        import tempfile
-        import os as _os
-
-        tmpl = _os.path.join(tempfile.gettempdir(), "fnv_audio_%(id)s.%(ext)s")
-        opts = {
-            "format": "bestaudio/best",
-            "outtmpl": tmpl,
-            "quiet": True,
-            "no_warnings": True,
-        }
-        path = None
-        try:
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                path = ydl.prepare_filename(info)
-            # whisper 單檔上限約 25MB，過大則略過（避免長片失敗）
-            if path and _os.path.getsize(path) > 24 * 1024 * 1024:
-                return ""
-            from app.services.ai_service import AIService
-            return (AIService().transcribe_audio(path) or "")[:max_chars]
-        except Exception as e:
-            print(f"[Crawler] 音訊 STT 後備失敗: {e}")
-            return ""
-        finally:
-            if path and _os.path.exists(path):
-                try:
-                    _os.remove(path)
-                except Exception:
-                    pass
-    
-    @staticmethod
     async def search_keyword_and_crawl(keyword: str) -> Dict[str, Any]:
         """F1.3: 關鍵字搜尋並爬取相似新聞"""
         limit = getattr(settings, 'SEARCH_RESULTS_LIMIT', 5)
         try:
             from googlesearch import search
+        except ImportError:
+            # 套件未安裝（B-03 移除前的過渡期）：不擋文字查證，
+            # 直接以使用者原文作為分析內容，形狀同「搜尋無結果」分支。
+            search = None
+        if search is None:
+            return {
+                'success': True,
+                'url': None,
+                'title': None,
+                'content': keyword,
+                'date': None,
+                'source': None,
+                'similar_news': [],
+            }
+        try:
             urls = await asyncio.to_thread(
                 lambda: list(search(keyword, num_results=limit, lang='zh-TW'))
             )
@@ -505,12 +235,17 @@ class CrawlerService:
         # URL 處理
         platform_type, platform_name = CrawlerService.detect_platform(input_data)
         
-        if platform_type == 'video':
-            res = await CrawlerService.download_video(input_data, platform_name)
-        elif platform_name == 'closed_platform':
-            res = await CrawlerService.crawl_closed_platform(input_data)
-        else:
-            res = await CrawlerService.crawl_url(input_data)
+        # 影音 / 封閉平台（FB、IG）不爬、不下載（FR-15）
+        if platform_type == 'video' or platform_name == 'closed_platform':
+            return {
+                'success': False,
+                'error_code': 'unsupported_platform',
+                'error': 'unsupported_platform',
+                'url': input_data,
+                'platform': platform_name,
+            }
+
+        res = await CrawlerService.crawl_url(input_data)
             
         # 自動為 URL 結果查找事實查核與網路相關文章
         if res.get('success') and res.get('title'):

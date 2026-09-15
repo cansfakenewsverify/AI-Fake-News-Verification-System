@@ -1,7 +1,5 @@
 #!/bin/bash
 # AI 假訊息查核系統 - 一鍵啟動（Linux / macOS）：後端 + React 主介面
-# （單檔查核儀 fake-news-detector.html 為離線備援：直接雙擊開啟即可，
-#   需要接後端時手動跑 ./_run_detector.bat 或 python3 -m http.server 8090）
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/code/backend"
@@ -70,6 +68,5 @@ echo " ========================================"
 echo "  啟動完成！"
 echo "  主介面  ：$REACT"
 echo "  後端 API：http://localhost:8000/docs"
-echo "  離線備援：雙擊 fake-news-detector.html（斷網/後端掛掉也能 demo）"
 echo " ========================================"
 echo ""

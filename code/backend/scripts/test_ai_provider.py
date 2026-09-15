@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config import settings
 from app.services.ai_service import AIService
+from app.utils.verdict import is_fallback
 
 
 def main():
@@ -40,7 +41,7 @@ def main():
     )
     print("[test] analyze result:")
     print(result)
-    if result.get("summary", "").startswith("AI 分析暫時無法使用"):
+    if is_fallback(result):
         raise SystemExit("[x] AI 分析失敗")
     if result.get("risk_type") not in {"SCAM", "MISINFO", "SAFE", "UNKNOWN"}:
         raise SystemExit("[x] 回傳 JSON 格式不符合預期")

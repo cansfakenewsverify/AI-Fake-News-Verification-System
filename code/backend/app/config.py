@@ -74,9 +74,6 @@ class Settings(BaseSettings):
     # SQLite database (for trending records)
     SQLITE_URL: str = "sqlite:///./data/factcheck.db"
 
-    # Search API (optional - leave empty to use free googlesearch-python)
-    SERPER_API_KEY: str = ""
-
     # Trending fetch interval in hours
     TRENDING_FETCH_INTERVAL_HOURS: int = 6
 

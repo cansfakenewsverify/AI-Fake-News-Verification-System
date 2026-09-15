@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 
 from app.services.ai_service import AIService
+from app.utils.verdict import is_fallback
 
 LABELS = ["SCAM", "MISINFO", "SAFE"]
 
@@ -40,17 +41,11 @@ ERRORS_PATH = os.path.join(DATA_DIR, "eval_errors.csv")     # 判錯案例(錯�
 CM_PATH = os.path.join(ASSETS_DIR, "confusion_matrix.png")
 
 
-def _is_fallback(res: dict) -> bool:
-    """API 失敗（額度/網路）時回傳的 fallback，不能當成有效預測。"""
-    s = (res or {}).get("summary", "")
-    return s.startswith("AI 分析暫時無法使用") or "服務異常" in s
-
-
 def predict_one(ai: AIService, content: str, url: str | None):
     """回傳 (predicted_label 或 None, confidence, full_result)。None 代表本筆分析失敗。
     評測刻意關閉 web_search：省點數（便宜 3~7 倍）且結果更可重現。"""
     res = ai.analyze_content(content, url=url or None, use_web_search=False)
-    if _is_fallback(res):
+    if is_fallback(res):  # API 失敗（額度/網路）的 fallback 不能當成有效預測
         return None, 0.0, res
     label = (res.get("risk_type") or "UNKNOWN").upper()
     conf = float(res.get("confidence_score") or 0.0)

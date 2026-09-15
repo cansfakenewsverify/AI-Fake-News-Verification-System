@@ -1,5 +1,5 @@
-# CI：每次 push / PR 自動跑後端單元測試（29 tests、離線、零 AI 點數）
-name: backend-tests
+# CI：每次 push / PR 自動跑後端單元測試（離線、零 AI 點數）與前端 build
+name: ci
 
 on:
   push:
@@ -27,3 +27,26 @@ jobs:
 
       - name: Run unit tests
         run: python -m pytest tests -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: code/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: code/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm run test:unit

@@ -3,8 +3,8 @@ import pytest
 
 from app.services.ai_service import AIService, _default_fallback_result
 from app.services.threads_service import format_verdict_reply, THREADS_TEXT_LIMIT
+from app.utils.verdict import frame_of
 from app.workers.pandas_task_processor import (
-    _ai_result_to_frame,
     _build_result,
     _confidence_level,
     _is_fallback,
@@ -53,9 +53,22 @@ def test_fallback_summary_prefix_is_stable():
 
 # ── 紅黃綠框與信心等級 ────────────────────────────────────────
 def test_frame_mapping():
-    assert _ai_result_to_frame({"is_risk": True, "confidence_score": 0.9})[0] == "red"
-    assert _ai_result_to_frame({"is_risk": False, "confidence_score": 0.9})[0] == "green"
-    assert _ai_result_to_frame({"is_risk": False, "confidence_score": 0.3})[0] == "yellow"
+    # spec §7.8 八列（FN-1 允許改寫）：統一由 verdict.frame_of 判定
+    rows = [
+        ({"ai_unavailable": True, "is_risk": True, "risk_type": "SCAM"}, ("grey", "AI 暫時無法使用")),
+        ({"is_risk": False, "risk_type": "UNVERIFIABLE"}, ("yellow", "無法查證")),
+        ({"is_risk": True, "risk_type": "SCAM", "confidence_score": 0.9}, ("red", "詐騙警告")),
+        ({"is_risk": True, "risk_type": "MISINFO", "confidence_score": 0.9}, ("red", "假訊息")),
+        ({"is_risk": True, "risk_type": "UNKNOWN", "confidence_score": 0.9}, ("red", "風險訊息")),
+        ({"is_risk": False, "risk_type": "SAFE", "confidence_score": 0.9,
+          "verification_status": "unverified"}, ("yellow", "尚無查核機構證實")),
+        ({"is_risk": False, "risk_type": "SAFE", "confidence_score": 0.9,
+          "verification_status": "verified"}, ("green", "查無異常")),
+        ({"is_risk": False, "risk_type": "SAFE", "confidence_score": 0.3,
+          "verification_status": "verified"}, ("yellow", "尚待確認")),
+    ]
+    for result, expected in rows:
+        assert frame_of(result)[:2] == expected
 
 
 def test_confidence_level_bands():

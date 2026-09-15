@@ -307,6 +307,13 @@ API 文件：http://localhost:8000/docs
 - [x] 票 P-01／B-01／B-12 完成：Vite 釘 8.3.0 穩定版＋plugin-react ^5.2.0（移除 overrides）；
       ai_service 系統 prompt 加 FR-19 來源規則；新增 `app/utils/source_tier.py`（Tier 1/2/3、
       Cofacts 回覆查詢、離線模式不發請求）＋ tests/test_source_tier.py；pytest 65 passed
+- [x] 票第二批（B-04/05/07/08/10/11/13/14、T-07、P-02/03/04/05/06）：`app/utils/verdict.py`（紅黃綠 8 列
+      單一權威 + `is_fallback` 唯一判斷點）；PandasStore 寫入門檻（verified/source_tier，向量層只比對
+      verified=true）；news_fetcher 阻塞呼叫全改 to_thread；移除 Serper/Google News/Playwright/yt-dlp；
+      tasks.parquet 擴欄＋上限 5000；threads_state 原子寫入；CI 加前端 job；`public/` 三個靜態頁；
+      `vercel.json`；`src/i18n.js` 文案表；舊查核儀移到 `legacy/`。pytest 133、前端 unit 156 全過
+      ⚠️ 過渡狀態：D-05 清洗 apply 前，種子 236 筆一律 verified=false → **向量快取暫時不會命中**；
+      B-15 前 SAFE 結果一律顯示黃燈「尚無查核機構證實」（沒有已證實來源就不給綠燈，依共識 §9）
 - [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證；權限要含 threads_manage_mentions）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy

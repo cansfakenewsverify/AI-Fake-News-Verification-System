@@ -35,8 +35,7 @@ chmod +x start.sh && ./start.sh
 
 **首次使用前**：複製 `code/backend/.env.example` 為 `code/backend/.env`，填入 `MYAI_API_KEY` 或 `CGU_API_KEY`，並用 `AI_PROVIDER=openai` / `claude` / `cgu` 選擇 AI 方案。
 
-> 🧯 **離線備援**：`fake-news-detector.html`（單檔查核儀）雙擊即可離線 demo
-> （前端啟發式＋範例資料）；要接真後端時跑 `_run_detector.bat`（port 8090）。
+> **前端唯一介面為 `code/frontend`（React）**。舊版單檔查核儀已封存於 `legacy/`，不再維護。
 
 ---
 
@@ -51,7 +50,7 @@ chmod +x start.sh && ./start.sh
 | **多 AI Provider** | myai168 OpenAI/Claude + CGU AIR Gateway，`AI_PROVIDER` 切換、自動備援 |
 | **Threads 查核機器人** | @機器人回覆可疑貼文 → 自動回覆紅黃綠判定＋來源（延伸功能，預設關） |
 | **防 AI 幻覺** | Prompt 嚴禁編造 URL + 後端對 sources URL 做 HEAD 驗證 |
-| **韌性設計** | AI 額度用盡時前端優雅降級（離線啟發式／分析失敗提示）；查核儀可完全離線運作 |
+| **韌性設計** | AI 額度用盡時前端優雅降級（分析失敗提示） |
 | **可驗證品質** | 150 筆標註集評測（accuracy 96%、FN=0）＋ 31 個單元測試＋ GitHub Actions CI |
 
 ---
@@ -68,7 +67,7 @@ chmod +x start.sh && ./start.sh
 
 **前端**
 - React 19 + Vite 8 + Tailwind CSS 4（設計 token、深/淺色主題）
-- 單檔查核儀（零依賴 HTML，離線備援）
+- 舊版單檔查核儀已封存於 `legacy/`（不再維護）
 
 **品質**
 - pytest（31 tests，離線零 AI 成本）+ GitHub Actions CI
@@ -83,8 +82,7 @@ AI-Fake-News-Verification-System/
 ├── README.md                    ← 本檔
 ├── CLAUDE.md                    ← 專案完整技術地圖（AI 助理/接手者必讀）
 ├── start.bat / start.sh         ← 一鍵啟動（後端 + React）
-├── fake-news-detector.html      ← 單檔查核儀（離線備援）
-├── _run_detector.bat            ← 查核儀靜態伺服器（8090，選用）
+├── legacy/                      ← 已封存、不再維護（舊版單檔查核儀 fake-news-detector.html、_run_detector.bat）
 │
 ├── code/
 │   ├── backend/                 ← FastAPI 後端

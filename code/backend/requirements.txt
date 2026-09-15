@@ -19,10 +19,10 @@ apscheduler>=3.10.0
 # Crawler
 trafilatura>=1.8.0
 beautifulsoup4>=4.12.2
-googlesearch-python>=1.2.0
 requests>=2.31.0
-playwright>=1.40.0
-yt-dlp
+# TEMPORARY: still used by crawler.search_keyword_and_crawl (keyword path).
+# Remove together with that path in ticket B-03.
+googlesearch-python>=1.2.0
 
 # AI and NLP (analysis calls the relay APIs via requests directly;
 # google-genai is only the embedding fallback)

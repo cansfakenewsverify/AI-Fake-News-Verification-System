@@ -34,15 +34,26 @@ yarn-error.log*
 *.pem
 
 # ── Data / Runtime ────────────────────────────
-data/factcheck.db
-data/factcheck.db-journal
-data/knowledge_base.parquet
-data/tasks.parquet
-data/admin_overrides.parquet
-data/user_feedback.parquet
-data/uploads/
-code/backend/data/threads_state.json
+# knowledge_base.parquet is NOT ignored: it is the committed demo seed.
+code/backend/data/factcheck.db
+code/backend/data/factcheck.db-journal
+code/backend/data/tasks.parquet
+code/backend/data/admin_overrides.parquet
+code/backend/data/user_feedback.parquet
+code/backend/data/threads_*.json*
+code/backend/data/threads_sim/
+code/backend/data/threads_poll.lock
 code/backend/data/threads_reply_sample.txt
+code/backend/data/ai_usage.*
+code/backend/data/clean_sources_*
+code/backend/data/*.bak-*
+code/backend/data/uploads/
+code/backend/data/check_*.txt
+code/backend/data/fix_labels_report.txt
+docs/test/op7_legacy/
+# Fallback: stores use Path("data") relative to CWD; running the backend or a
+# script from the repo root would create <root>/data/*.parquet / *.db.
+/data/
 
 # ── IDE ────────────────────────────────────────
 .vscode/

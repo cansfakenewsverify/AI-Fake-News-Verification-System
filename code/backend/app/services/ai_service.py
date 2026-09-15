@@ -13,12 +13,16 @@ AI 分析服務 — 支援 myai168 與 CGU AIR Gateway。
 """
 import base64
 import json
+import logging
 import os
-from typing import Dict, List, Optional, Any
+import re
+from typing import Dict, List, Optional, Any, Tuple
 
 import requests
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # V4.1 System Prompt（嚴格版本）
@@ -90,16 +94,51 @@ JSON 結構如下：
 """
 
 
+FALLBACK_EXPLANATION = "AI 服務暫時無法使用（額度用盡或連線問題），請稍後再試。"
+
+
+_UPSTREAM_STATUS_RE = re.compile(r"\b(402|429|503)\b")
+
+
+def _classify_upstream_error(err_msg: str) -> Tuple[Optional[int], str]:
+    """由上游錯誤原文萃取機器可讀的錯誤類別（不含原文，不給使用者看）。
+
+    回傳 (upstream_status, error_kind)：
+      - 429 / 503 / RESOURCE_EXHAUSTED / UNAVAILABLE -> "ratelimit"
+      - 402（insufficient_credits，額度用盡）          -> "quota"
+      - 其他                                           -> "error"
+    news_fetcher 依 error_kind 決定是否中止批次重試，避免每筆都打一輪 fallback 鏈燒點數。
+    """
+    msg = str(err_msg or "")
+    m = _UPSTREAM_STATUS_RE.search(msg)
+    status = int(m.group(1)) if m else None
+    if status in (429, 503) or "RESOURCE_EXHAUSTED" in msg or "UNAVAILABLE" in msg:
+        return status, "ratelimit"
+    if status == 402 or "insufficient_credits" in msg:
+        return status, "quota"
+    return status, "error"
+
+
 def _default_fallback_result(err_msg: str) -> Dict[str, Any]:
-    """API 失敗時回傳的結構化結果（不拋錯，方便前端顯示）"""
+    """API 失敗時回傳的結構化結果（不拋錯，方便前端顯示）。
+
+    summary 前綴「AI 分析暫時無法使用」為契約（verdict.is_fallback 與前端辨識），勿改。
+    上游錯誤原文只寫 logging，不回給使用者（spec §5.5）；
+    error_kind / upstream_status 為內部機器可讀欄位（前端不顯示），供批次重試判斷限流/額度。
+    """
+    logger.warning("[AI] fallback result returned: %s", err_msg)
+    upstream_status, error_kind = _classify_upstream_error(err_msg)
     return {
         "is_risk": False,
         "risk_type": "SAFE",
         "category": "Irrelevant",
         "confidence_score": 0.0,
         "summary": "AI 分析暫時無法使用",
-        "explanation": f"AI 服務呼叫失敗，請檢查 API Key 與網路。錯誤：{err_msg}",
+        "explanation": FALLBACK_EXPLANATION,
         "sources": [],
+        "ai_unavailable": True,
+        "error_kind": error_kind,
+        "upstream_status": upstream_status,
     }
 
 
@@ -136,6 +175,11 @@ class AIService:
 
         if not self._available:
             print("[AI] 未設定可用 AI provider 金鑰 / BASE_URL，AI 分析將回傳 fallback 結果")
+
+    @property
+    def available(self) -> bool:
+        """是否至少有一個 provider 設定完整（不呼叫付費 API；/health 的 ai_available 用）。"""
+        return bool(self._available and self.providers)
 
     # ── 共用解析工具 ─────────────────────────────────────────────
     @staticmethod

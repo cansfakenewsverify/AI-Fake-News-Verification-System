@@ -23,6 +23,7 @@ from typing import Optional
 from app.config import settings
 from app.services.threads_service import ThreadsService, format_verdict_reply
 from app.services.task_store import TaskStore
+from app.utils.verdict import is_fallback
 
 STATE_PATH = Path("data") / "threads_state.json"
 _STATE_MAX_IDS = 500      # 只保留最近 N 筆已回覆 id，避免檔案無限長大
@@ -43,11 +44,6 @@ def _save_state(state: dict) -> None:
     STATE_PATH.write_text(
         json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8"
     )
-
-
-def _is_fallback(result: dict) -> bool:
-    """AI 額度用盡/掛掉時的占位結果，不能拿去回覆別人。"""
-    return (result or {}).get("summary", "").startswith("AI 分析暫時無法使用")
 
 
 def _strip_mentions(text: str) -> str:
@@ -120,7 +116,7 @@ async def run_threads_poll() -> dict:
             stats["errors"] += 1
             continue
 
-        if _is_fallback(result):
+        if is_fallback(result):
             # AI 暫時無法使用：不回覆也不標記，額度恢復後下一輪自動補回
             print(f"[ThreadsBot] AI 暫時無法使用，mention={mid} 留待下輪")
             stats["skipped"] += 1

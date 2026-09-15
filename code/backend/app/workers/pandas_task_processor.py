@@ -19,27 +19,19 @@ from app.services.ai_service import AIService
 from app.services.cache_service import CacheService
 from app.services.vector_service import VectorService
 from app.utils.url_validator import filter_valid_sources
+from app.utils.verdict import frame_of, is_fallback
 
 
 def _ai_result_to_frame(ai_result: Dict[str, Any]) -> Tuple[str, str]:
     """
-    依 AI 判定結果映射紅黃綠框（F2.x）
+    紅黃綠框映射的薄包裝：唯一權威是 verdict.frame_of（spec §7.8）。B-15 接上 v2 欄位後刪除。
+    在 B-15 寫入 verification_status 之前，SAFE 結果缺該鍵會保守顯示黃燈「尚無查核機構證實」。
     """
-    is_risk = ai_result.get("is_risk", False)
-    conf = float(ai_result.get("confidence_score", 0) or 0)
-    if is_risk:
-        return "red", "已確認為假訊息"
-    if conf >= 0.7:
-        return "green", "此為正確訊息"
-    return "yellow", "尚待確認或未知的信息"
+    return frame_of(ai_result)[:2]
 
 
-def _is_fallback(ai_analysis: Any) -> bool:
-    """判斷是否為 API 失敗的 fallback 結果，不應快取。"""
-    if not isinstance(ai_analysis, dict):
-        return True
-    summary = ai_analysis.get("summary", "")
-    return summary.startswith("AI 分析暫時無法使用") or "服務異常" in summary
+# fallback 判斷統一由 verdict.is_fallback 負責（B-11）；保留舊名供既有呼叫點與測試使用
+_is_fallback = is_fallback
 
 
 def _safe_list(val):

@@ -22,6 +22,7 @@ from app.services.ai_service import AIService
 from app.services.vector_service import VectorService
 from app.services.pandas_store import PandasStore
 from app.services.cache_service import CacheService
+from app.utils.verdict import is_fallback
 from app.models.fact_check_record import FactCheckRecord
 from app.database_sql import SessionLocal
 
@@ -143,13 +144,6 @@ def _is_confirmed_false(item: dict, title: str) -> bool:
     return (item or {}).get("verdict") == "RUMOR" or _title_says_false(title)
 
 
-def _is_ai_fallback(ai_result: dict) -> bool:
-    if not isinstance(ai_result, dict):
-        return True
-    summary = ai_result.get("summary", "")
-    return summary.startswith("AI 分析暫時無法使用") or "服務異常" in summary
-
-
 def _index_factcheck_claim(url: str, title: str, source_meta: dict):
     """
     Extract the false claim and save it to knowledge_base.parquet
@@ -195,6 +189,7 @@ def _index_factcheck_claim(url: str, title: str, source_meta: dict):
         content_vector=vector,
         ai_result=ai_result,
         source_url=url,
+        label_source="rule",
     )
     _print(f"[NewsFetcher]   indexed claim: '{claim}' -> MISINFO")
 
@@ -343,17 +338,20 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
     ai_result = None
     try:
         content_hash = _cache_service.generate_hash(url)
-        cached = _pandas_store.find_by_hash(content_hash)
-        if cached and isinstance(cached.get("ai_analysis"), dict) and not _is_ai_fallback(cached["ai_analysis"]):
+        # 阻塞 IO（Parquet 讀寫、AI HTTP 呼叫）一律走 to_thread，不卡 event loop（CLAUDE.md §7）
+        cached = await asyncio.to_thread(_pandas_store.find_by_hash, content_hash)
+        if cached and isinstance(cached.get("ai_analysis"), dict) and not is_fallback(cached["ai_analysis"]):
             ai_result = cached["ai_analysis"]
         else:
-            ai_result = _ai.analyze_content(
+            ai_result = await asyncio.to_thread(
+                _ai.analyze_content,
                 content, url=url,
                 context={"extra_instructions": _NEWS_ANALYSIS_GUIDANCE},
             )
-            if ai_result and not _is_ai_fallback(ai_result):
+            if ai_result and not is_fallback(ai_result):
                 try:
-                    _pandas_store.save_record(
+                    await asyncio.to_thread(
+                        _pandas_store.save_record,
                         data_type="URL", raw_content=content,
                         content_hash=content_hash, ai_result=ai_result, source_url=url,
                     )
@@ -362,12 +360,20 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
     except Exception as e:
         _print(f"[NewsFetcher] AI error: {e}")
 
-    if not ai_result or _is_ai_fallback(ai_result):
-        err = (ai_result or {}).get("explanation", "") if ai_result else ""
-        if any(s in err for s in ["503", "429", "RESOURCE_EXHAUSTED", "UNAVAILABLE"]):
-            return "ratelimit"
+    if not ai_result or is_fallback(ai_result):
+        # explanation 已是固定文案（spec §5.5），限流/額度改讀內部欄位 error_kind（B-11）
+        kind = ai_result.get("error_kind") if isinstance(ai_result, dict) else None
+        if kind in ("ratelimit", "quota"):
+            return "ratelimit"   # 呼叫端中止本輪批次，避免每筆都打完整 fallback 鏈燒點數
         return "ai_unavailable"   # AI 暫時失敗（額度/網路）：保留 PENDING，額度恢復後再試
 
+    # SQLite 寫入是阻塞 IO → to_thread（CLAUDE.md §7）
+    await asyncio.to_thread(_apply_ai_result, url, ai_result, content, title)
+    return "ok"
+
+
+def _apply_ai_result(url: str, ai_result: dict, content: str, title: str) -> None:
+    """把 AI 判定寫回熱門記錄（同步，供 asyncio.to_thread 呼叫）。"""
     db = SessionLocal()
     try:
         rec = db.query(FactCheckRecord).filter_by(source_url=url).first()
@@ -382,7 +388,6 @@ async def _analyze_record(url: str, title: str, fallback_content: str) -> str:
             _print(f"[NewsFetcher]   AI done: {rec.risk_type} - {title[:30]}")
     finally:
         db.close()
-    return "ok"
 
 
 async def run_trending_fetch():
@@ -391,13 +396,14 @@ async def run_trending_fetch():
     _print(f"[NewsFetcher] Full fetch at {datetime.now():%Y-%m-%d %H:%M}")
     _print(f"{'='*60}")
 
-    _cleanup_legacy_strings()
+    # SQLite / Parquet / RSS HTTP 皆為阻塞呼叫 → to_thread（只包呼叫，不動判斷邏輯）
+    await asyncio.to_thread(_cleanup_legacy_strings)
 
-    items = SearchService.fetch_rss_items(num_per_feed=4)
+    items = await asyncio.to_thread(SearchService.fetch_rss_items, num_per_feed=4)
     _print(f"[NewsFetcher] RSS items: {len(items)}")
     classified = 0
     for item in items:
-        _save_rss_record(item)
+        await asyncio.to_thread(_save_rss_record, item)
         if _detect_source(item.get("url", "")):
             classified += 1
     _print(f"[NewsFetcher] {len(items)} saved, {classified} auto-classified")
@@ -426,7 +432,7 @@ async def retry_pending_records() -> int:
     Runs every 30 minutes - so 503 failures get retried quickly.
     Also called as part of run_trending_fetch(). 回傳本輪成功分析筆數。
     """
-    pending = _get_pending_records(limit=_MAX_AI_CALLS_PER_RUN)
+    pending = await asyncio.to_thread(_get_pending_records, limit=_MAX_AI_CALLS_PER_RUN)
     if not pending:
         return 0
 
@@ -441,7 +447,7 @@ async def retry_pending_records() -> int:
             ok += 1
         elif result == "short":
             # 內容太短/爬不到 → 終態，否則排程與批次會對同幾筆無限空轉
-            _mark_unverifiable(rec.source_url)
+            await asyncio.to_thread(_mark_unverifiable, rec.source_url)
             _print(f"[NewsFetcher]   unverifiable (content too short): {(rec.news_title or rec.source_url)[:40]}")
         await asyncio.sleep(2)
     _print(f"[NewsFetcher] Retry done: {ok}/{len(pending)} analyzed")
