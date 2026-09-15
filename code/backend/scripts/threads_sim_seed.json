@@ -1,0 +1,25 @@
+{
+  "_comment": "T-11 離線預熱種子（gold，不是 AI 產生的判定）。scripts/test_threads_bot.py --reset-sim 會把 data/threads_sim/mentions.json 中要送進 AI 的文字貼文，以內容 hash 比對知識庫；沒有「已證實」的同內容列時，用這裡的 result 以 save_record(label_source=\"gold\") 種入，poll 時 L1 hash 命中、不呼叫 AI，斷網也能回覆（FR-10 驗收 1）。",
+  "_comment_text": "text 必須與 mentions.json 的原貼文逐字相同（含全形標點與空白），否則 hash 對不上、poll 會改走 AI。改 p100 文字（例如換成保留網域 nhi-verify.example）時兩邊要一起改。",
+  "_comment_source": "查核來源 2026-09-15 由 Claude 確認可開（HTTP 200）：MyGoPen 2026-08-20 對同類「通知健保卡使用異常、即將停卡、要點連結處理」冒名訊息的詐騙查核（Tier 1 查核機構）。",
+  "seeds": [
+    {
+      "post_id": "p100",
+      "text": "健保卡即日起停用！請點 https://nhi-verify.xyz 重新驗證，逾期停卡",
+      "result": {
+        "is_risk": true,
+        "risk_type": "SCAM",
+        "category": "Phishing",
+        "confidence_score": 0.95,
+        "summary": "冒用健保署名義的釣魚詐騙：以「即日起停用、逾期停卡」製造急迫感誘騙點連結，健保署不會要求民眾點連結驗證健保卡",
+        "explanation": "訊息宣稱健保卡即日起停用、須點連結重新驗證，是常見的冒名釣魚手法：用停卡威脅製造急迫感，連結是非官方網址，點進去會被要求輸入身分證字號、健保卡號甚至銀行卡號。健保署表示不會要求民眾點連結、回電或匯款，正式通知以蓋有印信的公文或 111 政府專屬短碼簡訊發送。MyGoPen 已查核同類「健保卡使用異常、即將停卡」的冒名訊息為詐騙；有疑問請撥健保卡背面的 0800 服務專線或 165 反詐騙專線查證。",
+        "sources": [
+          {
+            "title": "【詐騙】收到健保局LINE好友邀請？通知健保卡使用異常？當心詐騙！健保署不會主動加好友",
+            "url": "https://www.mygopen.com/2026/08/line.html"
+          }
+        ]
+      }
+    }
+  ]
+}
