@@ -88,3 +88,8 @@ docs/demo/*.mp4
 # ── Local tooling ──────────────────────────────
 .claude/
 plantuml-*.jar
+
+# ── Remotion 影片專案（本機工具，不進 git）──
+video/node_modules/
+video/out/
+video/package-lock.json

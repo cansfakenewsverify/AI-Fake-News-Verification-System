@@ -1,0 +1,19 @@
+{
+  "name": "fnv-video",
+  "version": "0.1.0",
+  "private": true,
+  "description": "demo 影片：Remotion 組版與剪輯（不進 CI，node_modules 已 gitignore）",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.525",
+    "@remotion/cli": "^4.0.525",
+    "@remotion/media-utils": "^4.0.525",
+    "@remotion/renderer": "^4.0.525",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "^4.0.525"
+  }
+}
