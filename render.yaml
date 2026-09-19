@@ -1,0 +1,62 @@
+# Render Blueprint：後端（FastAPI）部署到 Render 免費方案。
+# 操作步驟見 docs/rebuild/runbook_cloud_deploy.md。規格：https://render.com/docs/blueprint-spec
+#
+# 注意：
+# - 前端不在這裡，前端在 Vercel（Root Directory = code/frontend）。
+# - rootDir 以外的檔案在 build／執行時都拿不到，且只有 code/backend 底下的變更才會觸發自動部署。
+# - env 的 value 一律加引號寫成字串：Render 的 schema 只收字串或數字，YAML 的 true/false 會驗證失敗。
+# - sync: false 的金鑰「只在第一次建立 Blueprint 時」會跳出輸入框；之後要改，到服務的 Environment 頁改。
+#   金鑰絕對不要寫進這個檔案。
+
+services:
+  - type: web
+    name: fakenewsverify-api
+    runtime: python
+    plan: free
+    region: singapore          # 建立後不能改區域；Render 五個區裡離台灣與 Supabase（ap-northeast-1 東京）最近
+    branch: main
+    rootDir: code/backend
+    autoDeployTrigger: commit  # main 分支每次 commit（且動到 code/backend）就自動部署
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      # PYTHON_VERSION 必須是完整三段版號（與本機 code/backend/venv 相同）
+      - key: PYTHON_VERSION
+        value: "3.12.9"
+
+      # ---- 非機密設定（鍵名與 app/config.py 的 Settings 欄位完全一致）----
+      - key: AI_PROVIDER
+        value: "cgu"
+      - key: STORAGE_BACKEND
+        value: "supabase"
+      - key: THREADS_MODE
+        value: "off"
+      - key: ENABLE_SCHEDULER
+        value: "false"
+      - key: USE_WEB_SEARCH
+        value: "false"
+      - key: DEMO_MODE
+        value: "false"
+      # 上線護欄：每日 AI 次數上限（台灣時間 00:00 歸零）與每 IP 限速；數字是字串也沒關係，Settings 會轉 int
+      - key: DAILY_AI_CALL_CAP
+        value: "300"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "30"
+      - key: RATE_LIMIT_PER_HOUR
+        value: "200"
+      - key: PUBLIC_BASE_URL
+        value: "https://fakenewsverify.vercel.app"
+      # 逗號分隔字串（config.py 的 cors_origins_list 會切開）；API 走 Vercel 同源代理，這裡只是保險
+      - key: CORS_ORIGINS
+        value: "https://fakenewsverify.vercel.app"
+
+      # ---- 機密：值由負責人在 Render 後台輸入，不進 git ----
+      - key: CGU_API_KEY
+        sync: false
+      - key: EMBED_API_KEY
+        sync: false
+      - key: SUPABASE_DB_URL
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false

@@ -1,0 +1,36 @@
+# Production (cloud) runtime dependencies -- used by render.yaml buildCommand.
+# Same version bounds as requirements.txt, minus evaluation and dev tools
+# (scikit-learn, matplotlib, seaborn, pytest, pytest-asyncio, httpx, black, flake8).
+# Local development and CI keep using requirements.txt.
+#
+# NOTE: keep this file ASCII-only -- pip decodes it with the console
+# codepage (cp950) on Windows and non-ASCII bytes crash the install.
+# When a new runtime import is added under app/, add it to BOTH files.
+
+# FastAPI core
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+anyio>=4.8.0,<5.0.0
+
+# Pandas storage (pyarrow is the parquet engine; imported by pandas, not by app code)
+pandas>=2.2.3,<3.0
+pyarrow>=18.0.0
+numpy>=1.26.0
+
+# SQL database (SQLite locally, Supabase Postgres when STORAGE_BACKEND=supabase)
+sqlalchemy>=2.0.0
+psycopg[binary]>=3.2
+
+# Scheduler (imported lazily in app/main.py lifespan)
+apscheduler>=3.10.0
+
+# Crawler (trafilatura pulls in lxml; bs4 uses the stdlib html.parser)
+trafilatura>=1.8.0
+beautifulsoup4>=4.12.2
+requests>=2.31.0
+
+# Utilities (python-multipart is required by FastAPI UploadFile / File)
+python-multipart>=0.0.6
+python-dotenv>=1.0.0
