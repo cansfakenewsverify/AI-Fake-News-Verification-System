@@ -11,7 +11,7 @@
 - 進度報告資料都在 `presentations/2026-09_進度報告/`（投影片、報告內容說明、demo 影片網址、測試計畫書 PDF、分工表；
   先看該資料夾的 README）。demo 影片：<https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4>。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.3）；
-  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.3）。
+  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.4；6.5 為 2026-09-19～20 重測）。
 
 ---
 
@@ -171,7 +171,7 @@ code/backend/
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **553 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **24 個** Postgres
+├── tests/                      ★pytest **700 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **24 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -208,7 +208,7 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
-docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.3）、results/（原始紀錄）、screens/（截圖）、ui_checklist.csv、
+docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.4）、results/（原始紀錄）、screens/（截圖）、ui_checklist.csv、
                                 pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
 video/hf-demo/                  demo 影片 v0.4.0 的 HyperFrames 專案原始碼（有自己的 CLAUDE.md；只在本機 render）。
@@ -244,10 +244,12 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 553 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 700 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
+.env\Scripts\python scripts\evaluate.py --timing --delay 0       # 150 筆＋逐筆延遲（PF-1／QA-2；約 13 分鐘、約 USD 1）
+.env\Scripts\python scriptseembed_vectors.py                     # 列出維度不對的向量；--apply [--target both] 才重算（DEF-05）
 .\venv\Scripts\python scripts\evaluate.py --delay 0                   # 重跑 150 筆評測（約 USD 1）；加 --seed-db 會把判對的寫進知識庫
 .\venv\Scripts\python scripts\clean_sources_2026_09.py                # 資料清洗 dry-run（預設）；--apply 要負責人核准
 
@@ -334,15 +336,17 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
 - [ ] Threads 真帳號串接（**進度報告後**；票 O-07、O-09、T-12～T-16、O-27）：Meta App + Threads Tester + 60 天 token；
-      要公開給陌生人用必須通過 Meta App Review（＋企業驗證）。live 之前要先補測試計畫書 FN-4 的三項未實作行為：
-      HTTP 429 → 設 `backoff_until`、未知 4xx → 標 failed 不回覆、container `FINISHED` 才 publish（`ERROR` 重試一次）
-- [ ] PF-2 向量快取命中率 **65%（13／20）< 準則 70%**：以組員審定的改寫句題組重測（票 O-11），先修 DEF-05；
+      要公開給陌生人用必須通過 Meta App Review（＋企業驗證）。FN-4 的三項行為（HTTP 429 → `backoff_until`、未知 4xx →
+      標 failed 不回覆、container `FINISHED` 才 publish／`ERROR` 重建一次）已於 2026-09-20 實作並以模擬與 mock 測過（T-12／T-13）；
+      回應格式尚未對真的 Threads API 驗證（票 T-17）。state 檔新增 `backoff_until`／`backoff_n`／`transient_n`、`failed`、`pending_publish`
+- [ ] PF-2 向量快取命中率 **65%（13／20）< 準則 70%**：以組員（姚睿）審定的改寫句題組重測（票 O-11）。DEF-05 已於 2026-09-19 修正
+      （`scripts/reembed_vectors.py`，13 筆重算、本機與 Supabase 同步），但離線複查顯示那 20 句的原文向量本來就正常，未命中是相似度真的不夠；
       **不以調低 0.75 門檻來過關**（那是實測校準值，調低會提高誤命中）
 - [ ] 測試計畫書 6.3 的未結缺陷（完整原文在 `docs/test/TP-FNV-2026-01.md`）：
       DEF-03 知識庫頁同一主張出現兩張卡且標籤不同（同一 Cofacts 文章分別以 TEXT 與 URL 入庫、各自判定）；
       DEF-04 部分已證實列的「主張」其實是查核機構文章標題卻被標為假訊息（待負責人逐筆人工確認）；
       DEF-05 128 筆已證實列中 11 筆向量維度是 768（5 筆）／3072（6 筆），實際可參與語意命中的是 **102 筆**（不是 113）
-      → 用 `text-embedding-3-small` 重算，PF-2 重測前完成；
+      → 用 `text-embedding-3-small` 重算，**已於 2026-09-19 完成**（`scripts/reembed_vectors.py --apply --target both`）；
       DEF-06 `MODEL_PRICING_PER_1M["gpt-5.4-mini"]`（0.75／4.50）是 CGU 閘道實際計價（1.5／9）的一半，log 的 `usd` 欄低估約 50%；
       DEF-07 寫入知識庫時 `pandas_store.py` 的 `pd.concat` 印「全 NA 欄 dtype」FutureWarning；
       DEF-08 `backend_down` 橫幅與首頁 inline 驗證紅字用了判定色 token，與 spec §8.1「紅黃綠只用於判定」字面衝突（待 6.4 審查裁定）

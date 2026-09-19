@@ -6,7 +6,7 @@
 ![React 19](https://img.shields.io/badge/Frontend-React%2019-61DAFB?logo=react&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)
 ![Supabase Postgres + pgvector](https://img.shields.io/badge/Storage-Supabase%20Postgres%20%2B%20pgvector-3FCF8E?logo=supabase&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-pytest%20553%20%7C%20frontend%20380-success)
+![Tests](https://img.shields.io/badge/Tests-pytest%20700%20%7C%20frontend%20380-success)
 ![Eval](https://img.shields.io/badge/Eval%20150%20items-accuracy%20100%25%20%2F%20FN%3D0-success)
 
 **全民查證公社**：AI 假訊息與詐騙查證系統（學生專題）。貼上一段文字或一個網址，系統判定它是詐騙、假訊息、尚待確認，還是查無異常，並附上查核機構的來源。
@@ -160,12 +160,12 @@ AI-Fake-News-Verification-System/
 
 | 項目 | 數量 | 怎麼跑 |
 |------|------|--------|
-| 後端 pytest | 553 個通過；另有 24 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
+| 後端 pytest | 700 個通過；另有 24 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
 | 前端單元測試 | 380 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
 
 - 兩邊的測試都離線執行，不呼叫 AI、不花額度。
 - CI（`.github/workflows/ci.yml`）在每次 push／PR 到 `main` 時跑兩個 job：`test`（後端 pytest）與 `frontend`（`npm ci` → `npm run build` → `npm run test:unit`）。
-- 測試計畫書：[`docs/test/TP-FNV-2026-01.md`](docs/test/TP-FNV-2026-01.md) v1.3，分操作、功能、介面、績效、品質五類共 46 項。2026-09-16 這一輪指定執行 34 項：通過 24、通過（待補驗）2、未通過 3、未執行 4；明細與缺陷清單在計畫書第 6 節。
+- 測試計畫書：[`docs/test/TP-FNV-2026-01.md`](docs/test/TP-FNV-2026-01.md) v1.4，分操作、功能、介面、績效、品質五類共 46 項。2026-09-16 這一輪指定執行 34 項：通過 24、通過（待補驗）2、未通過 3、未執行 4；明細與缺陷清單在計畫書第 6 節。
 
 ---
 
@@ -300,7 +300,7 @@ chmod +x start.sh
 |------|------|
 | [`presentations/2026-09_進度報告/`](presentations/2026-09_進度報告/) | 2026-09 進度報告的全部資料：投影片、報告內容說明、demo 影片網址、測試計畫書 PDF、分工表 |
 | [`docs/rebuild/runbook_cloud_deploy.md`](docs/rebuild/runbook_cloud_deploy.md) | 上雲操作手冊（Render + Supabase + Vercel） |
-| [`docs/test/TP-FNV-2026-01.md`](docs/test/TP-FNV-2026-01.md) | 測試計畫書 v1.3 與 2026-09-16 實測結果 |
+| [`docs/test/TP-FNV-2026-01.md`](docs/test/TP-FNV-2026-01.md) | 測試計畫書 v1.4：2026-09-16 第一輪實測與 2026-09-19～20 第二輪重測 |
 | [`CLAUDE.md`](CLAUDE.md) | 專案完整技術地圖：AI 引擎、三層快取、標記規則、雲端部署、待辦 |
 | [`docs/rebuild/`](docs/rebuild/) | 2026-09 重做的共識、規格（`01_spec.md` v1.3）、mockup、實作票 |
 | [`code/backend/README.md`](code/backend/README.md)、[`code/frontend/README.md`](code/frontend/README.md) | 後端與前端各自的說明 |
