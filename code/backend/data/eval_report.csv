@@ -1,6 +1,6 @@
-﻿label,precision,recall,f1,support
-SCAM,1.0,1.0,1.0,50
-MISINFO,1.0,1.0,1.0,50
-SAFE,1.0,1.0,1.0,50
-accuracy,,,1.0,150
-macro_avg,1.0,1.0,1.0,150
+﻿label,precision,recall,f1,support,provider,model,date,use_web_search,elapsed_ms_p50,elapsed_ms_p90,elapsed_ms_n
+SCAM,1.0,1.0,1.0,50,cgu,gpt-5.4-mini,2026-09-20,False,4864.5,6641.1,150
+MISINFO,1.0,1.0,1.0,50,cgu,gpt-5.4-mini,2026-09-20,False,4864.5,6641.1,150
+SAFE,1.0,1.0,1.0,50,cgu,gpt-5.4-mini,2026-09-20,False,4864.5,6641.1,150
+accuracy,,,1.0,150,cgu,gpt-5.4-mini,2026-09-20,False,4864.5,6641.1,150
+macro_avg,1.0,1.0,1.0,150,cgu,gpt-5.4-mini,2026-09-20,False,4864.5,6641.1,150
