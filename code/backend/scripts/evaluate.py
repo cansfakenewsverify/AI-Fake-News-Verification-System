@@ -9,25 +9,45 @@
     python scripts/evaluate.py --limit 10            # 只跑前 10 筆（測試用）
     python scripts/evaluate.py --delay 3             # 每筆間隔 3 秒（避開 API 限流）
     python scripts/evaluate.py --resume              # 從上次中斷處續跑
+    python scripts/evaluate.py --timing --delay 0    # 量測每筆 AI 呼叫耗時（PF-1 未命中 p50/p90）
+    python scripts/evaluate.py --report-only         # 只用現有預測檔重算報告（不呼叫 AI、零點數）
 
 產出：
-    data/eval_predictions.csv   每筆的 gold / pred / confidence / 是否正確
-    data/eval_report.csv        每類 precision / recall / f1 + 整體 accuracy
+    data/eval_predictions.csv   每筆的 gold / pred / confidence / 是否正確，
+                                另記 elapsed_ms（加 --timing 才有值）/ provider / model / date / use_web_search
+    data/eval_report.csv        每類 precision / recall / f1 + 整體 accuracy，
+                                每列附 provider / model / date / use_web_search / elapsed_ms_p50 / _p90 / _n
     assets/confusion_matrix.png 混淆矩陣熱力圖（沒有 matplotlib 時改印文字版）
+
+報告的執行條件與延遲統計一律取自 eval_predictions.csv 的逐筆欄位（不讀現在的設定、不取現在的時間），
+所以 --report-only 重算出來的檔案與原檔逐位元相同。
 """
 import argparse
 import os
 import sys
 import time
+from datetime import date as _date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import numpy as np
 import pandas as pd
 
 from app.services.ai_service import AIService
 from app.utils.verdict import is_fallback
 
 LABELS = ["SCAM", "MISINFO", "SAFE"]
+
+# 評測一律關閉 web_search：省點數（便宜 3~7 倍）且結果更可重現。
+# predict_one 傳給 AI 的值與報告的 use_web_search 欄讀同一個常數，兩者不會各說各話。
+EVAL_USE_WEB_SEARCH = False
+
+# eval_predictions.csv 的欄位順序。後五欄為 B-23 新增；舊預測檔沒有這些欄，讀進來一律當缺值。
+PRED_COLUMNS = [
+    "id", "gold", "pred", "confidence", "correct", "errored", "content",
+    "elapsed_ms", "provider", "model", "date", "use_web_search",
+]
+META_COLUMNS = ["provider", "model", "date", "use_web_search"]
 
 # 路徑（相對 backend 根目錄）
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -41,15 +61,46 @@ ERRORS_PATH = os.path.join(DATA_DIR, "eval_errors.csv")     # 判錯案例(錯�
 CM_PATH = os.path.join(ASSETS_DIR, "confusion_matrix.png")
 
 
-def predict_one(ai: AIService, content: str, url: str | None):
-    """回傳 (predicted_label 或 None, confidence, full_result)。None 代表本筆分析失敗。
-    評測刻意關閉 web_search：省點數（便宜 3~7 倍）且結果更可重現。"""
-    res = ai.analyze_content(content, url=url or None, use_web_search=False)
+def _today() -> str:
+    """評測執行日（本機日期）。只有真的呼叫 AI 的那次執行會取；--report-only 不取現在時間。"""
+    return _date.today().isoformat()
+
+
+def predict_one(ai: AIService, content: str, url: str | None, timing: bool = False):
+    """回傳 (predicted_label 或 None, confidence, full_result, elapsed_ms 或 None)。
+    label 為 None 代表本筆分析失敗。評測刻意關閉 web_search（見 EVAL_USE_WEB_SEARCH）。
+    timing=True 時以 time.perf_counter 只包住 analyze_content（不含 --delay 的等待與 --seed-db 的寫入），
+    取整數毫秒，與後端結構化 log 的 elapsed_ms 同單位。"""
+    started = time.perf_counter() if timing else None
+    res = ai.analyze_content(content, url=url or None, use_web_search=EVAL_USE_WEB_SEARCH)
+    elapsed_ms = int(round((time.perf_counter() - started) * 1000)) if timing else None
     if is_fallback(res):  # API 失敗（額度/網路）的 fallback 不能當成有效預測
-        return None, 0.0, res
+        return None, 0.0, res, elapsed_ms
     label = (res.get("risk_type") or "UNKNOWN").upper()
     conf = float(res.get("confidence_score") or 0.0)
-    return label, conf, res
+    return label, conf, res, elapsed_ms
+
+
+def _engine_of(ai, res) -> tuple[str, str]:
+    """本筆實際回應的 (provider, model)：AIService 會寫進結果（備援接手時不是主引擎）。
+    fallback 結果沒有這兩個鍵，退回 AIService 設定的主引擎。"""
+    res = res if isinstance(res, dict) else {}
+    provider = str(res.get("provider") or "").strip()
+    model = str(res.get("model") or "").strip()
+    if not provider:
+        chain = list(getattr(ai, "providers", None) or [])
+        provider = str(chain[0]) if chain else ""
+    if not model and provider:
+        model = str(getattr(ai, f"{provider}_model", "") or "")
+    return provider, model
+
+
+def _predictions_frame(rows: list) -> pd.DataFrame:
+    """預測列 → 固定欄位順序的 DataFrame（舊檔續跑缺的欄補空值）。
+    elapsed_ms 以可為空的整數存檔：沒量到的列（未加 --timing、或舊檔的列）留空，不寫 0。"""
+    out = pd.DataFrame(rows, columns=PRED_COLUMNS)
+    out["elapsed_ms"] = pd.to_numeric(out["elapsed_ms"], errors="coerce").round().astype("Int64")
+    return out
 
 
 def _seed_to_db(store, ai, content: str, gold: str, res: dict):
@@ -67,12 +118,15 @@ def _seed_to_db(store, ai, content: str, gold: str, res: dict):
     store.save_record(
         data_type="TEXT", raw_content=content, content_hash=h,
         content_vector=vec or None, ai_result=record, source_url=None,
+        label_source="gold",                      # 評測標註＝確定性標記 → 寫入即 verified（FR-17）
     )
     return True
 
 
-def run_predictions(df: pd.DataFrame, delay: float, resume: bool, seed_db: bool = False) -> pd.DataFrame:
+def run_predictions(df: pd.DataFrame, delay: float, resume: bool, seed_db: bool = False,
+                    timing: bool = False) -> pd.DataFrame:
     ai = AIService()
+    run_date = _today()                           # 整次執行只取一次：跨午夜也只記開跑那天
     store = None
     if seed_db:
         # 本機 PandasStore；STORAGE_BACKEND=supabase 時寫進雲端知識庫（介面相同）
@@ -97,7 +151,8 @@ def run_predictions(df: pd.DataFrame, delay: float, resume: bool, seed_db: bool 
 
         content = str(row["content"])
         url = str(row["url"]) if "url" in df.columns and pd.notna(row.get("url")) else None
-        pred, conf, res = predict_one(ai, content, url)
+        pred, conf, res, elapsed_ms = predict_one(ai, content, url, timing=timing)
+        provider, model = _engine_of(ai, res)
 
         gold = str(row["gold_label"]).upper()
         ok = (pred == gold)
@@ -111,26 +166,72 @@ def run_predictions(df: pd.DataFrame, delay: float, resume: bool, seed_db: bool 
             except Exception as e:
                 print(f"   [seed-db] 寫入失敗: {e}")
 
+        took = f" {elapsed_ms}ms" if elapsed_ms is not None else ""
         print(f"[{i + 1}/{total}] id={rid} gold={gold:7} pred={str(pred):7} "
-              f"conf={conf:.2f} {'[v]' if ok else '[x]'} {status}")
+              f"conf={conf:.2f} {'[v]' if ok else '[x]'} {status}{took}")
 
         rows.append({
             "id": rid, "gold": gold, "pred": pred if pred else "",
             "confidence": conf, "correct": ok,
             "errored": pred is None, "content": content[:80],
+            "elapsed_ms": elapsed_ms,
+            "provider": provider, "model": model,
+            "date": run_date, "use_web_search": EVAL_USE_WEB_SEARCH,
         })
         # 邊跑邊存，跑壞也不會全部重來
-        pd.DataFrame(rows).to_csv(PRED_PATH, index=False, encoding="utf-8-sig")
+        _predictions_frame(rows).to_csv(PRED_PATH, index=False, encoding="utf-8-sig")
         if delay and i + 1 < total:
             time.sleep(delay)
 
     if store is not None:
         print(f"[seed-db] 已寫入知識庫 {seeded} 筆")
 
-    return pd.DataFrame(rows)
+    return _predictions_frame(rows)
 
 
-def compute_metrics(preds: pd.DataFrame):
+def _is_blank(value) -> bool:
+    try:
+        if pd.isna(value):
+            return True
+    except (TypeError, ValueError):
+        pass
+    return str(value).strip() == ""
+
+
+def run_metadata(valid: pd.DataFrame) -> dict:
+    """報告用的執行條件（provider / model / date / use_web_search），只看有效預測列。
+    全部取自預測檔 → --report-only 重算與原檔一致。同一欄有多個值（備援接手、分兩天續跑）以 | 連接；
+    部分列沒有紀錄（舊預測檔續跑）時另加 unknown，不假裝整批同一條件；全部沒有紀錄則留空。"""
+    meta = {}
+    for col in META_COLUMNS:
+        seen = set()
+        if col in valid.columns:
+            seen = {"" if _is_blank(v) else str(v).strip() for v in valid[col].tolist()}
+        known = sorted(v for v in seen if v)
+        if known and "" in seen:
+            known.append("unknown")
+        meta[col] = "|".join(known)
+    return meta
+
+
+def timing_summary(valid: pd.DataFrame) -> dict:
+    """有效預測列（非 fallback）的 elapsed_ms 統計。百分位用 numpy.percentile（線性內插），
+    與 docs/test 其他績效數字同一算法。沒有任何計時紀錄時 n=0、p50/p90 留空。"""
+    ms = np.array([], dtype=float)
+    if "elapsed_ms" in valid.columns:
+        ms = pd.to_numeric(valid["elapsed_ms"], errors="coerce").dropna().astype(float).to_numpy()
+    if ms.size == 0:
+        return {"elapsed_ms_p50": "", "elapsed_ms_p90": "", "elapsed_ms_n": 0}
+    p50, p90 = np.percentile(ms, [50, 90])
+    return {
+        "elapsed_ms_p50": round(float(p50), 1),
+        "elapsed_ms_p90": round(float(p90), 1),
+        "elapsed_ms_n": int(ms.size),
+    }
+
+
+def compute_metrics(preds: pd.DataFrame, timing: bool = False):
+    """timing 只影響主控台提示（要求了計時卻沒有紀錄時提醒）；寫出的檔案內容只由 preds 決定。"""
     try:
         from sklearn.metrics import (
             confusion_matrix, classification_report, accuracy_score,
@@ -216,10 +317,26 @@ def compute_metrics(preds: pd.DataFrame):
     rep_rows.append({"label": "macro_avg", "precision": round(report["macro avg"]["precision"], 3),
                      "recall": round(report["macro avg"]["recall"], 3),
                      "f1": round(report["macro avg"]["f1-score"], 3), "support": len(valid)})
+    # 每列附上執行條件與延遲統計（新舊模型的報告並列時，每一列都認得出是哪一次評測）
+    meta = run_metadata(valid)
+    stats = timing_summary(valid)
+    for rep_row in rep_rows:
+        rep_row.update(meta)
+        rep_row.update(stats)
     pd.DataFrame(rep_rows).to_csv(REPORT_PATH, index=False, encoding="utf-8-sig")
     print(f"\n  [v] 報告已存：{REPORT_PATH}")
 
     _save_confusion_png(cm)
+
+    # ── 報告尾端：執行條件 + 逐筆延遲 p50 / p90（PF-1 未命中）──
+    print("\n  執行條件（取自預測檔）：")
+    print("    " + "  ".join(f"{col}={meta[col] or '-'}" for col in META_COLUMNS))
+    if stats["elapsed_ms_n"]:
+        p50, p90 = stats["elapsed_ms_p50"], stats["elapsed_ms_p90"]
+        print(f"  逐筆延遲 elapsed_ms（只計非 fallback 的 {stats['elapsed_ms_n']} 筆）：")
+        print(f"    p50 = {p50:.1f} ms ({p50 / 1000:.2f} s)   p90 = {p90:.1f} ms ({p90 / 1000:.2f} s)")
+    elif timing:
+        print("  [!] 預測檔沒有可統計的 elapsed_ms：請以 --timing 重跑評測（會呼叫 AI、花點數）")
 
 
 def _save_error_cases(valid: pd.DataFrame):
@@ -306,9 +423,12 @@ def main():
                     help="把判對的案例寫入 knowledge_base，建立可重用的查證快取")
     ap.add_argument("--report-only", action="store_true",
                     help="只用現有 eval_predictions.csv 重算指標（不呼叫 AI、不花點數）")
+    ap.add_argument("--timing", action="store_true",
+                    help="量測每筆 AI 呼叫的 elapsed_ms（毫秒）寫入 eval_predictions.csv，"
+                         "報告尾端印出 p50/p90（只計非 fallback 的列）")
     args = ap.parse_args()
 
-    # 只重算報告：不呼叫任何 AI，零點數
+    # 只重算報告：不呼叫任何 AI，零點數（執行條件與 elapsed_ms 沿用預測檔內的紀錄）
     if args.report_only:
         if not os.path.exists(PRED_PATH):
             print(f"[ERR] 找不到 {PRED_PATH}，請先跑過一次評測")
@@ -316,7 +436,7 @@ def main():
         preds = pd.read_csv(PRED_PATH)
         preds["errored"] = preds["errored"].astype(bool)
         print(f"重算報告：{len(preds)} 筆（未呼叫 AI、零點數）\n")
-        compute_metrics(preds)
+        compute_metrics(preds, timing=args.timing)
         print("\n 報告重算完成。")
         return
 
@@ -330,8 +450,9 @@ def main():
     print(f"載入 {len(df)} 筆標註資料：{args.input}")
     print(f"（提醒：評測會呼叫真實 AI，請確認 .env 金鑰已設定且有額度/點數）\n")
 
-    preds = run_predictions(df, delay=args.delay, resume=args.resume, seed_db=args.seed_db)
-    compute_metrics(preds)
+    preds = run_predictions(df, delay=args.delay, resume=args.resume, seed_db=args.seed_db,
+                            timing=args.timing)
+    compute_metrics(preds, timing=args.timing)
     print("\n 評測完成。")
 
 
