@@ -5,7 +5,7 @@
 用法：
     venv\\Scripts\\python scripts\\batch_verify_pending.py                 # 完整：抓 RSS + 清 PENDING
     venv\\Scripts\\python scripts\\batch_verify_pending.py --skip-fetch    # 只清既有 PENDING
-    venv\\Scripts\\python scripts\\batch_verify_pending.py --budget-cap 18 --max-rounds 30
+    venv\\Scripts\\python scripts\\batch_verify_pending.py --budget-cap 5 --max-rounds 30
 
 護欄：
 - 每回合前查 CGU /me/usage，累計花費超過 --budget-cap（美元）就停
@@ -62,8 +62,8 @@ def pending_count() -> int:
 async def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-fetch", action="store_true", help="不抓新 RSS，只清既有 PENDING")
-    ap.add_argument("--budget-cap", type=float, default=18.0,
-                    help="CGU 累計花費護欄（美元），超過就停（預設 18，保留 2 美元餘裕）")
+    ap.add_argument("--budget-cap", type=float, default=5.0,
+                    help="CGU 累計花費護欄（美元），超過就停（預設 5；學校 CGU 額度為 USD 10）")
     ap.add_argument("--max-rounds", type=int, default=30, help="retry 回合上限")
     ap.add_argument("--web-search", action="store_true", help="打開 web_search（貴 3~7 倍）")
     args = ap.parse_args()

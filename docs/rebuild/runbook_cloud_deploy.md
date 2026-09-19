@@ -243,7 +243,7 @@ Render 官方對免費方案的原話是「不要用在 production」。對專�
 | 單元測試 | 跑在 GitHub Actions（`ci.yml`）與本機，不在 Render | `venv\Scripts\python -m pytest tests -q` |
 | demo 影片工具（`video/`：Remotion、hyperframes、edge-tts、ffmpeg） | 只是製作素材，與線上服務無關 | 見 `video/` |
 | cloudflared tunnel | 保留當退路（C2） | `runbook_tunnel.md` |
-| 離線備援查核儀（`legacy/`） | 斷網 demo 用 | 雙擊 HTML |
+| 舊版單檔查核儀（`legacy/`） | 已封存、不再維護（2026-09 起 React 是唯一介面）；不是備援方案 | 不需要執行 |
 
 ---
 

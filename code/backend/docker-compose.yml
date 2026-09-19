@@ -1,7 +1,8 @@
 version: '3.8'
 
-# 目前架構：SQLite + Parquet（免資料庫服務），只需要 backend 一個容器。
-# 前端 React 開發時走 vite proxy；正式部署可自行加 nginx 反代 /api → backend:8000。
+# 選用的自架方式（不是正式環境）。正式環境是 Vercel + Render + Supabase，見 render.yaml 與
+# docs/rebuild/runbook_cloud_deploy.md。這個 compose 只跑 backend 一個容器，預設用本機檔案（SQLite + Parquet）；
+# 要接 Supabase 就設 STORAGE_BACKEND=supabase 與 SUPABASE_DB_URL。金鑰由執行環境提供，不要寫進這個檔案。
 services:
   backend:
     build:
@@ -9,14 +10,20 @@ services:
       dockerfile: Dockerfile
     container_name: factcheck_backend
     environment:
-      - AI_PROVIDER=${AI_PROVIDER:-openai}
-      - MYAI_API_KEY=${MYAI_API_KEY}
+      - AI_PROVIDER=${AI_PROVIDER:-cgu}
       - CGU_API_KEY=${CGU_API_KEY:-}
       - EMBED_API_KEY=${EMBED_API_KEY:-}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-local}
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL:-}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
+      - THREADS_MODE=${THREADS_MODE:-off}
       - DEMO_MODE=${DEMO_MODE:-false}
       - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-false}
-      - USE_WEB_SEARCH=${USE_WEB_SEARCH:-true}
+      - USE_WEB_SEARCH=${USE_WEB_SEARCH:-false}
+      - DAILY_AI_CALL_CAP=${DAILY_AI_CALL_CAP:-300}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-30}
+      - RATE_LIMIT_PER_HOUR=${RATE_LIMIT_PER_HOUR:-200}
     ports:
       - "8000:8000"
     volumes:

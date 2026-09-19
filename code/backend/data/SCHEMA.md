@@ -51,7 +51,7 @@ API 回應的 `cache_layer` 欄位（url / hash / vector / null）標示命中�
 
 ## 2. `factcheck.db` / `fact_check_records`（SQLite）— 熱門趨勢資料
 
-供 `news_fetcher` + `/api/trending` 使用，存放從 RSS / Cofacts / Google News 抓回的記錄。
+供 `news_fetcher` + `/api/trending` 使用，存放從查核機構 RSS（MyGoPen、台灣事實查核中心）與 Cofacts 抓回的記錄（Google News 轉址已於 2026-09 移除）。
 
 ### 欄位
 
@@ -147,6 +147,6 @@ db.close()
 |--------|------|
 | 為什麼快取用 Parquet，趨勢用 SQLite？ | Parquet 適合大量向量 + numpy 批次運算；SQLite 適合結構化查詢 / 排序 |
 | 為什麼不全部用 PostgreSQL + pgvector？ | 零安裝門檻，學生專題不用裝 Docker；資料量（數百~數千筆）遠未達需要專用向量資料庫的規模 |
-| 為什麼 Embedding 用 1536 維？ | `text-embedding-3-small`（CGU AIR Gateway）原生維度；Gemini 備援時為 768 維，向量搜尋已做維度防呆（只比對同維度） |
+| 為什麼 Embedding 用 1536 維？ | `text-embedding-3-small`（CGU AIR Gateway）原生維度；現行程式只產生 1536 維（沒有其他 embedding 備援）；知識庫裡早期留下的 768／3072 維舊向量不會被比對（測試計畫 DEF-05，待重算） |
 | 相似度門檻為什麼是 0.75？ | 實測校準：改寫版同一謠言 0.79~0.82、不同支謠言 ≤0.68、不同主題 ≤0.52（詳見 CLAUDE.md 第 3 節） |
 | 單機單寫者假設 | Parquet/SQLite 無跨行程鎖：**不要同時**跑 batch_verify_pending.py 與大量寫入的 API 請求（讀取不受影響） |
