@@ -180,8 +180,10 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 .github/workflows/keepalive.yml 每 10 分鐘叫醒 Render 後端＋讀一次資料庫（網址取自 repository variable BACKEND_BASE_URL）
 start.bat / start.sh            一鍵啟動：後端 + React 主介面（查核儀不再自動開啟）
 _run_detector.bat               手動啟動查核儀靜態伺服器(8090)——離線備援要接後端時才用
-presentations/                  簡報與報告資料；`2026-09_進度報告/` = 這次進度報告的全部檔案（投影片、講稿、demo 影片 12 MB 版、
-                                測試計畫書 PDF、分工表），檔名用中文、前面有編號，組員一看就懂；先看該資料夾的 README
+presentations/                  簡報與報告資料；`2026-09_進度報告/` = 這次進度報告的全部檔案（投影片、報告內容說明、demo 影片 12 MB 版、
+                                測試計畫書 PDF、分工表），檔名用中文、前面有編號，組員一看就懂；先看該資料夾的 README。
+                                同一支影片另放 code/frontend/public/demo/（網站上可直接播放；GitHub 網頁不能播 mp4）。
+                                負責人不要逐張講稿：只放「報告內容說明」，投影片的備忘稿已清空
 assets/                         PlantUML 圖 + confusion_matrix.png
 └── 期末專題文件/                OOSE 期末繳交文件(詞彙表/使用案例圖/情節/活動圖/類別圖+README)
 ```
