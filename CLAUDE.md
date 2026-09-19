@@ -350,8 +350,12 @@ API 文件：http://localhost:8000/docs
       knowledge_base 218／fact_check_records 24／tasks 37）；上線護欄（每日 AI 300 次、每 IP 30/分 200/時、
       請求 1 MB／圖片 10 MB、圖片檔頭檢查、回饋欄位長度上限）；Render Blueprint + keepalive + runbook；
       前端「連不到後端」橫幅自動重試。pytest 553 passed（另 24 個 Postgres 契約測試需 RUN_PG_TESTS=1）
-- [ ] 雲端上線收尾：負責人照 `docs/rebuild/runbook_cloud_deploy.md` Part A 建 Render 服務 →
-      `code/frontend/vercel.json` rewrite 主機換成 Render 網址 → `gh variable set BACKEND_BASE_URL`
+- [x] 雲端正式上線（2026-09-19）：Render 服務 `https://fakenewsverify-api.onrender.com`（Blueprint）；
+      `code/frontend/vercel.json` 的 /api 代理已指向它；`BACKEND_BASE_URL` 已設、keepalive 每 10 分鐘執行。
+      實測：`/api/health` 回 `storage_backend=supabase`、AI 即時判讀 9–27 秒、語意快取命中 3 秒且不耗每日額度
+- [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
+      （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
+      要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
 - [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證；權限要含 threads_manage_mentions）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy

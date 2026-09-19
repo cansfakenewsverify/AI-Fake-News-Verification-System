@@ -1,5 +1,7 @@
 # Runbook：cloudflared quick tunnel 與 vercel.json 換主機
 
+> **2026-09-19 起已改為退路**：正式環境的後端在 Render（`runbook_cloud_deploy.md`）。只有 Render 出問題、要退回負責人電腦時才用這份（做法見該文件 C2）。
+
 > 本檔由 P-04 先建立「約定與換主機步驟」段落；O-08 完成時補齊 tunnel 啟動、demo 期間守則與斷線退路（見 03_tickets.md O-08 做什麼 4）。
 
 ## 1. vercel.json 約定（P-04）
