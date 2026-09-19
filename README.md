@@ -165,7 +165,7 @@ AI-Fake-News-Verification-System/
 
 - 兩邊的測試都離線執行，不呼叫 AI、不花額度。
 - CI（`.github/workflows/ci.yml`）在每次 push／PR 到 `main` 時跑兩個 job：`test`（後端 pytest）與 `frontend`（`npm ci` → `npm run build` → `npm run test:unit`）。
-- 測試計畫書：[`docs/test/TP-FNV-2026-01.md`](docs/test/TP-FNV-2026-01.md) v1.2，分操作、功能、介面、績效、品質五類共 46 項。2026-09-16 這一輪指定執行 34 項：通過 24、通過（待補驗）2、未通過 3、未執行 4；明細與缺陷清單在計畫書第 6 節。
+- 測試計畫書：[`docs/test/TP-FNV-2026-01.md`](docs/test/TP-FNV-2026-01.md) v1.3，分操作、功能、介面、績效、品質五類共 46 項。2026-09-16 這一輪指定執行 34 項：通過 24、通過（待補驗）2、未通過 3、未執行 4；明細與缺陷清單在計畫書第 6 節。
 
 ---
 
@@ -300,7 +300,7 @@ chmod +x start.sh
 |------|------|
 | [`presentations/2026-09_進度報告/`](presentations/2026-09_進度報告/) | 2026-09 進度報告的全部資料：投影片、報告內容說明、demo 影片網址、測試計畫書 PDF、分工表 |
 | [`docs/rebuild/runbook_cloud_deploy.md`](docs/rebuild/runbook_cloud_deploy.md) | 上雲操作手冊（Render + Supabase + Vercel） |
-| [`docs/test/TP-FNV-2026-01.md`](docs/test/TP-FNV-2026-01.md) | 測試計畫書 v1.2 與 2026-09-16 實測結果 |
+| [`docs/test/TP-FNV-2026-01.md`](docs/test/TP-FNV-2026-01.md) | 測試計畫書 v1.3 與 2026-09-16 實測結果 |
 | [`CLAUDE.md`](CLAUDE.md) | 專案完整技術地圖：AI 引擎、三層快取、標記規則、雲端部署、待辦 |
 | [`docs/rebuild/`](docs/rebuild/) | 2026-09 重做的共識、規格（`01_spec.md` v1.3）、mockup、實作票 |
 | [`code/backend/README.md`](code/backend/README.md)、[`code/frontend/README.md`](code/frontend/README.md) | 後端與前端各自的說明 |
@@ -315,7 +315,7 @@ chmod +x start.sh
 | **石岱勳** | 介面測試 |
 | **姚睿** | 績效與品質數據 |
 | **張宇宏** | 文件與審查 |
-| **廖昱翔** | 影片與簡報 |
+| **廖育翔** | 影片與簡報 |
 
 分工細節見 [`presentations/2026-09_進度報告/05_分工表.md`](presentations/2026-09_進度報告/05_分工表.md)。
 
