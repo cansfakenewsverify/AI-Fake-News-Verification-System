@@ -90,6 +90,15 @@ class Settings(BaseSettings):
     # True 準確但每次貴 3~7 倍；點數吃緊時設 False（仍可正常判斷，只是少了即時引用）。
     USE_WEB_SEARCH: bool = True
 
+    # ── 公開上線護欄（FR-14、spec §5.7）──────────────────────────
+    # 每日 AI 呼叫次數上限（app/services/ai_budget.py）：達上限後，未命中快取的查證回
+    # 429 daily_cap_reached；快取命中不受影響。一天以 Asia/Taipei 00:00 為界；0 = 不限制。
+    DAILY_AI_CALL_CAP: int = 300
+    # 每個 IP 的查證請求上限（app/utils/rate_limit.py，429 rate_limited）；0 = 關閉該視窗。
+    # 預設刻意寬鬆：同一間教室／校園 Wi-Fi 的所有人對外是同一個 IP。
+    RATE_LIMIT_PER_MINUTE: int = 30
+    RATE_LIMIT_PER_HOUR: int = 200
+
     # ── Threads 查核機器人（延伸功能，預設關）──────────────────
     # 使用者在 Threads 上 @機器人帳號 回覆可疑貼文 → 機器人抓原貼文
     # 跑三層快取+AI 分析 → 自動回覆紅黃綠判定與查核來源。
@@ -132,6 +141,13 @@ class Settings(BaseSettings):
         if self.THREADS_MODE is not None:
             return self.THREADS_MODE
         return "live" if self.ENABLE_THREADS_BOT else "off"
+
+    @property
+    def use_supabase(self) -> bool:
+        """雲端資料層是否生效：STORAGE_BACKEND=supabase「且」有 SUPABASE_DB_URL；其餘一律本機檔案。
+        database_sql（engine）與 store_factory（三個 store）共用這個判斷，兩邊才不會一個上雲一個留本機。"""
+        backend = (self.STORAGE_BACKEND or "").strip().lower()
+        return backend == "supabase" and bool((self.SUPABASE_DB_URL or "").strip())
 
     @property
     def cors_origins_list(self) -> List[str]:

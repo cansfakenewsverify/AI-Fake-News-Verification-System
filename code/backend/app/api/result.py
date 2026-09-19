@@ -1,7 +1,7 @@
 """
 結果頁 API（FR-04、spec §5.3）：GET /api/result/{id}
 
-公開、無驗證；Cache-Control: max-age=5。資料來源 tasks.parquet（TaskStore）。
+公開、無驗證；Cache-Control: max-age=5。資料來源 tasks.parquet（TaskStore；STORAGE_BACKEND=supabase 時為 tasks 表）。
 - status != completed → result: null、share: null
 - failed → error: {code: "analysis_failed", message: 通用文案}（原始例外只進 log）
 - ai_unavailable → share: null
@@ -17,12 +17,14 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.api.analyze import MSG_ANALYSIS_FAILED, api_error, task_result_payload
-from app.services.task_store import TaskStore, input_type_from_task_type
+from app.services.store_factory import get_task_store
+from app.services.task_store import input_type_from_task_type
 from app.utils.share import build_share
 from app.utils.verdict import is_fallback
 
 router = APIRouter(prefix="/api/result", tags=["result"])
-task_store = TaskStore()
+# 本機 TaskStore 或 Supabase 的 PgTaskStore（store_factory）；測試以 monkeypatch 換掉這個名稱
+task_store = get_task_store()
 logger = logging.getLogger(__name__)
 
 TZ_TAIPEI = timezone(timedelta(hours=8))

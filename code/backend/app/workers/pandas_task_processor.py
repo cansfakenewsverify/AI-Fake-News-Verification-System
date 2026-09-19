@@ -23,8 +23,10 @@ from urllib.parse import urlparse
 from app.config import settings
 from app.services.task_store import TaskStore
 from app.services.pandas_store import PandasStore, DETERMINISTIC_LABEL_SOURCES
+from app.services.store_factory import get_knowledge_store, get_task_store
 from app.services.crawler import CrawlerService
-from app.services.ai_service import AIService
+from app.services.ai_budget import ai_budget
+from app.services.ai_service import AIService, _default_fallback_result
 from app.services.cache_service import CacheService
 from app.services.vector_service import VectorService
 from app.utils.labels import category_label
@@ -335,6 +337,19 @@ def _drop_same_domain_sources(sources: List[Any], input_url: Optional[str]) -> L
     return kept
 
 
+async def _call_ai_within_budget(call, *args, **kwargs) -> Dict[str, Any]:
+    """
+    FR-14：真的要呼叫 AI 前先扣每日額度（原子操作）。今天已達 DAILY_AI_CALL_CAP → 不呼叫，
+    回 fallback 結果（同 AI 不可用：不寫知識庫、Threads 機器人不回覆不標記，隔日自動恢復）。
+    網頁端在建立任務前就會先回 429（app/api/analyze.py）；這裡是同時送出與 Threads 機器人的最後防線。
+    """
+    if not await asyncio.to_thread(ai_budget.try_consume):
+        fallback = _default_fallback_result("daily AI call cap reached (DAILY_AI_CALL_CAP)")
+        fallback["error_kind"] = "quota"
+        return fallback
+    return await asyncio.to_thread(call, *args, **kwargs)
+
+
 def _complete(task_store: TaskStore, task_id: str, result: Dict[str, Any]) -> None:
     """update_task(status=completed) 同步寫 v2 欄位（spec §6.1，供 /api/result）。"""
     task_store.update_task(
@@ -350,6 +365,33 @@ def _complete(task_store: TaskStore, task_id: str, result: Dict[str, Any]) -> No
     )
 
 
+async def cache_would_hit(input_data: str, input_type: str) -> bool:
+    """
+    每日額度用完時的放行判斷（app/api/analyze.py）：只查快取，不爬、不呼叫 AI。
+    與主流程同一組查詢：L0 URL → L1 hash → 文字輸入的 L2 向量（以使用者原文比對）。
+    網址輸入的 L2 要先爬內文、圖片沒有快取層：額度用完時這兩種沒查過的輸入一律擋下。
+    （命中時 hit_count 會被這裡與主流程各加一次，只發生在額度用完的期間，可接受。）
+    """
+    if input_type == "image":
+        return False
+    pandas_store = get_knowledge_store() if settings.use_supabase else PandasStore()
+
+    def _usable(row: Optional[Dict[str, Any]]) -> bool:
+        return bool(row) and not is_fallback(row.get("ai_analysis"))
+
+    is_url = input_data.startswith("http://") or input_data.startswith("https://")
+    if is_url and _usable(await asyncio.to_thread(pandas_store.find_by_url, input_data)):
+        return True
+    content_hash = CacheService().generate_hash(input_data)
+    if _usable(await asyncio.to_thread(pandas_store.find_by_hash, content_hash)):
+        return True
+    if not is_url:
+        query_vector = await asyncio.to_thread(VectorService().vectorize_content, input_data)
+        if _usable(await asyncio.to_thread(pandas_store.find_similar_by_vector, query_vector)):
+            return True
+    return False
+
+
 async def process_analysis_task_async(
     task_id: str, input_data: str, input_type: str
 ) -> Dict[str, Any]:
@@ -361,8 +403,10 @@ async def process_analysis_task_async(
       Layer 3: AI 分析（全流程）
     """
     started = time.perf_counter()
-    task_store = TaskStore()
-    pandas_store = PandasStore()
+    # 本機：沿用模組層級的 TaskStore／PandasStore（測試以 monkeypatch 替換這兩個名稱）；
+    # STORAGE_BACKEND=supabase：store_factory 的 Postgres 單例（介面相同）
+    task_store = get_task_store() if settings.use_supabase else TaskStore()
+    pandas_store = get_knowledge_store() if settings.use_supabase else PandasStore()
     crawler = CrawlerService()
     ai_service = AIService()
     cache_service = CacheService()
@@ -417,7 +461,7 @@ async def process_analysis_task_async(
         if input_type == "image":
             if not os.path.isfile(input_data):
                 raise Exception("圖片檔案不存在")
-            ai_result = await asyncio.to_thread(ai_service.analyze_image, input_data)
+            ai_result = await _call_ai_within_budget(ai_service.analyze_image, input_data)
             try:
                 os.remove(input_data)
             except Exception:
@@ -475,7 +519,7 @@ async def process_analysis_task_async(
             content_vector = query_vector
 
         # ── Layer 3: AI 分析（全流程）─────────────────────────────────
-        ai_result = await asyncio.to_thread(
+        ai_result = await _call_ai_within_budget(
             ai_service.analyze_content, content, url=url, context={"similar_news": []}
         )
 

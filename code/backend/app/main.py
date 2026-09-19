@@ -21,8 +21,11 @@ from app.api import (
     threads as threads_api, result as result_api,
 )
 from app.database_sql import init_sql_db
+from app.services.ai_budget import ai_budget
 from app.services.ai_service import AIService
+from app.services.store_factory import storage_backend
 from app.utils.admin_auth import AdminAuthError, admin_auth_error_handler
+from app.utils.body_limit import BodySizeLimitMiddleware, PayloadTooLarge, payload_too_large_body
 
 APP_VERSION = "0.3.0"
 
@@ -45,10 +48,34 @@ def trending_scheduler_enabled() -> bool:
 async def lifespan(app: FastAPI):
     """Initialize on startup, cleanup on shutdown."""
     # Startup
-    init_sql_db()
+    if settings.use_supabase:
+        # 雲端資料層：連線／建表是阻塞的網路 IO → 丟執行緒。連不上（例如 Supabase 專案被暫停）
+        # 只記 log、服務照常啟動：資料庫恢復後端點自動恢復（store 第一次使用時會再確保資料表存在）。
+        # 錯誤訊息經 describe_db_error 處理，不含連線字串／密碼。
+        from app.database_sql import describe_db_error
+        logger.info("Storage backend: supabase (Postgres + pgvector)")
+        try:
+            await asyncio.to_thread(init_sql_db)
+        except Exception as exc:
+            logger.error(
+                "Supabase init failed; database endpoints will error until it is reachable: %s",
+                describe_db_error(exc),
+            )
+    else:
+        if (settings.STORAGE_BACKEND or "").strip().lower() == "supabase":
+            logger.warning("STORAGE_BACKEND=supabase but SUPABASE_DB_URL is empty: using local files")
+        init_sql_db()
 
     from app.utils.share import warn_if_public_base_url_missing
     warn_if_public_base_url_missing()
+
+    # 上線護欄：先讀一次今日 AI 次數，/health 的 daily_ai_calls 才有數字（讀不到只記 log，不擋啟動）
+    if ai_budget.enabled:
+        await asyncio.to_thread(ai_budget.calls_today)
+    logger.info(
+        "Launch guards: daily AI cap=%s, rate limit=%s/min %s/hour per IP (0 = off)",
+        settings.DAILY_AI_CALL_CAP, settings.RATE_LIMIT_PER_MINUTE, settings.RATE_LIMIT_PER_HOUR,
+    )
 
     scheduler = None
     # 兩個排程都預設關閉（省 AI 點數）：
@@ -124,6 +151,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# 請求大小上限（413 payload_too_large）。先加的在內層：CORS 包在外面，413 回應也會帶 CORS 標頭
+app.add_middleware(BodySizeLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -168,6 +197,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # 管理端點 401 unauthorized／403 admin_disabled → {detail, code}（spec §5.6、§5.7）
 app.add_exception_handler(AdminAuthError, admin_auth_error_handler)
+
+
+@app.exception_handler(PayloadTooLarge)
+async def payload_too_large_handler(request: Request, exc: PayloadTooLarge):
+    # 沒有 Content-Length 的超大請求：BodySizeLimitMiddleware 邊收邊數、超過時拋出
+    return JSONResponse(status_code=413, content=payload_too_large_body())
+
 
 # Routes
 app.include_router(analyze.router)
@@ -216,6 +252,8 @@ async def health_check():
             "enabled": trending_scheduler_enabled(),
             "interval_hours": int(settings.TRENDING_FETCH_INTERVAL_HOURS),
         },
-        # FR-14 每日 AI 額度護欄（P1）實作前固定 null
-        "daily_ai_calls": None,
+        # FR-14 每日 AI 額度護欄：{used, cap}；DAILY_AI_CALL_CAP=0（關閉）時為 null。不讀資料庫
+        "daily_ai_calls": ai_budget.snapshot(),
+        # local / supabase：雲端沒接上資料庫時會默默退回本機檔案，這裡看得出來
+        "storage_backend": storage_backend(),
     }

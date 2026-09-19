@@ -11,18 +11,18 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, constr
 
-from app.services.audit_store import AuditStore
-from app.services.pandas_store import PandasStore
-from app.services.task_store import TaskStore
+from app.services.store_factory import get_audit_store, get_knowledge_store, get_task_store
 from app.utils.admin_auth import require_admin
 from app.utils.labels import category_label
 from app.utils.verdict import frame_of, is_fallback
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
-task_store = TaskStore()
-audit_store = AuditStore()
-kb_store = PandasStore()
+# 本機檔案版或 Supabase 版（store_factory）；測試以 monkeypatch 換掉這三個名稱。
+# 端點是同步 def，阻塞 IO 由 FastAPI 的 threadpool 承擔。
+task_store = get_task_store()
+audit_store = get_audit_store()
+kb_store = get_knowledge_store()
 logger = logging.getLogger(__name__)
 
 ADMIN_LABEL_SOURCE = "admin"
@@ -77,6 +77,11 @@ def _mark_admin(result: Dict[str, Any]) -> Dict[str, Any]:
 
 def _mark_kb_row_admin(kb_id: str, result: Dict[str, Any]) -> bool:
     """知識庫列：label_source=admin、verified=True（參與向量命中），並寫入覆寫後的判定欄位。"""
+    apply_override = getattr(kb_store, "apply_admin_override", None)
+    if callable(apply_override):
+        # Supabase 版（PgKnowledgeStore）：同一套規則的單列 UPDATE，不整表重寫
+        verdict = {k: result[k] for k in _VERDICT_FIELDS if k in result}
+        return bool(apply_override(kb_id, verdict))
     df = kb_store.get_all_records()
     if df.empty or "id" not in df.columns:
         return False

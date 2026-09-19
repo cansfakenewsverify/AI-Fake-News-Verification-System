@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from fastapi import APIRouter, Query
 
-from app.services.pandas_store import PandasStore
+from app.services.store_factory import get_knowledge_store
 from app.utils.source_tier import (
     ALWAYS_TIER3_DOMAINS,
     COFACTS_DOMAINS,
@@ -23,7 +23,9 @@ from app.utils.source_tier import (
 )
 
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
-_store = PandasStore()
+# 本機 PandasStore 或 Supabase 的 PgKnowledgeStore（store_factory）；兩者 get_all_records() 回傳同形狀的
+# DataFrame。端點是同步 def（FastAPI 丟 threadpool），阻塞讀取不卡 event loop。
+_store = get_knowledge_store()
 
 RAW_CONTENT_MAX = 500
 _VERDICT_TYPES = ("RUMOR", "NOT_RUMOR")

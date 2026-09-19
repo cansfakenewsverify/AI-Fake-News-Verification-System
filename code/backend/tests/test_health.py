@@ -13,7 +13,7 @@ from app.config import settings
 from app.main import APP_VERSION, app
 from app.services.ai_service import AIService
 
-HEALTH_KEYS = {"status", "ai_available", "threads_mode", "scheduler", "daily_ai_calls"}
+HEALTH_KEYS = {"status", "ai_available", "threads_mode", "scheduler", "daily_ai_calls", "storage_backend"}
 _LOOPBACK = ("127.0.0.1", "::1", "localhost")
 
 
@@ -84,7 +84,8 @@ def test_health_has_scheduler_block(client, monkeypatch, base_settings, enabled,
     assert type(body["scheduler"]["interval_hours"]) is int
     assert body["ai_available"] is True
     assert body["threads_mode"] == "off"
-    assert body["daily_ai_calls"] is None
+    assert body["daily_ai_calls"] is None          # conftest：測試中每日上限預設關閉
+    assert body["storage_backend"] == "local"
     # 驗收 curl 比對的是原始 JSON 字串（compact 格式）
     expected = '"scheduler":{"enabled":%s,"interval_hours":%d}' % (str(enabled).lower(), hours)
     assert expected in resp.text

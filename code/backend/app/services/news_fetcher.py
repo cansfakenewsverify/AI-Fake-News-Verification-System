@@ -20,7 +20,7 @@ from app.services.search_service import SearchService
 from app.services.crawler import CrawlerService
 from app.services.ai_service import AIService
 from app.services.vector_service import VectorService
-from app.services.pandas_store import PandasStore
+from app.services.store_factory import get_knowledge_store
 from app.services.cache_service import CacheService
 from app.utils.verdict import is_fallback
 from app.utils.source_tier import tier_of, grade_sources
@@ -31,7 +31,8 @@ from app.database_sql import SessionLocal
 _crawler = CrawlerService()
 _ai = AIService()
 _vector = VectorService()
-_pandas_store = PandasStore()
+# 本機 PandasStore 或 Supabase 的 PgKnowledgeStore；測試以 monkeypatch 換掉 _pandas_store
+_pandas_store = get_knowledge_store()
 _cache_service = CacheService()
 
 

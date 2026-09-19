@@ -47,6 +47,7 @@ from typing import Any, Dict, Optional, Set, Tuple, Union
 
 from app.config import settings
 from app.services import threads_state
+from app.services.store_factory import get_task_store
 from app.services.task_store import TaskStore
 from app.services.threads_reply import (
     format_verdict_reply,
@@ -230,7 +231,13 @@ class PollContext:
         self.mode = mode
         self.origin = "threads_sim" if mode == "sim" else "threads"
         self.data_dir = data_dir
-        self.task_store = task_store or TaskStore(data_dir=str(data_dir) if data_dir is not None else "data")
+        if not task_store:
+            if data_dir is None and settings.use_supabase:
+                # 雲端資料層：任務與處理器（pandas_task_processor）寫同一個 Postgres tasks 表
+                task_store = get_task_store()
+            else:
+                task_store = TaskStore(data_dir=str(data_dir) if data_dir is not None else "data")
+        self.task_store = task_store
         self.bot_handle = _bot_handle()
         self.own_ids: Set[str] = set(own_ids or ())
         self.replied: Set[str] = {str(x) for x in state.get("replied_ids") or []}

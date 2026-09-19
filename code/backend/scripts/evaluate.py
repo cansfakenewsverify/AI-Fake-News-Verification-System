@@ -75,8 +75,9 @@ def run_predictions(df: pd.DataFrame, delay: float, resume: bool, seed_db: bool 
     ai = AIService()
     store = None
     if seed_db:
-        from app.services.pandas_store import PandasStore
-        store = PandasStore()
+        # 本機 PandasStore；STORAGE_BACKEND=supabase 時寫進雲端知識庫（介面相同）
+        from app.services.store_factory import get_knowledge_store
+        store = get_knowledge_store()
         print("[seed-db] 將把判對的案例寫入 knowledge_base 建立查證快取")
 
     done = {}
