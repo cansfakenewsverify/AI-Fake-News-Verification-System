@@ -1,9 +1,15 @@
 @echo off
-title AI Fake News System
+title AI Fake News System - local development
+
+:: Local development only. To USE the system, open the live site:
+::   https://fakenewsverify.vercel.app
+:: (frontend on Vercel, backend on Render, data on Supabase; see docs/rebuild/runbook_cloud_deploy.md)
+:: This script starts a local backend (8000) + React dev server (5173) that use LOCAL data files.
 
 echo.
 echo  ========================================
-echo   AI Fake News System - Starting...
+echo   AI Fake News System - local development
+echo   Live site: https://fakenewsverify.vercel.app
 echo  ========================================
 echo.
 
@@ -52,7 +58,8 @@ if not exist "%VENV%" (
 
 :: Sync backend deps
 echo [4/5] Syncing backend packages...
-"%VENV%\Scripts\pip" install -r "%BACKEND_DIR%\requirements.txt" -q --disable-pip-version-check
+:: "python -m pip" (not pip.exe): the .exe launchers stop working when the project folder is moved
+"%VENV%\Scripts\python.exe" -m pip install -r "%BACKEND_DIR%\requirements.txt" -q --disable-pip-version-check
 if errorlevel 1 (
     echo [ERROR] pip install failed
     pause & exit /b 1
@@ -92,9 +99,10 @@ start "" "http://localhost:5173"
 
 echo.
 echo  ========================================
-echo   Done!
+echo   Done! (local development copy, local data)
 echo   Main UI (React) : http://localhost:5173
 echo   Backend API     : http://localhost:8000/docs
+echo   Live site       : https://fakenewsverify.vercel.app
 echo  ========================================
 echo.
 echo  This window can be closed.

@@ -1,5 +1,7 @@
 #!/bin/bash
-# AI 假訊息查核系統 - 一鍵啟動（Linux / macOS）：後端 + React 主介面
+# AI 假訊息查核系統 - 本機開發用啟動腳本（Linux / macOS）：後端 + React 開發伺服器
+# 要「使用」系統請直接開正式網站：https://fakenewsverify.vercel.app
+# （前端 Vercel、後端 Render、資料 Supabase；見 docs/rebuild/runbook_cloud_deploy.md）
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/code/backend"
@@ -8,7 +10,8 @@ VENV="$BACKEND_DIR/venv"
 
 echo ""
 echo " ========================================"
-echo "  AI 假訊息查核系統 - 一鍵啟動"
+echo "  AI 假訊息查核系統 - 本機開發模式"
+echo "  正式網站：https://fakenewsverify.vercel.app"
 echo " ========================================"
 echo ""
 
@@ -31,7 +34,8 @@ if [ ! -d "$VENV" ]; then
     python3 -m venv "$VENV"
 fi
 echo "[後端] 安裝/更新套件..."
-"$VENV/bin/pip" install -r "$BACKEND_DIR/requirements.txt" -q --disable-pip-version-check
+# python -m pip（不用 bin/pip）：venv 裡的啟動器寫死了建立時的路徑，專案資料夾搬家後會失效
+"$VENV/bin/python" -m pip install -r "$BACKEND_DIR/requirements.txt" -q --disable-pip-version-check
 
 # ── 前端套件（首次）──────────────────────────────────────
 if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
@@ -50,7 +54,7 @@ run_term() {  # $1=title  $2=command
 
 # ── 啟動後端 ──────────────────────────────────────────────
 echo "[後端] 啟動 FastAPI (http://localhost:8000)..."
-run_term "後端 FastAPI" "cd '$BACKEND_DIR' && source venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+run_term "後端 FastAPI" "cd '$BACKEND_DIR' && venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 sleep 3
 
 # ── 啟動 React ────────────────────────────────────────────
@@ -68,7 +72,7 @@ fi
 
 echo ""
 echo " ========================================"
-echo "  啟動完成！"
+echo "  啟動完成！（本機開發用，資料是本機檔案）"
 echo "  主介面  ：$REACT"
 echo "  後端 API：http://localhost:8000/docs"
 echo " ========================================"
