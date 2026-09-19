@@ -73,6 +73,12 @@ class Settings(BaseSettings):
     # SQLite database (for trending records)
     SQLITE_URL: str = "sqlite:///./data/factcheck.db"
 
+    # 雲端資料層（Supabase Postgres）。STORAGE_BACKEND=local 時完全不使用（預設，本機檔案 Parquet + SQLite）。
+    # 刻意不叫 DATABASE_URL：主機平台常自動注入同名環境變數，會蓋掉 .env（見 CLAUDE.md 第 2 節命名慣例）。
+    # 值用 Supabase 專案頁 Connect > Session pooler 的 URI（IPv4 可連；Direct connection 只有 IPv6）。
+    SUPABASE_DB_URL: str = ""
+    STORAGE_BACKEND: str = "local"      # local | supabase
+
     # Trending fetch interval in hours
     TRENDING_FETCH_INTERVAL_HOURS: int = 6
 

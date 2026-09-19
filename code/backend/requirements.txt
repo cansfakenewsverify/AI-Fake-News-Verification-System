@@ -12,6 +12,8 @@ numpy>=1.26.0
 
 # SQL database (SQLite, for trending records)
 sqlalchemy>=2.0.0
+# PostgreSQL driver (only used when STORAGE_BACKEND=supabase)
+psycopg[binary]>=3.2
 
 # Scheduler
 apscheduler>=3.10.0
