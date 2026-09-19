@@ -4,7 +4,9 @@
 > **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
 > 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
 
-最後更新重點：新增 **pytest 單元測試（tests/，31 個）+ GitHub Actions CI**；React 前端現代簡約化
+最後更新重點（2026-09-19）：**後端上雲**——Render 免費主機 + Supabase Postgres（pgvector）+ Vercel 前端，
+資料層可切換（`STORAGE_BACKEND=local|supabase`），公開上線護欄（每日 AI 次數上限、每 IP 限速、請求大小上限），
+詳見第 12 節與 `docs/rebuild/runbook_cloud_deploy.md`。以下為較早的更新：新增 **pytest 單元測試 + GitHub Actions CI**；React 前端現代簡約化
 （token 精修＋幾何記號取代 emoji，深淺色保留）。先前：Threads 查核機器人（第 11 節）、
 修查核報導「同謠言兩種標籤」bug（第 9 節三道防線）、start.bat pip 修復、全專案優化、多 provider、評測 96%。
 
@@ -112,7 +114,8 @@ code/backend/
 ├── app/
 │   ├── main.py                 FastAPI 入口 + 排程器(opt-in)
 │   ├── config.py               所有設定(pydantic Settings，讀 .env；extra=ignore)
-│   ├── database_sql.py         SQLite engine（熱門記錄用）
+│   ├── database_sql.py         SQL engine：本機 SQLite；STORAGE_BACKEND=supabase 時為 Supabase Postgres
+│   │                            （Session pooler；錯誤訊息經 describe_db_error 遮蔽連線字串）
 │   ├── api/analyze.py          /api/analyze/{text,url,sync,image,task}
 │   ├── api/trending.py         /api/trending(熱門列表) /refresh
 │   ├── api/knowledge.py        /api/knowledge(瀏覽/搜尋快取) /stats
@@ -124,6 +127,11 @@ code/backend/
 │   │   ├── ai_service.py       ★多 provider AI(myai168 OpenAI/Claude + CGU AIR)、web_search、STT、embedding
 │   │   ├── crawler.py          爬蟲 + 影片字幕/whisper 逐字稿（阻塞 IO 皆走 to_thread）
 │   │   ├── pandas_store.py      三層快取 Parquet（向量搜尋已 numpy 矩陣化）
+│   │   ├── pg_store.py          ★雲端版 store：PgKnowledgeStore／PgTaskStore／PgAuditStore（Postgres + pgvector，
+│   │   │                        介面與行為對齊本機三個 store；向量層只比對 verified、門檻讀 settings）
+│   │   ├── store_factory.py     ★取得 store 的唯一入口（get_knowledge_store／get_task_store／get_audit_store），
+│   │   │                        依 settings.use_supabase 回傳本機檔案版或 Postgres 版
+│   │   ├── ai_budget.py         每日 AI 次數上限（FR-14）：計數存 SQL 表 ai_usage_daily、原子扣額度
 │   │   ├── task_store.py        非同步任務狀態 Parquet
 │   │   ├── audit_store.py       覆寫/回饋紀錄 Parquet
 │   │   ├── cache_service.py     內容 SHA-256 hash
@@ -132,6 +140,8 @@ code/backend/
 │   │   ├── search_service.py    RSS/Cofacts 聚合
 │   │   └── threads_service.py   Threads Graph API 客戶端 + 回覆格式化(500字上限)
 │   ├── utils/url_validator.py  過濾 AI 幻覺出的死連結
+│   ├── utils/rate_limit.py     每 IP 滑動視窗限速（429 rate_limited；行程內記憶體）
+│   ├── utils/body_limit.py     請求大小上限 middleware（413 payload_too_large；一般 1 MB、圖片 10 MB）
 │   ├── utils/source_tier.py    來源分級 Tier 1/2/3（只有 Tier 1/2 可當「查核來源」；共識 §9）
 │   └── workers/
 │       ├── pandas_task_processor.py  ★三層快取主流程（AI/embedding 走 to_thread 不卡 event loop）
@@ -139,6 +149,8 @@ code/backend/
 ├── scripts/
 │   ├── evaluate.py             ★評測(混淆矩陣/accuracy/FP/FN/--seed-db/--report-only)
 │   ├── check_db.py             看資料庫內容
+│   ├── check_supabase.py       檢查 Supabase 連線（只印 host／版本／pgvector／表名，不印連線字串）
+│   ├── migrate_to_supabase.py  本機 Parquet／SQLite → Supabase（預設 dry-run；--apply 覆寫、--insert-only 只補新列）
 │   ├── test_ai_provider.py     低成本測試 AI provider
 │   ├── test_threads_bot.py     Threads 機器人乾跑/憑證驗證(--live)/真跑一輪(--poll)
 │   ├── fix_factcheck_labels.py 一次性資料修復(查核報導錯標+HTML entities，冪等/--dry-run)
@@ -158,11 +170,14 @@ code/backend/
 │   └── eval_report.csv / eval_binary.csv / eval_errors.csv  評測結果
 ├── .env                        ★真實金鑰(在 backend 根目錄)，已 gitignore，勿提交
 ├── requirements.txt  .env.example  README.md  Dockerfile  docker-compose.yml
+├── requirements-prod.txt       雲端（Render）只裝執行需要的套件；app/ 新增 import 時兩個檔都要加
 └── venv/（本機建立，不進 git）
 code/frontend/                  React + Vite + Tailwind（深色查核儀設計：index.css token / mockData RISK_STYLES / App.jsx）
 fake-news-detector.html         ★單檔查核儀(根目錄)：設計token+環形儀表盤+掃描動畫+三視圖(檢測/熱門/資料庫)
                                 熱門/資料庫接 /api/trending、/api/knowledge(離線 fallback 範例)；
                                 檢測接 /api/analyze/sync(真 AI)，後端掛/AI 掛時 fallback 前端啟發式並標離線
+render.yaml                     Render Blueprint（後端雲端部署設定；金鑰只在 Render 後台輸入，檔案裡只有鍵名）
+.github/workflows/keepalive.yml 每 10 分鐘叫醒 Render 後端＋讀一次資料庫（網址取自 repository variable BACKEND_BASE_URL）
 start.bat / start.sh            一鍵啟動：後端 + React 主介面（查核儀不再自動開啟）
 _run_detector.bat               手動啟動查核儀靜態伺服器(8090)——離線備援要接後端時才用
 assets/                         PlantUML 圖 + confusion_matrix.png
@@ -201,8 +216,13 @@ npm run dev    # http://localhost:5173
 .\venv\Scripts\python scripts\test_threads_bot.py --live
 .\venv\Scripts\python scripts\test_threads_bot.py --poll
 
-# 單元測試（31 tests、離線、零點數；GitHub Actions 每次 push 也會自動跑）
+# 單元測試（離線、零點數；GitHub Actions 每次 push 也會自動跑）
 .\venv\Scripts\python -m pytest tests -q
+
+# 雲端資料層：檢查連線／搬資料（預設 dry-run）／對真的 Supabase 跑契約測試（拋棄式 schema，不碰 public）
+.\venv\Scripts\python scripts\check_supabase.py
+.\venv\Scripts\python scripts\migrate_to_supabase.py            # 加 --apply 才真的寫；--insert-only 不覆寫雲端既有列
+$env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q; Remove-Item Env:RUN_PG_TESTS
 ```
 
 API 文件：http://localhost:8000/docs
@@ -231,8 +251,13 @@ API 文件：http://localhost:8000/docs
 - runtime 檔（`*.db`、`*.parquet`）已 gitignore，不要提交。
 - commit 訊息結尾加 `Co-Authored-By: <model> <noreply@anthropic.com>`。
 - 大檔（如報告影片 895MB、plantuml jar）放雲端或 gitignore，不進 git（GitHub 單檔上限 100MB）。
-- PostgreSQL/Redis 死碼已全數移除（2026-07）：不要再引用 `app/database.py`、PG models、
-  pgvector 方法——它們不存在了；資料層就是 SQLite（熱門）+ Parquet（快取/任務/回饋）。
+- **資料層有兩種後端**（2026-09）：預設 `STORAGE_BACKEND=local` = SQLite（熱門）+ Parquet（快取/任務/回饋）；
+  `STORAGE_BACKEND=supabase` 且有 `SUPABASE_DB_URL` = Supabase Postgres + pgvector（`app/services/pg_store.py`）。
+  **取得 store 一律走 `app/services/store_factory.py`**，不要在新程式直接 `PandasStore()`／`TaskStore()`；
+  改 store 行為時本機版與 Postgres 版要一起改（`tests/test_pg_store.py` 是兩邊行為一致的契約測試）。
+  2026-07 移除的舊 PG 死碼（`app/database.py`、舊 PG models）與現在的 pg_store 無關，不要復活它們。
+- **新增公開端點時要想到上線護欄**：會花 AI 點數的走 `ai_budget`、會寫資料庫的加欄位長度上限與
+  `rate_limited_response(request, scope)`；測試中護欄預設關閉（`tests/conftest.py`）。
 - **單機單寫者假設**：Parquet/SQLite 沒有跨行程鎖。batch_verify_pending.py 與後端伺服器
   同時「寫入」有機率互相蓋掉（讀取無妨）。跑批次時避免同時做大量 /sync 查證。
 
@@ -317,6 +342,12 @@ API 文件：http://localhost:8000/docs
 - [x] D-05 資料清洗已套用（2026-09-16，負責人核准）：知識庫 218 筆（verified 128，113 筆帶向量）、
       熱門 24 筆全 verified；Google News 與徵才/小考題/TOP10/聊天碎片等髒資料已刪。
       向量快取恢復命中（只比對 verified=true）。審閱紀錄 `docs/test/clean_sources_review.md`
+- [x] 後端上雲（2026-09-19）：Supabase 資料層（pg_store + store_factory + migrate_to_supabase，已搬
+      knowledge_base 218／fact_check_records 24／tasks 37）；上線護欄（每日 AI 300 次、每 IP 30/分 200/時、
+      請求 1 MB／圖片 10 MB、圖片檔頭檢查、回饋欄位長度上限）；Render Blueprint + keepalive + runbook；
+      前端「連不到後端」橫幅自動重試。pytest 553 passed（另 24 個 Postgres 契約測試需 RUN_PG_TESTS=1）
+- [ ] 雲端上線收尾：負責人照 `docs/rebuild/runbook_cloud_deploy.md` Part A 建 Render 服務 →
+      `code/frontend/vercel.json` rewrite 主機換成 Render 網址 → `gh variable set BACKEND_BASE_URL`
 - [ ] Threads 機器人 live 測試：待申請 Meta App + token（乾跑/端點已驗證；權限要含 threads_manage_mentions）
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
@@ -370,4 +401,30 @@ API 實作依 2026-01 官方文件：https://developers.facebook.com/docs/thread
 
 ---
 
-*提醒：改完任何東西，回來更新本檔對應段落（特別是第 2、6、8、9 段）。*
+## 12. 雲端部署（Render + Supabase + Vercel）
+
+```
+瀏覽器 → https://fakenewsverify.vercel.app（Vercel：React 靜態檔）
+           └─ /api/* 由 vercel.json rewrite 同源代理 → Render 免費 web service（FastAPI，render.yaml）
+                                                         ├─ Supabase Postgres + pgvector（資料）
+                                                         └─ CGU AIR 閘道（AI / embedding）
+GitHub Actions keepalive（每 10 分鐘）→ Render /health + /api/knowledge/stats
+```
+
+- **金鑰只存在兩個地方**：本機 `code/backend/.env` 與 Render 後台的 Environment 頁
+  （`CGU_API_KEY`、`EMBED_API_KEY`、`SUPABASE_DB_URL`、`ADMIN_TOKEN`）。repo 是公開的，`render.yaml` 只有鍵名。
+  Supabase 只當資料庫用；不把 AI 金鑰放在 Supabase。
+- **操作手冊**：`docs/rebuild/runbook_cloud_deploy.md`（負責人 Part A、驗證 Part B、免費方案限制、退回本機 + tunnel 的方法）。
+- **確認雲端真的接上資料庫**：`/health` 的 `"storage_backend":"supabase"`。`SUPABASE_DB_URL` 沒設時後端會
+  默默退回暫時硬碟上的本機檔案（看起來正常，但主機一休眠資料就消失）。
+- **免費方案行為**：Render 15 分鐘沒流量休眠、喚醒約 1 分鐘（前端橫幅會自動重試）；硬碟是暫時的；
+  Supabase 免費專案 7 天沒活動會被暫停（keepalive 會讀資料庫）。
+- **上線護欄數值寫在 `render.yaml`**（後台手動改的值，下次 Blueprint 同步會被檔案蓋回去）：
+  `DAILY_AI_CALL_CAP=300`、`RATE_LIMIT_PER_MINUTE=30`、`RATE_LIMIT_PER_HOUR=200`；用量看 `/health.daily_ai_calls`。
+- **雲端刻意關閉**：`ENABLE_SCHEDULER=false`、`USE_WEB_SEARCH=false`、`THREADS_MODE=off`
+  （Threads 機器人的狀態檔還是本機檔案，雲端重啟會忘記回過誰 → 只在本機跑）。
+- 只有 `code/backend` 底下的變更會觸發 Render 自動部署（`rootDir`）。
+
+---
+
+*提醒：改完任何東西，回來更新本檔對應段落（特別是第 2、6、8、9、12 段）。*
