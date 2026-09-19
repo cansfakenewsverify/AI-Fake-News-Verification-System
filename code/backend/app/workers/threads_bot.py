@@ -6,20 +6,38 @@ Threads 查核機器人 — 輪詢 mentions → 三層快取＋AI 分析 → 自
      - replied_to.id 是機器人自己發過的回覆（threads_replies.jsonl 的 reply_id）→ self（零 API 成本）
      - 讀原貼文（get_post）：作者是機器人 → self；去 @ 後 ≥8 字 → text；
        IMAGE／VIDEO／CAROUSEL_ALBUM 且文字 <8 字 → media_only；其餘文字太短 → too_short；
-       HTTP 4xx（429 除外）→ unreadable；429／5xx／連線失敗 → transient（不標記，下輪重試）
+       HTTP 401／403／404 → unreadable；其他未列入的 4xx（400 等）→ failed；
+       429／5xx／連線失敗 → transient（不標記，下輪重試；429 另設 backoff 並中止本輪）
      - 沒有 replied_to：用 mention 本文，≥8 字 → text，否則 too_short
      - text 去掉網址後 <8 字且含 http(s) → input_type="url"（走 FR-02）
      永不以 media_type == "TEXT" 判斷；絕不把「@bot 幫我查」這種請求句送進 AI。
-  2. self → 只標記；media_only／unreadable／too_short → 回固定文案、標記、寫 jsonl。
+  2. self → 只標記；media_only／unreadable／too_short → 回固定文案、標記、寫 jsonl；
+     failed → 寫 state.failed（終態）、log 全文，不回覆、不重試、不進 replied_ids（spec §7.10 保守路徑）。
   3. text → 建任務 → process_analysis_task_async → AI 不可用（fallback）→ 不回覆、不標記（下輪補回）
-     → format_verdict_reply → reply_to → 成功才標記。
+     → format_verdict_reply → 兩段式發佈 → 成功才標記。
 
-防重複回覆：reply_to 成功後「先」原子寫 state（replied_ids），再寫 jsonl／任務欄位；
+兩段式發佈＋狀態檢查（spec §7.6；T-12）：create_reply_container → 先原子寫
+state.pending_publish[mention_id] → wait_container（每 5 秒、最多 60 秒）→ FINISHED 才 publish_container。
+  - ERROR／EXPIRED：不 publish、刪 pending、failed.count += 1；第 1 次下輪重試（重建 container），
+    第 2 次仍失敗 → 放棄（failed.final，不再重跑 AI）。TIMEOUT（60 秒仍 IN_PROGRESS）：同樣計一次失敗，
+    但保留 pending，下輪先查同一 container。
+  - publish 暫時失敗（5xx／逾時）或行程在 publish 前被砍：pending 保留，下輪開頭 _resume_pending()
+    對「同一 container」補發——不重跑 AI、不重建 container；狀態已是 PUBLISHED（上輪其實發成功）→ 只補標記。
+
+錯誤分流（spec §7.10；T-13；以 HTTP 狀態碼為主，error.code 只記 log）：
+  - 429（任何端點）→ backoff_until = now + min(60, poll_interval × 2^n) 分鐘、backoff_n += 1、
+    本輪中止、該 mention 不標記；成功一輪後 backoff_n 歸零、backoff_until 清空
+  - 401（mentions 與發佈端點）→ last_error=token_invalid、backoff 60 分鐘、本輪中止
+  - 其他未列入的 4xx → 該 mention 標 failed、不回覆、不重試；
+    body 含 THREADS_API__LINK_LIMIT_EXCEEDED → 去掉「查核來源」行重送一次
+  - 5xx／逾時 → 該筆不標記、下輪重試；連續 3 輪 → backoff 15 分鐘
+
+防重複回覆：publish 成功後「先」原子寫 state（replied_ids，同時清 pending_publish），再寫 jsonl／任務欄位；
 中途 crash 只可能漏記 jsonl，不會讓同一則 mention 在下輪再被回覆。
 
 輪詢 run_threads_poll()（spec §7.4）：
   - mode off 或 client 不可用 → {"started": False}；token 過期（invalid_reason）同時寫 state.last_error
-  - backoff_until 未到 → {"skipped": "backoff"}
+  - backoff_until 未到 → {"started": False, "skipped": "backoff", backoff_until, last_error}（不打 API、不寫 state）
   - 互斥：模組級 asyncio.Lock（同行程）＋ data/threads_poll.lock（跨行程，O_CREAT|O_EXCL，
     內容 pid／時間；超過 15 分鐘視為殘留可接手）；被佔用 → 丟 PollInProgress（API 對應 409）
   - since = max(last_since − 120, 1688540400)；mentions 依 timestamp 升冪逐則處理
@@ -55,7 +73,16 @@ from app.services.threads_reply import (
     reply_media_only,
     reply_too_short,
 )
-from app.services.threads_service import ThreadsApiError, get_threads_client
+from app.services.threads_service import (
+    CONTAINER_ERROR,
+    CONTAINER_EXPIRED,
+    CONTAINER_FINISHED,
+    CONTAINER_PUBLISHED,
+    CONTAINER_TIMEOUT,
+    ThreadsApiError,
+    get_threads_client,
+    is_link_limit_error,
+)
 from app.services.threads_sim import _to_epoch
 from app.utils.verdict import frame_of, is_fallback
 
@@ -82,6 +109,7 @@ KIND_MEDIA_ONLY = "media_only"
 KIND_UNREADABLE = "unreadable"
 KIND_TOO_SHORT = "too_short"
 KIND_TRANSIENT = "transient"      # 讀原貼文遇 429／5xx／連線失敗：不標記，下輪重試
+KIND_FAILED = "failed"            # 讀原貼文遇未列入的 4xx（400 等）：標 failed、不回覆、不重試
 
 OUT_REPLIED = "replied"           # 已回覆判定（走過 AI 管線）
 OUT_FIXED_REPLY = "fixed_reply"   # 已回覆固定文案（不經 AI）
@@ -89,6 +117,24 @@ OUT_SELF = "self"                 # 自我貼文：標記、不回覆
 OUT_AI_UNAVAILABLE = "ai_unavailable"
 OUT_DEFERRED = "deferred"         # 本輪 AI 已不可用，其餘文字 mention 留待下輪
 OUT_ERROR = "error"               # 未標記，下輪重試
+OUT_FAILED = "failed"             # 已標 failed（終態）：未回覆、不再重試
+
+# ── 錯誤分流（spec §7.10；以 HTTP 狀態碼為主）────────────────────────
+ERR_RATE_LIMITED = "rate_limited"     # 429 → backoff、本輪中止
+ERR_TOKEN_INVALID = "token_invalid"   # 401（mentions／發佈端點）→ backoff 60 分、本輪中止
+ERR_CLIENT = "client_error"           # 其他未列入的 4xx → 該 mention 標 failed（保守路徑）
+ERR_TRANSIENT = "transient"           # 5xx／逾時／連線失敗／拿不到狀態碼 → 不標記，下輪重試
+
+# 讀原貼文時視為「讀不到」的狀態碼（§7.5：非 Tester、私人帳號、權限）→ reply_cannot_read
+UNREADABLE_STATUSES = (401, 403, 404)
+
+TOKEN_INVALID_BACKOFF_MINUTES = 60    # §7.10「token 失效」
+TRANSIENT_BACKOFF_MINUTES = 15        # §7.10「5xx／逾時」：連續 3 輪
+TRANSIENT_ROUNDS_LIMIT = 3
+PUBLISH_MAX_FAILURES = 2              # §7.6：container 失敗第 1 次下輪重試一次，第 2 次放棄
+
+LAST_ERROR_MENTION_FAILED = "mention_failed"
+LAST_ERROR_TRANSIENT = "transient_error"
 
 _FIXED_REPLIES = {
     KIND_MEDIA_ONLY: reply_media_only,
@@ -155,6 +201,23 @@ def _post_ref(post: Dict[str, Any], fallback_id: Optional[str] = None) -> Dict[s
     }
 
 
+def classify_status(status: Any) -> str:
+    """HTTP 狀態碼 → ERR_*（spec §7.10）。拿不到狀態碼（連線失敗、逾時、非 API 例外）視為暫時性。"""
+    if isinstance(status, bool) or not isinstance(status, int):
+        return ERR_TRANSIENT
+    if status == 429:
+        return ERR_RATE_LIMITED
+    if status == 401:
+        return ERR_TOKEN_INVALID
+    if 400 <= status < 500:
+        return ERR_CLIENT
+    return ERR_TRANSIENT
+
+
+def classify_api_error(exc: BaseException) -> str:
+    return classify_status(getattr(exc, "status", None))
+
+
 async def resolve_target(
     client: Any,
     m: Dict[str, Any],
@@ -164,7 +227,9 @@ async def resolve_target(
     bot_handle: Optional[str] = None,
 ) -> Tuple[str, Optional[str], str, Dict[str, Any]]:
     """回傳 (kind, text, input_type, target_post)；text 只有 kind == "text" 時非 None
-    （input_type == "url" 時 text 為網址本身）。target_post 描述「被查核的貼文」。"""
+    （input_type == "url" 時 text 為網址本身）。target_post 描述「被查核的貼文」；
+    讀原貼文失敗（kind 為 transient／failed）時另帶 error_status（HTTP 狀態碼或 None），
+    讓 handle_mention 依 spec §7.10 分流（429 → backoff）。"""
     bot = _bot_handle(bot_handle)
     parent_id = _replied_to_id(m)
 
@@ -183,14 +248,17 @@ async def resolve_target(
                 "get_post failed mention=%s post=%s status=%s body=%s",
                 _esc(m.get("id")), _esc(parent_id), status, _esc(e.body),
             )
-            if isinstance(status, int) and 400 <= status < 500 and status != 429:
+            if status in UNREADABLE_STATUSES:
                 return KIND_UNREADABLE, None, "text", {"id": parent_id}
-            return KIND_TRANSIENT, None, "text", {"id": parent_id}
+            if classify_status(status) == ERR_CLIENT:
+                # 未列入的 4xx（400 等）：保守路徑，標 failed、不回覆、不重試（§7.10；不是「讀不到」）
+                return KIND_FAILED, None, "text", {"id": parent_id, "error_status": status}
+            return KIND_TRANSIENT, None, "text", {"id": parent_id, "error_status": status}
         except Exception as e:  # 連線／解析失敗等非 API 錯誤：當作暫時性，下輪重試
             logger.warning(
                 "get_post error mention=%s post=%s: %s", _esc(m.get("id")), _esc(parent_id), _esc(e),
             )
-            return KIND_TRANSIENT, None, "text", {"id": parent_id}
+            return KIND_TRANSIENT, None, "text", {"id": parent_id, "error_status": None}
 
         post = post if isinstance(post, dict) else {}
         target = _post_ref(post, parent_id)
@@ -244,21 +312,158 @@ class PollContext:
         self.analyzed_replies = 0          # 本輪走過 AI 並已回覆的則數
         self.analysis_blocked = False      # 本輪已遇 AI 不可用：其餘文字 mention 不再送 AI
         self.last_error: Optional[str] = None
-        try:
-            self._reply_takes_result_id = "result_id" in inspect.signature(client.reply_to).parameters
-        except (TypeError, ValueError):
-            self._reply_takes_result_id = False
+        # §7.10 分流的本輪旗標；_finish_poll 依此設定／歸零 backoff
+        self.rate_limited = False          # 本輪遇過 429
+        self.token_invalid = False         # 本輪 mentions／發佈端點遇過 401
+        self.transient = False             # 本輪遇過 5xx／逾時／連線失敗
+        self.abort: Optional[str] = None   # 非 None → 本輪中止（rate_limited／token_invalid）
+        self.counted: Set[str] = set()     # 本輪已計入 stats.checked 的 mention（補發＋正常流程不重複計）
+        # 兩段式發佈（spec §7.6）：客戶端提供三個原子操作才走；只有 reply_to 的舊式客戶端退回單次呼叫
+        self.two_step = all(
+            callable(getattr(client, name, None))
+            for name in ("create_reply_container", "wait_container", "publish_container")
+        )
+        self._reply_takes_result_id = _accepts_kwarg(getattr(client, "reply_to", None), "result_id")
+        self._create_takes_result_id = _accepts_kwarg(
+            getattr(client, "create_reply_container", None), "result_id",
+        )
+
+    # ── state 區塊 ───────────────────────────────────────────────
+    def _bucket(self, key: str) -> dict:
+        bucket = self.state.get(key)
+        if not isinstance(bucket, dict):
+            bucket = self.state[key] = {}
+        return bucket
+
+    async def _save(self) -> None:
+        await asyncio.to_thread(threads_state.save_state, self.state, self.data_dir)
+
+    def failed_entry(self, mention_id: str) -> dict:
+        """state.failed[mention_id] 的正規化副本；相容舊格式的整數（失敗次數）。"""
+        raw = self._bucket("failed").get(mention_id)
+        if isinstance(raw, dict):
+            entry = dict(raw)
+            entry["count"] = _as_int(entry.get("count"))
+            entry["final"] = bool(entry.get("final"))
+            return entry
+        if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+            return {"count": int(raw), "final": int(raw) >= PUBLISH_MAX_FAILURES}
+        return {"count": 0, "final": False}
+
+    def is_failed_final(self, mention_id: str) -> bool:
+        return mention_id in self._bucket("failed") and self.failed_entry(mention_id)["final"]
+
+    def is_done(self, mention_id: str) -> bool:
+        """已回覆／已標記，或已標 failed（終態）：之後的輪次都不再處理，也不擋 since 游標。"""
+        return mention_id in self.replied or self.is_failed_final(mention_id)
+
+    # ── §7.10 分流 ───────────────────────────────────────────────
+    def note_error(self, kind: str) -> None:
+        """記下本輪遇到的 API 錯誤種類；429／401 會讓本輪中止（其餘 mention 留待 backoff 之後）。"""
+        if kind == ERR_RATE_LIMITED:
+            self.rate_limited = True
+            self.abort = self.abort or ERR_RATE_LIMITED
+            self.last_error = ERR_RATE_LIMITED
+        elif kind == ERR_TOKEN_INVALID:
+            self.token_invalid = True
+            self.abort = self.abort or ERR_TOKEN_INVALID
+            self.last_error = ERR_TOKEN_INVALID
+        elif kind == ERR_TRANSIENT:
+            self.transient = True
+            self.last_error = self.last_error or LAST_ERROR_TRANSIENT
 
     async def mark(self, mention_id: str, *, analyzed: bool = False) -> None:
-        """標記已處理並立即原子寫 state；analyzed=True 時計入每日回覆數。"""
+        """標記已處理並立即原子寫 state；analyzed=True 時計入每日回覆數。
+        同一次寫入一併清掉該 mention 的 pending_publish 與先前的失敗計數。"""
         if mention_id not in self.replied:
             self.replied.add(mention_id)
             self.state.setdefault("replied_ids", []).append(mention_id)
+        self._bucket("pending_publish").pop(mention_id, None)
+        self._bucket("failed").pop(mention_id, None)
         if analyzed:
             daily = _daily(self.state)
             daily["replies"] = int(daily.get("replies") or 0) + 1
             self.analyzed_replies += 1
-        await asyncio.to_thread(threads_state.save_state, self.state, self.data_dir)
+        await self._save()
+
+    async def set_pending(self, mention_id: str, entry: dict) -> None:
+        """container 建好、publish 之前先原子寫 state（spec §7.6）：中途失敗或被砍，下輪對同一 container 補發。"""
+        self._bucket("pending_publish")[mention_id] = entry
+        await self._save()
+
+    async def drop_pending(self, mention_id: str) -> None:
+        if self._bucket("pending_publish").pop(mention_id, None) is not None:
+            await self._save()
+
+    async def mark_failed(self, mention_id: str, *, stage: str, status: Any = None,
+                          reason: Optional[str] = None) -> str:
+        """保守路徑（spec §7.10「未知 4xx」）：標 failed（終態）、不回覆、不重試；不進 replied_ids。"""
+        entry = self.failed_entry(mention_id)
+        entry.update({
+            "count": entry["count"] + 1,
+            "final": True,
+            "reason": reason or (f"http_{status}" if status is not None else "client_error"),
+            "stage": stage,
+            "status": status,
+            "at": datetime.now(timezone.utc).isoformat(),
+        })
+        self._bucket("failed")[mention_id] = entry
+        self._bucket("pending_publish").pop(mention_id, None)
+        if not self.abort:
+            self.last_error = self.last_error or LAST_ERROR_MENTION_FAILED
+        await self._save()
+        logger.error(
+            "mention marked failed (no reply, no retry) mention=%s stage=%s status=%s reason=%s",
+            _esc(mention_id), stage, status, _esc(entry["reason"]),
+        )
+        return OUT_FAILED
+
+    async def publish_failed(self, mention_id: str, reason: str, *, keep_pending: bool = False) -> str:
+        """container ERROR／EXPIRED／TIMEOUT（spec §7.6）：failed.count += 1、記 last_error。
+        第 1 次 → 未標記、下輪重試一次（OUT_ERROR）；第 2 次 → 放棄（failed.final，OUT_FAILED），
+        不再重跑 AI，也不進 replied_ids（沒有回覆過）。"""
+        entry = self.failed_entry(mention_id)
+        count = entry["count"] + 1
+        final = count >= PUBLISH_MAX_FAILURES
+        entry.update({
+            "count": count, "final": final, "reason": reason, "stage": "publish",
+            "status": None, "at": datetime.now(timezone.utc).isoformat(),
+        })
+        self._bucket("failed")[mention_id] = entry
+        if final or not keep_pending:
+            self._bucket("pending_publish").pop(mention_id, None)
+        if not self.abort:
+            # 與其他單則錯誤一致：保留本輪第一個錯誤（429／401 會中止本輪，永遠優先）
+            self.last_error = self.last_error or reason
+        await self._save()
+        if final:
+            logger.error(
+                "publish gave up after %s failures mention=%s reason=%s (not replied, not retried)",
+                count, _esc(mention_id), reason,
+            )
+            return OUT_FAILED
+        logger.warning(
+            "publish failed mention=%s reason=%s (failure %s/%s): retry once next poll",
+            _esc(mention_id), reason, count, PUBLISH_MAX_FAILURES,
+        )
+        return OUT_ERROR
+
+    async def api_error_outcome(self, exc: BaseException, mention_id: str, stage: str) -> str:
+        """發佈相關 API 錯誤的共用分流：未列入的 4xx → 標 failed；429／401／暫時性 → 記旗標、不標記。"""
+        kind = classify_api_error(exc)
+        if kind == ERR_CLIENT:
+            return await self.mark_failed(mention_id, stage=stage, status=getattr(exc, "status", None))
+        self.note_error(kind)
+        return OUT_ERROR
+
+
+def _accepts_kwarg(func: Any, name: str) -> bool:
+    if func is None:
+        return False
+    try:
+        return name in inspect.signature(func).parameters
+    except (TypeError, ValueError):
+        return False
 
 
 def _daily(state: dict) -> dict:
@@ -284,42 +489,49 @@ def _preview(text: Any) -> str:
     return str(text or "").strip()[:PREVIEW_MAX]
 
 
-async def _send_reply(ctx: PollContext, mention_id: str, text: str, result_id: Optional[str]) -> Optional[str]:
-    kwargs = {"result_id": result_id} if ctx._reply_takes_result_id else {}
-    try:
-        reply_id = await asyncio.to_thread(ctx.client.reply_to, mention_id, text, **kwargs)
-    except ThreadsApiError as e:
-        logger.warning(
-            "reply_to failed mention=%s status=%s body=%s", _esc(mention_id), e.status, _esc(e.body),
-        )
-        return None
-    except Exception as e:
-        logger.warning("reply_to error mention=%s: %s", _esc(mention_id), _esc(e))
-        return None
-    if not reply_id:
-        logger.warning("reply_to returned no id mention=%s", _esc(mention_id))
-        return None
-    logger.info("replied mention=%s reply_id=%s text=%s", _esc(mention_id), _esc(reply_id), _esc(text))
-    return str(reply_id)
+# ── 發佈（spec §7.6 兩段式＋狀態檢查；§7.10 分流）────────────────────────
+class _LinkLimitExceeded(Exception):
+    """API 回 THREADS_API__LINK_LIMIT_EXCEEDED 且還有「去掉查核來源行」的版本可重送（只重送一次）。"""
 
 
-async def _record_reply(
-    ctx: PollContext, mention_id: str, target: Dict[str, Any], reply_id: str, reply_text: str,
-    result: Optional[Dict[str, Any]] = None, result_id: Optional[str] = None, frame_type: str = "yellow",
-) -> None:
-    """寫 threads_replies.jsonl（失敗只記 log：state 已先寫，不會造成重複回覆）。"""
-    ctx.own_ids.add(reply_id)
-    row = {
-        "mention_id": mention_id,
+def _reply_entry(
+    ctx: PollContext, text: str, target: Dict[str, Any], *,
+    result: Optional[Dict[str, Any]] = None, result_id: Optional[str] = None,
+    frame_type: str = "yellow", analyzed: bool = False,
+) -> Dict[str, Any]:
+    """一則待發佈的回覆：也是 state.pending_publish[mention_id] 的內容——下輪補發時不重跑 AI，
+    所以回覆全文與 threads_replies.jsonl 要用的欄位都放在這裡。"""
+    target_text = target.get("text")
+    return {
+        "container_id": None,
+        "created_at": None,
         "mode": ctx.mode,
+        "reply_text": text,
         "result_id": result_id,
+        "analyzed": bool(analyzed),          # True = 經 AI 的判定回覆（計入每輪／每日上限）
         "frame_type": frame_type,
         "risk_type": (result or {}).get("risk_type"),
         "username": target.get("username"),
-        "source_text_preview": _preview(target.get("text")) if target.get("text") is not None else None,
-        "reply_text": reply_text,
-        "reply_id": reply_id,
         "permalink": target.get("permalink"),
+        "source_text_preview": _preview(target_text) if target_text is not None else None,
+    }
+
+
+async def _record_reply(ctx: PollContext, mention_id: str, entry: Dict[str, Any], reply_id: Optional[str]) -> None:
+    """寫 threads_replies.jsonl（失敗只記 log：state 已先寫，不會造成重複回覆）。"""
+    if reply_id:
+        ctx.own_ids.add(reply_id)
+    row = {
+        "mention_id": mention_id,
+        "mode": ctx.mode,
+        "result_id": entry.get("result_id"),
+        "frame_type": entry.get("frame_type") or "yellow",
+        "risk_type": entry.get("risk_type"),
+        "username": entry.get("username"),
+        "source_text_preview": entry.get("source_text_preview"),
+        "reply_text": entry.get("reply_text"),
+        "reply_id": reply_id,
+        "permalink": entry.get("permalink"),
     }
     try:
         await asyncio.to_thread(threads_state.append_reply_record, row, ctx.data_dir)
@@ -327,9 +539,168 @@ async def _record_reply(
         logger.error("append_reply_record failed mention=%s: %s", _esc(mention_id), _esc(e))
 
 
+async def _complete_reply(ctx: PollContext, mention_id: str, entry: Dict[str, Any], reply_id: Optional[str]) -> str:
+    """發佈成功後的記帳：「先」原子寫 state（標記＋清 pending_publish），再寫 jsonl／任務欄位。"""
+    analyzed = bool(entry.get("analyzed"))
+    await ctx.mark(mention_id, analyzed=analyzed)
+    logger.info(
+        "replied mention=%s reply_id=%s text=%s", _esc(mention_id), _esc(reply_id), _esc(entry.get("reply_text")),
+    )
+    await _record_reply(ctx, mention_id, entry, reply_id)
+    result_id = entry.get("result_id")
+    if result_id and reply_id:
+        try:
+            await asyncio.to_thread(ctx.task_store.update_task, result_id, threads_reply_id=reply_id)
+        except Exception as e:
+            logger.error("update_task threads_reply_id failed task=%s: %s", result_id, _esc(e))
+    return OUT_REPLIED if analyzed else OUT_FIXED_REPLY
+
+
+async def _publish_pending(
+    ctx: PollContext, mention_id: str, entry: Dict[str, Any], *, allow_link_retry: bool = False,
+) -> str:
+    """第二、三步：wait_container → status=FINISHED 才 publish_container → 記帳。
+    entry 已寫在 state.pending_publish（剛建好的 container，或上一輪留下來待補發的）。"""
+    container_id = str(entry.get("container_id"))
+    try:
+        status = await asyncio.to_thread(ctx.client.wait_container, container_id)
+    except ThreadsApiError as e:
+        logger.warning(
+            "container status failed mention=%s container=%s status=%s body=%s",
+            _esc(mention_id), _esc(container_id), e.status, _esc(e.body),
+        )
+        kind = classify_api_error(e)
+        if kind == ERR_CLIENT:
+            # container 查不到（已被清掉或 id 無效）：視同 EXPIRED，計一次發佈失敗
+            return await ctx.publish_failed(mention_id, "container_unreadable")
+        ctx.note_error(kind)
+        return OUT_ERROR      # pending 保留：backoff 之後／下輪對同一 container 再試
+    except Exception as e:
+        logger.warning("container status error mention=%s container=%s: %s",
+                       _esc(mention_id), _esc(container_id), _esc(e))
+        ctx.note_error(ERR_TRANSIENT)
+        return OUT_ERROR
+
+    status = str(status or "").strip().upper()
+    reply_id: Optional[str] = None
+    if status == CONTAINER_PUBLISHED:
+        # 上一輪 publish 其實已成功（回應遺失，或寫 state 前行程被砍）：只補標記，絕不再發一次
+        logger.warning(
+            "container already published mention=%s container=%s: marking as replied without publishing again",
+            _esc(mention_id), _esc(container_id),
+        )
+    elif status == CONTAINER_FINISHED:
+        try:
+            published = await asyncio.to_thread(ctx.client.publish_container, container_id)
+        except ThreadsApiError as e:
+            logger.warning(
+                "publish failed mention=%s container=%s status=%s body=%s",
+                _esc(mention_id), _esc(container_id), e.status, _esc(e.body),
+            )
+            if allow_link_retry and is_link_limit_error(e):
+                await ctx.drop_pending(mention_id)
+                raise _LinkLimitExceeded() from None
+            kind = classify_api_error(e)
+            if kind == ERR_CLIENT:
+                return await ctx.mark_failed(mention_id, stage="publish", status=e.status)
+            ctx.note_error(kind)
+            return OUT_ERROR  # pending 保留：下輪對同一 container 補發（不重建、不重跑 AI）
+        except Exception as e:
+            logger.warning("publish error mention=%s container=%s: %s",
+                           _esc(mention_id), _esc(container_id), _esc(e))
+            ctx.note_error(ERR_TRANSIENT)
+            return OUT_ERROR
+        if not published:
+            # 2xx 但沒有 id：不確定是否已發佈 → 保留 pending，下輪查狀態（PUBLISHED 就只補標記）
+            logger.warning("publish returned no id mention=%s container=%s", _esc(mention_id), _esc(container_id))
+            ctx.note_error(ERR_TRANSIENT)
+            return OUT_ERROR
+        reply_id = str(published)
+    else:
+        reason = {
+            CONTAINER_ERROR: "container_error",
+            CONTAINER_EXPIRED: "container_expired",
+        }.get(status, "container_timeout")
+        # TIMEOUT：container 可能稍後才 FINISHED → 保留 pending，下輪先查同一個；ERROR／EXPIRED 已無法發佈
+        return await ctx.publish_failed(mention_id, reason, keep_pending=(status == CONTAINER_TIMEOUT))
+    return await _complete_reply(ctx, mention_id, entry, reply_id)
+
+
+async def _create_and_publish(
+    ctx: PollContext, mention_id: str, entry: Dict[str, Any], text: str, *, allow_link_retry: bool,
+) -> str:
+    """第一步：建 container → publish 之前先原子寫 state.pending_publish → 交給 _publish_pending。"""
+    kwargs = {"result_id": entry.get("result_id")} if ctx._create_takes_result_id else {}
+    try:
+        container_id = await asyncio.to_thread(ctx.client.create_reply_container, mention_id, text, **kwargs)
+    except ThreadsApiError as e:
+        logger.warning(
+            "create container failed mention=%s status=%s body=%s", _esc(mention_id), e.status, _esc(e.body),
+        )
+        if allow_link_retry and is_link_limit_error(e):
+            raise _LinkLimitExceeded() from None
+        return await ctx.api_error_outcome(e, mention_id, "create_container")
+    except Exception as e:
+        logger.warning("create container error mention=%s: %s", _esc(mention_id), _esc(e))
+        ctx.note_error(ERR_TRANSIENT)
+        return OUT_ERROR
+    if not container_id:
+        logger.warning("create container returned no id mention=%s", _esc(mention_id))
+        ctx.note_error(ERR_TRANSIENT)
+        return OUT_ERROR
+    pending = dict(
+        entry, container_id=str(container_id), reply_text=text,
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
+    await ctx.set_pending(mention_id, pending)
+    return await _publish_pending(ctx, mention_id, pending, allow_link_retry=allow_link_retry)
+
+
+async def _legacy_reply(
+    ctx: PollContext, mention_id: str, entry: Dict[str, Any], text: str, *, allow_link_retry: bool,
+) -> str:
+    """只有 reply_to() 的舊式客戶端：單次呼叫（無法在 publish 前寫 pending）；錯誤分流相同。"""
+    kwargs = {"result_id": entry.get("result_id")} if ctx._reply_takes_result_id else {}
+    try:
+        reply_id = await asyncio.to_thread(ctx.client.reply_to, mention_id, text, **kwargs)
+    except ThreadsApiError as e:
+        logger.warning(
+            "reply_to failed mention=%s status=%s body=%s", _esc(mention_id), e.status, _esc(e.body),
+        )
+        if allow_link_retry and is_link_limit_error(e):
+            raise _LinkLimitExceeded() from None
+        return await ctx.api_error_outcome(e, mention_id, "reply_to")
+    except Exception as e:
+        logger.warning("reply_to error mention=%s: %s", _esc(mention_id), _esc(e))
+        ctx.note_error(ERR_TRANSIENT)
+        return OUT_ERROR
+    if not reply_id:
+        logger.warning("reply_to returned no id mention=%s", _esc(mention_id))
+        return OUT_ERROR
+    return await _complete_reply(ctx, mention_id, dict(entry, reply_text=text), str(reply_id))
+
+
+async def _publish_reply(
+    ctx: PollContext, mention_id: str, entry: Dict[str, Any], alt_text: Optional[str] = None,
+) -> str:
+    """送出一則回覆，回傳 OUT_*。alt_text：連結超限（§7.10）時改送的版本（不含「查核來源」行），只重送一次。"""
+    text = str(entry.get("reply_text") or "")
+    if alt_text == text:
+        alt_text = None
+    send = _create_and_publish if ctx.two_step else _legacy_reply
+    try:
+        return await send(ctx, mention_id, entry, text, allow_link_retry=bool(alt_text))
+    except _LinkLimitExceeded:
+        logger.warning(
+            "link limit exceeded mention=%s: resending once without the source line", _esc(mention_id),
+        )
+    return await send(ctx, mention_id, entry, str(alt_text), allow_link_retry=False)
+
+
 async def handle_mention(ctx: PollContext, m: Dict[str, Any]) -> str:
-    """處理單則 mention（spec §7.5），回傳 OUT_* 結果。reply_to 之前的錯誤一律吞下並回 OUT_ERROR
-    （未標記、下輪重試）；reply_to 成功後寫 state 失敗則往外拋，讓整輪中止以免繼續回覆卻記不住。"""
+    """處理單則 mention（spec §7.5），回傳 OUT_* 結果。發佈之前的錯誤一律吞下：暫時性／429／401 →
+    OUT_ERROR（未標記、下輪重試）；未列入的 4xx → OUT_FAILED（標 failed、不回覆、不重試）。
+    發佈成功後寫 state 失敗則往外拋，讓整輪中止以免繼續回覆卻記不住。"""
     started = time.perf_counter()
     mention_id = str(m.get("id") or "")
     kind, text, input_type, target = await resolve_target(
@@ -342,16 +713,14 @@ async def handle_mention(ctx: PollContext, m: Dict[str, Any]) -> str:
         await ctx.mark(mention_id)
         outcome = OUT_SELF
     elif kind == KIND_TRANSIENT:
+        # 429 → backoff＋本輪中止；5xx／逾時 → 計入連續暫時性失敗（§7.10）。都不標記，下輪重試
+        ctx.note_error(classify_status(target.get("error_status")))
         outcome = OUT_ERROR
+    elif kind == KIND_FAILED:
+        outcome = await ctx.mark_failed(mention_id, stage="get_post", status=target.get("error_status"))
     elif kind in _FIXED_REPLIES:
-        reply_text = _FIXED_REPLIES[kind]()
-        reply_id = await _send_reply(ctx, mention_id, reply_text, None)
-        if reply_id:
-            await ctx.mark(mention_id)
-            await _record_reply(ctx, mention_id, target, reply_id, reply_text)
-            outcome = OUT_FIXED_REPLY
-        else:
-            outcome = OUT_ERROR
+        entry = _reply_entry(ctx, _FIXED_REPLIES[kind](), target)
+        outcome = await _publish_reply(ctx, mention_id, entry)
     elif ctx.analysis_blocked:
         outcome = OUT_DEFERRED
     else:
@@ -405,23 +774,21 @@ async def _analyze_and_reply(
         return OUT_AI_UNAVAILABLE, task_id, cache_layer
 
     try:
-        reply_text = format_verdict_reply(result, _result_url(task_id))
+        result_url = _result_url(task_id)
+        reply_text = format_verdict_reply(result, result_url)
+        # §7.10「連結超限」時改送的版本：去掉「查核來源」行（結果頁連結與免責行永不截）
+        alt_text = format_verdict_reply(result, result_url, without_source_line=True)
+        frame_type = result.get("frame_type") or frame_of(result)[0]
     except Exception as e:
         logger.error("format_verdict_reply failed mention=%s: %s", _esc(mention_id), _esc(e))
         return OUT_ERROR, task_id, cache_layer
 
-    reply_id = await _send_reply(ctx, mention_id, reply_text, task_id)
-    if not reply_id:
-        return OUT_ERROR, task_id, cache_layer
-
-    await ctx.mark(mention_id, analyzed=True)
-    frame_type = result.get("frame_type") or frame_of(result)[0]
-    await _record_reply(ctx, mention_id, target, reply_id, reply_text, result, task_id, frame_type)
-    try:
-        await asyncio.to_thread(ctx.task_store.update_task, task_id, threads_reply_id=reply_id)
-    except Exception as e:
-        logger.error("update_task threads_reply_id failed task=%s: %s", task_id, _esc(e))
-    return OUT_REPLIED, task_id, cache_layer
+    entry = _reply_entry(
+        ctx, reply_text, target, result=result, result_id=task_id, frame_type=frame_type, analyzed=True,
+    )
+    # 成功 → 先標記（計入每日回覆數）再寫 jsonl／任務的 threads_reply_id（_complete_reply）
+    outcome = await _publish_reply(ctx, mention_id, entry, alt_text=alt_text)
+    return outcome, task_id, cache_layer
 
 
 # ── 輪詢互斥（spec §7.4、§9 可靠性：單實例）──────────────────────────────
@@ -536,9 +903,11 @@ def _is_bot_author(ctx: PollContext, m: Dict[str, Any]) -> bool:
 
 
 def _mentions_error(status: Optional[int]) -> str:
-    """mentions 端點失敗的 last_error（spec §7.10；backoff 另由 T-13 處理）。"""
+    """mentions 端點失敗的 last_error（spec §7.10）；backoff 由 _update_backoff 依 ctx 旗標設定。"""
     if status == 401:
-        return "token_invalid"
+        return ERR_TOKEN_INVALID
+    if status == 429:
+        return ERR_RATE_LIMITED
     if status in (403, 404):
         return "permission_denied"
     return "mentions_failed"
@@ -561,7 +930,8 @@ def _next_since(mentions: list, ctx: PollContext, prev_since: int, now: int) -> 
         if ts is not None:
             all_ts.append(ts)
         mention_id = str(m.get("id") or "")
-        if not mention_id or mention_id in ctx.replied or _is_bot_author(ctx, m):
+        # 已標 failed（終態）的也算處理完：不回覆、不重試，不能讓它永遠擋住游標
+        if not mention_id or ctx.is_done(mention_id) or _is_bot_author(ctx, m):
             continue
         if ts is None:
             return prev_since
@@ -573,86 +943,221 @@ def _next_since(mentions: list, ctx: PollContext, prev_since: int, now: int) -> 
     return max(prev_since, now)
 
 
-async def _finish_poll(state: dict, stats: dict, data_dir: Optional[PathLike], mode: str,
-                       last_error: Optional[str], stopped: Optional[str] = None) -> dict:
+def _backoff_skip(state: dict) -> Optional[dict]:
+    """backoff_until 未到 → 本輪略過的回傳值（不打 API、不寫 state）；否則 None。"""
+    if threads_state.backoff_remaining_seconds(state) <= 0:
+        return None
+    logger.info(
+        "threads poll skipped: backoff until %s (last_error=%s)",
+        _esc(state.get("backoff_until")), state.get("last_error"),
+    )
+    return {
+        "started": False, "skipped": "backoff",
+        "backoff_until": state.get("backoff_until"), "last_error": state.get("last_error"),
+    }
+
+
+def _update_backoff(state: dict, ctx: PollContext, *, mentions_ok: bool) -> None:
+    """一輪結束時依本輪旗標設定／歸零 backoff（spec §7.10）。只改 state，由 _finish_poll 一併原子寫檔。
+
+    - 429：backoff_until = now + min(60, poll_interval × 2^n) 分鐘，n = backoff_n（連續次數），之後 n += 1
+    - 401：backoff_until = now + 60 分鐘
+    - 5xx／逾時：transient_n += 1；連續滿 3 輪 → backoff_until = now + 15 分鐘
+    - 成功的一輪（mentions 讀取成功、沒有 429／401）→ backoff_n 歸零；沒有暫時性失敗 → transient_n 歸零
+    - 本輪沒有設新的 backoff → 清掉已到期的 backoff_until（/api/threads/status 不再顯示過期時間）
+    多個條件同時成立時 set_backoff 取較晚者。"""
+    now = datetime.now(timezone.utc)
+    backed_off = False
+    if ctx.rate_limited:
+        n = max(0, _as_int(state.get("backoff_n")))
+        minutes = threads_state.rate_limit_backoff_minutes(settings.THREADS_POLL_MINUTES, n)
+        threads_state.set_backoff(state, minutes, now)
+        state["backoff_n"] = n + 1
+        backed_off = True
+        logger.warning(
+            "threads rate limited (HTTP 429): backoff %.0f min until %s (consecutive=%s)",
+            minutes, state["backoff_until"], n + 1,
+        )
+    elif mentions_ok and not ctx.token_invalid:
+        state["backoff_n"] = 0
+    if ctx.token_invalid:
+        threads_state.set_backoff(state, TOKEN_INVALID_BACKOFF_MINUTES, now)
+        backed_off = True
+        logger.error(
+            "threads token invalid (HTTP 401): backoff %s min until %s",
+            TOKEN_INVALID_BACKOFF_MINUTES, state["backoff_until"],
+        )
+    if ctx.transient:
+        rounds = max(0, _as_int(state.get("transient_n"))) + 1
+        state["transient_n"] = rounds
+        if rounds >= TRANSIENT_ROUNDS_LIMIT:
+            threads_state.set_backoff(state, TRANSIENT_BACKOFF_MINUTES, now)
+            backed_off = True
+            logger.warning(
+                "threads transient errors for %s consecutive polls: backoff %s min until %s",
+                rounds, TRANSIENT_BACKOFF_MINUTES, state["backoff_until"],
+            )
+    elif not ctx.abort:
+        state["transient_n"] = 0
+    if not backed_off and threads_state.backoff_remaining_seconds(state, now) <= 0:
+        state["backoff_until"] = None
+
+
+async def _finish_poll(ctx: PollContext, stats: dict, *, mentions_ok: bool,
+                       stopped: Optional[str] = None) -> dict:
+    state = ctx.state
+    _update_backoff(state, ctx, mentions_ok=mentions_ok)
     state["last_poll_at"] = datetime.now(timezone.utc).isoformat()
     state["last_stats"] = dict(stats)
-    state["last_error"] = last_error
-    await asyncio.to_thread(threads_state.save_state, state, data_dir)
+    state["last_error"] = ctx.last_error
+    await asyncio.to_thread(threads_state.save_state, state, ctx.data_dir)
     logger.info(
-        "threads poll done mode=%s since_next=%s stopped=%s stats=%s last_error=%s",
-        mode, state.get("last_since"), stopped, json.dumps(stats), last_error,
+        "threads poll done mode=%s since_next=%s stopped=%s stats=%s last_error=%s backoff_until=%s",
+        ctx.mode, state.get("last_since"), stopped, json.dumps(stats), ctx.last_error,
+        _esc(state.get("backoff_until")),
     )
     return {"started": True, **stats, "stopped": stopped}
+
+
+def _count_outcome(stats: dict, outcome: str) -> None:
+    if outcome in (OUT_REPLIED, OUT_FIXED_REPLY):
+        stats["replied"] += 1
+    elif outcome in (OUT_ERROR, OUT_FAILED):
+        stats["errors"] += 1
+    else:
+        stats["skipped"] += 1
+
+
+def _cap_reached(ctx: PollContext, max_per_poll: int, max_per_day: int) -> Optional[str]:
+    if ctx.analyzed_replies >= max_per_poll:
+        return "per_poll_cap"
+    if _as_int(_daily(ctx.state).get("replies")) >= max_per_day:
+        return "daily_cap"
+    return None
+
+
+async def _resume_pending(ctx: PollContext, stats: dict, max_per_poll: int, max_per_day: int) -> Optional[str]:
+    """每輪開頭先補發上一輪留下的 container（spec §7.6）：對「同一個」container 查狀態後 publish，
+    不重跑 AI、不重建 container。ERROR／EXPIRED → 刪鍵，該 mention 回到本輪的正常流程。
+    因判定回覆上限而停下時回傳 "per_poll_cap"／"daily_cap"，否則 None。"""
+    pending = ctx.state.get("pending_publish")
+    if not isinstance(pending, dict) or not pending:
+        return None
+    for mention_id, entry in list(pending.items()):
+        mention_id = str(mention_id)
+        if not isinstance(entry, dict) or not entry.get("container_id"):
+            logger.warning("dropping malformed pending_publish entry mention=%s", _esc(mention_id))
+            await ctx.drop_pending(mention_id)
+            continue
+        if entry.get("mode") not in (None, ctx.mode):
+            continue      # 另一個模式（live／sim）留下的 container：這個客戶端查不到，切回該模式再補發
+        if ctx.is_done(mention_id):
+            await ctx.drop_pending(mention_id)
+            continue
+        if entry.get("analyzed"):
+            cap = _cap_reached(ctx, max_per_poll, max_per_day)
+            if cap:
+                return cap    # 判定回覆已達上限：留著，之後的輪次再補發
+        started = time.perf_counter()
+        ctx.counted.add(mention_id)
+        stats["checked"] += 1
+        outcome = await _publish_pending(ctx, mention_id, entry)
+        _count_outcome(stats, outcome)
+        logger.info("mention %s", json.dumps({
+            "mention_id": mention_id,
+            "kind": "pending_publish",
+            "outcome": outcome,
+            "result_id": entry.get("result_id"),
+            "cache_layer": None,
+            "elapsed_ms": int((time.perf_counter() - started) * 1000),
+        }, ensure_ascii=True))
+        if ctx.abort:
+            break
+    return None
 
 
 async def _poll_once(client: Any, mode: str, data_dir: Optional[PathLike]) -> dict:
     stats = {"checked": 0, "replied": 0, "skipped": 0, "errors": 0}
     # 取得鎖之後才讀：拿到的是上一輪寫完的權威 state
     state = await asyncio.to_thread(threads_state.load_state, data_dir)
+    skip = _backoff_skip(state)
+    if skip is not None:
+        return skip       # 在等鎖的空檔另一個行程剛設了 backoff
     prev_since = _as_int(state.get("last_since"))
     since = max(prev_since - SINCE_OVERLAP_SECONDS, SINCE_FLOOR)
     now = int(time.time())
+    own_ids = await asyncio.to_thread(threads_state.own_reply_ids, data_dir)
+    ctx = PollContext(client, state, mode, data_dir=data_dir, own_ids=own_ids)
+    max_per_poll = _as_int(settings.THREADS_MAX_REPLIES_PER_POLL)
+    max_per_day = _as_int(settings.THREADS_MAX_REPLIES_PER_DAY)
+
+    resume_cap = await _resume_pending(ctx, stats, max_per_poll, max_per_day)
+    if ctx.abort:
+        return await _finish_poll(ctx, stats, mentions_ok=False, stopped=ctx.abort)
 
     try:
         raw = await asyncio.to_thread(client.get_mentions, since)
     except ThreadsApiError as e:
         logger.error("get_mentions failed since=%s status=%s body=%s", since, e.status, _esc(e.body))
         stats["errors"] += 1
-        return await _finish_poll(state, stats, data_dir, mode, _mentions_error(e.status))
+        ctx.note_error(classify_api_error(e))      # 429／401 → backoff；5xx／逾時 → 計入連續暫時性失敗
+        ctx.last_error = _mentions_error(e.status)
+        return await _finish_poll(ctx, stats, mentions_ok=False, stopped=ctx.abort)
     except Exception as e:
         logger.error("get_mentions error since=%s: %s", since, _esc(e))
         stats["errors"] += 1
-        return await _finish_poll(state, stats, data_dir, mode, "mentions_failed")
+        ctx.note_error(ERR_TRANSIENT)
+        ctx.last_error = "mentions_failed"
+        return await _finish_poll(ctx, stats, mentions_ok=False)
 
     mentions = [m for m in raw or [] if isinstance(m, dict)]
     mentions.sort(key=_sort_key)
-    state["last_error"] = None   # mentions 讀取成功：清掉上一輪的錯誤（本輪遇到新狀況會再設）
-    own_ids = await asyncio.to_thread(threads_state.own_reply_ids, data_dir)
-    ctx = PollContext(client, state, mode, data_dir=data_dir, own_ids=own_ids)
-    max_per_poll = _as_int(settings.THREADS_MAX_REPLIES_PER_POLL)
-    max_per_day = _as_int(settings.THREADS_MAX_REPLIES_PER_DAY)
+    # mentions 讀取成功：清掉上一輪的錯誤，輪中逐則寫 state 時 status 不再顯示舊錯誤
+    # （本輪的結果以 ctx.last_error 為準，由 _finish_poll 寫入）
+    state["last_error"] = ctx.last_error
     stopped: Optional[str] = None
     seen: Set[str] = set()
+    pending = ctx._bucket("pending_publish")
 
     for m in mentions:
         mention_id = str(m.get("id") or "")
-        if not mention_id or mention_id in ctx.replied or mention_id in seen:
-            continue   # 已處理過，或同一輪清單內重複出現（分頁重疊）
+        if not mention_id or ctx.is_done(mention_id) or mention_id in seen:
+            continue   # 已處理過（已回覆或已標 failed），或同一輪清單內重複出現（分頁重疊）
         seen.add(mention_id)
         if _is_bot_author(ctx, m):
             stats["checked"] += 1
             stats["skipped"] += 1
             continue
-        if ctx.analyzed_replies >= max_per_poll:
-            stopped = "per_poll_cap"
+        if mention_id in pending:
+            continue   # container 仍待發佈（本輪開頭已試過、或另一模式留下的）：下輪補發，不重建、不重跑 AI
+        stopped = _cap_reached(ctx, max_per_poll, max_per_day)
+        if stopped:
             break
-        if _as_int(_daily(state).get("replies")) >= max_per_day:
-            stopped = "daily_cap"
-            break
-        stats["checked"] += 1
+        if mention_id not in ctx.counted:
+            ctx.counted.add(mention_id)
+            stats["checked"] += 1
         outcome = await handle_mention(ctx, m)
-        if outcome in (OUT_REPLIED, OUT_FIXED_REPLY):
-            stats["replied"] += 1
-        elif outcome == OUT_ERROR:
-            stats["errors"] += 1
-        else:
-            stats["skipped"] += 1
+        _count_outcome(stats, outcome)
+        if ctx.abort:
+            stopped = ctx.abort    # 429／401：其餘 mention 留待 backoff 之後
+            break
 
+    stopped = stopped or resume_cap    # 補發階段就因上限停下、之後也沒有別的 mention 可處理
     if stopped:
         logger.info(
             "threads poll stopped early: %s (analyzed_replies=%s/%s, daily=%s/%s)",
             stopped, ctx.analyzed_replies, max_per_poll, _daily(state).get("replies"), max_per_day,
         )
     state["last_since"] = _next_since(mentions, ctx, prev_since, now)
-    return await _finish_poll(state, stats, data_dir, mode, ctx.last_error, stopped)
+    return await _finish_poll(ctx, stats, mentions_ok=True, stopped=stopped)
 
 
 async def run_threads_poll(client: Any = None, data_dir: Optional[PathLike] = None) -> dict:
     """輪詢一次 mentions 並逐則處理。由排程（THREADS_MODE=live|sim）或 POST /api/threads/poll 觸發。
 
-    回傳 {"started": False, "reason": ...}、{"started": False, "skipped": "backoff", ...}
+    回傳 {"started": False, "reason": ...}、{"started": False, "skipped": "backoff", backoff_until, last_error}
     或 {"started": True, checked, replied, skipped, errors, stopped}；另一輪進行中 → 丟 PollInProgress。
+    stopped：None｜"per_poll_cap"｜"daily_cap"｜"rate_limited"（429）｜"token_invalid"（401）。
     """
     mode = settings.threads_mode_effective
     if mode not in ("live", "sim"):
@@ -669,10 +1174,9 @@ async def run_threads_poll(client: Any = None, data_dir: Optional[PathLike] = No
         return {"started": False, "reason": reason or "client_unavailable"}
 
     state = await asyncio.to_thread(threads_state.load_state, data_dir)
-    backoff_until = _to_epoch(state.get("backoff_until"))
-    if backoff_until is not None and time.time() < backoff_until:
-        logger.info("threads poll skipped: backoff until %s", _esc(state.get("backoff_until")))
-        return {"started": False, "skipped": "backoff", "backoff_until": state.get("backoff_until")}
+    skip = _backoff_skip(state)
+    if skip is not None:
+        return skip
 
     # 檢查與取得之間沒有 await：同一 event loop 內不會有第二輪插進來
     if _POLL_LOCK.locked():

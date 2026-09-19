@@ -3,6 +3,9 @@
 - T-05：ThreadsClient Protocol 與 FakeThreadsService 自身（test_fake_*）。
 - T-08：單則 mention 處理 handle_mention／resolve_target（test_bot_*、test_resolve_*）。
 - T-09：run_threads_poll 互斥鎖、since 游標、本地上限（test_poll_*）。
+- T-13：HTTP 狀態碼分流與 backoff（test_backoff_*、test_unknown_4xx_*、test_link_limit_*、test_transient_*）。
+- T-12：兩段式發佈＋FINISHED 狀態檢查＋pending_publish（test_container_*、test_fake_container_*）；
+        ThreadsService（live 類別，requests 全 mock）的三步另見 test_threads_publish.py。
 
 全部離線：以 tests/fixtures/threads_mentions.json 的複本在 tmp_path 操作，
 requests 被封鎖，任何網路呼叫都會讓測試失敗；AI 以 monkeypatch 取代
@@ -56,6 +59,15 @@ def _no_network(monkeypatch):
     for name in ("get", "post", "request"):
         monkeypatch.setattr(requests, name, _blocked)
     monkeypatch.setattr(requests.Session, "request", _blocked)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_container_sleep(monkeypatch):
+    """wait_container 的等待一律要注入（client.container_sleep）；真的睡到就讓測試失敗。"""
+    def _blocked(seconds):
+        raise AssertionError(f"wait_container really slept for {seconds}s in a test")
+
+    monkeypatch.setattr(ts, "_default_sleep", _blocked)
 
 
 @pytest.fixture(autouse=True)
@@ -640,8 +652,13 @@ LONG = "網傳吃香蕉配優格會中毒，腸胃不好的人千萬不要一起
     (StubClient(error=ThreadsApiError(404)), {"replied_to": {"id": "p1"}}, ("unreadable", None, "text")),
     (StubClient(error=ThreadsApiError(403)), {"replied_to": {"id": "p1"}}, ("unreadable", None, "text")),
     (StubClient(error=ThreadsApiError(401)), {"replied_to": {"id": "p1"}}, ("unreadable", None, "text")),
-    (StubClient(error=ThreadsApiError(400)), {"replied_to": "p1"}, ("unreadable", None, "text")),
+    # T-13（2026-09-19，spec §7.5 已與 §7.10／FN-4 統一）：未列入的 4xx 不再回「讀不到」，改標 failed、不回覆
+    (StubClient(error=ThreadsApiError(400)), {"replied_to": "p1"}, ("failed", None, "text")),
+    (StubClient(error=ThreadsApiError(409)), {"replied_to": {"id": "p1"}}, ("failed", None, "text")),
+    (StubClient(error=ThreadsApiError(422)), {"replied_to": {"id": "p1"}}, ("failed", None, "text")),
+    (StubClient(error=ThreadsApiError(499)), {"replied_to": {"id": "p1"}}, ("failed", None, "text")),
     (StubClient(error=ThreadsApiError(429)), {"replied_to": {"id": "p1"}}, ("transient", None, "text")),
+    (StubClient(error=ThreadsApiError(500)), {"replied_to": {"id": "p1"}}, ("transient", None, "text")),
     (StubClient(error=ThreadsApiError(503)), {"replied_to": {"id": "p1"}}, ("transient", None, "text")),
     (StubClient(error=ThreadsApiError(None)), {"replied_to": {"id": "p1"}}, ("transient", None, "text")),
     (StubClient(error=RuntimeError("boom")), {"replied_to": {"id": "p1"}}, ("transient", None, "text")),
@@ -661,7 +678,8 @@ LONG = "網傳吃香蕉配優格會中毒，腸胃不好的人千萬不要一起
     (StubClient(), {"text": "@factcheck_tw_bot " + LONG}, ("text", LONG, "text")),
     (StubClient(), {"text": "@factcheck_tw_bot 幫我查"}, ("too_short", None, "text")),
 ], ids=[
-    "404", "403", "401", "400_scalar_replied_to", "429", "503", "no_status", "exception",
+    "404", "403", "401", "400_scalar_replied_to", "409", "422", "499", "429", "500", "503", "no_status",
+    "exception",
     "image", "video_short", "carousel_long", "short_TEXT", "short_TEXT_POST", "bot_author",
     "url_only", "url_short_text", "text_with_url", "standalone_long", "standalone_short",
 ])
@@ -676,6 +694,11 @@ def test_resolve_target_table(client, mention, expected, monkeypatch):
         assert client.calls == ["p1"] and target["id"] == "p1"
     else:
         assert client.calls == [] and target["username"] == "tester_b"
+    if kind in ("failed", "transient"):
+        # 分流依據：HTTP 狀態碼隨 target 帶回（429 → backoff；拿不到狀態碼 → None）
+        assert target["error_status"] == getattr(client.error, "status", None)
+    else:
+        assert "error_status" not in target
 
 
 def test_threads_bot_has_no_print_calls():
@@ -701,6 +724,11 @@ def _write_state(bot, **fields):
     st = threads_state.load_state(bot.data)
     st.update(fields)
     threads_state.save_state(st, bot.data)
+
+
+def _expire_backoff(bot):
+    """模擬 backoff 時間已過（只改 backoff_until；backoff_n／transient_n 等其他欄位不動）。"""
+    _write_state(bot, backoff_until=(datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat())
 
 
 def _text_mentions(*ids_and_times):
@@ -768,6 +796,13 @@ def test_poll_same_fixture_twice_second_run_replies_nothing(bot):
     first = _poll(bot)
     assert first["replied"] == 4
     lines_after_first = len(_sim_replies(bot))
+
+    # T-13：m6 的 reply_to 429 讓第一輪設了 backoff_until，緊接著的 poll 會整輪略過（也不會重複回覆）；
+    # 「第二次 poll」要等 backoff 到期才真的跑，這裡直接把它改成已到期
+    skipped = _poll(bot)
+    assert skipped["started"] is False and skipped["skipped"] == "backoff"
+    assert len(_sim_replies(bot)) == lines_after_first
+    _expire_backoff(bot)
 
     second = _poll(bot)
     assert second["started"] is True and second["replied"] == 0
@@ -1033,3 +1068,902 @@ def test_poll_mentions_error_keeps_cursor_and_sets_last_error(bot):
     st = _state(bot)
     assert st["last_error"] == "token_invalid" and st["last_since"] == since_before
     assert st["last_stats"]["errors"] == 1
+
+
+# ══════════════════════════════════════════════════════════════════
+# T-13：HTTP 狀態碼分流與 backoff（spec §7.10；FN-4「429 → backoff_until」「未知 4xx → 標 failed 不回覆」）
+# ══════════════════════════════════════════════════════════════════
+LINK_LIMIT_BODY = {"error": {"message": "Too many links", "error_user_title": "THREADS_API__LINK_LIMIT_EXCEEDED"}}
+
+
+def _edit_mentions(bot, fn):
+    data = json.loads(bot.mentions_path.read_text(encoding="utf-8"))
+    fn(data)
+    bot.mentions_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+def _inject(bot, mention_id, **fields):
+    """在 mentions.json 的某則 mention 上設定（值為 None 則移除）_sim_error／_sim_container。"""
+    def fn(data):
+        [m] = [x for x in data["mentions"] if x["id"] == mention_id]
+        for key, value in fields.items():
+            if value is None:
+                m.pop(key, None)
+            else:
+                m[key] = value
+
+    _edit_mentions(bot, fn)
+
+
+def _post_of(pid, text=RUMOR_B, **extra):
+    return {"id": pid, "username": "tester_a", "media_type": "TEXT_POST", "text": text,
+            "permalink": f"https://www.threads.com/@tester_a/post/{pid}", **extra}
+
+
+def _backoff_minutes_left(bot):
+    until = threads_state.parse_until(_state(bot)["backoff_until"])
+    assert until is not None, "backoff_until is not set"
+    return (until - datetime.now(timezone.utc)).total_seconds() / 60.0
+
+
+def _assert_backoff(bot, minutes):
+    left = _backoff_minutes_left(bot)
+    assert minutes - 0.5 <= left <= minutes, f"expected ~{minutes} min of backoff, got {left:.2f}"
+
+
+@pytest.fixture
+def poll5(monkeypatch):
+    monkeypatch.setattr(settings, "THREADS_POLL_MINUTES", 5)   # 不依賴本機 .env 的輪詢間隔
+
+
+@pytest.mark.parametrize("status, expected", [
+    (429, "rate_limited"), (401, "token_invalid"),
+    (400, "client_error"), (403, "client_error"), (404, "client_error"), (418, "client_error"), (499, "client_error"),
+    (500, "transient"), (503, "transient"), (None, "transient"), (200, "transient"), (True, "transient"),
+    ("429", "transient"),
+])
+def test_classify_status_table(status, expected):
+    assert threads_bot.classify_status(status) == expected
+    assert threads_bot.classify_api_error(ThreadsApiError(status)) == expected
+    assert threads_bot.classify_api_error(RuntimeError("no status attribute")) == "transient"
+
+
+def test_backoff_429_on_reply_sets_backoff_until_and_stops_round(bot, poll5):
+    """FN-4：HTTP 429 → backoff_until 設定。429 之後本輪中止，其餘 mention 留待 backoff 之後。"""
+    _set_mentions(bot, ["m6", *_text_mentions(("t2", "2026-09-14T09:00:00+0000"))])   # m6：reply_to 429
+    out = _poll(bot)
+    assert (out["started"], out["checked"], out["replied"], out["errors"]) == (True, 1, 0, 1)
+    assert out["stopped"] == "rate_limited"
+    assert len(bot.ai.calls) == 1                       # 只有 m6；t2 沒被送進 AI
+    assert _sim_replies(bot) == [] and _records(bot) == []
+    st = _state(bot)
+    assert st["replied_ids"] == [] and st["failed"] == {} and st["pending_publish"] == {}
+    assert st["last_error"] == "rate_limited" and st["backoff_n"] == 1
+    assert st["last_since"] == TS_M6 - 1                # 游標停在 m6 之前，backoff 後補回
+    _assert_backoff(bot, 5)                             # min(60, 5 × 2^0)
+    assert threads_state.parse_until(st["backoff_until"]).tzinfo is not None   # UTC ISO（status API 的 iso 字串）
+
+
+def test_backoff_poll_is_skipped_while_backing_off_without_touching_anything(bot, poll5):
+    _set_mentions(bot, ["m6"])
+    _poll(bot)
+    st = _state(bot)
+    since_calls = list(bot.client.since_calls)
+    raw_before = threads_state.state_path(bot.data).read_bytes()
+
+    skipped = _poll(bot)
+    assert skipped == {
+        "started": False, "skipped": "backoff",
+        "backoff_until": st["backoff_until"], "last_error": "rate_limited",
+    }
+    assert bot.client.since_calls == since_calls and len(bot.ai.calls) == 1     # 不打 API、不跑 AI
+    assert threads_state.state_path(bot.data).read_bytes() == raw_before       # 也不寫 state
+    # 等鎖的空檔才被別的行程設了 backoff：拿到鎖後重讀 state 仍會略過
+    inner = asyncio.run(threads_bot._poll_once(bot.client, "sim", bot.data))
+    assert inner["started"] is False and inner["skipped"] == "backoff"
+    assert bot.client.since_calls == since_calls
+
+    _expire_backoff(bot)
+    assert _poll(bot)["started"] is True
+    assert len(bot.client.since_calls) == len(since_calls) + 1
+
+
+def test_backoff_429_on_get_mentions_keeps_cursor(bot, poll5):
+    _set_mentions(bot, [_mention("m40", text=f"@factcheck_tw_bot {RUMOR_A}",
+                                 _sim_error={"on": "get_mentions", "http": 429})])
+    _write_state(bot, last_since=TS_M1)
+    out = _poll(bot)
+    assert (out["started"], out["checked"], out["errors"], out["stopped"]) == (True, 0, 1, "rate_limited")
+    st = _state(bot)
+    assert st["last_error"] == "rate_limited" and st["backoff_n"] == 1 and st["last_since"] == TS_M1
+    assert st["last_stats"] == {"checked": 0, "replied": 0, "skipped": 0, "errors": 1}
+    _assert_backoff(bot, 5)
+    assert bot.ai.calls == []
+
+
+def test_backoff_429_on_get_post_does_not_mark_or_reply_and_is_backfilled(bot, poll5):
+    _set_mentions(bot, ["m2", _mention("m41", replied_to="p410")], posts={
+        "p410": _post_of("p410", _sim_error={"on": "get_post", "http": 429}),
+    })
+    out = _poll(bot)
+    # m2（圖片）照常回固定文案；m41 讀原貼文 429 → 不回覆、不標記、本輪中止
+    assert (out["checked"], out["replied"], out["errors"], out["stopped"]) == (2, 1, 1, "rate_limited")
+    assert [x["mention_id"] for x in _sim_replies(bot)] == ["m2"] and bot.ai.calls == []
+    st = _state(bot)
+    assert st["replied_ids"] == ["m2"] and st["failed"] == {}
+    _assert_backoff(bot, 5)
+
+    _edit_mentions(bot, lambda data: data["posts"]["p410"].pop("_sim_error"))
+    _expire_backoff(bot)
+    out = _poll(bot)
+    assert (out["replied"], out["errors"], out["stopped"]) == (1, 0, None)
+    assert Counter(x["mention_id"] for x in _sim_replies(bot)) == {"m2": 1, "m41": 1}
+
+
+@pytest.mark.parametrize("poll_minutes, expected", [
+    (5, [5, 10, 20, 40, 60, 60, 60]),
+    (1, [1, 2, 4, 8, 16, 32, 60, 60]),
+])
+def test_backoff_doubles_on_consecutive_429_and_caps_at_60_minutes(bot, monkeypatch, poll_minutes, expected):
+    """backoff_until = now + min(60, poll_interval × 2^n) 分鐘，n 隨連續 429 次數遞增。"""
+    monkeypatch.setattr(settings, "THREADS_POLL_MINUTES", poll_minutes)
+    # 太短的 mention → 固定文案回覆（不經 AI、不寫任務檔，迴圈跑得快），回覆時被 429
+    _set_mentions(bot, [_mention("m60", text="@factcheck_tw_bot 查", _sim_error={"on": "reply_to", "http": 429})])
+    for n, minutes in enumerate(expected, 1):
+        out = _poll(bot)
+        assert out["started"] is True and out["stopped"] == "rate_limited"
+        assert _state(bot)["backoff_n"] == n
+        _assert_backoff(bot, minutes)
+        _expire_backoff(bot)
+    assert _sim_replies(bot) == [] and _state(bot)["replied_ids"] == []
+
+
+def test_backoff_resets_after_a_successful_round(bot, poll5):
+    _set_mentions(bot, ["m6"])
+    _poll(bot)
+    _expire_backoff(bot)
+    _poll(bot)
+    assert _state(bot)["backoff_n"] == 2
+    _assert_backoff(bot, 10)
+
+    _inject(bot, "m6", _sim_error=None)          # 限流解除
+    _expire_backoff(bot)
+    out = _poll(bot)
+    assert (out["replied"], out["errors"], out["stopped"]) == (1, 0, None)
+    st = _state(bot)
+    assert st["backoff_n"] == 0 and st["backoff_until"] is None and st["last_error"] is None
+    assert st["replied_ids"] == ["m6"]
+
+    # 歸零後再遇 429：從 poll_interval × 2^0 重新算起，不是接著 20 分鐘
+    _set_mentions(bot, ["m6", _mention("m50", text=f"@factcheck_tw_bot {RUMOR_A}", ts="2026-09-14T09:30:00+0000",
+                                       _sim_error={"on": "reply_to", "http": 429})])
+    assert _poll(bot)["stopped"] == "rate_limited"
+    assert _state(bot)["backoff_n"] == 1
+    _assert_backoff(bot, 5)
+    assert Counter(x["mention_id"] for x in _sim_replies(bot)) == {"m6": 1}     # 沒有重複回覆
+
+
+def test_backoff_n_is_kept_when_the_next_round_fails_for_another_reason(bot, poll5):
+    """「成功後歸零」：中間那輪 mentions 讀取 5xx 不算成功，連續次數不歸零。"""
+    _set_mentions(bot, ["m6"])
+    _poll(bot)
+    _expire_backoff(bot)
+    _inject(bot, "m6", _sim_error={"on": "get_mentions", "http": 502})
+    out = _poll(bot)
+    assert out["errors"] == 1 and out["stopped"] is None
+    st = _state(bot)
+    assert st["backoff_n"] == 1 and st["backoff_until"] is None and st["last_error"] == "mentions_failed"
+
+
+def test_backoff_401_on_get_mentions_is_token_invalid_for_60_minutes(bot, poll5):
+    _set_mentions(bot, [_mention("m42", text=f"@factcheck_tw_bot {RUMOR_A}",
+                                 _sim_error={"on": "get_mentions", "http": 401})])
+    out = _poll(bot)
+    assert (out["started"], out["errors"], out["stopped"]) == (True, 1, "token_invalid")
+    st = _state(bot)
+    assert st["last_error"] == "token_invalid" and st["backoff_n"] == 0
+    _assert_backoff(bot, 60)
+    assert _poll(bot)["skipped"] == "backoff" and bot.ai.calls == []
+
+
+def test_backoff_401_on_reply_keeps_the_mention_for_after_reauth(bot, poll5):
+    _set_mentions(bot, [_mention("m43", text=f"@factcheck_tw_bot {RUMOR_A}",
+                                 _sim_error={"on": "reply_to", "http": 401})])
+    out = _poll(bot)
+    assert (out["replied"], out["errors"], out["stopped"]) == (0, 1, "token_invalid")
+    st = _state(bot)
+    assert st["replied_ids"] == [] and st["failed"] == {}       # token 的問題不算在這則 mention 頭上
+    assert st["last_error"] == "token_invalid"
+    _assert_backoff(bot, 60)
+
+    _inject(bot, "m43", _sim_error=None)
+    _expire_backoff(bot)
+    assert _poll(bot)["replied"] == 1
+
+
+def test_backoff_403_on_get_mentions_is_permission_denied_without_backoff(bot, poll5):
+    _set_mentions(bot, [_mention("m44", text=f"@factcheck_tw_bot {RUMOR_A}",
+                                 _sim_error={"on": "get_mentions", "http": 403})])
+    out = _poll(bot)
+    assert (out["started"], out["errors"], out["stopped"]) == (True, 1, None)
+    st = _state(bot)
+    assert st["last_error"] == "permission_denied" and st["backoff_until"] is None and st["transient_n"] == 0
+    assert _poll(bot)["started"] is True          # 沒有 backoff：下一輪照常再試
+
+
+@pytest.mark.parametrize("status", [400, 409, 422])
+def test_unknown_4xx_on_get_post_marks_failed_without_reply(bot, poll5, status):
+    """FN-4：未知 4xx → 標 failed、不回覆（不是回「讀不到」），之後也不再重試。"""
+    _set_mentions(bot, ["m4", _mention("m45", replied_to="p450")], posts={
+        "p450": _post_of("p450", _sim_error={"on": "get_post", "http": status}),
+    })
+    out = _poll(bot)
+    assert (out["checked"], out["replied"], out["skipped"], out["errors"]) == (2, 1, 0, 1)
+    assert out["stopped"] is None                                   # 單則的問題不中止整輪
+    assert [x["mention_id"] for x in _sim_replies(bot)] == ["m4"]   # m45 沒有任何回覆（也沒有 reply_cannot_read）
+    assert all(x["text"] != reply_cannot_read() for x in _sim_replies(bot))
+    assert bot.ai.calls == [] and [r["mention_id"] for r in _records(bot)] == ["m4"]
+    st = _state(bot)
+    assert st["replied_ids"] == ["m4"]                              # failed 不進 replied_ids
+    entry = st["failed"]["m45"]
+    assert (entry["final"], entry["count"], entry["status"], entry["stage"]) == (True, 1, status, "get_post")
+    assert entry["reason"] == f"http_{status}" and entry["at"]
+    assert st["last_error"] == "mention_failed" and st["backoff_until"] is None
+    assert st["last_since"] == _epoch("2026-09-14T09:00:00")        # 標 failed 的不擋游標
+
+    get_post_calls = []
+    real_get_post = bot.client.get_post
+    bot.client.get_post = lambda media_id: get_post_calls.append(media_id) or real_get_post(media_id)
+    out = _poll(bot)                                                 # m45 仍在 since 重疊區內，但不再處理
+    assert (out["checked"], out["replied"], out["errors"]) == (0, 0, 0)
+    assert get_post_calls == [] and len(_sim_replies(bot)) == 1
+    st = _state(bot)
+    assert st["failed"]["m45"] == entry and st["last_error"] is None
+
+
+def test_unknown_4xx_on_reply_marks_failed_without_reply_or_record(bot, poll5):
+    _set_mentions(bot, [_mention("m46", text=f"@factcheck_tw_bot {RUMOR_A}",
+                                 _sim_error={"on": "reply_to", "http": 400})])
+    out = _poll(bot)
+    assert (out["checked"], out["replied"], out["errors"], out["stopped"]) == (1, 0, 1, None)
+    assert len(bot.ai.calls) == 1
+    assert _sim_replies(bot) == [] and _records(bot) == []            # jsonl 無新行
+    st = _state(bot)
+    assert st["replied_ids"] == [] and st["daily"]["replies"] == 0 and st["pending_publish"] == {}
+    entry = st["failed"]["m46"]
+    assert (entry["final"], entry["status"], entry["stage"]) == (True, 400, "create_container")
+    assert bot.store.get_task(bot.ai.calls[0]["task_id"])["threads_reply_id"] is None
+
+    out = _poll(bot)                                                   # 不重試：不再跑 AI、不再送
+    assert (out["checked"], out["errors"]) == (0, 0)
+    assert len(bot.ai.calls) == 1 and _sim_replies(bot) == []
+
+
+def test_unknown_4xx_on_publish_marks_failed_and_clears_pending(bot, poll5):
+    _set_mentions(bot, [_mention("m47", text=f"@factcheck_tw_bot {RUMOR_A}",
+                                 _sim_error={"on": "publish", "http": 400})])
+    out = _poll(bot)
+    assert (out["replied"], out["errors"]) == (0, 1)
+    st = _state(bot)
+    assert st["pending_publish"] == {} and st["replied_ids"] == []
+    assert (st["failed"]["m47"]["final"], st["failed"]["m47"]["stage"]) == (True, "publish")
+    assert _sim_replies(bot) == [] and _poll(bot)["checked"] == 0
+
+
+def test_unknown_4xx_failed_entry_tolerates_legacy_integer_counts(bot, poll5):
+    """state.failed 舊格式是整數次數：≥2 視為終態、1 仍會重試。"""
+    _set_mentions(bot, ["m1", "m4"])
+    _write_state(bot, failed={"m1": 2, "m4": 1})
+    out = _poll(bot)
+    assert (out["checked"], out["replied"]) == (1, 1)
+    assert [x["mention_id"] for x in _sim_replies(bot)] == ["m4"] and bot.ai.calls == []
+    assert _state(bot)["failed"] == {"m1": 2}             # m4 成功後清掉失敗計數
+
+
+def test_unreadable_404_on_get_post_still_replies_cannot_read(bot, poll5):
+    """403／404／401 仍是「讀不到」→ reply_cannot_read（7 項既有子準則之一，不受 T-13 影響）。"""
+    _set_mentions(bot, [_mention("m48", replied_to="no_such_post")])
+    out = _poll(bot)
+    assert (out["replied"], out["errors"]) == (1, 0)
+    [line] = _sim_replies(bot)
+    assert line["text"] == reply_cannot_read()
+    st = _state(bot)
+    assert st["replied_ids"] == ["m48"] and st["failed"] == {}
+
+
+def test_link_limit_resends_once_without_source_line(bot, poll5):
+    _set_mentions(bot, [_mention("m49", text=f"@factcheck_tw_bot {RUMOR_A}", _sim_error={
+        "on": "reply_to", "http": 400, "body": LINK_LIMIT_BODY, "if_text_contains": "查核來源：",
+    })])
+    out = _poll(bot)
+    assert (out["replied"], out["errors"]) == (1, 0)
+    [line] = _sim_replies(bot)
+    text = line["text"]
+    assert "查核來源" not in text and TIER1_URL not in text
+    assert f"完整判讀：{BASE}/r/{bot.ai.calls[0]['task_id']}" in text.split("\n")
+    assert text.split("\n")[0] == RED + " 詐騙警告" and text.endswith("AI 自動判讀，請自行查證。")
+    [rec] = _records(bot)
+    assert rec["reply_text"] == text and rec["reply_id"] == "sim_reply_1"   # 紀錄的是實際送出的版本
+    st = _state(bot)
+    assert st["replied_ids"] == ["m49"] and st["failed"] == {} and st["daily"]["replies"] == 1
+    assert len(bot.ai.calls) == 1
+
+
+def test_link_limit_still_rejected_after_resend_marks_failed(bot, poll5):
+    _set_mentions(bot, [_mention("m51", text=f"@factcheck_tw_bot {RUMOR_A}", _sim_error={
+        "on": "reply_to", "http": 400, "body": LINK_LIMIT_BODY,
+    })])
+    sent = []
+    real_create = bot.client.create_reply_container
+
+    def spy_create(media_id, text, result_id=None):
+        sent.append(text)
+        return real_create(media_id, text, result_id=result_id)
+
+    bot.client.create_reply_container = spy_create
+    out = _poll(bot)
+    assert (out["replied"], out["errors"]) == (0, 1)
+    assert len(sent) == 2 and "查核來源：" in sent[0] and "查核來源" not in sent[1]   # 只重送一次
+    st = _state(bot)
+    assert st["failed"]["m51"]["final"] is True and st["replied_ids"] == [] and _sim_replies(bot) == []
+
+
+def test_transient_three_consecutive_rounds_back_off_15_minutes(bot, poll5):
+    _set_mentions(bot, [_mention("m52", replied_to="p520")], posts={
+        "p520": _post_of("p520", _sim_error={"on": "get_post", "http": 503}),
+    })
+    for n in (1, 2):
+        out = _poll(bot)
+        assert (out["errors"], out["stopped"]) == (1, None)
+        st = _state(bot)
+        assert st["transient_n"] == n and st["backoff_until"] is None and st["last_error"] == "transient_error"
+    out = _poll(bot)
+    assert out["errors"] == 1
+    st = _state(bot)
+    assert st["transient_n"] == 3 and st["backoff_n"] == 0 and st["replied_ids"] == [] and st["failed"] == {}
+    _assert_backoff(bot, 15)
+    assert _poll(bot)["skipped"] == "backoff"
+
+    _edit_mentions(bot, lambda data: data["posts"]["p520"].pop("_sim_error"))
+    _expire_backoff(bot)
+    out = _poll(bot)
+    assert (out["replied"], out["errors"]) == (1, 0)
+    st = _state(bot)
+    assert st["transient_n"] == 0 and st["backoff_until"] is None and st["last_error"] is None
+
+
+def test_transient_mentions_5xx_counts_and_a_clean_round_resets_the_streak(bot, poll5):
+    _set_mentions(bot, [_mention("m53", text=f"@factcheck_tw_bot {RUMOR_A}",
+                                 _sim_error={"on": "get_mentions", "http": 500})])
+    for n in (1, 2):
+        _poll(bot)
+        st = _state(bot)
+        assert st["transient_n"] == n and st["last_error"] == "mentions_failed" and st["backoff_until"] is None
+    _inject(bot, "m53", _sim_error=None)
+    assert _poll(bot)["replied"] == 1
+    assert _state(bot)["transient_n"] == 0
+    # 連續次數已歸零：再一次 5xx 不會直接觸發 15 分鐘 backoff
+    _set_mentions(bot, ["m53", _mention("m54", text=f"@factcheck_tw_bot {RUMOR_B}", ts="2026-09-14T09:30:00+0000",
+                                        _sim_error={"on": "get_mentions", "http": 500})])
+    _poll(bot)
+    st = _state(bot)
+    assert st["transient_n"] == 1 and st["backoff_until"] is None
+
+
+# ══════════════════════════════════════════════════════════════════
+# T-12：兩段式發佈＋FINISHED 狀態檢查＋pending_publish（spec §7.6；
+#        FN-4「container FINISHED 才 publish、ERROR 重試一次」）
+# ══════════════════════════════════════════════════════════════════
+class ContainerSpy(SpyThreadsService):
+    """記錄兩段式發佈三步的呼叫順序；等待改為注入的 container_sleep（只記錄、不真的睡）。"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.calls = []
+        self.sleeps = []
+        self.container_sleep = self.sleeps.append
+
+    def create_reply_container(self, media_id, text, result_id=None):
+        self.calls.append(("create", str(media_id)))
+        return super().create_reply_container(media_id, text, result_id=result_id)
+
+    def get_container_status(self, container_id):
+        out = super().get_container_status(container_id)
+        self.calls.append(("status", container_id, out["status"]))
+        return out
+
+    def publish_container(self, container_id):
+        self.calls.append(("publish", container_id))
+        return super().publish_container(container_id)
+
+    def names(self):
+        return [c[0] for c in self.calls]
+
+    def count(self, name):
+        return self.names().count(name)
+
+
+class CrashAfterCreate(ContainerSpy):
+    """第一次 wait_container 前行程被砍（container 已建好、pending_publish 已寫入）。"""
+
+    crash = True
+
+    def wait_container(self, container_id, *args, **kwargs):
+        if self.crash:
+            self.crash = False
+            raise SimulatedCrash("killed after container creation, before publish")
+        return super().wait_container(container_id, *args, **kwargs)
+
+
+@pytest.fixture
+def cbot(bot, poll5):
+    bot.client = ContainerSpy(mentions_path=bot.mentions_path)
+    return bot
+
+
+def _edit_container(bot, container_id, **fields):
+    path = bot.client.containers_path
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["containers"][container_id].update(fields)
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+def test_container_publishes_only_after_finished(cbot):
+    _set_mentions(cbot, ["m1"])
+    _inject(cbot, "m1", _sim_container={"statuses": ["IN_PROGRESS", "IN_PROGRESS", "FINISHED"]})
+    out = _poll(cbot)
+    assert (out["replied"], out["errors"]) == (1, 0)
+    assert cbot.client.calls == [
+        ("create", "m1"),
+        ("status", "sim_container_1", "IN_PROGRESS"),
+        ("status", "sim_container_1", "IN_PROGRESS"),
+        ("status", "sim_container_1", "FINISHED"),
+        ("publish", "sim_container_1"),                   # FINISHED 之後才 publish
+    ]
+    assert cbot.client.sleeps == [5.0, 5.0]               # 每 5 秒查一次；等待是注入的，沒有真的睡
+    [line] = _sim_replies(cbot)
+    assert line["mention_id"] == "m1" and line["reply_id"] == "sim_reply_1"
+    st = _state(cbot)
+    assert st["replied_ids"] == ["m1"] and st["pending_publish"] == {} and st["failed"] == {}
+
+
+def test_container_finished_on_first_check_adds_no_wait(cbot):
+    """sim 預設第一次就 FINISHED：兩段式發佈不增加回覆延遲（PF-3a）。"""
+    _set_mentions(cbot, ["m1", "m2"])
+    assert _poll(cbot)["replied"] == 2
+    assert cbot.client.names() == ["create", "status", "publish"] * 2
+    assert cbot.client.sleeps == []
+
+
+def test_container_pending_publish_is_written_before_publish(cbot):
+    seen = {}
+    real_publish = cbot.client.publish_container
+
+    def probing_publish(container_id):
+        seen["pending"] = threads_state.load_state(cbot.data)["pending_publish"]   # 讀磁碟上的 state
+        return real_publish(container_id)
+
+    cbot.client.publish_container = probing_publish
+    _set_mentions(cbot, ["m1"])
+    assert _poll(cbot)["replied"] == 1
+    entry = seen["pending"]["m1"]
+    assert entry["container_id"] == "sim_container_1" and entry["mode"] == "sim" and entry["created_at"]
+    assert entry["result_id"] == cbot.ai.calls[0]["task_id"] and entry["analyzed"] is True
+    assert entry["reply_text"] == _sim_replies(cbot)[0]["text"]
+    assert _state(cbot)["pending_publish"] == {}          # publish 成功後刪鍵
+
+
+@pytest.mark.parametrize("status, last_error", [("ERROR", "container_error"), ("EXPIRED", "container_expired")])
+def test_container_error_is_never_published_retried_once_then_given_up(cbot, status, last_error):
+    """FN-4：ERROR 不 publish；下輪重試一次（重建 container）；第二次仍失敗 → 放棄，且不標成已回覆。"""
+    _set_mentions(cbot, ["m1"])
+    _inject(cbot, "m1", _sim_container={"statuses": [status], "error_message": "sim: media processing failed"})
+    out = _poll(cbot)
+    assert (out["checked"], out["replied"], out["errors"], out["stopped"]) == (1, 0, 1, None)
+    assert cbot.client.names() == ["create", "status"]                  # 沒有 publish
+    st = _state(cbot)
+    assert st["replied_ids"] == [] and st["pending_publish"] == {}
+    assert (st["failed"]["m1"]["count"], st["failed"]["m1"]["final"]) == (1, False)
+    assert st["failed"]["m1"]["reason"] == last_error and st["last_error"] == last_error
+    assert st["backoff_until"] is None and st["last_since"] == TS_M1 - 1   # 留待下輪重試
+
+    out = _poll(cbot)                                                    # 重試一次：重建 container，仍失敗
+    assert (out["checked"], out["replied"], out["errors"]) == (1, 0, 1)
+    assert cbot.client.names() == ["create", "status", "create", "status"]
+    st = _state(cbot)
+    assert (st["failed"]["m1"]["count"], st["failed"]["m1"]["final"]) == (2, True)
+    assert st["replied_ids"] == [] and st["daily"]["replies"] == 0       # 放棄 ≠ 已回覆
+    assert _sim_replies(cbot) == [] and _records(cbot) == []
+    assert st["last_since"] == TS_M1                                     # 放棄後不再擋游標
+
+    out = _poll(cbot)                                                    # 之後不再重試、不再重跑 AI
+    assert (out["checked"], out["errors"]) == (0, 0)
+    assert cbot.client.count("create") == 2 and len(cbot.ai.calls) == 2
+    assert all(cbot.store.get_task(c["task_id"])["threads_reply_id"] is None for c in cbot.ai.calls)
+
+
+def test_container_error_then_retry_succeeds_replies_exactly_once(cbot):
+    _set_mentions(cbot, ["m1"])
+    _inject(cbot, "m1", _sim_container=["ERROR"])                        # 陣列寫法
+    assert _poll(cbot)["errors"] == 1
+    _inject(cbot, "m1", _sim_container=None)
+    out = _poll(cbot)
+    assert (out["replied"], out["errors"]) == (1, 0)
+    assert cbot.client.names() == ["create", "status", "create", "status", "publish"]
+    assert cbot.client.calls[-1] == ("publish", "sim_container_2")
+    assert Counter(x["mention_id"] for x in _sim_replies(cbot)) == {"m1": 1}
+    st = _state(cbot)
+    assert st["replied_ids"] == ["m1"] and st["failed"] == {} and st["daily"]["replies"] == 1
+    assert st["last_error"] is None
+    assert _poll(cbot)["replied"] == 0
+
+
+def test_container_retry_round_with_ai_unavailable_neither_replies_nor_gives_up(cbot):
+    """fallback 規則不變：重試那一輪若 AI 不可用 → 不回覆、不標記，也不算一次 container 失敗。"""
+    _set_mentions(cbot, ["m1"])
+    _inject(cbot, "m1", _sim_container=["ERROR"])
+    assert _poll(cbot)["errors"] == 1
+    _inject(cbot, "m1", _sim_container=None)
+
+    cbot.ai.analysis = AI_FALLBACK
+    out = _poll(cbot)
+    assert (out["replied"], out["skipped"], out["errors"]) == (0, 1, 0)
+    assert cbot.client.count("create") == 1                      # AI 不可用：連 container 都不建
+    st = _state(cbot)
+    assert st["replied_ids"] == [] and st["pending_publish"] == {} and st["last_error"] == "ai_unavailable"
+    assert (st["failed"]["m1"]["count"], st["failed"]["m1"]["final"]) == (1, False)
+
+    cbot.ai.analysis = AI_SCAM
+    out = _poll(cbot)
+    assert (out["replied"], out["errors"]) == (1, 0)
+    assert Counter(x["mention_id"] for x in _sim_replies(cbot)) == {"m1": 1}
+    assert _state(cbot)["failed"] == {} and _state(cbot)["last_error"] is None
+
+
+def test_container_in_progress_wait_is_bounded_then_same_container_is_resumed(cbot):
+    _set_mentions(cbot, ["m1"])
+    _inject(cbot, "m1", _sim_container={"statuses": ["IN_PROGRESS"]})
+    out = _poll(cbot)
+    assert (out["replied"], out["errors"]) == (0, 1)
+    assert cbot.client.count("status") == 13 and cbot.client.count("publish") == 0   # 60 // 5 + 1 次
+    assert cbot.client.sleeps == [5.0] * 12 and sum(cbot.client.sleeps) == 60.0       # 最多等 60 秒
+    st = _state(cbot)
+    assert st["pending_publish"]["m1"]["container_id"] == "sim_container_1"          # TIMEOUT：保留，下輪先查同一個
+    assert (st["failed"]["m1"]["count"], st["failed"]["m1"]["final"]) == (1, False)
+    assert st["last_error"] == "container_timeout" and st["replied_ids"] == []
+
+    _edit_container(cbot, "sim_container_1", statuses=["FINISHED"])      # 這個 container 後來處理完了
+    out = _poll(cbot)
+    assert (out["checked"], out["replied"], out["errors"]) == (1, 1, 0)
+    assert cbot.client.count("create") == 1 and len(cbot.ai.calls) == 1  # 不重建 container、不重跑 AI
+    assert cbot.client.calls[-2:] == [("status", "sim_container_1", "FINISHED"), ("publish", "sim_container_1")]
+    [line] = _sim_replies(cbot)
+    task_id = cbot.ai.calls[0]["task_id"]
+    assert line["mention_id"] == "m1" and line["result_id"] == task_id
+    [rec] = _records(cbot)
+    assert rec["reply_id"] == "sim_reply_1" and rec["reply_text"] == line["text"] and rec["result_id"] == task_id
+    assert rec["frame_type"] == "red" and rec["risk_type"] == "SCAM" and rec["username"] == "tester_a"
+    assert rec["source_text_preview"] == P100_TEXT
+    assert cbot.store.get_task(task_id)["threads_reply_id"] == "sim_reply_1"
+    st = _state(cbot)
+    assert st["replied_ids"] == ["m1"] and st["pending_publish"] == {} and st["failed"] == {}
+    assert st["daily"]["replies"] == 1
+
+
+def test_container_timeout_twice_gives_up_without_rebuilding(cbot):
+    _set_mentions(cbot, ["m1"])
+    _inject(cbot, "m1", _sim_container={"statuses": ["IN_PROGRESS"]})
+    assert _poll(cbot)["errors"] == 1
+    out = _poll(cbot)                                                     # 下輪先查同一個 container：仍未完成
+    assert (out["checked"], out["replied"], out["errors"]) == (1, 0, 1)
+    assert cbot.client.count("create") == 1 and cbot.client.count("status") == 26
+    st = _state(cbot)
+    assert st["failed"]["m1"]["final"] is True and st["pending_publish"] == {} and st["replied_ids"] == []
+    assert _poll(cbot)["checked"] == 0 and len(cbot.ai.calls) == 1 and _sim_replies(cbot) == []
+
+
+def test_container_publish_failure_next_poll_publishes_same_container_once(cbot):
+    """publish 暫時失敗 → pending 保留 → 下輪用同一個 container 補發；整個情境 container 只建 1 次。"""
+    _set_mentions(cbot, ["m1"])
+    _inject(cbot, "m1", _sim_error={"on": "publish", "http": 500})
+    out = _poll(cbot)
+    assert (out["replied"], out["errors"]) == (0, 1)
+    st = _state(cbot)
+    assert st["pending_publish"]["m1"]["container_id"] == "sim_container_1"
+    assert st["replied_ids"] == [] and st["failed"] == {}                 # 暫時性錯誤不算 container 失敗
+    assert st["transient_n"] == 1 and st["last_error"] == "transient_error" and _sim_replies(cbot) == []
+
+    _inject(cbot, "m1", _sim_error=None)
+    out = _poll(cbot)
+    assert (out["checked"], out["replied"], out["errors"]) == (1, 1, 0)
+    assert [c for c in cbot.client.calls if c[0] == "create"] == [("create", "m1")]
+    assert [c for c in cbot.client.calls if c[0] == "publish"] == [("publish", "sim_container_1")] * 2
+    assert Counter(x["mention_id"] for x in _sim_replies(cbot)) == {"m1": 1} and len(cbot.ai.calls) == 1
+    st = _state(cbot)
+    assert st["replied_ids"] == ["m1"] and st["pending_publish"] == {} and st["transient_n"] == 0
+    assert _poll(cbot)["replied"] == 0                                   # 重複回覆率 0
+
+
+@pytest.mark.parametrize("on, http, stopped, last_error, minutes", [
+    ("publish", 429, "rate_limited", "rate_limited", 5),
+    ("publish", 401, "token_invalid", "token_invalid", 60),
+    ("container_status", 429, "rate_limited", "rate_limited", 5),
+    ("container_status", 503, None, "transient_error", None),
+])
+def test_container_api_errors_after_creation_keep_pending_for_the_same_container(cbot, on, http, stopped, last_error, minutes):
+    """container 建好之後的 429／401／5xx：不標記、pending 保留；backoff 過後對同一個 container 補發。"""
+    _set_mentions(cbot, ["m1", "m2"])
+    _inject(cbot, "m1", _sim_error={"on": on, "http": http})
+    out = _poll(cbot)
+    assert (out["replied"], out["errors"], out["stopped"]) == ((0, 1, stopped) if stopped else (1, 1, None))
+    st = _state(cbot)
+    assert st["pending_publish"]["m1"]["container_id"] == "sim_container_1"
+    assert "m1" not in st["replied_ids"] and st["failed"] == {} and st["last_error"] == last_error
+    if minutes:
+        _assert_backoff(cbot, minutes)               # 429／401 → 本輪中止，m2 留待 backoff 之後
+        assert "m2" not in st["replied_ids"]
+    else:
+        assert st["backoff_until"] is None and st["transient_n"] == 1
+
+    _inject(cbot, "m1", _sim_error=None)
+    _expire_backoff(cbot)
+    out = _poll(cbot)
+    assert out["errors"] == 0 and out["stopped"] is None
+    assert [c for c in cbot.client.calls if c[0] == "create" and c[1] == "m1"] == [("create", "m1")]
+    assert Counter(x["mention_id"] for x in _sim_replies(cbot)) == {"m1": 1, "m2": 1}
+    assert len(cbot.ai.calls) == 1
+    st = _state(cbot)
+    assert sorted(st["replied_ids"]) == ["m1", "m2"] and st["pending_publish"] == {} and st["backoff_until"] is None
+
+
+def test_container_unknown_4xx_on_status_counts_as_a_publish_failure(cbot):
+    """查 container 狀態回未列入的 4xx（container 已被清掉）：視同 EXPIRED——刪 pending、計一次失敗、下輪重建。"""
+    _set_mentions(cbot, ["m1"])
+    _inject(cbot, "m1", _sim_error={"on": "container_status", "http": 404})
+    out = _poll(cbot)
+    assert (out["replied"], out["errors"]) == (0, 1)
+    st = _state(cbot)
+    assert st["pending_publish"] == {} and st["replied_ids"] == []
+    assert (st["failed"]["m1"]["count"], st["failed"]["m1"]["final"]) == (1, False)
+    assert st["failed"]["m1"]["reason"] == "container_unreadable" and cbot.client.count("publish") == 0
+
+    _inject(cbot, "m1", _sim_error=None)
+    assert _poll(cbot)["replied"] == 1
+    assert cbot.client.count("create") == 2 and Counter(x["mention_id"] for x in _sim_replies(cbot)) == {"m1": 1}
+
+
+def test_container_crash_before_publish_resumes_same_container(bot, poll5):
+    bot.client = CrashAfterCreate(mentions_path=bot.mentions_path)
+    _set_mentions(bot, ["m1"])
+    with pytest.raises(SimulatedCrash):
+        _poll(bot)
+    st = _state(bot)
+    assert st["pending_publish"]["m1"]["container_id"] == "sim_container_1" and st["replied_ids"] == []
+    assert _sim_replies(bot) == []
+
+    out = _poll(bot)
+    assert (out["checked"], out["replied"]) == (1, 1)
+    assert bot.client.count("create") == 1 and len(bot.ai.calls) == 1
+    assert Counter(x["mention_id"] for x in _sim_replies(bot)) == {"m1": 1}
+    assert _state(bot)["pending_publish"] == {}
+
+
+def test_container_already_published_is_marked_not_published_again(cbot, monkeypatch):
+    """publish 成功後、寫 state 前被砍：下輪查到 PUBLISHED 只補標記，絕不再發一次。"""
+    _set_mentions(cbot, ["m1"])
+    real_mark = threads_bot.PollContext.mark
+
+    async def killed(self, *args, **kwargs):
+        raise SimulatedCrash("killed right after publish_container returned")
+
+    monkeypatch.setattr(threads_bot.PollContext, "mark", killed)
+    with pytest.raises(SimulatedCrash):
+        _poll(cbot)
+    assert [x["mention_id"] for x in _sim_replies(cbot)] == ["m1"]       # 回覆已送出
+    st = _state(cbot)
+    assert st["replied_ids"] == [] and "m1" in st["pending_publish"]     # 但還沒記住
+
+    monkeypatch.setattr(threads_bot.PollContext, "mark", real_mark)
+    out = _poll(cbot)
+    assert (out["checked"], out["replied"], out["errors"]) == (1, 1, 0)
+    assert cbot.client.count("publish") == 1 and cbot.client.count("create") == 1
+    assert cbot.client.calls[-1] == ("status", "sim_container_1", "PUBLISHED")
+    assert len(_sim_replies(cbot)) == 1 and len(cbot.ai.calls) == 1
+    st = _state(cbot)
+    assert st["replied_ids"] == ["m1"] and st["pending_publish"] == {} and st["daily"]["replies"] == 1
+    assert _poll(cbot)["replied"] == 0
+
+
+def test_container_expired_pending_returns_to_normal_flow_in_the_same_round(bot, poll5):
+    bot.client = CrashAfterCreate(mentions_path=bot.mentions_path)
+    _set_mentions(bot, ["m1"])
+    with pytest.raises(SimulatedCrash):
+        _poll(bot)
+    _edit_container(bot, "sim_container_1", statuses=["EXPIRED"])        # 隔了一天才重啟：container 已過期
+
+    out = _poll(bot)
+    # 補發失敗計 1 次錯誤並刪鍵 → 同一輪走正常流程重建 container；checked 不重複計
+    assert (out["checked"], out["replied"], out["skipped"], out["errors"]) == (1, 1, 0, 1)
+    assert bot.client.count("create") == 2 and bot.client.count("publish") == 1
+    assert bot.client.calls[-1] == ("publish", "sim_container_2")
+    assert Counter(x["mention_id"] for x in _sim_replies(bot)) == {"m1": 1}
+    st = _state(bot)
+    assert st["replied_ids"] == ["m1"] and st["pending_publish"] == {} and st["failed"] == {}
+
+
+def test_container_pending_of_other_mode_and_malformed_entries(cbot):
+    live_entry = {"container_id": "17900000000000999", "mode": "live", "reply_text": "x", "analyzed": True}
+    _write_state(cbot, pending_publish={"17900000000000001": live_entry, "m2": {"creation_id": "legacy-shape"}})
+    _set_mentions(cbot, ["m2"])
+    out = _poll(cbot)
+    assert (out["checked"], out["replied"], out["errors"]) == (1, 1, 0)
+    assert all(c[1] != "17900000000000999" for c in cbot.client.calls)   # live 的 container 不在 sim 補發
+    st = _state(cbot)
+    assert st["pending_publish"] == {"17900000000000001": live_entry}     # 留給 live 模式；壞格式的那筆已清掉
+    assert st["replied_ids"] == ["m2"] and st["failed"] == {}
+
+
+def test_container_resumed_analyzed_reply_respects_daily_cap(cbot, monkeypatch):
+    _set_mentions(cbot, ["m1"])
+    _inject(cbot, "m1", _sim_error={"on": "publish", "http": 503})
+    assert _poll(cbot)["errors"] == 1
+    _inject(cbot, "m1", _sim_error=None)
+    monkeypatch.setattr(settings, "THREADS_MAX_REPLIES_PER_DAY", 1)
+    _write_state(cbot, daily={"date": threads_state.taipei_today(), "replies": 1})
+    out = _poll(cbot)
+    assert (out["checked"], out["replied"], out["stopped"]) == (0, 0, "daily_cap")
+    assert cbot.client.count("publish") == 1                 # 上限已滿：這輪連補發都不送
+    assert "m1" in _state(cbot)["pending_publish"] and _sim_replies(cbot) == []
+
+    _write_state(cbot, daily={"date": threads_state.taipei_today(), "replies": 0})   # 隔天歸零後補發
+    out = _poll(cbot)
+    assert (out["checked"], out["replied"], out["stopped"]) == (1, 1, None)
+    assert cbot.client.count("create") == 1 and len(_sim_replies(cbot)) == 1
+    assert _state(cbot)["daily"]["replies"] == 1             # 補發的判定回覆同樣計入每日回覆數
+
+
+class LegacyReplyOnlyClient:
+    """只有 reply_to()、沒有三個 container 操作的舊式客戶端（run_threads_poll 仍要能用）。"""
+
+    available = True
+
+    def __init__(self, inner, error=None):
+        self._inner, self._error, self.reply_calls = inner, error, []
+
+    def get_mentions(self, since=None, after_cursor=None):
+        return self._inner.get_mentions(since, after_cursor)
+
+    def get_post(self, media_id):
+        return self._inner.get_post(media_id)
+
+    def reply_to(self, media_id, text):
+        self.reply_calls.append(media_id)
+        if self._error is not None:
+            raise self._error
+        return self._inner.reply_to(media_id, text)
+
+
+def test_container_legacy_client_without_container_api_still_replies(bot, poll5):
+    _set_mentions(bot, ["m1"])
+    legacy = LegacyReplyOnlyClient(bot.client)
+    out = _poll(bot, client=legacy)
+    assert (out["replied"], out["errors"]) == (1, 0) and legacy.reply_calls == ["m1"]
+    st = _state(bot)
+    assert st["replied_ids"] == ["m1"] and st["pending_publish"] == {}
+    [rec] = _records(bot)
+    assert rec["reply_id"] == "sim_reply_1" and rec["result_id"] == bot.ai.calls[0]["task_id"]
+
+
+@pytest.mark.parametrize("status, stopped, failed_final", [
+    (429, "rate_limited", False), (400, None, True), (503, None, False),
+])
+def test_container_legacy_client_errors_use_the_same_triage(bot, poll5, status, stopped, failed_final):
+    _set_mentions(bot, ["m1"])
+    legacy = LegacyReplyOnlyClient(bot.client, error=ThreadsApiError(status, {"error": {"message": "x"}}))
+    out = _poll(bot, client=legacy)
+    assert (out["replied"], out["errors"], out["stopped"]) == (0, 1, stopped)
+    st = _state(bot)
+    assert st["replied_ids"] == [] and ("m1" in st["failed"]) is failed_final
+    assert (st["backoff_until"] is not None) is (status == 429)
+
+
+# ── FakeThreadsService 的 container 模擬（sim 才能離線覆蓋 §7.6／§7.10）──────────────
+def test_fake_container_lifecycle_and_persistence_across_instances(fake):
+    cid = fake.create_reply_container("m1", "回覆一", result_id="task-1")
+    assert cid == "sim_container_1" and fake.containers_path == fake.mentions_path.parent / "containers.json"
+    assert not fake.replies_path.exists()                     # 建 container 不等於發佈
+
+    again = FakeThreadsService(mentions_path=fake.mentions_path)   # sim 每輪重建客戶端：container 要落檔
+    assert again.get_container_status(cid) == {"id": cid, "status": "FINISHED"}
+    assert again.wait_container(cid) == "FINISHED"
+    assert again.publish_container(cid) == "sim_reply_1"
+    [line] = _read_lines(fake.replies_path)
+    assert set(line) == {"ts", "mention_id", "reply_id", "result_id", "text"}
+    assert (line["mention_id"], line["result_id"], line["text"]) == ("m1", "task-1", "回覆一")
+
+    assert fake.get_container_status(cid)["status"] == "PUBLISHED"
+    with pytest.raises(ThreadsApiError) as ei:
+        fake.publish_container(cid)                           # 已發佈的不能再發
+    assert ei.value.status == 400 and len(_read_lines(fake.replies_path)) == 1
+    assert fake.create_reply_container("m4", "回覆二") == "sim_container_2"
+
+
+def test_fake_container_cache_sees_external_edits_and_deletion(fake):
+    """containers.json 有行程內快取（mtime＋大小驗證）：別的實例、手動改檔、刪檔都要立刻反映。"""
+    cid = fake.create_reply_container("m1", "x")
+    assert fake.get_container_status(cid)["status"] == "FINISHED"          # 此時快取已是熱的
+
+    data = json.loads(fake.containers_path.read_text(encoding="utf-8"))
+    data["containers"][cid]["statuses"] = ["EXPIRED"]
+    data["containers"][cid]["checks"] = 0
+    fake.containers_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")   # 手動改檔
+    assert fake.get_container_status(cid)["status"] == "EXPIRED"
+
+    other = FakeThreadsService(mentions_path=fake.mentions_path)             # 另一個實例寫入
+    cid2 = other.create_reply_container("m2", "y")
+    assert fake.get_container_status(cid2)["status"] == "FINISHED"
+
+    fake.containers_path.unlink()                                            # --reset 式的刪檔
+    with pytest.raises(ThreadsApiError) as ei:
+        fake.get_container_status(cid)
+    assert ei.value.status == 404
+    assert fake.create_reply_container("m1", "z") == "sim_container_1"       # 編號從頭開始
+
+
+def test_fake_container_publish_requires_finished_status(fake):
+    data = json.loads(fake.mentions_path.read_text(encoding="utf-8"))
+    data["mentions"][0]["_sim_container"] = {"statuses": ["IN_PROGRESS", "ERROR"], "error_message": "boom"}
+    fake.mentions_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    cid = fake.create_reply_container("m1", "text")
+    with pytest.raises(ThreadsApiError) as ei:
+        fake.publish_container(cid)                           # 還沒查過狀態
+    assert ei.value.status == 400
+    assert fake.get_container_status(cid) == {"id": cid, "status": "IN_PROGRESS"}
+    with pytest.raises(ThreadsApiError):
+        fake.publish_container(cid)                           # IN_PROGRESS 也不行
+    assert fake.get_container_status(cid) == {"id": cid, "status": "ERROR", "error_message": "boom"}
+    assert fake.get_container_status(cid)["status"] == "ERROR"    # 序列用完停在最後一格
+    assert not fake.replies_path.exists()
+    with pytest.raises(ThreadsApiError) as ei:
+        fake.get_container_status("sim_container_404")
+    assert ei.value.status == 404
+
+
+def test_fake_container_wait_uses_injected_sleep_and_reply_to_returns_none_unless_finished(fake):
+    data = json.loads(fake.mentions_path.read_text(encoding="utf-8"))
+    data["mentions"][0]["_sim_container"] = ["IN_PROGRESS", "FINISHED"]
+    data["mentions"][3]["_sim_container"] = ["ERROR"]
+    fake.mentions_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    sleeps = []
+    fake.container_sleep = sleeps.append
+    assert fake.reply_to("m1", "等一下就好") == "sim_reply_1" and sleeps == [5.0]
+    assert fake.reply_to("m4", "不會發出去") is None                      # ERROR：不 publish
+    assert [x["mention_id"] for x in _read_lines(fake.replies_path)] == ["m1"]
+    cid = fake.create_reply_container("m2", "自訂等待")
+    assert fake.wait_container(cid, interval=1, timeout=3, sleep=sleeps.append) == "FINISHED"
+
+
+def test_fake_container_error_injection_points_and_text_condition(fake):
+    data = json.loads(fake.mentions_path.read_text(encoding="utf-8"))
+    by_id = {m["id"]: m for m in data["mentions"]}
+    by_id["m1"]["_sim_error"] = {"on": "container_status", "http": 503}
+    by_id["m2"]["_sim_error"] = {"on": "publish", "http": 500}
+    by_id["m4"]["_sim_error"] = {"on": "create_container", "http": 400, "body": LINK_LIMIT_BODY,
+                                 "if_text_contains": "查核來源："}
+    fake.mentions_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+    c1 = fake.create_reply_container("m1", "x")
+    with pytest.raises(ThreadsApiError) as ei:
+        fake.get_container_status(c1)
+    assert ei.value.status == 503
+
+    c2 = fake.create_reply_container("m2", "y")
+    assert fake.wait_container(c2) == "FINISHED"
+    with pytest.raises(ThreadsApiError) as ei:
+        fake.publish_container(c2)
+    assert ei.value.status == 500 and not fake.replies_path.exists()
+
+    with pytest.raises(ThreadsApiError) as ei:
+        fake.create_reply_container("m4", "判定\n查核來源：https://example.org/a")
+    assert ei.value.status == 400 and ts.is_link_limit_error(ei.value)
+    assert fake.create_reply_container("m4", "判定（沒有來源行）").startswith("sim_container_")

@@ -15,6 +15,9 @@
 檢查到啟動之間若被另一輪搶先，PollInProgress 在背景被吞下（threads_bot 已記一行 warning，不丟 traceback）。
 last_error 由輪詢寫入 state、status 只讀；例外：客戶端 invalid_reason 非空（token 過期）時 status 直接回
 token_invalid，尚未輪詢也看得到（S-11 threads_mode_invalid 徽章）。
+backoff（spec §7.10；T-13）：HTTP 429／401／連續 3 輪 5xx 時輪詢把 backoff_until（UTC ISO）與 last_error
+（rate_limited／token_invalid／transient_error…）寫進 state，status 原樣回傳；backoff 未到期時 POST /poll 仍回 202，
+但背景那一輪整輪略過（不打 API、last_poll_at 不變）——scripts/test_threads_bot.py --poll 會讀 status 提示「輪詢暫停中」。
 
 端點皆為同步 def：只讀本機小檔（state／jsonl／token 檔），交給 threadpool，不卡 event loop。
 """

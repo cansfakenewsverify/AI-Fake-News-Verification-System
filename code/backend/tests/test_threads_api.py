@@ -432,6 +432,33 @@ def test_poll_202_runs_sim_round_and_status_replies_follow(env, client, fake_ai)
     assert len(fake_ai.calls) == 1
 
 
+@pytest.mark.parametrize("http, last_error, minutes", [(401, "token_invalid", 60), (429, "rate_limited", 5)])
+def test_status_shows_last_error_and_backoff_after_injected_mentions_error(env, client, fake_ai, http, last_error, minutes):
+    """T-13 驗收：mentions 端點 401／429 注入後，status.last_error 正確且 backoff_until 非 null；
+    backoff 期間再觸發 poll 仍回 202，但整輪略過（不打 API、last_poll_at 不變）。"""
+    dest = _copy_example_mentions(env)
+    data = json.loads(dest.read_text(encoding="utf-8"))
+    data["mentions"][0]["_sim_error"] = {"on": "get_mentions", "http": http}
+    dest.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+    assert client.post("/api/threads/poll", headers=_auth()).status_code == 202
+    st = client.get("/api/threads/status").json()
+    assert set(st) == STATUS_KEYS                                   # spec §5.3 欄位不變
+    assert st["last_error"] == last_error and st["backoff_until"] is not None
+    assert st["last_poll_stats"] == {"checked": 0, "replied": 0, "skipped": 0, "errors": 1}
+    until = datetime.fromisoformat(st["backoff_until"])
+    left = (until - datetime.now(timezone.utc)).total_seconds() / 60
+    assert minutes - 0.5 <= left <= minutes
+    assert fake_ai.calls == [] and client.get("/api/threads/replies").json() == {"records": []}
+
+    first_poll_at = st["last_poll_at"]
+    time.sleep(0.01)
+    assert client.post("/api/threads/poll", headers=_auth()).status_code == 202
+    again = client.get("/api/threads/status").json()
+    assert again["last_poll_at"] == first_poll_at and again["backoff_until"] == st["backoff_until"]
+    assert again["last_error"] == last_error and not threads_bot.lock_path().exists()
+
+
 def test_background_poll_race_poll_in_progress_is_swallowed(env, client, fake_ai, monkeypatch, caplog):
     """檢查通過後、背景工作開始前被另一輪搶到鎖：不丟例外、只有 threads_bot 的一行 warning。"""
     _copy_example_mentions(env)

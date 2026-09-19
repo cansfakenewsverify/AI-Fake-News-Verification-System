@@ -516,10 +516,14 @@ target = resolve_target(m):
      成功且 strip_mentions(text) ≥ 8 字 → kind="text"                              # 主要依據是「有無可用文字」
      media_type in ("IMAGE","VIDEO","CAROUSEL_ALBUM") 且 strip_mentions(text) < 8 字 → kind="media_only"
                                                                                 # 正向清單；永不與 "TEXT" 比對（FR-09 驗收 5）
-     HTTP 401/403/404 或其他 4xx（非 Tester、私人帳號、權限）→ kind="unreadable"   # 以 HTTP 狀態碼為主，error.code 只 log
+     HTTP 401/403/404（非 Tester、私人帳號、權限）→ kind="unreadable"               # 以 HTTP 狀態碼為主，error.code 只 log
+     其他未列入的 4xx（HTTP 400 等；429 除外）→ kind="failed"                       # 2026-09-19 修訂：同 7.10「參數錯／未知 4xx」保守路徑
+     HTTP 429／5xx／逾時 → kind="transient"（不回覆、不標記，下輪重試）            # 429 另依 7.10 設 backoff_until 並中止本輪
   2. 無 replied_to → 用 mention 本文 strip_mentions；≥ 8 字 → "text"，否則 "too_short"
   3. text 內含 http(s) 網址且去網址後 < 8 字 → input_type="url"（走 FR-02），否則 input_type="text"
 if kind == self: mark; return
+if kind == failed: 標 failed（寫 state.failed，終態）+ log 全文; 不回覆、不重試、不進 replied_ids; return   # 2026-09-19 修訂
+if kind == transient: return                                     # 不回覆、不標記，下輪補回
 if kind in (media_only, unreadable, too_short): reply(固定文案 7.7); mark; write replies.jsonl; return
 task_id = create_task("threads_mention", text, origin=mode, threads_mention_id=m.id, platform_post={...})
 result = await process_analysis_task_async(task_id, text, input_type)
@@ -528,6 +532,8 @@ reply_text = format_verdict_reply(result, result_url=f"{PUBLIC_BASE_URL}/r/{task
 reply_id = svc.reply_to(m.id, reply_text)                        # 7.6
 if reply_id: mark; update_task(threads_reply_id); append replies.jsonl; daily.replies += 1; write state
 ```
+
+> **2026-09-19 修訂（票 T-13；統一 7.5 與 7.10／FN-4 的文字衝突）**：原文「HTTP 401/403/404 **或其他 4xx** → `kind="unreadable"`」與 7.10「任何未列入的 4xx 走保守路徑：該 mention 標 failed + log 全文，不重試、不回覆」及測試準則 FN-4「未知 4xx → 標 failed 不回覆」互相矛盾。**以 7.10／FN-4 為準**：讀原貼文時只有 HTTP 401／403／404 視為「讀不到」並回 `reply_cannot_read`（401 在此端點當作讀不到；token 失效由 mentions 端點的 401 判定，見 7.10）；其他未列入的 4xx（HTTP 400 等）→ `kind="failed"`：寫入 `threads_state.json` 的 `failed[mention_id]`（終態）並把回應 body 寫 log，不回覆、不重試、不計入 `replied_ids`，也不擋 `last_since` 游標；HTTP 429／5xx／逾時 → `kind="transient"`，該筆不回覆、不標記、下輪重試，429 另依 7.10 設 `backoff_until` 並中止本輪。回覆端點（建 container／publish）的錯誤同樣依 7.10 以 HTTP 狀態碼分流。
 
 ### 7.6 發佈與 container 狀態檢查
 - **主要路徑（依共識 §3，兩段式 + 狀態檢查）**：`POST /{user_id}/threads` form `{media_type:"TEXT", text, reply_to_id:{mention_id}}` 建 container → `GET /{container_id}?fields=status,error_message`，每 5 秒查一次最多 60 秒，`status=FINISHED` 才 `POST /{user_id}/threads_publish`（官方建議每分鐘一次最多 5 分鐘，文字貼文通常數秒即 FINISHED，故縮短）→ 回 media `id` 記 `reply_id`；`ERROR`／`EXPIRED` → 記 `last_error`、該 mention 標 `failed_publish`、下輪重試一次；第二次仍失敗 → 標記已處理並 log（避免每輪重跑 AI）。「container 建好但 publish 失敗」的重複發文風險以「建 container 後即先寫 state `pending_publish:{mention_id, container_id}`、下輪先嘗試 publish 同一 container」處理。
