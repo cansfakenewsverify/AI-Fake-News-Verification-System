@@ -12,14 +12,14 @@
 | 品牌 | 全民查證公社；機器人 Threads 帳號 `factcheck_tw_bot`（顯示名稱「全民查證公社」） | 對話 |
 | 文字輸入不再送 Google 搜尋 | 同意（grill Q6「全部同意」）→ 視同 FN-1 例外同意，B-03 可改 `test_processor_flow.py` | grill 第二輪 |
 | AI provider | CGU AIR 新金鑰，`gpt-5.4-mini`；不買 OpenAI | 共識 §4 |
-| Supabase | 報告後再決定（選項：只當資料庫／全搬 Edge Functions／維持現狀） | 對話 |
+| Supabase／上雲 | **2026-09-19 定案並實作**：Supabase 只當資料庫（Postgres + pgvector，東京區）；後端跑在 Render 免費主機；金鑰由負責人只貼進 Render 後台，不放 Supabase、不進 git、不貼聊天。目的：正式上線、不依賴負責人的電腦。步驟見 `runbook_cloud_deploy.md` | 2026-09-19 對話 |
 | 「結果頁 3 秒看得懂」 | 延到實作後 visual review 用真手機測 | grill with mockup |
 
 | 報告日期 | **2026-09-21～09-23 之間**（確切哪天未定）→ 排程以**最早 9/21（一）**為截止，比原假設 9/22 早一天 | 對話 |
 | 專題信箱 | `cans.fakenewsverify@gmail.com`（已填入 `public/privacy.html`、`public/data-deletion.html`） | 對話 |
 | GitHub 權限 | `soymilk0211` 已加為協作者（Write），邀請已接受，可推送 | 對話 + 截圖 |
 | 機器人顯示名稱 | 先不改（O-06 延後） | 對話 |
-| demo 影片配音 | **台灣華語男聲 `zh-TW-YunJheNeural`（雲哲）**，以 `edge-tts`（微軟 Edge 內建朗讀語音，免帳號免金鑰）產生；剪輯改用 Remotion（`video/`，node_modules 已 gitignore）。負責人 2026-09-16 試聽三個台灣華語語音後選男聲 | 對話 |
+| demo 影片配音 | **台灣華語男聲 `zh-TW-YunJheNeural`（雲哲）**，以 `edge-tts`（微軟 Edge 內建朗讀語音，免帳號免金鑰）產生；剪輯最後採用 **HyperFrames**（`video/hf-demo/`，HTML 組版、只在本機 render；先前試裝的 Remotion 未採用）；**不加背景音樂**（2026-09-19）。成品 `docs/demo/demo_v0.4.0.mp4`。負責人 2026-09-16 試聽三個台灣華語語音後選男聲 | 對話 |
 | 組員分工 | 廖晢勛＝測試負責人／實作（本人，不負責簡報）、石岱勳＝影片與簡報、姚睿＝介面測試、張宇宏＝績效與品質數據、廖昱翔＝文件與審查 | 2026-09-16 對話 |
 | demo 影片製作（舊） | **由 Claude 自動錄製網站畫面、配音、剪輯、上字幕**；配音用 CGU 閘道 `gpt-4o-mini-tts`（負責人試聽後選「自然的」）；已安裝 ffmpeg 9.0.1（winget `Gyan.FFmpeg`）。真實 Threads App／手機分享畫面不錄（範圍 A 用模擬模式） | 2026-09-16 對話 |
 | 資料清洗 D-05 | 1a 2a 3a（照建議），已套用 | 2026-09-16 對話 |
