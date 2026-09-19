@@ -20,7 +20,7 @@
 | GitHub 權限 | `soymilk0211` 已加為協作者（Write），邀請已接受，可推送 | 對話 + 截圖 |
 | 機器人顯示名稱 | 先不改（O-06 延後） | 對話 |
 | demo 影片配音 | **台灣華語男聲 `zh-TW-YunJheNeural`（雲哲）**，以 `edge-tts`（微軟 Edge 內建朗讀語音，免帳號免金鑰）產生；剪輯最後採用 **HyperFrames**（`video/hf-demo/`，HTML 組版、只在本機 render；先前試裝的 Remotion 未採用）；**不加背景音樂**（2026-09-19）。成品 `docs/demo/demo_v0.4.0.mp4`。負責人 2026-09-16 試聽三個台灣華語語音後選男聲 | 對話 |
-| 組員分工 | 廖晢勛＝測試負責人／實作（本人，不負責簡報）、石岱勳＝影片與簡報、姚睿＝介面測試、張宇宏＝績效與品質數據、廖昱翔＝文件與審查 | 2026-09-16 對話 |
+| 組員分工 | **待組內確認（2026-09-19 負責人要求先挖空）**：測試計畫書 v1.1 的姓名欄留白、全文以代號組員 A～E 指稱；負責人拿 `docs/test/role_sheet.md` 去問組員，確認後再填回 §5.1 與 §6.4。已確定的只有：負責人＝組員 A（測試負責人／操作者），且不負責上台簡報。（2026-09-16 的草擬分配已撤回） | 2026-09-19 對話 |
 | demo 影片製作（舊） | **由 Claude 自動錄製網站畫面、配音、剪輯、上字幕**；配音用 CGU 閘道 `gpt-4o-mini-tts`（負責人試聽後選「自然的」）；已安裝 ffmpeg 9.0.1（winget `Gyan.FFmpeg`）。真實 Threads App／手機分享畫面不錄（範圍 A 用模擬模式） | 2026-09-16 對話 |
 | 資料清洗 D-05 | 1a 2a 3a（照建議），已套用 | 2026-09-16 對話 |
 | Vercel | 已建立：team `fakenewsverify`（Hobby）、project `fakenewsverify`、Root `code/frontend`。**PUBLIC_BASE_URL = `https://fakenewsverify.vercel.app`**；實測 `/`、`/privacy.html`（含信箱）、`/r/任意id`（SPA fallback）皆 200；CI（含前端 job）綠 | 2026-09-15 部署 |
