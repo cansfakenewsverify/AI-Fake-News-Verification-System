@@ -82,6 +82,8 @@ echo  Launching backend + React ...
 echo.
 
 :: Start backend (helper bat lives in code\backend after flatten)
+:: Packages were synced a moment ago in step 4: tell the helper not to run pip a second time
+set SKIP_PIP_SYNC=1
 start "" "%BACKEND_DIR%\_run_backend.bat"
 echo Backend     : http://localhost:8000
 

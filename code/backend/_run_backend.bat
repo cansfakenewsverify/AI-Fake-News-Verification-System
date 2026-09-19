@@ -6,8 +6,11 @@ cd /d "%~dp0"
 :: "python -m ..." instead of activate.bat / pip.exe / uvicorn.exe: those hard-code the folder the venv
 :: was created in and stop working when the project folder is moved.
 
-echo Syncing packages...
-venv\Scripts\python.exe -m pip install -r requirements.txt -q --disable-pip-version-check
+:: start.bat has just synced the packages and sets SKIP_PIP_SYNC; sync only when this file is run on its own
+if not defined SKIP_PIP_SYNC (
+    echo Syncing packages...
+    venv\Scripts\python.exe -m pip install -r requirements.txt -q --disable-pip-version-check
+)
 
 echo.
 echo Starting FastAPI on http://localhost:8000 ...
