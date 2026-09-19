@@ -1,0 +1,222 @@
+<!doctype html>
+<!--
+  s07-vector — 鏡 7「換個說法：語意相似命中」 (15s)
+  Genuine capture S7_t3 (local run): paste the reworded rumour P2 → 開始查證 → loading (×2, labelled) →
+  red 詐騙警告 + chip 「快取命中・語意相似」 → click the chip → 「…沒有再次呼叫 AI。」
+  The camera (inside the panel) chases the interaction: wide page → tight on the verdict header.
+  Right column: original vs reworded sentence, the measured similarity 0.8026 against the 0.75 threshold
+  (docs/demo/demo_posts.md §2), and the three-layer ladder with ② lit.
+  Blueprint: cursor-ui-demo · rules: viewport-change, stat-bars-and-fills, counting-dynamic-scale.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+        }
+        .s07-col {
+          position: absolute;
+          left: 1284px;
+          top: 76px;
+          width: 540px;
+          height: 800px;
+        }
+        .s07-h {
+          margin-top: 8px;
+          font-size: 50px;
+          line-height: 62px;
+          font-weight: 700;
+        }
+        .s07-pair {
+          margin-top: 22px;
+          padding: 18px 24px 20px;
+          border-radius: 16px;
+          background: #ffffff;
+          box-shadow: 0 0 0 2px #d4d4d8;
+        }
+        .s07-pair-k {
+          font-size: 20px;
+          line-height: 28px;
+          font-weight: 700;
+          color: #5b5b66;
+        }
+        .s07-pair-v {
+          margin-top: 2px;
+          font-size: 25px;
+          line-height: 37px;
+        }
+        .s07-pair-v + .s07-pair-k {
+          margin-top: 12px;
+        }
+        .s07-url {
+          width: 3.4em;
+          height: 0.84em;
+          margin: 0 0.1em;
+          transform: translateY(0.08em);
+        }
+        .s07-sim {
+          margin-top: 18px;
+          padding: 16px 24px 20px;
+          border-radius: 16px;
+          background: #ffffff;
+          box-shadow: 0 0 0 2px #d4d4d8;
+        }
+        .s07-sim-top {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+        }
+        .s07-sim-n {
+          font-size: 64px;
+          line-height: 72px;
+          font-weight: 700;
+          font-variant-numeric: tabular-nums;
+          letter-spacing: -0.02em;
+        }
+        .s07-bar {
+          position: relative;
+          margin-top: 10px;
+          height: 18px;
+          border-radius: 9px;
+          background: #e4e4e7;
+        }
+        .s07-bar-fill {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 18px;
+          border-radius: 9px;
+          background: #111111;
+          transform-origin: left center;
+        }
+        .s07-bar-thr {
+          position: absolute;
+          left: 75%;
+          top: -8px;
+          width: 4px;
+          height: 34px;
+          margin-left: -2px;
+          background: #111111;
+          box-shadow: 0 0 0 3px #ffffff;
+        }
+        .s07-bar-cap {
+          margin-top: 12px;
+          display: flex;
+          justify-content: space-between;
+          font-size: 20px;
+          line-height: 28px;
+          color: #5b5b66;
+          font-weight: 700;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s07-vector" data-width="1920" data-height="1080" data-duration="15.6">
+        <div class="fnv-grid"></div>
+
+        <div class="fnv-panel" id="s07-panel">
+          <div class="fnv-cam" id="s07-cam" data-layout-allow-overflow>
+            <video id="s07-footage" src="assets/footage/s07_vector.mp4" data-start="0" data-duration="15.6" data-track-index="0" muted playsinline></video>
+            <div class="fnv-ring" id="s07-ring-chip" style="left: 1158px; top: 96px; width: 190px; height: 50px"></div>
+            <div class="fnv-ring fnv-ring-box" id="s07-ring-note" style="left: 572px; top: 178px; width: 776px; height: 72px"></div>
+          </div>
+        </div>
+        <div class="fnv-tag fnv-tag-panel" id="s07-local">本機執行畫面</div>
+        <div class="fnv-tag fnv-tag-speed s07-speed" id="s07-speed">畫面加速 ×2</div>
+
+        <div class="s07-col">
+          <div class="fnv-eyebrow fnv-mono" id="s07-eyebrow">07 ／ 換個說法再問一次</div>
+          <div class="s07-h" id="s07-h">語意相似，也認得</div>
+
+          <div class="s07-pair" id="s07-pair">
+            <div class="s07-pair-k">知識庫裡已判定的原句</div>
+            <div class="s07-pair-v">健保卡即日起停用！請點<span class="fnv-mask s07-url"></span>重新驗證，逾期停卡</div>
+            <div class="s07-pair-k">這次貼上的改寫句</div>
+            <div class="s07-pair-v">你的健保卡即將停用，請盡快點連結重新驗證，不然會被停卡</div>
+          </div>
+
+          <div class="s07-sim" id="s07-sim">
+            <div class="s07-sim-top">
+              <div class="s07-pair-k">向量相似度（實測）</div>
+              <div class="s07-sim-n fnv-mono" id="s07-n">0.00</div>
+            </div>
+            <div class="s07-bar"><div class="s07-bar-fill" id="s07-fill"></div><div class="s07-bar-thr" id="s07-thr"></div></div>
+            <div class="s07-bar-cap fnv-mono"><span>0</span><span>門檻 0.75</span><span>1</span></div>
+          </div>
+
+          <div class="fnv-ladder" id="s07-ladder">
+            <div class="fnv-step" id="s07-l1"><span class="fnv-step-n fnv-mono">L1</span><span>相同內容</span></div>
+            <div class="fnv-step" id="s07-l2"><span class="fnv-step-n fnv-mono">L2</span><span>語意相似・沿用結果，不呼叫 AI</span></div>
+            <div class="fnv-step" id="s07-l3"><span class="fnv-step-n fnv-mono">L3</span><span>AI 判讀</span></div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s07-vector"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+
+          // Narration offset 1.2: 換個說法 1.30 · 語意向量比對 4.07 · 同一則謠言 5.81 · 沿用結果 7.42 · 不必再請 AI 9.26
+          const CUE = { again: 1.3, vector: 4.07, same: 5.81, reuse: 7.42, noai: 9.26 };
+          // Footage clock (data/footage_map.json): paste 2.03 · click 5.06 · loading ×2 5.10–7.03 · result 7.03 · chip click 10.41
+          const F = { paste: 2.03, click: 5.06, load0: 5.1, load1: 7.03, chip: 10.41 };
+
+          const cam = (cx, cy, s) => ({
+            x: Math.min(0, Math.max(1140 - 1920 * s, 570 - cx * s)),
+            y: Math.min(0, Math.max(800 - 1080 * s, 400 - cy * s)),
+            scale: s,
+          });
+          const WIDE = cam(960, 400, 1);
+          const INPUT = cam(960, 420, 1.2); // the input card while the sentence is pasted
+          const LOAD = cam(960, 236, 1.3); // the loading stepper (檢查快取 → 讀取內容 → AI 判讀)
+          const HEAD = cam(960, 0, 1.425); // tight on the 800px column: verdict header, chips, buttons
+
+          tl.fromTo($("#s07-panel"), { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.1);
+          tl.fromTo($("#s07-local"), { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 0.6);
+          tl.fromTo($("#s07-cam"), WIDE, { ...INPUT, duration: 1.4, ease: "power2.inOut" }, 0.9);
+          tl.to($("#s07-cam"), { ...LOAD, duration: 0.9, ease: "power2.inOut" }, F.load0 - 0.1);
+          tl.to($("#s07-cam"), { ...HEAD, duration: 1.1, ease: "power2.inOut" }, F.load1 + 0.25);
+
+          // emphasis rings (capture pixels): lock in, hold, release
+          const ring = (sel, at, until) => {
+            tl.fromTo($(sel), { opacity: 0, scale: 1.14 }, { opacity: 1, scale: 1, duration: 0.35, ease: "power3.out" }, at);
+            tl.to($(sel), { opacity: 0, duration: 0.25, ease: "power1.in" }, until);
+          };
+          ring("#s07-ring-chip", 8.5, F.chip - 0.15); // 「快取命中・語意相似」
+          ring("#s07-ring-note", F.chip + 0.55, 14.6); // 「…沒有再次呼叫 AI。」
+
+          tl.fromTo($("#s07-speed"), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(2)" }, F.load0);
+          tl.to($("#s07-speed"), { opacity: 0, duration: 0.2, ease: "power1.in" }, F.load1);
+
+          tl.fromTo($("#s07-eyebrow"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.3);
+          tl.fromTo($("#s07-h"), { opacity: 0, x: 44 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, CUE.again - 0.3);
+          tl.fromTo($("#s07-pair"), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, F.paste + 0.3);
+
+          // similarity readout: counts to the measured 0.8026 (shown as 0.80) and the bar crosses the 0.75 threshold
+          tl.fromTo($("#s07-sim"), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, CUE.vector - 0.1);
+          const n = { v: 0 };
+          const out = $("#s07-n");
+          tl.to(n, { v: 0.8026, duration: 1.5, ease: "power2.out", onUpdate: () => (out.textContent = n.v.toFixed(2)) }, CUE.vector + 0.25);
+          tl.fromTo($("#s07-fill"), { scaleX: 0 }, { scaleX: 0.8026, duration: 1.5, ease: "power2.out" }, CUE.vector + 0.25);
+          tl.fromTo($("#s07-thr"), { scaleY: 0 }, { scaleY: 1, duration: 0.3, ease: "power2.out" }, CUE.vector + 0.1);
+
+          tl.fromTo([$("#s07-l1"), $("#s07-l2"), $("#s07-l3")], { opacity: 0, x: 36 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out", stagger: 0.09 }, CUE.same - 0.2);
+          tl.to($("#s07-l2"), { backgroundColor: "#111111", color: "#ffffff", boxShadow: "0 0 0 2px #111111", duration: 0.3, ease: "power2.out" }, CUE.reuse - 0.1);
+          tl.to($("#s07-l2"), { scale: 1.04, duration: 0.2, ease: "power2.out" }, CUE.reuse - 0.1);
+          tl.to($("#s07-l2"), { scale: 1, duration: 0.35, ease: "power2.inOut" }, CUE.reuse + 0.1);
+
+          window.__timelines["s07-vector"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

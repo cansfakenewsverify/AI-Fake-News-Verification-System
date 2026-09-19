@@ -93,3 +93,23 @@ plantuml-*.jar
 video/node_modules/
 video/out/
 video/package-lock.json
+video/public/
+# 未完成的 Remotion 版剪輯原始碼（已由 video/hf-demo 取代，留在本機）
+video/src/
+video/tools/
+video/remotion.config.ts
+video/tsconfig.json
+
+# ── HyperFrames 影片專案 video/hf-demo：只提交原始碼（HTML/CSS/JS/JSON/MD）──
+# agent skills（npx skills add … 專案層級安裝；.claude/ 已在上面忽略）
+.agents/
+# 大型媒體與產物：實錄重建的素材、旁白音檔、render、snapshot、快取
+video/hf-demo/assets/footage/
+video/hf-demo/assets/audio/
+video/hf-demo/renders/
+video/hf-demo/snapshots/
+video/hf-demo/node_modules/
+video/hf-demo/.hyperframes/
+video/hf-demo/.hf-tmp/
+video/hf-demo/.debug/
+video/hf-demo/.media/

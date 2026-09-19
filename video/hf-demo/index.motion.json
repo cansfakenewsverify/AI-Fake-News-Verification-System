@@ -1,0 +1,19 @@
+{
+  "duration": 157.2,
+  "assertions": [
+    { "kind": "appearsBy", "selector": "#s01-l1", "bySec": 1.2 },
+    { "kind": "before", "a": "#s01-l3", "b": "#s01-ask" },
+    { "kind": "appearsBy", "selector": "#s03-simtag", "bySec": 18.0 },
+    { "kind": "before", "a": "#s03-call-a", "b": "#s03-call-b" },
+    { "kind": "before", "a": "#s03-st3", "b": "#s03-r1" },
+    { "kind": "appearsBy", "selector": "#s05-lens", "bySec": 51.5 },
+    { "kind": "appearsBy", "selector": "#s05-intent", "bySec": 67.2 },
+    { "kind": "appearsBy", "selector": "#s07-sim", "bySec": 79.0 },
+    { "kind": "appearsBy", "selector": "#s08-rule", "bySec": 106.5 },
+    { "kind": "before", "a": "#s09-c1", "b": "#s09-c2" },
+    { "kind": "before", "a": "#s10-a1", "b": "#s10-a2" },
+    { "kind": "appearsBy", "selector": "#s11-limit", "bySec": 151.6 },
+    { "kind": "staysInFrame", "selector": "#cap-32" },
+    { "kind": "keepsMoving", "maxStaticSec": 3 }
+  ]
+}

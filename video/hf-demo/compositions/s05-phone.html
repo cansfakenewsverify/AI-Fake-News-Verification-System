@@ -1,0 +1,340 @@
+<!doctype html>
+<!--
+  s05-phone — 鏡 5＋6「手機結果頁與分享」 (17.2s + 10.5s, one continuous stage)
+  Genuine capture S56_t1: /r/eb06622e… at 390×844 (mobile emulation, local run) in a PLAIN rounded frame —
+  no notch, no status bar, no Threads chrome. A magnifier shows the SAME footage at ~3× so phone-sized
+  text is legible; it tours verdict → summary → source → provenance, then the share button. The share
+  link was intercepted at record time (Threads was never opened); the card shows the href that the
+  button actually produced (data/captured.json → intentUrl), decoded.
+  Blueprint: device-surface-showcase (static tour) · rules: coordinate-target-zoom (magnifier), nudge-curve.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+        }
+        .s05-phone {
+          position: absolute;
+          left: 150px;
+          top: 62px;
+          width: 370px;
+          height: 800px;
+          border: 10px solid #111111;
+          border-radius: 46px;
+          overflow: hidden;
+          background: #ffffff;
+          box-shadow: 0 30px 70px rgba(17, 17, 17, 0.18);
+        }
+        .s05-phone video {
+          display: block;
+          width: 370px;
+          height: 800px;
+        }
+        .s05-region {
+          position: absolute;
+          left: 144px;
+          top: 72px;
+          width: 402px;
+          height: 124px;
+          border-radius: 14px;
+          box-shadow:
+            0 0 0 4px #111111,
+            0 0 0 8px rgba(255, 255, 255, 0.9);
+        }
+        .s05-head {
+          position: absolute;
+          left: 620px;
+          top: 76px;
+          width: 1204px;
+        }
+        .s05-title {
+          margin-top: 8px;
+          font-size: 46px;
+          line-height: 60px;
+          font-weight: 700;
+          white-space: nowrap;
+        }
+        .s05-title .fnv-mono {
+          font-size: 0.8em;
+        }
+        .s05-head2 {
+          position: absolute;
+          left: 620px;
+          top: 76px;
+          width: 1204px;
+        }
+        .s05-link {
+          position: absolute;
+          left: 620px;
+          top: 214px;
+          width: 1160px;
+        }
+        .s05-link-k {
+          font-size: 24px;
+          line-height: 34px;
+          font-weight: 700;
+          color: #5b5b66;
+        }
+        .s05-link-v {
+          position: static;
+          display: inline-block;
+          margin-top: 10px;
+          font-size: 25px;
+          line-height: 38px;
+          font-weight: 400;
+          padding: 10px 24px 12px;
+        }
+        .s05-lens {
+          position: absolute;
+          left: 620px;
+          top: 200px;
+          width: 1100px;
+          height: 366px;
+          overflow: hidden;
+          border-radius: 16px;
+          background: #ffffff;
+          box-shadow:
+            0 0 0 3px #111111,
+            0 24px 60px rgba(17, 17, 17, 0.14);
+          transform-origin: left top;
+        }
+        .s05-lens-cam {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 780px;
+          height: 1688px;
+          transform-origin: 0 0;
+        }
+        .s05-lens-cam video {
+          display: block;
+          width: 780px;
+          height: 1688px;
+        }
+        .s05-lens-tag {
+          left: 1444px;
+          top: 586px;
+        }
+        .s05-notes {
+          position: absolute;
+          left: 620px;
+          top: 650px;
+          width: 1204px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          column-gap: 24px;
+        }
+        .s05-note {
+          min-height: 190px;
+          padding: 22px 28px;
+          border-radius: 16px;
+          background: #ffffff;
+          box-shadow: 0 0 0 2px #d4d4d8;
+        }
+        .s05-note-h {
+          margin-top: 6px;
+          font-size: 34px;
+          line-height: 46px;
+          font-weight: 700;
+        }
+        .s05-note-b {
+          margin-top: 6px;
+          font-size: 26px;
+          line-height: 38px;
+          color: #3f3f46;
+        }
+        .s05-local {
+          left: 560px;
+          top: 16px;
+        }
+
+        .s05-intent {
+          position: absolute;
+          left: 620px;
+          top: 200px;
+          width: 1204px;
+          height: 668px;
+          border-radius: 20px;
+          background: #ffffff;
+          box-shadow:
+            0 0 0 2px #d4d4d8,
+            0 24px 60px rgba(17, 17, 17, 0.1);
+          padding: 28px 36px;
+          box-sizing: border-box;
+        }
+        .s05-raw {
+          margin-top: 10px;
+          padding: 12px 18px;
+          border-radius: 12px;
+          background: #f7f7f8;
+          box-shadow: 0 0 0 2px #e4e4e7;
+          font-size: 19px;
+          line-height: 30px;
+          color: #3f3f46;
+          word-break: break-all;
+        }
+        .s05-field {
+          margin-top: 20px;
+          padding-left: 24px;
+          border-left: 6px solid #111111;
+        }
+        .s05-field-k {
+          font-size: 22px;
+          line-height: 30px;
+          font-weight: 700;
+          color: #5b5b66;
+        }
+        .s05-field-v {
+          margin-top: 2px;
+          font-size: 31px;
+          line-height: 46px;
+        }
+        .s05-field-v.fnv-mono {
+          font-size: 25px;
+          white-space: nowrap;
+        }
+        .s05-verdict {
+          position: static;
+          display: inline-block;
+          margin-top: 22px;
+          font-size: 28px;
+          line-height: 40px;
+          padding: 9px 26px 11px;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s05-phone" data-width="1920" data-height="1080" data-duration="28.3">
+        <div class="fnv-grid"></div>
+
+        <div class="s05-phone" id="s05-phone">
+          <video id="s05-footage" src="assets/footage/s05_phone.mp4" data-start="0" data-duration="28.3" data-track-index="0" muted playsinline></video>
+        </div>
+        <div class="s05-region" id="s05-region"></div>
+        <div class="fnv-tag s05-local" id="s05-local">本機執行畫面・手機寬度模擬 390×844</div>
+
+        <div class="s05-head">
+          <div class="fnv-eyebrow fnv-mono" id="s05-eyebrow">05 ／ 回覆裡的連結</div>
+          <div class="s05-title" id="s05-title">結果頁 <span class="fnv-mono">/r/eb06622e…</span>：可分享的獨立網址</div>
+        </div>
+
+        <div class="s05-head2">
+          <div class="fnv-eyebrow fnv-mono" id="s05-eyebrow2">06 ／ 分享到 THREADS</div>
+          <div class="s05-title" id="s05-title2">按一下分享：判定和連結自動帶好</div>
+        </div>
+
+        <div class="s05-link" id="s05-link">
+          <div class="s05-link-k">機器人回覆裡的「完整判讀」連結</div>
+          <div class="fnv-tag s05-link-v fnv-mono">https://fakenewsverify.vercel.app/r/eb06622e-0592-4361-bfbd-0046b745cba6</div>
+        </div>
+
+        <div class="s05-lens" id="s05-lens">
+          <div class="s05-lens-cam" id="s05-lens-cam" data-layout-allow-overflow>
+            <video id="s05-zoom" src="assets/footage/s05_phone_lens.mp4" data-start="0" data-duration="28.3" data-track-index="0" muted playsinline></video>
+          </div>
+        </div>
+        <div class="fnv-tag fnv-tag-ghost s05-lens-tag" id="s05-lens-tag">放大鏡：同一段實錄 ×3</div>
+
+        <div class="s05-notes">
+          <div class="s05-note" id="s05-n1">
+            <div class="fnv-eyebrow fnv-mono">查核來源的規則</div>
+            <div class="s05-note-h">只列已做出判定的查核來源</div>
+            <div class="s05-note-b">有人問過、還沒有判定的網頁，不算。</div>
+          </div>
+          <div class="s05-note" id="s05-n2">
+            <div class="fnv-eyebrow fnv-mono">這一筆的來歷</div>
+            <div class="s05-note-h">由模擬模式產生</div>
+            <div class="s05-note-b">「來自 Threads <span class="fnv-mono">@tester_a</span>」是測試帳號。</div>
+          </div>
+        </div>
+
+        <div class="s05-intent" id="s05-intent">
+          <div class="fnv-eyebrow fnv-mono">按下「分享到 THREADS」實際產生的網址（未開啟 Threads、未登入）</div>
+          <div class="s05-raw fnv-mono" id="s05-raw">https://www.threads.com/intent/post?text=%F0%9F%94%B4%20AI%20%E5%88%A4%E5%AE%9A%E9%80%99%E5%89%87%E8%A8%8A%E6%81%AF%E6%98%AF%E8%A9%90%E9%A8%99…&amp;url=https%3A%2F%2Ffakenewsverify.vercel.app%2Fr%2Feb06622e…</div>
+          <div class="s05-field" id="s05-f1">
+            <div class="s05-field-k">官方分享網址（Web Intent）</div>
+            <div class="s05-field-v fnv-mono">https://www.threads.com/intent/post</div>
+          </div>
+          <div class="s05-field" id="s05-f2">
+            <div class="s05-field-k">text（解碼後）</div>
+            <div class="s05-field-v"><span class="fnv-emoji">🔴</span> AI 判定這則訊息是詐騙：冒用健保署名義的釣魚詐騙：以「即日起停用、逾期停卡」製造急迫感誘騙點連結，健保署不會要求民眾點連結驗證健保卡。查核來源：mygopen.com</div>
+          </div>
+          <div class="s05-field" id="s05-f3">
+            <div class="s05-field-k">url（解碼後）</div>
+            <div class="s05-field-v fnv-mono">https://fakenewsverify.vercel.app/r/eb06622e-0592-4361-bfbd-0046b745cba6</div>
+          </div>
+          <div class="fnv-tag s05-verdict" id="s05-verdict">純前端分享：不經機器人，不需要 Meta 審核</div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s05-phone"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+
+          // Narration on the scene clock. 鏡 5 offset 1.6 · 鏡 6 starts at 17.2, offset 0.4.
+          const S5 = { open: 1.7, red: 4.94, reason: 5.75, who: 6.87, asked: 9.65, not: 12.34 };
+          const S6 = { start: 17.2, press: 17.7, url: 20.06, meta: 22.82 };
+
+          // Magnifier: capture region (780 wide, 260 tall) shown at K; the phone shows the same capture at P.
+          const K = 1100 / 780;
+          const P = 370 / 780;
+          const REG = { verdict: 96, summary: 728, source: 1020, origin: 236, share: 1188 }; // capture y of the region top
+          const lens = (y) => ({ y: -y * K });
+          const mark = (y) => ({ y: y * P });
+
+          // ── entrances ─────────────────────────────────────────────────────────
+          tl.fromTo($("#s05-phone"), { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: 0.75, ease: "power3.out" }, 0.15);
+          tl.fromTo($("#s05-local"), { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 0.8);
+          tl.fromTo($("#s05-eyebrow"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.5);
+          tl.fromTo($("#s05-title"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, S5.open - 0.1);
+
+          // the link carried over from the reply, until the magnifier takes its place
+          tl.fromTo($("#s05-link"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 0.75);
+          tl.to($("#s05-link"), { opacity: 0, duration: 0.3, ease: "power1.in" }, S5.red - 1.1);
+
+          // ── the tour ──────────────────────────────────────────────────────────
+          tl.set($("#s05-lens-cam"), { scale: K, ...lens(REG.verdict) }, 0);
+          tl.set($("#s05-region"), mark(REG.verdict), 0);
+          tl.fromTo($("#s05-region"), { opacity: 0, scale: 1.12 }, { opacity: 1, scale: 1, duration: 0.4, ease: "power3.out" }, S5.red - 0.85);
+          tl.fromTo($("#s05-lens"), { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.55, ease: "back.out(1.3)" }, S5.red - 0.7);
+          tl.fromTo($("#s05-lens-tag"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, S5.red - 0.2);
+          const glide = (key, at, dur) => {
+            tl.to($("#s05-lens-cam"), { ...lens(REG[key]), duration: dur, ease: "power2.inOut" }, at);
+            tl.to($("#s05-region"), { ...mark(REG[key]), duration: dur, ease: "power2.inOut" }, at);
+          };
+          glide("summary", S5.reason - 0.1, 0.8); // 「一句話說明原因」
+          glide("source", S5.who + 0.35, 1.3); // 「是哪個查核機構做的判定」 (the page itself scrolls 6.9–9.5)
+          tl.fromTo($("#s05-n1"), { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, S5.asked - 0.1);
+          glide("origin", 13.7, 1.0); // 「來自 Threads @tester_a」
+          tl.fromTo($("#s05-n2"), { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 14.2);
+
+          // ── 鏡 6: press share, then read the URL it produced ─────────────────
+          glide("share", S6.start + 0.05, 0.9);
+          tl.to([$("#s05-eyebrow"), $("#s05-title")], { opacity: 0, duration: 0.3, ease: "power1.in" }, S6.start + 0.05);
+          tl.fromTo($("#s05-eyebrow2"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, S6.start + 0.35);
+          tl.fromTo($("#s05-title2"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, S6.start + 0.35);
+          tl.to([$("#s05-n1"), $("#s05-n2")], { opacity: 0, y: -16, duration: 0.35, ease: "power2.in" }, S6.url - 0.55);
+          tl.to([$("#s05-lens"), $("#s05-lens-tag")], { opacity: 0, duration: 0.35, ease: "power2.in" }, S6.url - 0.55);
+          tl.to($("#s05-region"), { opacity: 0, duration: 0.35, ease: "power2.in" }, S6.url - 0.55);
+          tl.fromTo($("#s05-intent"), { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, S6.url - 0.3);
+          tl.fromTo($("#s05-raw"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, S6.url);
+          tl.fromTo($("#s05-f1"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, S6.url + 0.35);
+          tl.fromTo($("#s05-f2"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, S6.url + 0.95);
+          tl.fromTo($("#s05-f3"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, S6.url + 1.75);
+          tl.fromTo($("#s05-verdict"), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.7)" }, S6.meta);
+
+          window.__timelines["s05-phone"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

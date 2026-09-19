@@ -1,0 +1,166 @@
+<!doctype html>
+<!--
+  s02-home — 鏡 2「定位：全民查證公社」
+  Genuine capture S2_t1 (首頁, 本機執行) inside the footage panel; the virtual camera eases from the wide
+  page to the input card while three facts land in the right column on the narration cues.
+  Blueprint: device-surface-showcase (floating-window push variant) + rules viewport-change, waterfall-entry.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+          color: #111111;
+        }
+        .s02-col {
+          position: absolute;
+          left: 1284px;
+          top: 76px;
+          width: 540px;
+          height: 800px;
+          display: flex;
+          flex-direction: column;
+        }
+        .s02-title {
+          margin-top: 18px;
+          font-size: 76px;
+          line-height: 1.16;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+        }
+        .s02-lede {
+          margin-top: 22px;
+          font-size: 32px;
+          line-height: 1.5;
+          color: #3f3f46;
+        }
+        .s02-rule {
+          margin-top: 34px;
+          width: 100%;
+          height: 3px;
+          background: #111111;
+          transform-origin: left center;
+        }
+        .s02-facts {
+          margin-top: 10px;
+          display: flex;
+          flex-direction: column;
+        }
+        .s02-fact {
+          display: grid;
+          grid-template-columns: 58px 1fr;
+          column-gap: 14px;
+          padding: 24px 0 22px;
+          border-bottom: 2px solid #d4d4d8;
+        }
+        .s02-fact-n {
+          font-size: 24px;
+          line-height: 46px;
+          font-weight: 700;
+          color: #5b5b66;
+        }
+        .s02-fact-h {
+          font-size: 34px;
+          line-height: 46px;
+          font-weight: 700;
+        }
+        .s02-fact-b {
+          margin-top: 4px;
+          font-size: 26px;
+          line-height: 38px;
+          color: #3f3f46;
+        }
+        .s02-mono {
+          font-size: 0.86em;
+          letter-spacing: -0.01em;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s02-home" data-width="1920" data-height="1080" data-duration="10.6">
+        <div class="fnv-grid"></div>
+
+        <div class="fnv-panel" id="s02-panel">
+          <div class="fnv-cam" id="s02-cam" data-layout-allow-overflow>
+            <video
+              id="s02-footage"
+              src="assets/footage/s02_home.mp4"
+              data-start="0"
+              data-duration="10.6"
+              data-track-index="0"
+              muted
+              playsinline
+            ></video>
+          </div>
+        </div>
+        <div class="fnv-tag fnv-tag-panel" id="s02-local">本機執行畫面</div>
+
+        <div class="s02-col">
+          <div class="fnv-eyebrow fnv-mono" id="s02-eyebrow">02 ／ 這是什麼</div>
+          <div class="s02-title" id="s02-title">全民查證公社</div>
+          <div class="s02-lede" id="s02-lede">貼上可疑訊息，拿到判定和來源。</div>
+          <div class="s02-rule" id="s02-rule"></div>
+          <div class="s02-facts">
+            <div class="s02-fact" id="s02-f1">
+              <div class="s02-fact-n fnv-mono">01</div>
+              <div>
+                <div class="s02-fact-h">三層快取</div>
+                <div class="s02-fact-b">相同內容 → 語意相似 → AI 判讀</div>
+              </div>
+            </div>
+            <div class="s02-fact" id="s02-f2">
+              <div class="s02-fact-n fnv-mono">02</div>
+              <div>
+                <div class="s02-fact-h">Threads 機器人</div>
+                <div class="s02-fact-b"><span class="s02-mono fnv-mono">@factcheck_tw_bot</span>・本片為模擬模式</div>
+              </div>
+            </div>
+            <div class="s02-fact" id="s02-f3">
+              <div class="s02-fact-n fnv-mono">03</div>
+              <div>
+                <div class="s02-fact-h">長庚 CGU AIR</div>
+                <div class="s02-fact-b"><span class="s02-mono fnv-mono">gpt-5.4-mini</span>・AI 即時判讀</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s02-home"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+          // Narration (shot clock = scene clock): offset 0.6 → cues at 0.70 / 3.40 / 5.02.
+          const CUE = { site: 0.7, threads: 3.4, verdict: 5.02 };
+
+          // Camera: capture point (cx, cy) centred in the 1140×800 panel at scale s (transform-origin 0 0).
+          const cam = (cx, cy, s) => ({
+            x: Math.min(0, Math.max(1140 - 1920 * s, 570 - cx * s)),
+            y: Math.min(0, Math.max(800 - 1080 * s, 400 - cy * s)),
+            scale: s,
+          });
+          tl.fromTo($("#s02-cam"), cam(960, 400, 1), { ...cam(960, 330, 1.22), duration: 6.4, ease: "power1.inOut" }, 2.6);
+
+          tl.fromTo($("#s02-panel"), { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 0.1);
+          tl.fromTo($("#s02-local"), { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 0.75);
+          tl.fromTo($("#s02-eyebrow"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.3);
+          tl.fromTo($("#s02-title"), { opacity: 0, x: 48 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, CUE.site - 0.25);
+          tl.fromTo($("#s02-lede"), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, CUE.site + 0.5);
+          tl.fromTo($("#s02-rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power3.inOut" }, CUE.site + 0.9);
+          tl.fromTo($("#s02-f1"), { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, CUE.site + 1.5);
+          tl.fromTo($("#s02-f2"), { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, CUE.threads);
+          tl.fromTo($("#s02-f3"), { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, CUE.verdict);
+
+          window.__timelines["s02-home"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "hf-demo",
+  "private": true,
+  "type": "module",
+  "description": "demo_v0.4.0: HyperFrames (HTML to video) project for the progress-report demo film. Local rendering only.",
+  "scripts": {
+    "tts": "..\\..\\code\\backend\\venv\\Scripts\\python tools\\tts.py",
+    "timeline": "node tools/build_timeline.mjs",
+    "dev": "npx --yes hyperframes@0.8.50 preview",
+    "check": "npx --yes hyperframes@0.8.50 check",
+    "render": "npx --yes hyperframes@0.8.50 render --quality delivery --video-frame-format png --output renders/demo_v0.4.0.mp4"
+  }
+}

@@ -1,0 +1,573 @@
+<!doctype html>
+<!--
+  s03-sim — 鏡 3＋4「Threads（模擬）：提及 → 快取命中 → 回覆」  (13s + 16.5s, one continuous stage)
+  Every string on the panels is verbatim from the 2026-09-16 run (data/captured.json): mentions.json,
+  the stdout+stderr of `--reset-sim` / `--poll`, and the replies.jsonl line. The panels are a re-drawing
+  (labelled 畫面重繪), not a screen recording; the p100 URL is a mask block with no URL text under it.
+  Three phases, the pipeline always moving left:
+    A  0–13     mentions.json + terminal (reset output already there, --poll types, output prints)
+    B  13–19.5  terminal + the log line unpacked token by token
+    C  19.5–30  replies.jsonl + its text field, line by line
+  Blueprints: prompt-type-submit-generate, agent-progress-theater · rules: discrete-text-sequence,
+  context-sensitive-cursor, css-marker-patterns (neutral tint sweep), spring-pop-entrance.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+        }
+        .s03-sim {
+          left: 96px;
+          top: 76px;
+          font-size: 26px;
+          line-height: 36px;
+          padding: 8px 24px 10px;
+          transform-origin: left center;
+        }
+        .s03-eyebrow {
+          position: absolute;
+          right: 96px;
+          top: 86px;
+        }
+        .s03-file,
+        .s03-term,
+        .s03-flow,
+        .s03-reply {
+          position: absolute;
+          top: 148px;
+          height: 720px;
+          border-radius: 20px;
+          overflow: hidden;
+        }
+        .s03-file {
+          left: 96px;
+          width: 700px;
+          background: #ffffff;
+          box-shadow:
+            0 0 0 2px #d4d4d8,
+            0 24px 60px rgba(17, 17, 17, 0.1);
+        }
+        .s03-bar {
+          height: 56px;
+          padding: 0 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 20px;
+          font-weight: 700;
+          border-bottom: 2px solid #e4e4e7;
+          color: #3f3f46;
+        }
+        .s03-code {
+          padding: 12px 24px 0 0;
+          font-size: 17px;
+          line-height: 26px;
+          color: #3f3f46;
+        }
+        .s03-row {
+          position: relative;
+          display: grid;
+          grid-template-columns: 56px 1fr;
+        }
+        .s03-ln {
+          text-align: right;
+          padding-right: 16px;
+          color: #5b5b66;
+        }
+        .s03-src {
+          position: relative;
+          white-space: pre-wrap;
+          word-break: break-all;
+        }
+        .s03-hl {
+          position: absolute;
+          left: 50px;
+          right: 8px;
+          top: 0;
+          bottom: 0;
+          background: #ececee;
+          border-left: 4px solid #111111;
+          transform-origin: left center;
+        }
+        .s03-key {
+          color: #111111;
+          font-weight: 700;
+        }
+        .s03-url {
+          width: 9.6em;
+          height: 1em;
+          transform: translateY(0.16em);
+        }
+        .s03-drawer {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 276px;
+          box-sizing: border-box;
+          padding: 16px 24px 0;
+          background: #ffffff;
+          border-top: 2px solid #d4d4d8;
+          box-shadow: 0 -18px 30px rgba(17, 17, 17, 0.06);
+        }
+        .s03-call {
+          box-sizing: border-box;
+          padding: 10px 20px 12px;
+          border-radius: 14px;
+          background: #ffffff;
+          box-shadow: 0 0 0 2px #111111;
+          transform-origin: left center;
+        }
+        .s03-call + .s03-call {
+          margin-top: 12px;
+        }
+        .s03-call-k {
+          font-size: 20px;
+          line-height: 28px;
+          font-weight: 700;
+          color: #5b5b66;
+        }
+        .s03-call-t {
+          margin-top: 4px;
+          font-size: 28px;
+          line-height: 40px;
+          font-weight: 700;
+        }
+        .s03-call-url {
+          width: 4.6em;
+          height: 0.84em;
+          margin: 0 0.1em;
+          transform: translateY(0.08em);
+        }
+
+        .s03-term {
+          left: 828px;
+          width: 996px;
+          background: #111111;
+          color: #f4f4f5;
+          box-shadow: 0 24px 60px rgba(17, 17, 17, 0.22);
+        }
+        .s03-term .s03-bar {
+          border-bottom: 2px solid #2e2e33;
+          color: #a1a1aa;
+        }
+        .s03-redraw {
+          font-size: 20px;
+          line-height: 28px;
+          font-weight: 700;
+          padding: 4px 16px 5px;
+          border-radius: 999px;
+          color: #ffffff;
+          box-shadow: 0 0 0 2px #71717a;
+        }
+        .s03-out {
+          padding: 14px 28px 0;
+          font-size: 19px;
+          line-height: 30px;
+        }
+        .s03-tl {
+          position: relative;
+          white-space: pre-wrap;
+          word-break: break-all;
+        }
+        .s03-tl-hl {
+          position: absolute;
+          left: -12px;
+          right: -12px;
+          top: 0;
+          bottom: 0;
+          border-radius: 6px;
+          background: #3f3f46;
+          transform-origin: left center;
+        }
+        .s03-tl span {
+          position: relative;
+        }
+        .s03-ps {
+          color: #a1a1aa;
+        }
+        .s03-wait {
+          position: absolute;
+          left: 0;
+          top: 34px;
+          margin-left: 0;
+          opacity: 0;
+        }
+        .s03-caret {
+          display: inline-block;
+          width: 11px;
+          height: 22px;
+          margin-left: 2px;
+          background: #f4f4f5;
+          vertical-align: -4px;
+        }
+
+        .s03-flow {
+          left: 1124px;
+          width: 700px;
+          overflow: visible;
+        }
+        .s03-flow-h {
+          margin-top: 6px;
+          font-size: 44px;
+          line-height: 56px;
+          font-weight: 700;
+        }
+        .s03-steps {
+          margin-top: 22px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .s03-step {
+          display: grid;
+          grid-template-columns: 290px 1fr;
+          align-items: center;
+          column-gap: 20px;
+          min-height: 98px;
+          padding: 0 24px;
+          border-radius: 16px;
+          background: #ffffff;
+          color: #3f3f46;
+          box-shadow: 0 0 0 2px #d4d4d8;
+        }
+        .s03-tok {
+          font-size: 25px;
+          line-height: 34px;
+          font-weight: 700;
+          color: inherit;
+        }
+        .s03-exp {
+          font-size: 28px;
+          line-height: 38px;
+          font-weight: 700;
+          color: inherit;
+        }
+        .s03-exp small {
+          display: block;
+          font-size: 22px;
+          line-height: 30px;
+          font-weight: 400;
+        }
+
+        .s03-raw {
+          padding: 16px 24px 18px;
+          font-size: 19px;
+          line-height: 31px;
+          color: #3f3f46;
+          white-space: pre-wrap;
+          word-break: break-all;
+        }
+        .s03-raw-text {
+          position: relative;
+          color: #111111;
+        }
+        .s03-five {
+          margin: 0 24px;
+          padding-top: 14px;
+          border-top: 2px solid #e4e4e7;
+        }
+        .s03-five-row {
+          display: grid;
+          grid-template-columns: 44px 1fr;
+          align-items: center;
+          height: 46px;
+          font-size: 25px;
+          font-weight: 700;
+          color: #3f3f46;
+        }
+        .s03-five-row .fnv-mono {
+          font-size: 21px;
+          color: #5b5b66;
+        }
+        .s03-reply {
+          left: 828px;
+          width: 996px;
+          background: #ffffff;
+          box-shadow:
+            0 0 0 2px #d4d4d8,
+            0 24px 60px rgba(17, 17, 17, 0.1);
+        }
+        .s03-lines {
+          padding: 26px 40px 0;
+          display: flex;
+          flex-direction: column;
+        }
+        .s03-rl {
+          position: relative;
+          padding: 16px 0 16px 0;
+          border-bottom: 2px solid #e4e4e7;
+          font-size: 32px;
+          line-height: 46px;
+        }
+        .s03-rl:last-child {
+          border-bottom: 0;
+        }
+        .s03-rl-mark {
+          position: absolute;
+          left: -20px;
+          right: -20px;
+          top: 6px;
+          bottom: 6px;
+          border-radius: 10px;
+          background: #ececee;
+          transform-origin: left center;
+        }
+        .s03-rl-body {
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          column-gap: 20px;
+        }
+        .s03-rl-1 {
+          font-size: 50px;
+          line-height: 64px;
+          font-weight: 700;
+        }
+        .s03-rl-url {
+          display: block;
+          font-size: 21px;
+          line-height: 34px;
+          white-space: nowrap;
+        }
+        .s03-pill {
+          flex: 0 0 auto;
+          position: static;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s03-sim" data-width="1920" data-height="1080" data-duration="30.1">
+        <div class="fnv-grid"></div>
+
+        <div class="fnv-tag s03-sim" id="s03-simtag">模擬模式：流程與正式串接相同，正式上線需 Meta App Review</div>
+        <div class="s03-eyebrow fnv-eyebrow fnv-mono" id="s03-eyebrow">03 ／ THREADS 模擬閉環</div>
+
+        <!-- A · left: data/threads_sim/mentions.json (verbatim; URL masked) -->
+        <div class="s03-file" id="s03-p1" data-layout-allow-overflow>
+          <div class="s03-bar fnv-mono"><span>data/threads_sim/mentions.json</span><span>模擬的 Threads 提及</span></div>
+          <div class="s03-code fnv-mono">
+            <div class="s03-row"><span class="s03-ln">1</span><span class="s03-src">{</span></div>
+            <div class="s03-row"><span class="s03-ln">2</span><span class="s03-src">  "bot": {"id": "bot001", "username": "factcheck_tw_bot"},</span></div>
+            <div class="s03-row"><span class="s03-ln">3</span><span class="s03-src">  "posts": {</span></div>
+            <div class="s03-row"><span class="s03-ln">4</span><span class="s03-src">    "p100": {"id": "p100", "username": "tester_a", "media_type": "TEXT_POST",</span></div>
+            <div class="s03-row">
+              <div class="s03-hl" id="s03-hl-p100"></div>
+              <span class="s03-ln">5</span><span class="s03-src s03-key">             "text": "健保卡即日起停用！請點 <span class="fnv-mask s03-url"></span> 重新驗證，逾期停卡",</span>
+            </div>
+            <div class="s03-row"><span class="s03-ln">6</span><span class="s03-src">             "permalink": "https://www.threads.com/@tester_a/post/p100"}</span></div>
+            <div class="s03-row"><span class="s03-ln">7</span><span class="s03-src">  },</span></div>
+            <div class="s03-row"><span class="s03-ln">8</span><span class="s03-src">  "mentions": [</span></div>
+            <div class="s03-row">
+              <div class="s03-hl" id="s03-hl-m1"></div>
+              <span class="s03-ln">9</span><span class="s03-src s03-key">    {"id": "m1", "username": "tester_b", "text": "@factcheck_tw_bot 這真的嗎",</span>
+            </div>
+            <div class="s03-row s03-under"><span class="s03-ln">10</span><span class="s03-src">     "media_type": "TEXT_POST", "replied_to": {"id": "p100"}, "timestamp": "2026-09-14T08:00:00+0000",</span></div>
+            <div class="s03-row s03-under"><span class="s03-ln">11</span><span class="s03-src">     "permalink": "https://www.threads.com/@tester_b/post/m1"}</span></div>
+            <div class="s03-row s03-under"><span class="s03-ln">12</span><span class="s03-src">  ],</span></div>
+            <div class="s03-row s03-under"><span class="s03-ln">13</span><span class="s03-src">  "publishing_limit": {"reply_quota_usage": 3, "reply_config": {"quota_total": 1000}}</span></div>
+            <div class="s03-row s03-under"><span class="s03-ln">14</span><span class="s03-src">}</span></div>
+          </div>
+          <div class="s03-drawer" id="s03-drawer" data-layout-allow-occlusion>
+            <div class="s03-call" id="s03-call-a">
+              <div class="s03-call-k">p100・可疑貼文（tester_a，測試帳號）</div>
+              <div class="s03-call-t">健保卡即日起停用！請點<span class="fnv-mask s03-call-url"></span>重新驗證，逾期停卡</div>
+            </div>
+            <div class="s03-call" id="s03-call-b">
+              <div class="s03-call-k">m1・在貼文底下標記機器人（tester_b，測試帳號）</div>
+              <div class="s03-call-t"><span class="fnv-mono">@factcheck_tw_bot</span> 這真的嗎</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- A/B · terminal (stdout+stderr verbatim) -->
+        <div class="s03-term" id="s03-p2">
+          <div class="s03-bar fnv-mono"><span>code\backend</span><span class="s03-redraw fnv-root">終端機實際輸出・畫面重繪</span></div>
+          <div class="s03-out fnv-mono" id="s03-out">
+            <div class="s03-tl s03-pre"><span class="s03-ps">PS …\code\backend&gt; </span><span>.\venv\Scripts\python scripts\test_threads_bot.py --reset-sim</span></div>
+            <div class="s03-tl s03-pre"><span>[reset-sim] 已清空 data/threads_sim/replies.jsonl（原 0 行）</span></div>
+            <div class="s03-tl s03-pre"><span>[reset-sim] data/threads_replies.jsonl：移除 mode=sim 0 行，保留其他 0 行</span></div>
+            <div class="s03-tl s03-pre"><span>[reset-sim] state：replied_ids 移除模擬 id 0 個（保留 0 個），last_since 歸零</span></div>
+            <div class="s03-tl s03-pre"><span>[reset-sim] 離線預熱：已預熱 1 則／已存在 0 則</span></div>
+            <div class="s03-tl s03-pre"><span>[reset-sim]   p100：已預熱（gold，詐騙警告，sources: 1 x tier1；已寫入向量）</span></div>
+            <div class="s03-tl s03-pre"><span>[reset-sim] 完成。後端排程每 600 分鐘也會自動輪詢，請在那之前執行 --poll（錄影時可把 THREADS_POLL_MINUTES 調大）</span></div>
+            <div class="s03-tl s03-pre"><span> </span></div>
+            <div class="s03-tl" id="s03-cmd"><span class="s03-ps">PS …\code\backend&gt; </span><span id="s03-typed"></span><span class="s03-caret" id="s03-caret"></span></div>
+            <div class="s03-tl s03-po"><span>[poll] 觸發一輪輪詢：http://127.0.0.1:8000（THREADS_MODE=sim）</span></div>
+            <div class="s03-tl s03-po"><span>[poll] 202 已開始，每 2 秒檢查 last_poll_at ...</span><span class="s03-caret s03-wait" id="s03-wait"></span></div>
+            <div class="s03-tl s03-po"><span>[poll] 本輪結果：checked=1 replied=1 skipped=0 errors=0</span></div>
+            <div class="s03-tl s03-po s03-log"><div class="s03-tl-hl" id="s03-log-hl"></div><span>poll -&gt; mention m1 -&gt; cache hash -&gt; sources: 1 x tier1 -&gt; reply sim_reply_1</span></div>
+            <div class="s03-tl s03-po s03-log"><span>       result_id=eb06622e-0592-4361-bfbd-0046b745cba6 frame_type=red</span></div>
+            <div class="s03-tl s03-po"><span>[poll] 最新判定回覆：result_id=eb06622e-0592-4361-bfbd-0046b745cba6 frame_type=red cache_layer=hash</span></div>
+            <div class="s03-tl s03-po"><span>[poll] 回覆全文：data/threads_sim/replies.jsonl</span></div>
+            <div class="s03-tl s03-po"><span>[poll] replied=1</span></div>
+          </div>
+        </div>
+
+        <!-- B · the log line, token by token -->
+        <div class="s03-flow" id="s03-flow">
+          <div class="fnv-eyebrow fnv-mono">這一行 LOG 在說什麼</div>
+          <div class="s03-flow-h">比對知識庫，命中就不問 AI</div>
+          <div class="s03-steps">
+            <div class="s03-step" id="s03-st1"><div class="s03-tok fnv-mono">poll</div><div class="s03-exp">後端輪詢<small>模擬的 Threads 提及</small></div></div>
+            <div class="s03-step" id="s03-st2"><div class="s03-tok fnv-mono">mention m1</div><div class="s03-exp">抓回 p100 原貼文<small>tester_b 標記了機器人</small></div></div>
+            <div class="s03-step" id="s03-st3"><div class="s03-tok fnv-mono">cache hash</div><div class="s03-exp">相同內容命中快取<small>沒有呼叫 AI</small></div></div>
+            <div class="s03-step" id="s03-st4"><div class="s03-tok fnv-mono">sources: 1 x tier1</div><div class="s03-exp">查核機構（Tier 1）<small>這則謠言已經判定過</small></div></div>
+            <div class="s03-step" id="s03-st5"><div class="s03-tok fnv-mono">reply sim_reply_1</div><div class="s03-exp">寫入回覆<small class="fnv-mono">replies.jsonl</small></div></div>
+          </div>
+        </div>
+
+        <!-- C · left: replies.jsonl raw line (verbatim) -->
+        <div class="s03-file" id="s03-p3">
+          <div class="s03-bar fnv-mono"><span>data/threads_sim/replies.jsonl</span><span>模擬回覆紀錄</span></div>
+          <div class="s03-raw fnv-mono">{"ts": "2026-09-15T17:24:21.766979+00:00", "mention_id": "m1", "result_id": "eb06622e-0592-4361-bfbd-0046b745cba6", <span class="s03-raw-text">"text": "<span class="fnv-emoji">🔴</span> 詐騙警告\n冒用健保署名義的釣魚詐騙：以「即日起停用、逾期停卡」製造急迫感誘騙點連結，健保署不會要求民眾點連結驗證健保卡\n查核來源：https://www.mygopen.com/2026/08/line.html\n完整判讀：https://fakenewsverify.vercel.app/r/eb06622e-0592-4361-bfbd-0046b745cba6\nAI 自動判讀，請自行查證。"</span>, "reply_id": "sim_reply_1"}</div>
+          <div class="s03-five">
+            <div class="fnv-eyebrow fnv-mono">text 欄固定五行</div>
+            <div class="s03-five-row" id="s03-v1"><span class="fnv-mono">1</span><span>燈號</span></div>
+            <div class="s03-five-row" id="s03-v2"><span class="fnv-mono">2</span><span>一句話摘要</span></div>
+            <div class="s03-five-row" id="s03-v3"><span class="fnv-mono">3</span><span>查核來源（只放已判定的查核機構）</span></div>
+            <div class="s03-five-row" id="s03-v4"><span class="fnv-mono">4</span><span>完整判讀連結</span></div>
+            <div class="s03-five-row" id="s03-v5"><span class="fnv-mono">5</span><span>請自行查證</span></div>
+          </div>
+        </div>
+
+        <!-- C · right: the text field, line by line (verbatim; the only emoji in the film is the captured one) -->
+        <div class="s03-reply" id="s03-reply">
+          <div class="s03-bar fnv-mono"><span>replies.jsonl → text 欄（逐字）</span><span>機器人的回覆內容（模擬）</span></div>
+          <div class="s03-lines">
+            <div class="s03-rl" id="s03-r1">
+              <div class="s03-rl-mark" id="s03-r1-mark"></div>
+              <div class="s03-rl-body"><span class="s03-rl-1"><span class="fnv-emoji">🔴</span> 詐騙警告</span><span class="fnv-tag s03-pill" id="s03-r1-pill">第一行＝燈號</span></div>
+            </div>
+            <div class="s03-rl" id="s03-r2">冒用健保署名義的釣魚詐騙：以「即日起停用、逾期停卡」製造急迫感誘騙點連結，健保署不會要求民眾點連結驗證健保卡</div>
+            <div class="s03-rl" id="s03-r3">
+              <div class="s03-rl-mark" id="s03-r3-mark"></div>
+              <div class="s03-rl-body"><span>查核來源：<span class="s03-rl-url fnv-mono">https://www.mygopen.com/2026/08/line.html</span></span><span class="fnv-tag s03-pill" id="s03-r3-pill">查核機構（Tier 1）</span></div>
+            </div>
+            <div class="s03-rl" id="s03-r4">
+              <div class="s03-rl-mark" id="s03-r4-mark"></div>
+              <div class="s03-rl-body"><span>完整判讀：<span class="s03-rl-url fnv-mono">https://fakenewsverify.vercel.app/r/eb06622e-0592-4361-bfbd-0046b745cba6</span></span></div>
+            </div>
+            <div class="s03-rl" id="s03-r5">AI 自動判讀，請自行查證。</div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s03-sim"]');
+          const $ = (s) => root.querySelector(s);
+          const $$ = (s) => Array.from(root.querySelectorAll(s));
+          const tl = gsap.timeline({ paused: true });
+          const DUR = 30.1;
+
+          // Narration on the scene clock. 鏡 3 offset 0.5 · 鏡 4 starts at 13.0, offset 0.4.
+          const S3 = { sim: 0.6, mention: 2.83, poll: 5.31 };
+          const S4 = { kb: 13.5, judged: 15.13, hit: 17.31, light: 20.21, source: 21.83 };
+          const B = 13.0; // phase B
+          const C = 19.45; // phase C
+
+          // ── entrances ─────────────────────────────────────────────────────────
+          tl.fromTo($("#s03-simtag"), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.7)" }, 0.15);
+          tl.fromTo($("#s03-eyebrow"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.35);
+          tl.fromTo($("#s03-p1"), { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.3);
+          tl.fromTo($("#s03-p2"), { opacity: 0, y: 56 }, { opacity: 1, y: 0, duration: 0.65, ease: "power3.out" }, 0.45);
+          tl.fromTo($$(".s03-pre"), { opacity: 0 }, { opacity: 1, duration: 0.12, ease: "none", stagger: 0.05 }, 0.8);
+          // the narrator names the mode: the tag answers once
+          tl.to($("#s03-simtag"), { scale: 1.06, duration: 0.22, ease: "power2.out" }, S3.sim + 0.5);
+          tl.to($("#s03-simtag"), { scale: 1, duration: 0.4, ease: "power2.inOut" }, S3.sim + 0.72);
+
+          // ── A: who tagged whom ────────────────────────────────────────────────
+          tl.fromTo($("#s03-hl-p100"), { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "power3.out" }, S3.mention);
+          tl.fromTo($("#s03-drawer"), { y: 290 }, { y: 0, duration: 0.55, ease: "power3.out" }, S3.mention - 0.15);
+          tl.to($$(".s03-under"), { opacity: 0, duration: 0.3, ease: "none" }, S3.mention - 0.15);
+          tl.fromTo($("#s03-call-a"), { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, S3.mention + 0.2);
+          tl.fromTo($("#s03-hl-m1"), { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "power3.out" }, S3.mention + 1.15);
+          tl.fromTo($("#s03-call-b"), { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, S3.mention + 1.35);
+
+          // ── A: the poll command types itself, then the real output prints ────
+          const CMD = ".\\venv\\Scripts\\python scripts\\test_threads_bot.py --poll";
+          const TYPE0 = S3.poll + 0.15;
+          const TYPE1 = TYPE0 + 2.0;
+          const ENTER = TYPE1 + 0.25;
+          const typed = $("#s03-typed");
+          const caret = $("#s03-caret");
+          const wait = $("#s03-wait");
+          tl.fromTo($("#s03-cmd"), { opacity: 0 }, { opacity: 1, duration: 0.01, ease: "none" }, S3.poll - 0.35);
+          const drv = { t: 0 };
+          tl.to(
+            drv,
+            {
+              t: DUR,
+              duration: DUR,
+              ease: "none",
+              onUpdate: () => {
+                const t = drv.t;
+                const p = Math.min(1, Math.max(0, (t - TYPE0) / (TYPE1 - TYPE0)));
+                typed.textContent = CMD.substring(0, Math.round(p * CMD.length));
+                // block caret: solid while typing, square-wave blink while waiting, gone once output completes
+                // block caret: blinks at the prompt, solid while typing, then waits under the output while the poll runs
+                const blink = Math.sin(t * Math.PI * 2 * 1.1) > 0 ? "1" : "0";
+                caret.style.opacity = t < TYPE0 ? blink : t <= ENTER ? "1" : "0";
+                wait.style.opacity = t > ENTER + 0.9 && t < ENTER + 2.9 ? blink : "0";
+              },
+            },
+            0,
+          );
+          // real run: 01:24:19.3 → 01:24:22.5 (3.2 s); replay keeps the same order and roughly the same wait
+          const po = $$(".s03-po");
+          const poAt = [ENTER + 0.3, ENTER + 0.85, ENTER + 2.9, ENTER + 3.2, ENTER + 3.26, ENTER + 3.5, ENTER + 3.7, ENTER + 3.9];
+          po.forEach((el, i) => tl.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.01, ease: "none" }, poAt[i]));
+
+          // ── B: mentions.json leaves, terminal moves over, the log line is unpacked ──
+          tl.to($("#s03-p1"), { x: -900, opacity: 0, duration: 0.7, ease: "power3.inOut" }, B);
+          tl.to($("#s03-p2"), { x: -732, duration: 0.7, ease: "power3.inOut" }, B);
+          tl.fromTo($("#s03-flow"), { x: 820, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.inOut" }, B);
+          tl.to($$(".s03-tl:not(.s03-log)"), { opacity: 0.34, duration: 0.5, ease: "power1.out" }, B + 0.3);
+          tl.fromTo($("#s03-log-hl"), { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power3.out" }, B + 0.35);
+
+          const steps = ["#s03-st1", "#s03-st2", "#s03-st3", "#s03-st4", "#s03-st5"].map($);
+          const stepAt = [B + 0.55, B + 0.8, S4.kb + 0.45, S4.judged + 0.1, S4.hit + 1.55];
+          steps.forEach((el, i) => tl.fromTo(el, { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, stepAt[i]));
+          const ink = { backgroundColor: "#111111", color: "#ffffff", boxShadow: "0 0 0 2px #111111", duration: 0.3, ease: "power2.out" };
+          tl.to(steps[3], ink, S4.judged + 0.75); // 「查核機構已經判定過」
+          tl.to(steps[2], ink, S4.hit + 0.1); // 「直接命中快取」
+          tl.to(steps[2], { scale: 1.035, duration: 0.2, ease: "power2.out" }, S4.hit + 0.1);
+          tl.to(steps[2], { scale: 1, duration: 0.35, ease: "power2.inOut" }, S4.hit + 0.3);
+
+          // ── C: the reply itself ───────────────────────────────────────────────
+          tl.to($("#s03-p2"), { x: -1900, opacity: 0, duration: 0.7, ease: "power3.inOut" }, C);
+          tl.to($("#s03-flow"), { x: -1300, opacity: 0, duration: 0.7, ease: "power3.inOut" }, C);
+          tl.fromTo($("#s03-p3"), { x: 1000, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.inOut" }, C);
+          tl.fromTo($("#s03-reply"), { x: 1200, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.inOut" }, C + 0.06);
+
+          const rAt = { r1: S4.light - 0.05, r2: S4.light + 0.75, r3: S4.source - 0.05, r4: S4.source + 1.35, r5: S4.source + 1.85 };
+          for (const [id, at] of Object.entries(rAt)) {
+            tl.fromTo($("#s03-" + id), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, at);
+            tl.fromTo($("#s03-v" + id.slice(1)), { opacity: 0.25 }, { opacity: 1, duration: 0.3, ease: "power1.out" }, at);
+          }
+          tl.fromTo($("#s03-r1-mark"), { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "power3.out" }, S4.light + 0.2);
+          tl.fromTo($("#s03-r1-pill"), { opacity: 0 }, { opacity: 1, duration: 0.01, ease: "none" }, S4.light + 0.4); // binary arrival
+          tl.fromTo($("#s03-r1-pill"), { scale: 0.6 }, { scale: 1, duration: 0.4, ease: "back.out(1.8)" }, S4.light + 0.4);
+          tl.fromTo($("#s03-r3-mark"), { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "power3.out" }, S4.source + 0.35);
+          tl.fromTo($("#s03-r3-pill"), { opacity: 0 }, { opacity: 1, duration: 0.01, ease: "none" }, S4.source + 0.9); // binary arrival
+          tl.fromTo($("#s03-r3-pill"), { scale: 0.6 }, { scale: 1, duration: 0.4, ease: "back.out(1.8)" }, S4.source + 0.9);
+          // bridge to the next scene: the link inside the reply is what gets opened
+          tl.fromTo($("#s03-r4-mark"), { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power2.inOut" }, 26.6);
+          tl.to($("#s03-r1-mark"), { opacity: 0, duration: 0.4, ease: "none" }, 26.6);
+          tl.to($("#s03-r3-mark"), { opacity: 0, duration: 0.4, ease: "none" }, 26.6);
+
+          window.__timelines["s03-sim"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

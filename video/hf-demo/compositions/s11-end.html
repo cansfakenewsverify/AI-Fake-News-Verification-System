@@ -1,0 +1,115 @@
+<!doctype html>
+<!--
+  s11-end — 鏡 11「限制與下一步」 (9.5s, last scene)
+  White paper, ink type, stillness. The public URL appears ONLY here (the footage in this film is a local
+  run). The limitation line is the owner's wording; 「CGU 模型重跑評測」 is no longer a next step — it was
+  done on 2026-09-16 and is shown in scene 10. Team / advisor credits are not shown (owner has not confirmed).
+  Blueprint: titlecard-reveal (one restrained move, then a still hold) · final 0.6s fade.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #ffffff;
+        }
+        .s11-wrap {
+          position: absolute;
+          inset: 0;
+        }
+        .s11-eyebrow {
+          position: absolute;
+          left: 96px;
+          top: 86px;
+        }
+        .s11-stack {
+          position: absolute;
+          left: 0;
+          top: 214px;
+          width: 1920px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+        }
+        .s11-name {
+          font-size: 124px;
+          line-height: 150px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+        }
+        .s11-url {
+          margin-top: 10px;
+          font-size: 48px;
+          line-height: 62px;
+          font-weight: 700;
+        }
+        .s11-bot {
+          margin-top: 4px;
+          font-size: 34px;
+          line-height: 46px;
+          color: #3f3f46;
+        }
+        .s11-rule {
+          margin-top: 38px;
+          width: 760px;
+          height: 4px;
+          background: #111111;
+        }
+        .s11-limit {
+          margin-top: 38px;
+          font-size: 34px;
+          line-height: 50px;
+          color: #3f3f46;
+        }
+        .s11-next {
+          position: static;
+          display: inline-block;
+          margin-top: 30px;
+          font-size: 36px;
+          line-height: 50px;
+          padding: 10px 36px 12px;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s11-end" data-width="1920" data-height="1080" data-duration="9.5">
+        <div class="s11-wrap" id="s11-wrap">
+          <div class="s11-eyebrow fnv-eyebrow fnv-mono" id="s11-eyebrow">11 ／ 限制與下一步</div>
+          <div class="s11-stack">
+            <div class="s11-name" id="s11-name">全民查證公社</div>
+            <div class="s11-url fnv-mono" id="s11-url">fakenewsverify.vercel.app</div>
+            <div class="s11-bot fnv-mono" id="s11-bot">@factcheck_tw_bot</div>
+            <div class="s11-rule" id="s11-rule"></div>
+            <div class="s11-limit" id="s11-limit">Threads 目前為模擬模式；公開服務需通過 Meta App Review 與企業驗證</div>
+            <div class="fnv-tag s11-next" id="s11-next">下一步：Threads 實機串接</div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s11-end"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+          // Narration offset 0.8: 下一步是完成 Threads 實機串接 0.90 · 要公開…Meta 審查 2.98–5.96
+          tl.fromTo($("#s11-eyebrow"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.5);
+          tl.fromTo($("#s11-name"), { opacity: 0, y: 40, scale: 1.06 }, { opacity: 1, y: 0, scale: 1, duration: 0.9, ease: "power3.out" }, 0.45);
+          tl.fromTo($("#s11-url"), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 1.0);
+          tl.fromTo($("#s11-bot"), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 1.2);
+          tl.fromTo($("#s11-rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: "power3.inOut" }, 1.5);
+          tl.fromTo($("#s11-next"), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.7)" }, 1.75);
+          tl.fromTo($("#s11-limit"), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 3.0);
+          // the only exit in the film: fade to paper
+          tl.to($("#s11-wrap"), { opacity: 0, duration: 0.6, ease: "power1.in" }, 8.85);
+          window.__timelines["s11-end"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

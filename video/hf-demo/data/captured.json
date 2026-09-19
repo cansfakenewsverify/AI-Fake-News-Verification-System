@@ -1,0 +1,79 @@
+{
+ "_doc": "Verbatim record of what the v0.3.0 recording session produced on 2026-09-16 (+08:00); the HyperFrames scenes re-draw these strings (scene s03-sim, s05-phone). The p100 URL is simulated test data and is masked on screen (the scenes contain a mask block, not this text). Sources: scratchpad/video/captured/t1_* and raw/S56_t1/intent.txt of the recording session; see docs/demo/footage_log.md and docs/demo/demo_posts.md.",
+ "commands": {
+  "reset": ".\u000benvScriptspython scripts\test_threads_bot.py --reset-sim",
+  "poll": ".\u000benvScriptspython scripts\test_threads_bot.py --poll",
+  "resetRun": "exit=0 start=2026-09-16T01:24:03.7076422+08:00 end=2026-09-16T01:24:09.7633342+08:00",
+  "pollRun": "exit=0 start=2026-09-16T01:24:19.3374105+08:00 end=2026-09-16T01:24:22.5261296+08:00"
+ },
+ "resetOut": [
+  "[reset-sim] 已清空 data/threads_sim/replies.jsonl（原 0 行）",
+  "[reset-sim] data/threads_replies.jsonl：移除 mode=sim 0 行，保留其他 0 行",
+  "[reset-sim] state：replied_ids 移除模擬 id 0 個（保留 0 個），last_since 歸零",
+  "[reset-sim] 離線預熱：已預熱 1 則／已存在 0 則",
+  "[reset-sim]   p100：已預熱（gold，詐騙警告，sources: 1 x tier1；已寫入向量）",
+  "[reset-sim] 完成。後端排程每 600 分鐘也會自動輪詢，請在那之前執行 --poll（錄影時可把 THREADS_POLL_MINUTES 調大）"
+ ],
+ "pollOut": [
+  "[poll] 觸發一輪輪詢：http://127.0.0.1:8000（THREADS_MODE=sim）",
+  "[poll] 202 已開始，每 2 秒檢查 last_poll_at ...",
+  "[poll] 本輪結果：checked=1 replied=1 skipped=0 errors=0",
+  "poll -> mention m1 -> cache hash -> sources: 1 x tier1 -> reply sim_reply_1",
+  "       result_id=eb06622e-0592-4361-bfbd-0046b745cba6 frame_type=red",
+  "[poll] 最新判定回覆：result_id=eb06622e-0592-4361-bfbd-0046b745cba6 frame_type=red cache_layer=hash",
+  "[poll] 回覆全文：data/threads_sim/replies.jsonl",
+  "[poll] replied=1"
+ ],
+ "mentionsLines": [
+  "{",
+  "  \"bot\": {\"id\": \"bot001\", \"username\": \"factcheck_tw_bot\"},",
+  "  \"posts\": {",
+  "    \"p100\": {\"id\": \"p100\", \"username\": \"tester_a\", \"media_type\": \"TEXT_POST\",",
+  "             \"text\": \"健保卡即日起停用！請點 https://nhi-verify.xyz 重新驗證，逾期停卡\",",
+  "             \"permalink\": \"https://www.threads.com/@tester_a/post/p100\"}",
+  "  },",
+  "  \"mentions\": [",
+  "    {\"id\": \"m1\", \"username\": \"tester_b\", \"text\": \"@factcheck_tw_bot 這真的嗎\",",
+  "     \"media_type\": \"TEXT_POST\", \"replied_to\": {\"id\": \"p100\"}, \"timestamp\": \"2026-09-14T08:00:00+0000\",",
+  "     \"permalink\": \"https://www.threads.com/@tester_b/post/m1\"}",
+  "  ],",
+  "  \"publishing_limit\": {\"reply_quota_usage\": 3, \"reply_config\": {\"quota_total\": 1000}}",
+  "}"
+ ],
+ "repliesLine": "{\"ts\": \"2026-09-15T17:24:21.766979+00:00\", \"mention_id\": \"m1\", \"result_id\": \"eb06622e-0592-4361-bfbd-0046b745cba6\", \"text\": \"🔴 詐騙警告\\n冒用健保署名義的釣魚詐騙：以「即日起停用、逾期停卡」製造急迫感誘騙點連結，健保署不會要求民眾點連結驗證健保卡\\n查核來源：https://www.mygopen.com/2026/08/line.html\\n完整判讀：https://fakenewsverify.vercel.app/r/eb06622e-0592-4361-bfbd-0046b745cba6\\nAI 自動判讀，請自行查證。\", \"reply_id\": \"sim_reply_1\"}",
+ "replyText": "🔴 詐騙警告\n冒用健保署名義的釣魚詐騙：以「即日起停用、逾期停卡」製造急迫感誘騙點連結，健保署不會要求民眾點連結驗證健保卡\n查核來源：https://www.mygopen.com/2026/08/line.html\n完整判讀：https://fakenewsverify.vercel.app/r/eb06622e-0592-4361-bfbd-0046b745cba6\nAI 自動判讀，請自行查證。",
+ "resultId": "eb06622e-0592-4361-bfbd-0046b745cba6",
+ "intentUrl": "https://www.threads.com/intent/post?text=%F0%9F%94%B4%20AI%20%E5%88%A4%E5%AE%9A%E9%80%99%E5%89%87%E8%A8%8A%E6%81%AF%E6%98%AF%E8%A9%90%E9%A8%99%EF%BC%9A%E5%86%92%E7%94%A8%E5%81%A5%E4%BF%9D%E7%BD%B2%E5%90%8D%E7%BE%A9%E7%9A%84%E9%87%A3%E9%AD%9A%E8%A9%90%E9%A8%99%EF%BC%9A%E4%BB%A5%E3%80%8C%E5%8D%B3%E6%97%A5%E8%B5%B7%E5%81%9C%E7%94%A8%E3%80%81%E9%80%BE%E6%9C%9F%E5%81%9C%E5%8D%A1%E3%80%8D%E8%A3%BD%E9%80%A0%E6%80%A5%E8%BF%AB%E6%84%9F%E8%AA%98%E9%A8%99%E9%BB%9E%E9%80%A3%E7%B5%90%EF%BC%8C%E5%81%A5%E4%BF%9D%E7%BD%B2%E4%B8%8D%E6%9C%83%E8%A6%81%E6%B1%82%E6%B0%91%E7%9C%BE%E9%BB%9E%E9%80%A3%E7%B5%90%E9%A9%97%E8%AD%89%E5%81%A5%E4%BF%9D%E5%8D%A1%E3%80%82%E6%9F%A5%E6%A0%B8%E4%BE%86%E6%BA%90%EF%BC%9Amygopen.com&url=https%3A%2F%2Ffakenewsverify.vercel.app%2Fr%2Feb06622e-0592-4361-bfbd-0046b745cba6",
+ "shareText": "🔴 AI 判定這則訊息是詐騙：冒用健保署名義的釣魚詐騙：以「即日起停用、逾期停卡」製造急迫感誘騙點連結，健保署不會要求民眾點連結驗證健保卡。查核來源：mygopen.com",
+ "shareUrl": "https://fakenewsverify.vercel.app/r/eb06622e-0592-4361-bfbd-0046b745cba6",
+ "s7": {
+  "input": "你的健保卡即將停用，請盡快點連結重新驗證，不然會被停卡",
+  "result_id": "af72a34b-2b20-4a82-99e1-44e2b8c2d83c",
+  "completed_at": "2026-09-16T01:47:16+08:00",
+  "cache_layer": "vector",
+  "frame_label": "詐騙警告",
+  "frame_type": "red",
+  "confidence": null,
+  "verification_status": "rule",
+  "sources": [
+   {
+    "url": "https://www.mygopen.com/2026/08/line.html",
+    "tier": 1,
+    "label": "查核機構"
+   }
+  ],
+  "summary": "冒用健保署名義的釣魚詐騙：以「即日起停用、逾期停卡」製造急迫感誘騙點連結，健保署不會要求民眾點連結驗證健保卡"
+ },
+ "s8": {
+  "input": "網傳颱風天把冰箱插頭拔掉再插回去，電費會自動減半，電力公司都不說",
+  "result_id": "330006c9-0d5b-486d-9af9-4f2b38413e78",
+  "completed_at": "2026-09-16T01:46:21+08:00",
+  "cache_layer": null,
+  "frame_label": "假訊息",
+  "frame_type": "red",
+  "confidence": null,
+  "verification_status": "unverified",
+  "sources": [],
+  "summary": "網傳「颱風天把冰箱插頭拔掉再插回去，電費會自動減半」屬於節電迷思。內容宣稱可大幅省電，但沒有合理依據，且可能導致食物變質。"
+ }
+}

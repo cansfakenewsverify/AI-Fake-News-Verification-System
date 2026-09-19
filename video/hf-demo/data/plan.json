@@ -1,0 +1,64 @@
+{
+  "_doc": "demo_v0.4.0 edit decision list. (s05_phone_lens is the same clip again under a second file name: the magnifier is a second <video> and hyperframes lint wants distinct media entries.) shots[n].dur = shot length (s); audio = narration start offset inside the shot (s). scenes = sub-compositions (a scene may span two shots that share one continuous stage). footage[*].pieces = raw take time map (raw seconds from recording start): speed>1 = accelerated (labelled 畫面加速 on screen), hold = freeze the last shown frame, gaps between pieces = idle frames cut (nothing on screen moves in the removed range). Takes are the genuine v0.3.0 captures (docs/demo/footage_log.md §2).",
+  "fps": 30,
+  "transition": 0.5,
+  "overlap": 0.6,
+  "shots": {
+    "1": { "dur": 7.0, "audio": 0.7 },
+    "2": { "dur": 10.0, "audio": 0.6 },
+    "3": { "dur": 13.0, "audio": 0.5 },
+    "4": { "dur": 16.5, "audio": 0.4 },
+    "5": { "dur": 17.2, "audio": 1.6 },
+    "6": { "dur": 10.5, "audio": 0.4 },
+    "7": { "dur": 15.0, "audio": 1.2 },
+    "8": { "dur": 21.5, "audio": 2.0 },
+    "9": { "dur": 15.0, "audio": 2.2 },
+    "10": { "dur": 22.0, "audio": 0.8 },
+    "11": { "dur": 9.5, "audio": 0.8 }
+  },
+  "scenes": [
+    { "id": "s01-hook", "shots": [1], "in": "none" },
+    { "id": "s02-home", "shots": [2], "in": "blur" },
+    { "id": "s03-sim", "shots": [3, 4], "in": "push" },
+    { "id": "s05-phone", "shots": [5, 6], "in": "push-up" },
+    { "id": "s07-vector", "shots": [7], "in": "push" },
+    { "id": "s08-ai", "shots": [8], "in": "push" },
+    { "id": "s09-wall", "shots": [9], "in": "push" },
+    { "id": "s10-numbers", "shots": [10], "in": "blur" },
+    { "id": "s11-end", "shots": [11], "in": "blur" }
+  ],
+  "footage": {
+    "s02_home": { "take": "S2_t1", "kind": "desktop", "dur": 10.6,
+      "pieces": [ { "from": 0.0, "to": 10.6, "speed": 1 } ] },
+    "s05_phone": { "take": "S56_t1", "kind": "phone", "dur": 28.3,
+      "pieces": [
+        { "from": 0.0, "to": 3.9, "speed": 1 }, { "hold": 3.0 },
+        { "from": 3.9, "to": 6.5, "speed": 1 }, { "hold": 7.7 },
+        { "from": 10.9, "to": 15.3, "speed": 1 }, { "hold": 6.7 } ] },
+    "s05_phone_lens": { "take": "S56_t1", "kind": "phone", "dur": 28.3,
+      "pieces": [
+        { "from": 0.0, "to": 3.9, "speed": 1 }, { "hold": 3.0 },
+        { "from": 3.9, "to": 6.5, "speed": 1 }, { "hold": 7.7 },
+        { "from": 10.9, "to": 15.3, "speed": 1 }, { "hold": 6.7 } ] },
+    "s07_vector": { "take": "S7_t3", "kind": "desktop", "dur": 15.6,
+      "pieces": [
+        { "from": 2.04, "to": 4.30, "speed": 1 },
+        { "from": 5.50, "to": 8.35, "speed": 1 },
+        { "from": 8.35, "to": 12.22, "speed": 2, "label": "畫面加速 ×2" },
+        { "from": 12.22, "to": 12.60, "speed": 1 },
+        { "from": 14.81, "to": 20.09, "speed": 1 }, { "hold": 2.89 } ] },
+    "s08_ai": { "take": "S8_t1", "kind": "desktop", "dur": 22.1,
+      "pieces": [
+        { "from": 2.03, "to": 4.05, "speed": 1 },
+        { "from": 5.35, "to": 7.89, "speed": 1 },
+        { "from": 7.89, "to": 17.71, "speed": 3, "label": "畫面加速 ×3" },
+        { "from": 17.71, "to": 17.80, "speed": 1 }, { "hold": 14.18 } ] },
+    "s09_wall": { "take": "S9_t2", "kind": "desktop", "dur": 15.6,
+      "pieces": [
+        { "from": 1.2, "to": 7.16, "speed": 1 },
+        { "from": 7.16, "to": 10.62, "speed": 2, "label": "畫面加速 ×2" },
+        { "from": 11.54, "to": 14.72, "speed": 2, "label": "畫面加速 ×2" },
+        { "from": 14.72, "to": 17.82, "speed": 1 },
+        { "from": 19.31, "to": 20.46, "speed": 1 }, { "hold": 2.07 } ] }
+  }
+}

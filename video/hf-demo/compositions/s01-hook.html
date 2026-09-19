@@ -1,0 +1,149 @@
+<!doctype html>
+<!--
+  s01-hook — 鏡 1「一則可疑訊息」
+  White paper, ink type. The message (p100 text from data/threads_sim/mentions.json) builds line by
+  line, then the narrator's question lands as the payoff. No Threads UI is imitated.
+  The URL is a neutral mask block: there is NO url text underneath it.
+  Blueprint: kinetic-type-beats (statement build → payoff) · rules waterfall-entry, spring-pop-entrance, nudge-curve.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #ffffff;
+        }
+        .s01-rail {
+          position: absolute;
+          left: 96px;
+          top: 150px;
+          width: 6px;
+          height: 610px;
+          background: #111111;
+          transform-origin: center top;
+        }
+        .s01-eyebrow {
+          position: absolute;
+          left: 140px;
+          top: 150px;
+        }
+        .s01-msg {
+          position: absolute;
+          left: 140px;
+          top: 214px;
+          width: 1500px;
+          transform-origin: left top;
+        }
+        .s01-line {
+          height: 148px;
+          overflow: hidden;
+        }
+        .s01-line > div {
+          display: block;
+          height: 148px;
+          font-size: 108px;
+          line-height: 148px;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+          opacity: 0;
+        }
+        .s01-url {
+          width: 5.1em;
+          height: 0.86em;
+          margin: 0 0.12em;
+          transform: translateY(0.1em);
+        }
+        .s01-note {
+          position: absolute;
+          right: 96px;
+          top: 150px;
+          font-size: 24px;
+          line-height: 30px;
+          color: #5b5b66;
+        }
+        .s01-ask {
+          position: absolute;
+          right: 96px;
+          top: 650px;
+          font-size: 124px;
+          line-height: 150px;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          white-space: nowrap;
+          transform-origin: right bottom;
+          opacity: 0;
+        }
+        .s01-under {
+          position: absolute;
+          right: 96px;
+          top: 812px;
+          width: 760px;
+          height: 10px;
+          background: #111111;
+          transform-origin: right center;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s01-hook" data-width="1920" data-height="1080" data-duration="7.6">
+        <div class="s01-rail" id="s01-rail"></div>
+        <div class="s01-eyebrow fnv-eyebrow fnv-mono" id="s01-eyebrow">01 ／ 你收過這種訊息嗎</div>
+        <div class="s01-note" id="s01-note">示意訊息（模擬測試資料）・網址已遮蔽</div>
+
+        <div class="s01-msg" id="s01-msg">
+          <div class="s01-line"><div id="s01-l1">健保卡即日起停用！</div></div>
+          <div class="s01-line">
+            <div id="s01-l2">請點<span class="fnv-mask s01-url"></span>重新驗證，</div>
+          </div>
+          <div class="s01-line"><div id="s01-l3">逾期停卡</div></div>
+        </div>
+
+        <div class="s01-ask" id="s01-ask">它是真的嗎？</div>
+        <div class="s01-under" id="s01-under"></div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s01-hook"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+          // Narration offset 0.7: 「這種訊息…看過」0.80–4.05 · 「它是真的嗎？」4.85–5.74
+          const ASK = 4.75;
+
+          tl.fromTo($("#s01-rail"), { scaleY: 0 }, { scaleY: 1, duration: 0.9, ease: "power3.inOut" }, 0.15);
+          tl.fromTo($("#s01-eyebrow"), { opacity: 0, x: -14 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 0.3);
+          tl.fromTo($("#s01-note"), { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "none" }, 0.9);
+
+          // waterfall-entry: binary reveal + whip up from below, heavier first line travels further
+          const lines = [
+            ["#s01-l1", 0.55, 120, 0.26],
+            ["#s01-l2", 1.15, 96, 0.22],
+            ["#s01-l3", 1.8, 84, 0.2],
+          ];
+          for (const [sel, at, dy, dur] of lines) {
+            tl.set($(sel), { opacity: 1 }, at);
+            tl.fromTo($(sel), { y: dy }, { y: 0, duration: dur, ease: "power4.out", immediateRender: false }, at);
+          }
+
+          // nudge-curve: the composed message steps back to make room for the question
+          tl.to($("#s01-msg"), { scale: 0.62, duration: 0.7, ease: "power3.inOut" }, ASK - 0.55);
+
+          // spring-pop payoff
+          tl.set($("#s01-ask"), { opacity: 1 }, ASK);
+          tl.fromTo($("#s01-ask"), { scale: 0.6 }, { scale: 1, duration: 0.55, ease: "back.out(1.8)", immediateRender: false }, ASK);
+          tl.fromTo($("#s01-under"), { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "expo.out" }, ASK + 0.35);
+          // breathe: a slow settle keeps the hold alive
+          tl.to($("#s01-ask"), { scale: 1.03, duration: 1.9, ease: "sine.inOut" }, ASK + 0.6);
+
+          window.__timelines["s01-hook"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

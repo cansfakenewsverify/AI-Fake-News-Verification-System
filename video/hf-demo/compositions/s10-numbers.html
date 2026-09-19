@@ -1,0 +1,326 @@
+<!doctype html>
+<!--
+  s10-numbers — 鏡 10「數據」 (22s)
+  Owner-approved figures only (docs/demo/footage_log.md v0.4.0 §numbers):
+    評測   前一版模型 gpt-5-mini，150 筆：accuracy 96.0%、FN=0、FP=5
+           新模型 gpt-5.4-mini（長庚 CGU AIR），2026-09-16 重跑 150 筆：accuracy 100%、FN=0、FP=0
+    測試   後端 pytest 478 項＋前端單元測試 375 項全數通過（GitHub Actions CI）；測試計畫書 TP-FNV-2026-01 5 類 46 項
+    資料   熱門牆 Google News 轉址 31 → 0；知識庫已證實 128 筆
+  Count-ups are pure functions of timeline time and land on the exact figure. No verdict colours here.
+  Blueprint: dataviz-countup · rules: counting-dynamic-scale, stat-bars-and-fills, waterfall-entry.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+        }
+        .s10-head {
+          position: absolute;
+          left: 96px;
+          top: 76px;
+          width: 1728px;
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+        }
+        .s10-h {
+          font-size: 58px;
+          line-height: 72px;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+        }
+        .s10-row {
+          position: absolute;
+          left: 96px;
+          width: 1728px;
+          border-radius: 20px;
+          background: #ffffff;
+          box-shadow:
+            0 0 0 2px #d4d4d8,
+            0 18px 44px rgba(17, 17, 17, 0.07);
+          display: grid;
+          grid-template-columns: 250px 1fr;
+          align-items: stretch;
+        }
+        .s10-r1 {
+          top: 176px;
+          height: 330px;
+        }
+        .s10-r2 {
+          top: 526px;
+          height: 166px;
+        }
+        .s10-r3 {
+          top: 712px;
+          height: 166px;
+        }
+        .s10-label {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          padding-left: 40px;
+          border-right: 2px solid #e4e4e7;
+        }
+        .s10-num {
+          width: 52px;
+          height: 52px;
+          border-radius: 26px;
+          background: #111111;
+          color: #ffffff;
+          font-size: 26px;
+          line-height: 52px;
+          font-weight: 700;
+          text-align: center;
+        }
+        .s10-name {
+          margin-top: 12px;
+          font-size: 40px;
+          line-height: 52px;
+          font-weight: 700;
+        }
+        .s10-sub {
+          font-size: 22px;
+          line-height: 30px;
+          color: #5b5b66;
+          font-weight: 700;
+        }
+        .s10-eval {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+        }
+        .s10-model {
+          padding: 14px 44px 0;
+        }
+        .s10-model + .s10-model {
+          border-left: 2px solid #e4e4e7;
+        }
+        .s10-model-k {
+          font-size: 24px;
+          line-height: 34px;
+          font-weight: 700;
+          color: #3f3f46;
+        }
+        .s10-model-k .fnv-mono {
+          color: #111111;
+        }
+        .s10-model-s {
+          font-size: 21px;
+          line-height: 30px;
+          font-weight: 700;
+          color: #5b5b66;
+        }
+        .s10-acc {
+          margin-top: 20px;
+          display: flex;
+          align-items: baseline;
+          column-gap: 18px;
+        }
+        .s10-acc-n {
+          font-size: 116px;
+          line-height: 128px;
+          font-weight: 700;
+          letter-spacing: -0.03em;
+          font-variant-numeric: tabular-nums;
+          transform-origin: left bottom;
+        }
+        .s10-acc-k {
+          font-size: 30px;
+          line-height: 40px;
+          font-weight: 700;
+          color: #3f3f46;
+        }
+        .s10-chips {
+          margin-top: 8px;
+          display: flex;
+          align-items: center;
+          column-gap: 14px;
+        }
+        .s10-chip {
+          padding: 6px 22px 8px;
+          border-radius: 999px;
+          font-size: 30px;
+          line-height: 40px;
+          font-weight: 700;
+          background: #ffffff;
+          color: #111111;
+          box-shadow: 0 0 0 2px #111111;
+        }
+        .s10-chip-ink {
+          background: #111111;
+          color: #ffffff;
+        }
+        .s10-fn {
+          font-size: 22px;
+          line-height: 30px;
+          color: #5b5b66;
+          font-weight: 700;
+        }
+        .s10-line {
+          display: flex;
+          align-items: center;
+          padding: 0 44px;
+          column-gap: 56px;
+        }
+        .s10-kv {
+          display: flex;
+          flex-direction: column;
+        }
+        .s10-kv-k {
+          font-size: 24px;
+          line-height: 32px;
+          font-weight: 700;
+          color: #3f3f46;
+        }
+        .s10-kv-v {
+          font-size: 62px;
+          line-height: 74px;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          font-variant-numeric: tabular-nums;
+        }
+        .s10-kv-v small {
+          font-size: 30px;
+          font-weight: 700;
+          letter-spacing: 0;
+          margin-left: 8px;
+        }
+        .s10-aside {
+          margin-left: auto;
+          text-align: right;
+          font-size: 26px;
+          line-height: 38px;
+          color: #3f3f46;
+        }
+        .s10-aside b {
+          display: block;
+          color: #111111;
+          font-size: 30px;
+          line-height: 42px;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s10-numbers" data-width="1920" data-height="1080" data-duration="22.6">
+        <div class="fnv-grid"></div>
+
+        <div class="s10-head">
+          <div class="s10-h" id="s10-h">評測・測試・資料品質</div>
+          <div class="fnv-eyebrow fnv-mono" id="s10-eyebrow">10 ／ 數據</div>
+        </div>
+
+        <div class="s10-row s10-r1" id="s10-r1">
+          <div class="s10-label">
+            <div class="s10-num fnv-mono">1</div>
+            <div class="s10-name">評測</div>
+          </div>
+          <div class="s10-eval">
+            <div class="s10-model" id="s10-m1">
+              <div class="s10-model-k">前一版模型 <span class="fnv-mono">gpt-5-mini</span></div>
+              <div class="s10-model-s">150 筆標註資料</div>
+              <div class="s10-acc"><span class="s10-acc-n fnv-mono" id="s10-a1">0.0%</span><span class="s10-acc-k fnv-mono">accuracy</span></div>
+              <div class="s10-chips" id="s10-k1">
+                <span class="s10-chip s10-chip-ink fnv-mono" id="s10-fn1">FN=0</span>
+                <span class="s10-chip fnv-mono">FP=5</span>
+                <span class="s10-fn">FN＝風險訊息被判成安全</span>
+              </div>
+            </div>
+            <div class="s10-model" id="s10-m2">
+              <div class="s10-model-k">新模型 <span class="fnv-mono">gpt-5.4-mini</span>（長庚 CGU AIR）</div>
+              <div class="s10-model-s">2026-09-16 重跑同一組 150 筆</div>
+              <div class="s10-acc"><span class="s10-acc-n fnv-mono" id="s10-a2">0%</span><span class="s10-acc-k fnv-mono">accuracy</span></div>
+              <div class="s10-chips" id="s10-k2">
+                <span class="s10-chip s10-chip-ink fnv-mono">FN=0</span>
+                <span class="s10-chip s10-chip-ink fnv-mono">FP=0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="s10-row s10-r2" id="s10-r2">
+          <div class="s10-label">
+            <div class="s10-num fnv-mono">2</div>
+            <div class="s10-name">測試</div>
+          </div>
+          <div class="s10-line">
+            <div class="s10-kv"><span class="s10-kv-k">後端 pytest</span><span class="s10-kv-v fnv-mono"><span id="s10-t1">0</span><small>項</small></span></div>
+            <div class="s10-kv"><span class="s10-kv-k">前端單元測試</span><span class="s10-kv-v fnv-mono"><span id="s10-t2">0</span><small>項</small></span></div>
+            <div class="s10-aside" id="s10-aside2"><b>全數通過・GitHub Actions CI</b>測試計畫書 TP-FNV-2026-01：5 類 46 項</div>
+          </div>
+        </div>
+
+        <div class="s10-row s10-r3" id="s10-r3">
+          <div class="s10-label">
+            <div class="s10-num fnv-mono">3</div>
+            <div class="s10-name">資料品質</div>
+          </div>
+          <div class="s10-line">
+            <div class="s10-kv"><span class="s10-kv-k">熱門牆 Google News 轉址</span><span class="s10-kv-v fnv-mono">31 → <span id="s10-d1">31</span></span></div>
+            <div class="s10-kv"><span class="s10-kv-k">知識庫已證實</span><span class="s10-kv-v fnv-mono"><span id="s10-d2">0</span><small>筆</small></span></div>
+            <div class="s10-aside" id="s10-aside3"><b>資料清洗已套用</b>語意快取只比對已證實的判定</div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s10-numbers"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+
+          // Narration offset 0.8: 前一版…96% 0.90 · 沒有…判成安全 4.81 · 新模型重跑…全部判對 7.58 · CI 11.90
+          const CUE = { old: 0.9, fn: 4.81, neu: 7.58, ci: 11.9, data: 15.0 };
+
+          // a value stays hidden until its beat, then counts to the exact figure
+          const count = (el, to, at, dur, fmt, from = 0) => {
+            const p = { v: from };
+            const box = el.closest(".s10-kv-v") || el; // reveal the unit together with its number
+            tl.fromTo(box, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none" }, at);
+            tl.to(p, { v: to, duration: dur, ease: "power2.out", onUpdate: () => (el.textContent = fmt(p.v)) }, at);
+          };
+
+          tl.fromTo($("#s10-h"), { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, 0.2);
+          tl.fromTo($("#s10-eyebrow"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.4);
+          tl.fromTo($("#s10-r1"), { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.35);
+          // rows 2 and 3 are present but quiet until their beat
+          tl.fromTo($("#s10-r2"), { opacity: 0, y: 40 }, { opacity: 0.3, y: 0, duration: 0.6, ease: "power3.out" }, 0.5);
+          tl.fromTo($("#s10-r3"), { opacity: 0, y: 40 }, { opacity: 0.3, y: 0, duration: 0.6, ease: "power3.out" }, 0.65);
+
+          // 1 · previous model
+          tl.fromTo($("#s10-m2"), { opacity: 0.25 }, { opacity: 0.25, duration: 0.01 }, 0);
+          count($("#s10-a1"), 96.0, CUE.old + 1.6, 1.1, (v) => v.toFixed(1) + "%");
+          tl.fromTo($("#s10-a1"), { scale: 0.86 }, { scale: 1, duration: 1.1, ease: "power2.out" }, CUE.old + 1.6);
+          tl.fromTo($("#s10-k1"), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, CUE.fn);
+          tl.fromTo($("#s10-fn1"), { scale: 1 }, { scale: 1.12, duration: 0.2, ease: "power2.out" }, CUE.fn + 1.0);
+          tl.to($("#s10-fn1"), { scale: 1, duration: 0.35, ease: "power2.inOut" }, CUE.fn + 1.2);
+
+          // 1 · new model, same 150 items
+          tl.to($("#s10-m2"), { opacity: 1, duration: 0.4, ease: "power1.out" }, CUE.neu);
+          count($("#s10-a2"), 100, CUE.neu + 1.5, 1.1, (v) => Math.round(v) + "%");
+          tl.fromTo($("#s10-a2"), { scale: 0.86 }, { scale: 1, duration: 1.1, ease: "power2.out" }, CUE.neu + 1.5);
+          tl.fromTo($("#s10-k2"), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, CUE.neu + 2.7);
+
+          // 2 · tests
+          tl.to($("#s10-r2"), { opacity: 1, duration: 0.4, ease: "power1.out" }, CUE.ci - 0.2);
+          count($("#s10-t1"), 478, CUE.ci, 1.0, (v) => String(Math.round(v)));
+          count($("#s10-t2"), 375, CUE.ci + 0.25, 1.0, (v) => String(Math.round(v)));
+          tl.fromTo($("#s10-aside2"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, CUE.ci + 1.2);
+
+          // 3 · data quality (no narration: the numbers speak)
+          tl.to($("#s10-r3"), { opacity: 1, duration: 0.4, ease: "power1.out" }, CUE.data);
+          count($("#s10-d1"), 0, CUE.data + 0.15, 1.1, (v) => String(Math.round(v)), 31);
+          count($("#s10-d2"), 128, CUE.data + 0.9, 1.0, (v) => String(Math.round(v)));
+          tl.fromTo($("#s10-aside3"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, CUE.data + 2.0);
+
+          window.__timelines["s10-numbers"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

@@ -1,0 +1,149 @@
+<!doctype html>
+<!--
+  s09-wall — 鏡 9「熱門牆與知識庫」 (15s)
+  Genuine capture S9_t2 (local run): /trending scrolls → click 「知識庫」 → type 「健保」 → Enter → result cards.
+  The pointer travel to the tab and to the search box is accelerated ×2 (labelled). The capture contains no
+  news.google.com (checked at record time, docs/demo/footage_log.md §2).
+  Camera: a steady 1.3 framing of the content column with a slow push; the page scroll is the motion.
+  Blueprint: transcript-scroll-artifact-reveal (traversal as evidence) · rule: viewport-change.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+        }
+        .s09-col {
+          position: absolute;
+          left: 1284px;
+          top: 76px;
+          width: 540px;
+          height: 800px;
+        }
+        .s09-h {
+          margin-top: 8px;
+          font-size: 50px;
+          line-height: 62px;
+          font-weight: 700;
+        }
+        .s09-card {
+          margin-top: 22px;
+          padding: 20px 26px 24px;
+          border-radius: 16px;
+          background: #ffffff;
+          box-shadow: 0 0 0 2px #d4d4d8;
+          transform-origin: left center;
+        }
+        .s09-card-h {
+          margin-top: 6px;
+          font-size: 34px;
+          line-height: 46px;
+          font-weight: 700;
+        }
+        .s09-card-b {
+          margin-top: 6px;
+          font-size: 26px;
+          line-height: 38px;
+          color: #3f3f46;
+        }
+        .s09-fact {
+          margin-top: 14px;
+          padding-top: 12px;
+          border-top: 2px solid #e4e4e7;
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          font-size: 24px;
+          line-height: 36px;
+          font-weight: 700;
+        }
+        .s09-fact .fnv-mono {
+          font-size: 30px;
+          font-variant-numeric: tabular-nums;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s09-wall" data-width="1920" data-height="1080" data-duration="15.6">
+        <div class="fnv-grid"></div>
+
+        <div class="fnv-panel" id="s09-panel">
+          <div class="fnv-cam" id="s09-cam" data-layout-allow-overflow>
+            <video id="s09-footage" src="assets/footage/s09_wall.mp4" data-start="0" data-duration="15.6" data-track-index="0" muted playsinline></video>
+            <div class="fnv-ring fnv-ring-box" id="s09-ring-rule" style="left: 568px; top: 178px; width: 412px; height: 36px; border-radius: 12px"></div>
+          </div>
+        </div>
+        <div class="fnv-tag fnv-tag-panel" id="s09-local">本機執行畫面</div>
+        <div class="fnv-tag fnv-tag-speed s09-speed" id="s09-speed">畫面加速 ×2</div>
+
+        <div class="s09-col">
+          <div class="fnv-eyebrow fnv-mono" id="s09-eyebrow">09 ／ 查過的都留下來</div>
+          <div class="s09-h" id="s09-h">熱門牆與知識庫</div>
+
+          <div class="s09-card" id="s09-c1">
+            <div class="fnv-eyebrow fnv-mono">熱門牆</div>
+            <div class="s09-card-h">整理查核機構的最新查核</div>
+            <div class="s09-card-b">MyGoPen・台灣事實查核中心・Cofacts</div>
+            <div class="s09-fact"><span>Google News 轉址</span><span class="fnv-mono">31 → 0</span></div>
+          </div>
+
+          <div class="s09-card" id="s09-c2">
+            <div class="fnv-eyebrow fnv-mono">知識庫</div>
+            <div class="s09-card-h">可以搜尋查過的內容</div>
+            <div class="s09-card-b">只收有查核來源佐證的判定</div>
+            <div class="s09-fact"><span>已證實</span><span class="fnv-mono">128 筆</span></div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s09-wall"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+
+          // Narration offset 2.2: 熱門牆整理… 2.30 · 知識庫可以搜尋 6.41 · 只收有查核來源佐證 8.45
+          const CUE = { wall: 2.3, kb: 6.41, only: 8.45 };
+          // Footage clock: scroll 0.85–5.1 · back to top 5.2–5.9 · ×2 5.96–9.28 (tab click 7.43, page 7.63) · 健保 9.63–10.16 · results ≈10.9
+          const F = { fast0: 5.96, fast1: 9.28 };
+
+          const cam = (cx, cy, s) => ({
+            x: Math.min(0, Math.max(1140 - 1920 * s, 570 - cx * s)),
+            y: Math.min(0, Math.max(800 - 1080 * s, 400 - cy * s)),
+            scale: s,
+          });
+          tl.fromTo($("#s09-cam"), cam(960, 0, 1.3), { ...cam(960, 0, 1.38), duration: 15.2, ease: "none" }, 0.2);
+
+          tl.fromTo($("#s09-panel"), { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.1);
+          tl.fromTo($("#s09-local"), { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 0.6);
+          tl.fromTo($("#s09-speed"), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(2)" }, F.fast0);
+          tl.to($("#s09-speed"), { opacity: 0, duration: 0.2, ease: "power1.in" }, F.fast1);
+
+          // emphasis rings (capture pixels): lock in, hold, release
+          const ring = (sel, at, until) => {
+            tl.fromTo($(sel), { opacity: 0, scale: 1.14 }, { opacity: 1, scale: 1, duration: 0.35, ease: "power3.out" }, at);
+            tl.to($(sel), { opacity: 0, duration: 0.25, ease: "power1.in" }, until);
+          };
+          ring("#s09-ring-rule", CUE.only + 0.15, 12.1); // 「知識庫只收錄有查核機構或媒體查核報導佐證的判定。」
+
+          tl.fromTo($("#s09-eyebrow"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.3);
+          tl.fromTo($("#s09-h"), { opacity: 0, x: 44 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, 0.9);
+          tl.fromTo($("#s09-c1"), { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, CUE.wall);
+          tl.fromTo($("#s09-c2"), { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, CUE.kb + 0.1);
+          // once the knowledge base is on screen, the first card steps back
+          tl.to($("#s09-c1"), { opacity: 0.55, duration: 0.4, ease: "power1.out" }, CUE.kb + 0.9);
+          tl.to($("#s09-c2"), { scale: 1.03, duration: 0.25, ease: "power2.out" }, CUE.only + 0.2);
+          tl.to($("#s09-c2"), { scale: 1, duration: 0.4, ease: "power2.inOut" }, CUE.only + 0.45);
+
+          window.__timelines["s09-wall"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

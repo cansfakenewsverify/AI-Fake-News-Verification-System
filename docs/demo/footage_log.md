@@ -75,3 +75,65 @@
 | 18:27:40 | 53 | 0.155421 | 剪輯完成後（無新呼叫） |
 
 合計花費 **USD 0.139**（上限 USD 0.50）；剩餘額度 USD 9.84。
+
+---
+
+# v0.4.0：demo_v0.4.0（HyperFrames 重製，2026-09-19）
+
+故事、旁白與誠實原則不變；改用 HeyGen 開源的 [HyperFrames](https://github.com/heygen-com/hyperframes)（npm `hyperframes` 0.8.50，Apache-2.0，「HTML 寫畫面、本機 render 成影片」）重做版面、鏡頭運動、轉場與字幕。**沒有重錄**：網站畫面全部沿用 v0.3.0（2026-09-16）的實錄影格，終端機與回覆文字沿用當時留下的實際輸出。
+
+| 項目 | 內容 |
+|------|------|
+| 成品 | `docs/demo/demo_v0.4.0.mp4`（未進 git）＋ `docs/demo/demo_v0.4.0.srt`（41 句） |
+| 規格 | **157.2 秒（2:37）**；1920×1080、30 fps（4716 幀）、H.264 High yuv420p（bt709）；AAC-LC 48 kHz 立體聲約 120 kbps；**48.2 MB**（46.0 MiB）；整體響度 −16.2 LUFS、LRA 6.0 LU、峰值 −4.3 dBFS；`blackdetect` 0 段 |
+| 專案 | `video/hf-demo/`（只提交原始碼：HTML／CSS／JS／JSON／MD；素材、旁白音檔、render、snapshot、skills 皆 gitignore） |
+| 製作 | 2026-09-19，Claude 全自動；本機 render（`chrome-headless-shell` 152＋ffmpeg 9.0.1，3 workers 約 2 分 54 秒）。未執行 `publish`／`cloud`／`lambda`／`cloudrun`／`auth`／`feedback`，未登入任何服務；遙測以 `HYPERFRAMES_NO_TELEMETRY=1`、`DO_NOT_TRACK=1` 關閉 |
+| 背景音樂 | **無**（負責人 2026-09-19 決定）；只有旁白，每段旁白加 0.06 秒淡入、0.22 秒淡出 |
+| CGU AIR 花費 | **USD 0**：沒有啟動後端、沒有呼叫 AI 或 embedding；旁白用 edge-tts（免帳號免金鑰） |
+
+## 1. HyperFrames 用法
+
+| 項目 | 內容 |
+|------|------|
+| 建立專案 | `npx hyperframes init hf-demo --non-interactive --example blank --resolution landscape`（`HYPERFRAMES_SKIP_SKILLS=1`）；`npx hyperframes doctor`：Node、FFmpeg、FFprobe、Chrome 皆通過（whisper／Kokoro／MusicGen／Docker 為選用，未安裝） |
+| agent skills | 12 個，**專案層級**安裝在 `video/hf-demo/.claude/skills`、`.agents/skills`：`hyperframes`、`hyperframes-core`、`-animation`、`-creative`、`-cli`、`-audio`、`-keyframes`、`-registry`、`-studio`、`media-use`、`general-video`、`product-launch-video`。指令：`npx skills@1.7.0 add https://github.com/heygen-com/hyperframes --skill … --agent claude-code universal --copy --full-depth --yes`。**沒有**用 `npx hyperframes skills update`：看過 CLI 原始碼，它固定帶 `--global`，會裝進使用者家目錄（`~/.claude/skills`、`~/.agents/skills`）並鏡射到其他 AI 工具的全域目錄，屬於全域設定變更 |
+| 流程 | `/hyperframes` 路由 → `/general-video`（既有實錄的 footage remix＋固定分鏡與逐字旁白；`flow: automation`、`storyboard: no`）。產物：`BRIEF.md` → `STORYBOARD.md`（每景標出引用的 blueprint／rule）→ `frame.md`（設計規格）→ `compositions/`（每景一個 sub-composition）→ `hyperframes lint`／`check`／`snapshot` → `render` |
+| 結構 | `index.html`（薄的 orchestrator：9 個場景 host、chrome、單一字幕軌、11 段旁白 `<audio>`、根 timeline 只放轉場）；場景 `s01-hook`、`s02-home`、`s03-sim`（鏡 3＋4）、`s05-phone`（鏡 5＋6）、`s07-vector`、`s08-ai`、`s09-wall`、`s10-numbers`、`s11-end`；`chrome`（品牌字＋底部進度線）；`captions`（41 組，一次一組、結尾硬切）。`index.html`／`captions.html`／`chrome.html`／SRT 由 `tools/build_timeline.mjs` 依 `data/plan.json`＋`data/timing.json` 產生 |
+| 套用的技巧 | 實錄放在左側視窗，**虛擬攝影機**在視窗內推近／平移（`viewport-change`：寬景 1.0 → 內容欄 1.425）；手機鏡用**放大鏡**（同一段實錄的第二個 `<video>`，約 ×3）巡過判定列→摘要→來源→來歷→分享鈕；**強調框**（畫在實錄座標上的墨黑外框，跟著鏡頭走）；終端機用 `discrete-text-sequence` 逐字打入＋方塊游標；數字卡 count-up 停在精確值；開場 `waterfall-entry`；轉場以 push slide 為主、blur crossfade 標示換主題、片尾淡出；旁白淡入淡出用 `data-automation` 音量 lane；`index.motion.json` 讓 `check` 驗證出場順序與「畫面持續有動態」 |
+| 檢查 | `hyperframes check --samples 48`：lint 0、runtime 0、layout 0 error／0 warning（12 個轉場瞬間的 info）、motion 14 條斷言全過（300 個取樣）、contrast 56／56 |
+| 重建素材 | `node tools/build_footage.mjs <v0.3.0 raw 目錄>`（加速段、剪掉的靜止空檔、靜止延長都先烘進定速影片，因為 HyperFrames 只支援定速播放）；`tools/tts.py`（旁白）；`node tools/build_timeline.mjs`；`npm run check`；`npm run render` |
+
+## 2. 各鏡紀錄
+
+| 鏡 | 時間碼 | 秒 | 素材來源 | 與 v0.3.0／分鏡的差異 |
+|----|--------|----|----------|------------------------|
+| 1 | 0:00.0–0:07.0 | 7.0 | HTML 場景；文字取 p100 | 網址是純色遮蔽塊，**底下沒有網址文字**；右上「示意訊息（模擬測試資料）・網址已遮蔽」 |
+| 2 | 0:07.0–0:17.0 | 10.0 | S2_t1 實錄（首頁） | 「本機執行畫面」；右欄三行：三層快取／Threads 機器人（註明本片為模擬模式）／長庚 CGU AIR・gpt-5.4-mini；正式網址只放片尾 |
+| 3 | 0:17.0–0:30.0 | 13.0 | HTML 重繪：實際 `mentions.json`＋`--reset-sim`／`--poll` 的實際輸出（`data/captured.json`，逐字） | 全程角標「模擬模式：流程與正式串接相同，正式上線需 Meta App Review」；終端機標「終端機實際輸出・畫面重繪」；`--poll` 指令逐字打入，輸出順序與等待時間照實際執行（3.2 秒）重播；p100 網址遮蔽；等寬字關閉連字，`->` 照原樣 |
+| 4 | 0:30.0–0:46.5 | 16.5 | 同上續：log 那一行拆成 5 個 token 逐一說明 → `replies.jsonl` 實際那一行＋`text` 欄五行 | 🔴 只出現在錄到的回覆文字；「第一行＝燈號」「查核機構（Tier 1）」標註；結尾標出「完整判讀」連結，銜接下一鏡 |
+| 5 | 0:46.5–1:03.7 | 17.2 | S56_t1 實錄（390×844 手機模擬 `/r/eb06622e…`） | 素色圓角框（無瀏海、無狀態列）；「本機執行畫面・手機寬度模擬 390×844」；放大鏡標「同一段實錄 ×3」；卡片「由模擬模式產生／@tester_a 是測試帳號」；靜止段以靜止影格延長（3.0 秒、7.7 秒） |
+| 6 | 1:03.7–1:14.2 | 10.5 | S56_t1 續（按「分享到 Threads」→「已開啟 Threads」）＋實際產生的 Web Intent 網址（解碼後） | 沒有開啟 Threads、沒有登入（錄影時連結已攔下）；卡片標「未開啟 Threads、未登入」 |
+| 7 | 1:14.2–1:29.2 | 15.0 | S7_t3 實錄（改寫句 P2 → `vector`） | 載入段 3.9 秒以 ×2 播放並標「畫面加速 ×2」；剪掉兩段畫面完全靜止的空檔（原始 4.30–5.50、12.60–14.81 秒）；右欄相似度 0.80 為 `demo_posts.md` 實測 0.8026、門檻 0.75 |
+| 8 | 1:29.2–1:50.7 | 21.5 | S8_t1 實錄（新訊息 N3 → AI 即時判定＋「尚無查核機構證實」） | 載入段 9.8 秒以 ×3 播放並標「畫面加速 ×3」；剪掉一段靜止空檔（4.05–5.35 秒）；結果出現後靜止延長；全片唯一一次「尚無查核機構證實」 |
+| 9 | 1:50.7–2:05.7 | 15.0 | S9_t2 實錄（熱門牆捲動 → 知識庫 → 搜尋「健保」） | 指標移到分頁、移到搜尋框兩段以 ×2 播放並標「畫面加速 ×2」；剪掉兩段靜止空檔；畫面無 `news.google.com`（沿用 v0.3.0 的檢查） |
+| 10 | 2:05.7–2:27.7 | 22.0 | HTML 數字卡 | 負責人核准數字：前一版 gpt-5-mini 150 筆 accuracy 96.0%、FN=0、FP=5；新模型 gpt-5.4-mini（長庚 CGU AIR）2026-09-16 重跑 150 筆 accuracy 100%、FN=0、FP=0；後端 pytest 478 項＋前端單元測試 375 項全數通過（GitHub Actions CI）；測試計畫書 TP-FNV-2026-01 5 類 46 項；熱門牆 Google News 轉址 31 → 0、知識庫已證實 128 筆 |
+| 11 | 2:27.7–2:37.2 | 9.5 | HTML 片尾 | 「Threads 目前為模擬模式；公開服務需通過 Meta App Review 與企業驗證」；下一步只留「Threads 實機串接」（重跑評測已完成）；未放團隊與指導教授名單；最後 0.6 秒淡出 |
+
+每鏡長度 ≥ 旁白字數 ÷ 3.5（分鏡的字數計法：6.0／9.7／12.6／16.3／17.1／10.0／14.3／21.1／13.7／21.7／8.6 秒）；每段旁白都在該鏡結束前至少 1.2 秒講完（以成品音軌的靜音偵測核對：各段起聲點＝排定時間＋0.14 秒）。
+
+## 3. 旁白與字幕
+
+| 項目 | 內容 |
+|------|------|
+| 配音 | edge-tts `zh-TW-YunJheNeural`（台灣華語男聲）、`--rate=+8%`；每鏡一段，實際語音長度 5.04／6.57／7.65／10.77／11.89／6.27／9.37／14.11／8.40／13.72／5.16 秒，合計 98.9 秒；每段以 EBU R128 兩段式正規化到 −16 LUFS |
+| 文字 | 分鏡「旁白」欄；鏡 5、6 沿用 v0.3.0 微調；**鏡 10 依已核准的新數字改寫**：「前一版模型在 150 筆資料上，準確率 96%，而且沒有把任何詐騙或假訊息判成安全；換上長庚 CGU 的新模型重跑，150 筆全部判對。每次提交，CI 都會自動跑完測試。」（原句「重新評測排在報告之後」已不符事實） |
+| 送 TTS 的讀音調整（字幕不變） | 只有鏡 10 的數字：「150」→「一百五十」、「96%」→「百分之九十六」 |
+| 讀音測試（離線、零花費） | 「長庚」：分別合成「長庚／常庚／掌庚」做 log-mel DTW，長庚↔常庚 2.05、長庚↔掌庚 3.86（句中 1.72 對 3.13）→ 這個聲音念 cháng，**不需改寫**。英文詞量有聲長度：CGU 0.59 秒（≈「C G U」0.64，逐字母）、AIR 0.27 秒（單字；「A I R」0.59）、Threads 0.43、MyGoPen 0.61（≈「My Go Pen」0.56）、Cofacts 0.57（≈「Co facts」0.61）、Meta 0.33、CI 0.39、AI 0.30 → 皆不需改寫。本機沒有語音轉文字工具（whisper-cpp 未安裝，也不為此下載模型），**負責人請實際聽一次** |
+| 字幕 | 41 句，時間取自 edge-tts WordBoundary；畫面字幕與 SRT 同一份資料；句尾逗號句號省略 |
+
+## 4. 交給負責人確認
+
+1. 鏡 10 旁白已改寫（見上表），鏡 11 片尾拿掉「CGU 模型重跑評測」；若要維持分鏡原句請告知。
+2. 熱門牆捲動（約 1:51–1:56）沿用 v0.3.0 同一段實錄，一樣會經過一則提到外國政治人物的 MyGoPen 查核標題與幾則 Cofacts 使用者回報的詐騙訊息原文（真實資料）。
+3. 結果頁頁尾的「評測標註」、首頁 Threads 說明卡「5 分鐘內回覆」兩點與 v0.3.0 第 4 節相同（同一批實錄）。
+4. `video/` 底下另有先前用 Remotion 做到一半的 v0.4.0 專案（`video/src`、`video/tools` 等，未提交）；本次沒有動它，是否保留由負責人決定。
