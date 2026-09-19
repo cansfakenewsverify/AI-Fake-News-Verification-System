@@ -1,0 +1,14 @@
+# 手動觸發：確認雲端主機（GitHub 的機房，非校內、非台灣 IP）打不打得到學校 CGU AIR 閘道。
+# 不帶任何金鑰：回 401/403 代表「連得到、只是沒授權」；逾時或連線失敗代表閘道擋校外雲端。
+name: cgu-reachability
+on: workflow_dispatch
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe CGU AIR gateway without credentials
+        run: |
+          echo "runner public ip: $(curl -s --max-time 10 https://api.ipify.org || echo unknown)"
+          for u in https://air.cgu.edu.tw/cgullmapi/v1/models https://air.cgu.edu.tw/cgullmapi/v1/me/usage https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html; do
+            curl -sS -o /dev/null -w "$u -> http %{http_code} in %{time_total}s\n" --max-time 25 "$u" || echo "$u -> CONNECTION FAILED"
+          done
