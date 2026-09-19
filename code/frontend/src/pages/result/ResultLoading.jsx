@@ -3,17 +3,19 @@ import Card from "../../components/Card.jsx";
 import Icon from "../../components/Icon.jsx";
 import Skeleton from "../../components/Skeleton.jsx";
 import { t } from "../../i18n.js";
+import { LOADING_STEP_MS, loadingStep } from "./resultState.js";
 
 // Result page loading state (S-04; spec 8.3 S2 state 1, 8.6 aria-busy; ResultStates.dc.html "loading").
 // - P-13 Skeleton (3 bars) in a card where the verdict block will appear
-// - Three-step indicator "check cache -> read content -> AI review": a purely time-based animation that
-//   moves one step every 2 s and loops; with prefers-reduced-motion it stays on the first step.
+// - Three-step indicator "check cache -> read content -> AI review": a time-based animation that moves one
+//   step every 2 s and only ever moves forward. It stops on the last step ("AI review", where a real
+//   analysis spends most of its time) until the result arrives; it never loops back to step 1.
+//   With prefers-reduced-motion it stays on the first step.
 //   Done steps: filled ink circle with a check; current: accent ring + dot, aria-current="step";
 //   upcoming: outlined circle, ink-3 label.
 // - result_loading is the page's single <h1> while loading; the container carries aria-busy="true".
 
 const STEP_KEYS = ["result_step_1", "result_step_2", "result_step_3"];
-const STEP_MS = 2000;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 function subscribeReducedMotion(callback) {
@@ -72,13 +74,14 @@ export default function ResultLoading() {
   const reducedMotion = useSyncExternalStore(subscribeReducedMotion, prefersReducedMotion, () => false);
   const [tick, setTick] = useState(0);
 
-  useEffect(() => {
-    if (reducedMotion) return undefined;
-    const timer = setInterval(() => setTick((n) => n + 1), STEP_MS);
-    return () => clearInterval(timer);
-  }, [reducedMotion]);
+  const active = reducedMotion ? 0 : loadingStep(tick, STEP_KEYS.length);
+  const onLastStep = active >= STEP_KEYS.length - 1;
 
-  const active = reducedMotion ? 0 : tick % STEP_KEYS.length;
+  useEffect(() => {
+    if (reducedMotion || onLastStep) return undefined;
+    const timer = setInterval(() => setTick((n) => n + 1), LOADING_STEP_MS);
+    return () => clearInterval(timer);
+  }, [reducedMotion, onLastStep]);
 
   return (
     <div aria-busy="true" className="flex flex-col" style={{ gap: 12, padding: "16px 0 24px" }}>

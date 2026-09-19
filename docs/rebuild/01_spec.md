@@ -687,7 +687,7 @@ AI 自動判讀，請自行查證。
 7. 頁尾細字：`analyzed_at`、`label_source` 說明、`disclaimer_short`。
 
 狀態：
-1. **載入**（`pending/processing`）：骨架 3 段 + 三步指示「檢查快取 → 讀取內容 → AI 判讀」（純時間動畫 2 秒/步循環）+ `result_loading`；輪詢每 2 秒、最多 90 秒；`aria-busy`。
+1. **載入**（`pending/processing`）：骨架 3 段 + 三步指示「檢查快取 → 讀取內容 → AI 判讀」（時間動畫 2 秒/步，**只前進、不循環**：走到「AI 判讀」後停在那裡直到結果出來；2026-09-19 負責人實機看到舊版走到第三步又跳回第一步後要求修改）+ `result_loading`；輪詢每 2 秒、最多 90 秒；`aria-busy`。
 2. **超時**（>90 秒仍未完成）：`error_timeout` + 「重新整理」；停止自動輪詢；`task_id` 仍在 URL，重開即續（修正 App.jsx:426 永遠停在骨架的 bug）。
 3. **成功（未快取）**：燈號區依 7.8 上色；chip `chip_live`。
 4. **快取命中**：chip `chip_cache_url|hash|vector` + `cache_hint`；`similar_news` 區隱藏。

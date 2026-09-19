@@ -4,12 +4,14 @@ import { readFile } from "node:fs/promises";
 import { t } from "../../i18n.js";
 import { ApiError, FALLBACK_PREFIX, configureFixtures, pollResult } from "../../lib/api.js";
 import {
+  LOADING_STEP_MS,
   POLL_INTERVAL_MS,
   POLL_MAX_MS,
   failureCode,
   followSpaLink,
   formatTaipeiDateTime,
   historyPatch,
+  loadingStep,
   httpUrlOrNull,
   isThreadsUrl,
   outcomeFromError,
@@ -206,4 +208,23 @@ test("fixture fx-pending keeps polling until the budget runs out", async () => {
   assert.equal(outcome.phase, "timeout");
   assert.equal(outcome.data.status, "pending");
   assert.ok(updates >= 2, `polled ${updates} times`);
+});
+
+// Loading stepper: forward-only (owner, 2026-09-19: "progress is progress, do not jump back")
+
+test("loading stepper moves forward one step per tick and then stays on the last step", () => {
+  const seen = [];
+  for (let tick = 0; tick <= 30; tick += 1) seen.push(loadingStep(tick, 3));
+  assert.deepEqual(seen.slice(0, 4), [0, 1, 2, 2]);
+  assert.ok(seen.slice(2).every((step) => step === 2), "never leaves the last step");
+  for (let i = 1; i < seen.length; i += 1) assert.ok(seen[i] >= seen[i - 1], "never moves backwards");
+});
+
+test("loading stepper tolerates odd input", () => {
+  assert.equal(loadingStep(-5, 3), 0);
+  assert.equal(loadingStep(NaN, 3), 0);
+  assert.equal(loadingStep(1.9, 3), 1);
+  assert.equal(loadingStep(7, 1), 0);
+  assert.equal(loadingStep(7, 0), 0);
+  assert.equal(LOADING_STEP_MS, 2000);
 });

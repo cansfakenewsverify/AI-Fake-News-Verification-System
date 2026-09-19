@@ -9,6 +9,16 @@ import { tierCaption } from "../../lib/verdict.js";
 export const POLL_INTERVAL_MS = 2000; // spec 8.3 S2 state 1: poll every 2 s
 export const POLL_MAX_MS = 90000; // ... for at most 90 s, then the timeout state
 
+// Loading stepper (spec 8.3 S2 state 1): time-based, but it only moves forward. After the last step
+// ("AI review") it stays there until the result arrives -- progress never jumps back to step 1.
+export const LOADING_STEP_MS = 2000;
+
+export function loadingStep(elapsedTicks, stepCount) {
+  const last = Math.max(0, Math.floor(stepCount) - 1);
+  const ticks = Number.isFinite(elapsedTicks) ? Math.floor(elapsedTicks) : 0;
+  return Math.min(Math.max(ticks, 0), last);
+}
+
 const GATEWAY_DOWN = new Set([502, 503, 504]);
 
 /** pollResult() resolution -> {phase: "timeout" | "failed" | "completed", data}. */
