@@ -248,8 +248,8 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
-.env\Scripts\python scripts\evaluate.py --timing --delay 0       # 150 筆＋逐筆延遲（PF-1／QA-2；約 13 分鐘、約 USD 1）
-.env\Scripts\python scriptseembed_vectors.py                     # 列出維度不對的向量；--apply [--target both] 才重算（DEF-05）
+.\venv\Scripts\python scripts\evaluate.py --timing --delay 0       # 150 筆＋逐筆延遲（PF-1／QA-2；約 13 分鐘、約 USD 1）
+.\venv\Scripts\python scripts\reembed_vectors.py                     # 列出維度不對的向量；--apply [--target both] 才重算（DEF-05）
 .\venv\Scripts\python scripts\evaluate.py --delay 0                   # 重跑 150 筆評測（約 USD 1）；加 --seed-db 會把判對的寫進知識庫
 .\venv\Scripts\python scripts\clean_sources_2026_09.py                # 資料清洗 dry-run（預設）；--apply 要負責人核准
 
