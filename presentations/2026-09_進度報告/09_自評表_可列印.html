@@ -1,0 +1,146 @@
+<!doctype html>
+<!--
+  可列印的學生自評表（A4）。內容取自 07_自評表草稿.md，等級為建議值。
+  產生 PDF：
+    node ../../code/frontend/tools/html_to_pdf.mjs 09_自評表_可列印.html 09_自評表_可列印.pdf
+  要改等級：改下面每一列的 data-level（1–4），重新產生即可。
+  官方空白表在 docs/course_forms/軟硬體專題學生自評表_空白.pdf，手寫填也可以。
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <title>軟硬體專題學生自評表</title>
+    <style>
+      @page { size: A4; margin: 11mm 11mm 10mm 11mm; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+        color: #000;
+        font-size: 9.5pt;
+        line-height: 1.38;
+      }
+      h1 { font-size: 14.5pt; margin: 0 0 1.5mm; letter-spacing: 0.06em; }
+      .sub { font-size: 9pt; color: #333; margin: 0 0 3mm; }
+      table { width: 100%; border-collapse: collapse; }
+      .head td { padding: 1.0mm 2mm; border: 0.4mm solid #000; font-size: 9.5pt; }
+      .head .k { width: 24mm; font-weight: 700; background: #f0f0f0; }
+      .items { margin-top: 3mm; }
+      .items th, .items td { border: 0.35mm solid #000; padding: 1.0mm 1.6mm; vertical-align: top; }
+      .items th { background: #e8e8e8; font-size: 10pt; }
+      .items .n { width: 7mm; text-align: center; font-weight: 700; }
+      .items .cap { width: 52mm; font-weight: 700; }
+      .items .lv { width: 26mm; text-align: center; white-space: nowrap; }
+      .items .note { font-size: 8.5pt; line-height: 1.38; }
+      .dot { display: inline-block; width: 6.2mm; height: 6.2mm; line-height: 6.2mm;
+             text-align: center; border-radius: 50%; margin: 0 0.3mm; font-size: 9.5pt; }
+      .dot.on { border: 0.6mm solid #000; font-weight: 700; }
+      .dot.off { color: #999; }
+      .lvhint { display: block; font-size: 8pt; color: #555; font-weight: 400; margin-top: 0.8mm; }
+      .sign { margin-top: 4mm; }
+      .sign td { border: 0; padding: 2mm 2mm 0; font-size: 10.5pt; }
+      .line { display: inline-block; border-bottom: 0.35mm solid #000; min-width: 52mm; }
+      .foot { margin-top: 2mm; font-size: 8.5pt; color: #555; }
+      tr { break-inside: avoid; }
+    </style>
+  </head>
+  <body>
+    <h1>長庚大學 資訊工程學系　軟硬體專題　學生自評表</h1>
+    <p class="sub">2026 學年度　第三次進度報告（2026-09）</p>
+
+    <table class="head">
+      <tr><td class="k">專題名稱</td><td>AI 為核心的假訊息驗證系統（系統名稱：全民查證公社）</td></tr>
+      <tr><td class="k">團隊成員</td><td>廖晢勛、石岱勳、姚睿、張宇宏、廖育翔</td></tr>
+      <tr><td class="k">指導教授</td><td>黃崇源</td></tr>
+      <tr><td class="k">專題網址</td><td>https://fakenewsverify.vercel.app　／　github.com/cansfakenewsverify/AI-Fake-News-Verification-System</td></tr>
+    </table>
+
+    <table class="items">
+      <thead>
+        <tr>
+          <th class="n">#</th>
+          <th class="cap">核心能力</th>
+          <th class="lv">自評等級<span class="lvhint">1（低）～ 4（高）</span></th>
+          <th class="note">說明與佐證</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <tr data-level="4">
+          <td class="n">1</td>
+          <td class="cap">運用資工領域、數學、科學及工程知識之能力</td>
+          <td class="lv"></td>
+          <td class="note">整合 React、FastAPI、PostgreSQL＋pgvector 與大型語言模型，完成可公開使用的查證網站。設計三層快取（內容雜湊、向量語意相似、AI 判讀），相似度門檻 0.75 由實測校準（同一謠言改寫 0.79–0.82、不同謠言 ≤0.68）。</td>
+        </tr>
+        <tr data-level="3">
+          <td class="n">2</td>
+          <td class="cap">發掘、分析及處理資訊系統運作問題的能力</td>
+          <td class="lv"></td>
+          <td class="note">把「怎樣才算可信」當成需求來分析：只採計已做出判定的查核來源，找不到就標示「尚無查核機構證實」。測試中發現並修正結果頁偶發 500、冷啟動連不上、舊向量維度錯誤等缺陷（測試計畫書 DEF-01～DEF-09）。仍有未解問題：語意快取命中率 65%，未達 70%。</td>
+        </tr>
+        <tr data-level="3">
+          <td class="n">3</td>
+          <td class="cap">設計與執行資訊系統實驗，與分析實驗數據之能力</td>
+          <td class="lv"></td>
+          <td class="note">自建 150 筆標註資料集評測：前一版模型 96.0%（誤報 5、漏判 0），現行模型 100%；量測各層延遲（雜湊 213 ms、向量約 3 秒、AI p50 4.9 秒／p90 6.6 秒）；並指出資料集對現行模型已飽和，需擴充後再比較。</td>
+        </tr>
+        <tr data-level="4">
+          <td class="n">4</td>
+          <td class="cap">運用適當工具、儀器與現存模組執行資訊系統軟硬體開發之能力</td>
+          <td class="lv"></td>
+          <td class="note">使用 Git／GitHub Actions（每次提交自動跑後端 700 項、前端 385 項測試）、Vercel、Render、Supabase、學校 CGU AIR 閘道、headless 瀏覽器自動截圖；開發過程以 AI 程式助理協助，並在測試計畫書中具名揭露。</td>
+        </tr>
+        <tr data-level="3">
+          <td class="n">5</td>
+          <td class="cap">規劃、建立資訊系統測試環境，及執行測試與結果分析之專案管理能力</td>
+          <td class="lv"></td>
+          <td class="note">依課程格式撰寫測試計畫書 TP-FNV-2026-01（5 類 46 項、通過準則、中止與再繼續規則）；第一輪 P0 通過 23／30，修正後重測 27／30，未通過與未執行項目都列出原因與時程；實作拆成 109 張票管理。</td>
+        </tr>
+        <tr data-level="4">
+          <td class="n">6</td>
+          <td class="cap">具備撰寫與運用資訊系統設計文件之能力</td>
+          <td class="lv"></td>
+          <td class="note">共識文件 → 功能與 UX 規格書 v1.3 → 介面設計稿 → 實作票 → 測試計畫書 → 部署手冊，全部放在版本庫的 docs/，實作與測試都可回溯到文件條目；README 與專案說明與程式同步維護。</td>
+        </tr>
+        <tr data-level="3">
+          <td class="n">7</td>
+          <td class="cap">具備有效溝通與合作之能力</td>
+          <td class="lv"></td>
+          <td class="note">五人分工：測試負責人、介面測試、績效與品質數據、文件與審查、影片與簡報（見分工表）；以 GitHub 與共用報告資料夾協作，介面檢核由非實作組員勾核、另一位組員覆核。</td>
+        </tr>
+        <tr data-level="4">
+          <td class="n">8</td>
+          <td class="cap">理解資訊倫理與社會責任</td>
+          <td class="lv"></td>
+          <td class="note">不引用未經查核的來源、AI 判定一律標示「僅供參考」、沒有來源不給綠燈；提供隱私政策與資料刪除頁；不把使用者輸入送到搜尋引擎；設每日 AI 次數上限與限速避免濫用；Threads 機器人以模擬模式展示並明確標示。</td>
+        </tr>
+        <tr data-level="3">
+          <td class="n">9</td>
+          <td class="cap">瞭解資訊工程技術對環境永續、社會共好及全球發展的影響，並培養持續學習的習慣與能力</td>
+          <td class="lv"></td>
+          <td class="note">對應 SDG 16（具公信力的資訊、減少詐騙與假訊息傷害）；以快取減少重複的 AI 運算；過程中自學雲端部署、向量資料庫與大型語言模型評測方法。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="sign">
+      <tr>
+        <td style="width:50%">填表人簽名：<span class="line"></span></td>
+        <td>日期：<span class="line" style="min-width:36mm"></span></td>
+      </tr>
+    </table>
+    <p class="foot">
+      等級為自評；佐證均可在版本庫中查得（測試計畫書 docs/test/TP-FNV-2026-01.md、評測結果 data/eval_*.csv、
+      介面檢核表 docs/test/ui_checklist.csv）。
+    </p>
+
+    <script>
+      // 把每一列的 data-level 畫成四個圈，選中的那個加粗外框
+      for (const tr of document.querySelectorAll("#rows tr")) {
+        const lv = Number(tr.dataset.level);
+        tr.querySelector(".lv").innerHTML = [1, 2, 3, 4]
+          .map((n) => `<span class="dot ${n === lv ? "on" : "off"}">${n}</span>`)
+          .join("");
+      }
+    </script>
+  </body>
+</html>

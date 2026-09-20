@@ -1,0 +1,259 @@
+<!doctype html>
+<!--
+  第三次進度報告的書面報告（草稿，A4）。
+  產生 PDF：
+    node code/frontend/tools/html_to_pdf.mjs "presentations/2026-09_進度報告/10_書面報告_草稿.html" "presentations/2026-09_進度報告/10_書面報告_草稿.pdf"
+
+  ⚠ 這是依版本庫裡既有的資料寫的草稿，不是照上一次的格式排的。
+    上一次的《第二次專題書面報告.pdf》在負責人的 OneDrive 桌面，這台機器沒有能讀 PDF 文字的工具，
+    所以無法比對格式。列印前請負責人開那份對一下章節與版面，要改的地方跟 Claude 說。
+
+  所有數字都出自：docs/test/TP-FNV-2026-01.md（v1.5）、data/eval_*.csv、README.md、CLAUDE.md、
+  docs/demo/footage_log.md。沒有把握的數字一律沒有寫進來。
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AI 為核心的假訊息驗證系統 — 第三次進度報告</title>
+    <style>
+      @page { size: A4; margin: 16mm 16mm 16mm 16mm; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+        color: #000;
+        font-size: 10.5pt;
+        line-height: 1.6;
+      }
+      .cover { text-align: center; padding-top: 22mm; page-break-after: always; }
+      .cover .school { font-size: 13pt; letter-spacing: 0.1em; }
+      .cover h1 { font-size: 24pt; line-height: 1.35; margin: 14mm 0 3mm; letter-spacing: 0.03em; }
+      .cover .sysname { font-size: 15pt; color: #333; margin-bottom: 16mm; }
+      .cover table { width: 118mm; margin: 0 auto; border-collapse: collapse; text-align: left; }
+      .cover td { padding: 2.4mm 3mm; border-bottom: 0.3mm solid #999; font-size: 11pt; }
+      .cover td.k { width: 30mm; font-weight: 700; }
+      .signbox { width: 118mm; margin: 14mm auto 0; border: 0.4mm solid #000; padding: 5mm; text-align: left; }
+      .signbox .t { font-weight: 700; margin-bottom: 6mm; }
+      .signline { display: inline-block; border-bottom: 0.35mm solid #000; min-width: 58mm; }
+
+      h2 { font-size: 13pt; margin: 7mm 0 2.5mm; padding-bottom: 1.2mm; border-bottom: 0.5mm solid #000; }
+      h3 { font-size: 11pt; margin: 4.5mm 0 1.5mm; }
+      p { margin: 0 0 2.4mm; text-align: justify; }
+      ul, ol { margin: 0 0 2.6mm; padding-left: 6mm; }
+      li { margin-bottom: 1mm; }
+      table.d { width: 100%; border-collapse: collapse; margin: 2mm 0 3.5mm; font-size: 9.5pt; }
+      table.d th, table.d td { border: 0.3mm solid #444; padding: 1.4mm 2mm; vertical-align: top; }
+      table.d th { background: #ececec; font-weight: 700; }
+      table.d td.num { text-align: right; white-space: nowrap; }
+      .flow {
+        border: 0.35mm solid #444; padding: 3mm 4mm; margin: 2mm 0 3.5mm;
+        font-family: "Consolas", "Microsoft JhengHei", monospace; font-size: 9pt; line-height: 1.7;
+        white-space: pre-wrap; background: #fafafa;
+      }
+      .note { font-size: 9.5pt; color: #333; border-left: 1mm solid #666; padding: 1mm 0 1mm 3mm; margin: 2mm 0 3mm; }
+      .foot { margin-top: 8mm; font-size: 9pt; color: #555; border-top: 0.3mm solid #999; padding-top: 2mm; }
+      h2, h3 { break-after: avoid; }
+      table.d, .flow { break-inside: avoid; }
+    </style>
+  </head>
+  <body>
+    <!-- ────────────────────────── 封面 ────────────────────────── -->
+    <div class="cover">
+      <div class="school">長庚大學　資訊工程學系　軟硬體專題</div>
+      <h1>AI 為核心的<br />假訊息驗證系統</h1>
+      <div class="sysname">系統名稱：全民查證公社</div>
+
+      <table>
+        <tr><td class="k">報告別</td><td>第三次進度報告</td></tr>
+        <tr><td class="k">報告日期</td><td>2026 年 9 月</td></tr>
+        <tr><td class="k">團隊成員</td><td>廖晢勛、石岱勳、姚睿、張宇宏、廖育翔</td></tr>
+        <tr><td class="k">指導教授</td><td>黃崇源</td></tr>
+        <tr><td class="k">系統網址</td><td>https://fakenewsverify.vercel.app</td></tr>
+        <tr><td class="k">原始碼</td><td>github.com/cansfakenewsverify/AI-Fake-News-Verification-System</td></tr>
+      </table>
+
+      <div class="signbox">
+        <div class="t">指導教授簽名</div>
+        <div>簽名：<span class="signline"></span>　　日期：<span class="signline" style="min-width:32mm"></span></div>
+      </div>
+    </div>
+
+    <!-- ────────────────────────── 內文 ────────────────────────── -->
+    <h2>一、這一期做了什麼</h2>
+    <p>
+      上次報告時，系統只能在組員自己的電腦上跑。這一期最主要的進展是<strong>整套系統已經上線</strong>，
+      2026 年 9 月 19 日起任何人都能直接打開網址使用，不需要有人開著電腦，也不需要註冊或登入。
+    </p>
+    <p>這一期完成的項目：</p>
+    <ol>
+      <li><strong>上雲</strong>：前端部署到 Vercel、後端部署到 Render、資料改存 Supabase 的 PostgreSQL（含 pgvector 向量索引）。</li>
+      <li><strong>介面重做</strong>：依規格書 v1.3 與設計稿重寫前端，統一文案與紅黃綠燈的使用規則。</li>
+      <li><strong>來源紀律</strong>：只採計已經做出判定的查核來源；找不到就明白標示「尚無查核機構證實」，而且不給綠燈。</li>
+      <li><strong>上線護欄</strong>：每日 AI 呼叫上限、每個 IP 的頻率限制、請求與上傳大小上限。</li>
+      <li><strong>測試計畫書</strong>：依課程格式完成 TP-FNV-2026-01（5 類 46 項），執行兩輪並記錄未結缺陷。</li>
+      <li><strong>簡報影片</strong>：依老師 9 月 20 日的規定，錄製 4 分 38 秒的預錄簡報影片，畫面全部是正式站實錄。</li>
+    </ol>
+
+    <h2>二、系統在做什麼</h2>
+    <p>
+      使用者把收到的可疑訊息（文字或網址）貼到網站上，系統判定它是<strong>詐騙</strong>、<strong>假訊息</strong>、
+      還是<strong>查無異常</strong>，以紅黃綠燈呈現，並附上已經做出判定的查核來源。判不出來的內容標為「無法查證」。
+      每一筆結果都有自己的網址，可以複製連結或分享到 Threads。
+    </p>
+    <p>除了單筆查證之外，網站還有三個部分：</p>
+    <ul>
+      <li><strong>熱門牆</strong>：彙整 MyGoPen、台灣事實查核中心與 Cofacts 的查核結果。</li>
+      <li><strong>知識庫</strong>：所有查證過而且有來源佐證的內容都留在這裡，可以搜尋與依判定篩選。</li>
+      <li><strong>Threads 查核機器人</strong>：在可疑貼文底下標記機器人，它會回覆判定、來源與結果頁連結。
+        目前以<strong>模擬模式</strong>展示，尚未對外開放（原因見第六節）。</li>
+    </ul>
+
+    <h2>三、系統架構</h2>
+    <div class="flow">瀏覽器
+  └─ Vercel（前端：React 靜態檔；/api/* 同源代理）
+       └─ Render（後端：FastAPI）
+            ├─ Supabase PostgreSQL ＋ pgvector（知識庫、結果、熱門、用量）
+            └─ 長庚 CGU AIR 閘道（判讀模型 gpt-5.4-mini；向量模型 text-embedding-3-small）</div>
+    <p>
+      金鑰只存在兩個地方：負責人本機的設定檔與 Render 後台，版本庫是公開的，裡面不含任何金鑰。
+    </p>
+
+    <h3>判讀流程：先找答案，找不到才問 AI</h3>
+    <p>
+      呼叫大型語言模型是整個系統最貴的一步，所以設計了三層，只有前兩層都沒有命中時才真的呼叫 AI：
+    </p>
+    <table class="d">
+      <thead>
+        <tr><th style="width:18mm">層</th><th style="width:34mm">比對方式</th><th>說明</th><th style="width:26mm" class="num">實測延遲</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>L1</td><td>內容雜湊</td><td>完全相同的內容直接沿用先前的判定。</td><td class="num">213 ms</td></tr>
+        <tr><td>L2</td><td>向量語意相似</td><td>換句話說也認得。相似度門檻 0.75，且<strong>只比對已經證實的資料列</strong>。</td><td class="num">約 3.1 秒</td></tr>
+        <tr><td>L3</td><td>AI 判讀</td><td>前兩層都沒中才呼叫一次模型；判讀對象一律是使用者的原文。</td><td class="num">9–27 秒</td></tr>
+      </tbody>
+    </table>
+    <p>
+      門檻 0.75 是實際量測校準的結果：同一則謠言的改寫版相似度落在 0.79–0.82，不同謠言之間不超過 0.68。
+      先前使用的 0.88 會把所有改寫版本擋掉，等於讓向量層失去作用。
+    </p>
+
+    <h3>上線護欄</h3>
+    <table class="d">
+      <thead><tr><th style="width:52mm">項目</th><th style="width:34mm" class="num">設定值</th><th>目的</th></tr></thead>
+      <tbody>
+        <tr><td>每日 AI 呼叫上限</td><td class="num">300 次／日</td><td>控制學校提供的額度；達上限後仍可回覆快取命中的內容。</td></tr>
+        <tr><td>每個 IP 的頻率限制</td><td class="num">30 次／分、200 次／時</td><td>避免單一來源大量佔用。</td></tr>
+        <tr><td>請求與上傳大小</td><td class="num">1 MB／圖片 10 MB</td><td>避免超大請求拖垮免費主機。</td></tr>
+      </tbody>
+    </table>
+
+    <h2>四、評測結果</h2>
+    <p>
+      自建 150 筆已標註的訊息資料集（詐騙、假訊息、安全各 50 筆），其中刻意放入「看起來像詐騙的合法官方訊息」
+      作為難題。同一份題目在換模型前後各跑一次：
+    </p>
+    <table class="d">
+      <thead>
+        <tr><th>版本</th><th style="width:34mm">判讀模型</th><th style="width:20mm" class="num">準確率</th>
+            <th style="width:22mm" class="num">macro-F1</th><th style="width:18mm" class="num">漏判</th><th style="width:18mm" class="num">誤報</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>前一版（2026-06）</td><td>gpt-5-mini</td><td class="num">96.0%</td><td class="num">0.960</td><td class="num">0</td><td class="num">5</td></tr>
+        <tr><td>現行（2026-09-16）</td><td>gpt-5.4-mini</td><td class="num">100%</td><td class="num">1.000</td><td class="num">0</td><td class="num">0</td></tr>
+      </tbody>
+    </table>
+    <p>
+      <strong>兩次評測都沒有把任何詐騙或假訊息判成安全</strong>（漏判為 0）；前一版的 5 次誤報全部是把反詐宣導或
+      政府補助公告誤判成詐騙，新版已全部判對。現行結果的 95% 信賴區間為 0.976–1.000。
+    </p>
+    <div class="note">
+      <strong>這個 100% 不能解讀成「系統不會出錯」。</strong>150 筆全部判對，代表這組題庫對現行模型已經飽和，
+      分不出模型或設定之間的差異；而且題庫自 2026 年 6 月起就公開在版本庫中，無法排除新模型看過。
+      下一步是把題庫擴充後再比較，這一點在報告與投影片中都會一併說明。
+    </div>
+
+    <h2>五、測試與品質</h2>
+    <h3>自動化測試</h3>
+    <p>
+      後端 700 項、前端 385 項自動化測試，全部離線執行、不消耗 AI 額度，每次提交由 GitHub Actions 自動跑完。
+      另有 24 項針對雲端資料庫的契約測試，確保本機檔案版與 PostgreSQL 版行為一致。
+    </p>
+
+    <h3>測試計畫書 TP-FNV-2026-01</h3>
+    <p>
+      依課程格式撰寫，含 5 類 46 項測試、通過準則、中止與再繼續規則。第一輪 P0 通過 23／30，
+      修正缺陷後重測為 <strong>27／30</strong>。未通過與未執行的項目都列出原因與補做時程：
+    </p>
+    <table class="d">
+      <thead><tr><th style="width:22mm">項目</th><th style="width:26mm">狀態</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td>PF-2</td><td>未通過</td>
+            <td>語意快取命中率 65%（13／20），未達 70% 的準則。<strong>沒有為了讓它通過而調低 0.75 的門檻</strong>，
+                因為那是實測校準值，調低會提高誤命中。已排定由組員重新出題後重測。</td></tr>
+        <tr><td>UI-1</td><td>已補齊素材</td>
+            <td>介面逐格檢核。深色版截圖已於 9 月 20 日補齊（54 張），檢核表共 143 列，
+                由非實作組員勾核、另一位組員覆核中。</td></tr>
+        <tr><td>UI-6、PF-1、OP-1</td><td>未執行</td>
+            <td>分別需要另外安裝的比對工具、未合入的量測參數，以及全新環境的重新取得流程；均非測試失敗。</td></tr>
+      </tbody>
+    </table>
+
+    <h2>六、誠實交代的限制</h2>
+    <ol>
+      <li><strong>Threads 機器人尚未對外開放。</strong>流程與程式都完成並以模擬模式驗證過，但要公開回覆一般使用者，
+        必須先通過 Meta 的 App Review 與企業驗證；在那之前只有被加入測試名單的帳號收得到回覆。
+        簡報影片中這一段全程標示為模擬模式。</li>
+      <li><strong>評測資料集已飽和</strong>（見第四節）。</li>
+      <li><strong>語意快取命中率未達準則</strong>（見第五節）。</li>
+      <li><strong>免費雲端方案的限制</strong>：後端 15 分鐘沒有流量會休眠，喚醒約需 1 分鐘；
+        前端已能在喚醒期間自動重試並顯示提示，但第一次查詢仍可能較慢。</li>
+      <li><strong>知識庫仍有待清理的資料</strong>：9 月 20 日檢查發現雲端知識庫 128 筆中，有 24 筆的「查核來源」
+        其實是求證平台上尚未有判定的回報貼文，卻被標成查核機構等級。這與本專題「只有已做出判定的來源才算來源」
+        的原則不符，已列入待辦，會在下一期清除或重新標記。</li>
+      <li><strong>AI 判讀僅供參考</strong>：網站每一頁都標示判讀由 AI 自動產生、可能有誤，請使用者自行查證，
+        並提供隱私政策與資料刪除說明。</li>
+    </ol>
+
+    <h2>七、下一步</h2>
+    <ol>
+      <li>Threads 實機串接：申請 Meta App Review 與企業驗證，完成後對外開放。</li>
+      <li>擴充評測資料集並重新評測，取得能分辨模型差異的結果。</li>
+      <li>完成 PF-2 重測，並清理第六節第 5 點的知識庫資料。</li>
+      <li>補做 UI-6、PF-1、OP-1 三項未執行的測試。</li>
+      <li>開放首頁的圖片上傳介面（後端端點已具備檔頭檢查與大小限制）。</li>
+    </ol>
+
+    <h2>八、分工</h2>
+    <table class="d">
+      <thead><tr><th style="width:24mm">成員</th><th style="width:34mm">角色</th><th>這一期負責的工作</th></tr></thead>
+      <tbody>
+        <tr><td>廖晢勛</td><td>組員 A．測試負責人</td><td>系統實作與部署、測試執行與彙整、金鑰與資料管理。</td></tr>
+        <tr><td>石岱勳</td><td>組員 B．介面測試</td><td>介面截圖逐格勾核、手機實機與行動網路測試。</td></tr>
+        <tr><td>姚睿</td><td>組員 C．績效與品質數據</td><td>語意快取題組出題與命中率量測、效能數據整理。</td></tr>
+        <tr><td>張宇宏</td><td>組員 D．文件與審查</td><td>維護測試計畫書、覆核檢核表、文件一致性檢查。</td></tr>
+        <tr><td>廖育翔</td><td>組員 E．影片與簡報</td><td>簡報影片與投影片、報告呈現。</td></tr>
+      </tbody>
+    </table>
+
+    <h2>九、附件與可查證的位置</h2>
+    <table class="d">
+      <thead><tr><th style="width:52mm">項目</th><th>位置</th></tr></thead>
+      <tbody>
+        <tr><td>線上系統</td><td>https://fakenewsverify.vercel.app</td></tr>
+        <tr><td>簡報影片（4 分 38 秒）</td><td>https://fakenewsverify.vercel.app/demo/presentation_v1.mp4</td></tr>
+        <tr><td>原始碼</td><td>github.com/cansfakenewsverify/AI-Fake-News-Verification-System</td></tr>
+        <tr><td>測試計畫書</td><td>docs/test/TP-FNV-2026-01.md（v1.5）</td></tr>
+        <tr><td>評測資料與結果</td><td>code/backend/data/eval_set.csv、eval_*.csv</td></tr>
+        <tr><td>介面檢核表與截圖</td><td>docs/test/ui_checklist.csv、docs/test/screens/</td></tr>
+        <tr><td>規格與設計文件</td><td>docs/rebuild/（共識、規格書 v1.3、設計稿、實作票、部署手冊）</td></tr>
+      </tbody>
+    </table>
+
+    <p class="foot">
+      本專題的程式實作與自動化測試執行，包括撰寫程式與測試碼、執行測試、評測與量測腳本、
+      以無頭瀏覽器擷取截圖與彙整紀錄檔，由 AI 程式開發助理 Claude Code（Anthropic）協助完成，
+      全程在負責人監督下進行。需要人工判斷的工作——介面勾核、資料清洗審閱、測試結論與簽核——由組員與審查者執行，
+      不由 AI 代為判定。此一說明同時記載於測試計畫書中。
+    </p>
+  </body>
+</html>
