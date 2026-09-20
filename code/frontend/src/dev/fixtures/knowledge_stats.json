@@ -1,0 +1,15 @@
+{
+  "total": 10,
+  "by_risk": {
+    "MISINFO": 3,
+    "SCAM": 3,
+    "SAFE": 3
+  },
+  "counts": {
+    "scam": 3,
+    "misinfo": 3,
+    "safe": 3,
+    "unverifiable": 1
+  },
+  "unverified_count": 0
+}

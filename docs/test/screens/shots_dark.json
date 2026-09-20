@@ -1,0 +1,874 @@
+[
+ {
+  "file": "docs/test/screens/S1_backend_down_1280_dark.png",
+  "screen": "S1 首頁",
+  "state": "backend_down",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → 連線失敗"
+  ],
+  "actions": [],
+  "waited_for": "暫時連不上伺服器",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_backend_down_375_dark.png",
+  "screen": "S1 首頁",
+  "state": "backend_down",
+  "width": "375",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → 連線失敗"
+  ],
+  "actions": [],
+  "waited_for": "暫時連不上伺服器",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_empty_1280_dark.png",
+  "screen": "S1 首頁",
+  "state": "empty",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → health_ok.json"
+  ],
+  "actions": [],
+  "waited_for": "貼上訊息，10 秒知道真假",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_empty_375_dark.png",
+  "screen": "S1 首頁",
+  "state": "empty",
+  "width": "375",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → health_ok.json"
+  ],
+  "actions": [],
+  "waited_for": "貼上訊息，10 秒知道真假",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_quota_1280_dark.png",
+  "screen": "S1 首頁",
+  "state": "quota",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "POST /api/analyze/text → analyze_daily_cap_reached.json"
+  ],
+  "actions": [
+   "fill",
+   "click",
+   "wait"
+  ],
+  "waited_for": "今日查證額度已用完",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_quota_375_dark.png",
+  "screen": "S1 首頁",
+  "state": "quota",
+  "width": "375",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "POST /api/analyze/text → analyze_daily_cap_reached.json"
+  ],
+  "actions": [
+   "fill",
+   "click",
+   "wait"
+  ],
+  "waited_for": "今日查證額度已用完",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_rate_limited_1280_dark.png",
+  "screen": "S1 首頁",
+  "state": "rate_limited",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "POST /api/analyze/text → analyze_rate_limited.json"
+  ],
+  "actions": [
+   "fill",
+   "click",
+   "wait"
+  ],
+  "waited_for": "查證太頻繁",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_rate_limited_375_dark.png",
+  "screen": "S1 首頁",
+  "state": "rate_limited",
+  "width": "375",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "POST /api/analyze/text → analyze_rate_limited.json",
+   "POST /api/analyze/text → analyze_text_ok.json"
+  ],
+  "actions": [
+   "fill",
+   "click",
+   "wait"
+  ],
+  "waited_for": "查證太頻繁",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_submitting_1280_dark.png",
+  "screen": "S1 首頁",
+  "state": "submitting",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "POST /api/analyze/text → analyze_text_ok.json"
+  ],
+  "actions": [
+   "fill",
+   "click",
+   "wait"
+  ],
+  "waited_for": "查證中",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_submitting_375_dark.png",
+  "screen": "S1 首頁",
+  "state": "submitting",
+  "width": "375",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → health_ok.json"
+  ],
+  "actions": [
+   "fill",
+   "click",
+   "wait"
+  ],
+  "waited_for": "查證中",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_validation_1280_dark.png",
+  "screen": "S1 首頁",
+  "state": "validation",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → health_ok.json"
+  ],
+  "actions": [
+   "click",
+   "wait"
+  ],
+  "waited_for": "請先貼上要查證的內容",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S1_validation_375_dark.png",
+  "screen": "S1 首頁",
+  "state": "validation",
+  "width": "375",
+  "theme": "dark",
+  "route": "/",
+  "api": [
+   "GET /api/health → health_ok.json"
+  ],
+  "actions": [
+   "click",
+   "wait"
+  ],
+  "waited_for": "請先貼上要查證的內容",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_404_1280_dark.png",
+  "screen": "S2 結果頁",
+  "state": "404",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/r/fx-notfound",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-notfound → result_fx-notfound.json"
+  ],
+  "actions": [],
+  "waited_for": "找不到這筆查證",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_404_375_dark.png",
+  "screen": "S2 結果頁",
+  "state": "404",
+  "width": "375",
+  "theme": "dark",
+  "route": "/r/fx-notfound",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-notfound → result_fx-notfound.json"
+  ],
+  "actions": [],
+  "waited_for": "找不到這筆查證",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_ai_unavailable_1280_dark.png",
+  "screen": "S2 結果頁",
+  "state": "ai_unavailable",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/r/fx-ai-unavailable",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-ai-unavailable → result_fx-ai-unavailable.json"
+  ],
+  "actions": [],
+  "waited_for": "AI 服務暫時無法使用",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_cache_vector_1280_dark.png",
+  "screen": "S2 結果頁",
+  "state": "cache_vector",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/r/fx-green-cache-vector",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-green-cache-vector → result_fx-green-cache-vector.json"
+  ],
+  "actions": [],
+  "waited_for": "判讀摘要",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_cache_vector_375_dark.png",
+  "screen": "S2 結果頁",
+  "state": "cache_vector",
+  "width": "375",
+  "theme": "dark",
+  "route": "/r/fx-green-cache-vector",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-green-cache-vector → result_fx-green-cache-vector.json"
+  ],
+  "actions": [],
+  "waited_for": "判讀摘要",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_failed_1280_dark.png",
+  "screen": "S2 結果頁",
+  "state": "failed",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/r/fx-failed",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-failed → result_fx-failed.json"
+  ],
+  "actions": [],
+  "waited_for": "出了點問題",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_failed_375_dark.png",
+  "screen": "S2 結果頁",
+  "state": "failed",
+  "width": "375",
+  "theme": "dark",
+  "route": "/r/fx-failed",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-failed → result_fx-failed.json"
+  ],
+  "actions": [],
+  "waited_for": "出了點問題",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_loading_1280_dark.png",
+  "screen": "S2 結果頁",
+  "state": "loading",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/r/fx-pending",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-pending → result_fx-pending.json"
+  ],
+  "actions": [],
+  "waited_for": "AI 正在查證",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_loading_375_dark.png",
+  "screen": "S2 結果頁",
+  "state": "loading",
+  "width": "375",
+  "theme": "dark",
+  "route": "/r/fx-pending",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-pending → result_fx-pending.json"
+  ],
+  "actions": [],
+  "waited_for": "AI 正在查證",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_network_error_1280_dark.png",
+  "screen": "S2 結果頁",
+  "state": "network_error",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/r/fx-red-misinfo",
+  "api": [
+   "GET /api/health → 連線失敗",
+   "GET /api/result/fx-red-misinfo → 連線失敗"
+  ],
+  "actions": [],
+  "waited_for": "連不上伺服器",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_network_error_375_dark.png",
+  "screen": "S2 結果頁",
+  "state": "network_error",
+  "width": "375",
+  "theme": "dark",
+  "route": "/r/fx-red-misinfo",
+  "api": [
+   "GET /api/health → 連線失敗",
+   "GET /api/result/fx-red-misinfo → 連線失敗"
+  ],
+  "actions": [],
+  "waited_for": "連不上伺服器",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_shared_1280_dark.png",
+  "screen": "S2 結果頁",
+  "state": "shared",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/r/fx-red-misinfo",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-red-misinfo → result_fx-red-misinfo.json"
+  ],
+  "actions": [
+   "click",
+   "wait"
+  ],
+  "waited_for": "已開啟 Threads",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_shared_375_dark.png",
+  "screen": "S2 結果頁",
+  "state": "shared",
+  "width": "375",
+  "theme": "dark",
+  "route": "/r/fx-red-misinfo",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-red-misinfo → result_fx-red-misinfo.json"
+  ],
+  "actions": [
+   "click",
+   "wait"
+  ],
+  "waited_for": "已開啟 Threads",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_shared-viewport_375_dark.png",
+  "screen": "S2 結果頁",
+  "state": "shared-viewport",
+  "width": "375",
+  "theme": "dark",
+  "route": "/r/fx-red-misinfo",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-red-misinfo → result_fx-red-misinfo.json"
+  ],
+  "actions": [
+   "scrollBottom",
+   "click",
+   "wait"
+  ],
+  "waited_for": "已開啟 Threads",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_success_1280_dark.png",
+  "screen": "S2 結果頁",
+  "state": "success",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/r/fx-red-misinfo",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-red-misinfo → result_fx-red-misinfo.json"
+  ],
+  "actions": [],
+  "waited_for": "判讀摘要",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_unverifiable_1280_dark.png",
+  "screen": "S2 結果頁",
+  "state": "unverifiable",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/r/fx-unverifiable",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-unverifiable → result_fx-unverifiable.json"
+  ],
+  "actions": [],
+  "waited_for": "判讀摘要",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_unverified_red_1280_dark.png",
+  "screen": "S2 結果頁",
+  "state": "unverified_red",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/r/fx-red-unverified-scam",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-red-unverified-scam → result_fx-red-unverified-scam.json"
+  ],
+  "actions": [],
+  "waited_for": "尚無查核機構證實",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S2_unverified_red_375_dark.png",
+  "screen": "S2 結果頁",
+  "state": "unverified_red",
+  "width": "375",
+  "theme": "dark",
+  "route": "/r/fx-red-unverified-scam",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/result/fx-red-unverified-scam → result_fx-red-unverified-scam.json"
+  ],
+  "actions": [],
+  "waited_for": "尚無查核機構證實",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_empty_1280_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "empty",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/trending → trending_empty.json"
+  ],
+  "actions": [],
+  "waited_for": "還沒有熱門查核資料",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_empty_375_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "empty",
+  "width": "375",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/trending → trending_empty.json",
+   "GET /api/trending → trending_ok.json"
+  ],
+  "actions": [],
+  "waited_for": "還沒有熱門查核資料",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_error_1280_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "error",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → 連線失敗",
+   "GET /api/trending → 連線失敗"
+  ],
+  "actions": [],
+  "waited_for": "暫時連不上伺服器",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_error_375_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "error",
+  "width": "375",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → 連線失敗",
+   "GET /api/trending → trending_ok.json",
+   "GET /api/trending → 連線失敗"
+  ],
+  "actions": [],
+  "waited_for": "暫時連不上伺服器",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_filter_empty_1280_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "filter_empty",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/trending → trending_ok_all_verified.json"
+  ],
+  "actions": [
+   "click",
+   "wait"
+  ],
+  "waited_for": "這個分類目前沒有資料",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_filter_empty_375_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "filter_empty",
+  "width": "375",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/trending → trending_ok_all_verified.json"
+  ],
+  "actions": [
+   "click",
+   "wait"
+  ],
+  "waited_for": "這個分類目前沒有資料",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_loading_1280_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "loading",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → health_ok.json"
+  ],
+  "actions": [
+   "wait"
+  ],
+  "waited_for": null,
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_loading_375_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "loading",
+  "width": "375",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → health_ok.json"
+  ],
+  "actions": [
+   "wait"
+  ],
+  "waited_for": null,
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_pending_chip_1280_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "pending_chip",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/trending → trending_ok.json"
+  ],
+  "actions": [],
+  "waited_for": "未查證",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_pending_chip_375_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "pending_chip",
+  "width": "375",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/trending → trending_ok.json"
+  ],
+  "actions": [],
+  "waited_for": "未查證",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_success_1280_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "success",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/trending → trending_ok.json"
+  ],
+  "actions": [],
+  "waited_for": "今日熱門查核",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S3_success_375_dark.png",
+  "screen": "S3 熱門牆",
+  "state": "success",
+  "width": "375",
+  "theme": "dark",
+  "route": "/trending",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/trending → trending_ok.json"
+  ],
+  "actions": [],
+  "waited_for": "今日熱門查核",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_empty_1280_dark.png",
+  "screen": "S4 知識庫",
+  "state": "empty",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/knowledge → knowledge_empty.json"
+  ],
+  "actions": [],
+  "waited_for": "知識庫是空的",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_empty_375_dark.png",
+  "screen": "S4 知識庫",
+  "state": "empty",
+  "width": "375",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/knowledge → knowledge_empty.json",
+   "GET /api/knowledge → knowledge_page1.json"
+  ],
+  "actions": [],
+  "waited_for": "知識庫是空的",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_error_1280_dark.png",
+  "screen": "S4 知識庫",
+  "state": "error",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → 連線失敗",
+   "GET /api/knowledge → 連線失敗"
+  ],
+  "actions": [],
+  "waited_for": "暫時連不上伺服器",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_error_375_dark.png",
+  "screen": "S4 知識庫",
+  "state": "error",
+  "width": "375",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → 連線失敗",
+   "GET /api/knowledge → knowledge_page1.json",
+   "GET /api/knowledge → 連線失敗"
+  ],
+  "actions": [],
+  "waited_for": "暫時連不上伺服器",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_filter_unverifiable_1280_dark.png",
+  "screen": "S4 知識庫",
+  "state": "filter_unverifiable",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/knowledge → knowledge_page1.json"
+  ],
+  "actions": [
+   "click",
+   "wait"
+  ],
+  "waited_for": "查證知識庫",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_filter_unverifiable_375_dark.png",
+  "screen": "S4 知識庫",
+  "state": "filter_unverifiable",
+  "width": "375",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/knowledge → knowledge_page1.json"
+  ],
+  "actions": [
+   "click",
+   "wait"
+  ],
+  "waited_for": "查證知識庫",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_loading_1280_dark.png",
+  "screen": "S4 知識庫",
+  "state": "loading",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → health_ok.json"
+  ],
+  "actions": [
+   "wait"
+  ],
+  "waited_for": null,
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_loading_375_dark.png",
+  "screen": "S4 知識庫",
+  "state": "loading",
+  "width": "375",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → health_ok.json"
+  ],
+  "actions": [
+   "wait"
+  ],
+  "waited_for": null,
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_no_match_1280_dark.png",
+  "screen": "S4 知識庫",
+  "state": "no_match",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/knowledge → knowledge_empty.json"
+  ],
+  "actions": [
+   "type",
+   "key",
+   "wait"
+  ],
+  "waited_for": "找不到符合",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_no_match_375_dark.png",
+  "screen": "S4 知識庫",
+  "state": "no_match",
+  "width": "375",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/knowledge → knowledge_empty.json"
+  ],
+  "actions": [
+   "type",
+   "key",
+   "wait"
+  ],
+  "waited_for": "找不到符合",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_success_1280_dark.png",
+  "screen": "S4 知識庫",
+  "state": "success",
+  "width": "1280",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/knowledge → knowledge_page1.json"
+  ],
+  "actions": [],
+  "waited_for": "查證知識庫",
+  "reached": true
+ },
+ {
+  "file": "docs/test/screens/S4_success_375_dark.png",
+  "screen": "S4 知識庫",
+  "state": "success",
+  "width": "375",
+  "theme": "dark",
+  "route": "/knowledge",
+  "api": [
+   "GET /api/health → health_ok.json",
+   "GET /api/knowledge → knowledge_page1.json"
+  ],
+  "actions": [],
+  "waited_for": "查證知識庫",
+  "reached": true
+ }
+]

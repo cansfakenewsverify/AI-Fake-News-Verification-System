@@ -45,5 +45,10 @@ JSON 頂層可帶兩個保留欄位，會從回應 body 移除，並走與真實
 ## 各畫面票的約定
 
 - 每張畫面票（S-）只新增自己用到的 JSON，檔名照上表；不要改 `fixtures.js` 的規則。
+- `knowledge_stats.json` 是上表就有規則、但一直沒建立的檔案（2026-09-20 補上，內容與 `knowledge_page1.json` 對齊）。
+- `trending_ok_all_verified.json` **不在上表的對應規則裡**，`?fixture=` 取不到它。它只給
+  `code/frontend/tools/capture_ui.mjs` 用（該腳本以 CDP 直接回應 `/api/trending`），用途是重現
+  S3「點未查證卻沒有資料」的空狀態：每一筆都 `verified=true` 且 risk_type 是 SCAM／MISINFO／SAFE
+  （`isUnverifiedRecord()` 兩個條件都要排除）。
 - 內容照 spec §5.3／§5.7 回應形狀寫，前端只讀 `frame_type`／`frame_label`（§0 規則 3）。
 - 新增的 fixture 檔名與對照 mockup 列入 `docs/test/ui_checklist.csv`（§0 規則 5）。

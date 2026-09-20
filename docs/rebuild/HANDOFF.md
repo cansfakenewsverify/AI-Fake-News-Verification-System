@@ -32,7 +32,10 @@
 4. PF-2 重測：等姚睿填好 `docs/test/pf2_worksheet.csv`（說明在 `docs/test/PF-2_出題說明.md`），負責人確認後，用本機後端跑 20 句、記錄 `cache_layer`，結果寫進計畫書 6.5（**不可調低 0.75 門檻、不可回頭改句子**）。
 5. 後端防休眠：GitHub Actions 的 keepalive 實際每 2–5 小時才跑一次，Render 還是會睡（前端已能撐過冷啟動約 1 分鐘）。建議在 Supabase 用 `pg_cron` + `pg_net` 每 10 分鐘打 `/health`——**這是在負責人的資料庫新增常駐設定，要先得到他明確同意**（已問過兩次，尚未回答）。
 6. 雲端知識庫補 demo 用的 gold 列（細節在 `CLAUDE.md` 第 8 節待辦）。
-7. UI-1（深色全套截圖＋石岱勳勾核、張宇宏覆核）、UI-6（OpenCC 簡繁比對；英文字允許清單要老師裁定）。
+7. UI-1：**深色全套截圖已於 2026-09-20 補齊**（54 張，`code/frontend/tools/capture_ui.mjs` 擷取，逐張紀錄
+   `docs/test/screens/shots_dark.json`）；檢核表 `docs/test/ui_checklist.csv` 也補上了勾核／覆核欄位，
+   現在只等石岱勳逐列勾核、張宇宏覆核（做法寫在 `docs/test/UI-1_勾核說明.md`）。
+   UI-6（OpenCC 簡繁比對；英文字允許清單要老師裁定）仍未動。
 8. **雲端知識庫有 24 筆的「查核來源」是 Cofacts 的回報文章／討論頁，卻標成 Tier 1「查核機構」**
    （2026-09-20 讀 `/api/knowledge?limit=200` 發現；其中幾筆的來源標題就是詐騙訊息原文）。
    這違反「只有已做出判定的查核來源才算來源」。簡報影片已避開這些列，但資料本身要清掉或重新標記。
