@@ -11,7 +11,7 @@
 - 進度報告資料都在 `presentations/2026-09_進度報告/`（投影片、報告內容說明、demo 影片網址、測試計畫書 PDF、分工表；
   先看該資料夾的 README）。demo 影片：<https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4>。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.3）；
-  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.4；6.5 為 2026-09-19～20 重測）。
+  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.5；6.5 為 2026-09-19～20 重測）。
 
 ---
 
@@ -208,7 +208,7 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
-docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.4）、results/（原始紀錄）、screens/（截圖）、ui_checklist.csv、
+docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.5）、results/（原始紀錄）、screens/（截圖）、ui_checklist.csv、
                                 pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
 video/hf-demo/                  demo 影片 v0.4.0 的 HyperFrames 專案原始碼（有自己的 CLAUDE.md；只在本機 render）。
