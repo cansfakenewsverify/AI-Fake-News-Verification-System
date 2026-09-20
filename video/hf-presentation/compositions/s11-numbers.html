@@ -1,0 +1,294 @@
+<!doctype html>
+<!--
+  s11-numbers — 鏡 11「準不準」
+  Only numbers verified on 2026-09-20 against docs/test/TP-FNV-2026-01.md v1.5 and README.md:
+  150 labelled messages, previous model 96.0% (FN=0, FP=5) → current gpt-5.4-mini 100% (FN=0, FP=0);
+  backend 700 / frontend 385 automated tests on every push; test plan 46 items, P0 27/30 after the
+  2026-09-19~20 re-test; the open one is the semantic-cache hit rate, 65% against a 70% target, and the
+  0.75 threshold was NOT lowered to make it pass.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+          color: #111111;
+        }
+        .n-eyebrow {
+          position: absolute;
+          left: 150px;
+          top: 112px;
+          font-size: 24px;
+          line-height: 32px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          color: #5b5b66;
+        }
+        .n-h {
+          position: absolute;
+          left: 150px;
+          top: 152px;
+          font-size: 58px;
+          line-height: 74px;
+          font-weight: 700;
+        }
+        .n-sub {
+          position: absolute;
+          left: 150px;
+          top: 238px;
+          font-size: 28px;
+          line-height: 38px;
+          color: #3f3f46;
+        }
+        .n-card {
+          position: absolute;
+          box-sizing: border-box;
+          border-radius: 20px;
+          background: #ffffff;
+          box-shadow: 0 0 0 2px #d4d4d8;
+          padding: 24px 30px 26px;
+        }
+        .n-k {
+          font-size: 23px;
+          line-height: 32px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          color: #5b5b66;
+        }
+        .n-v {
+          margin-top: 2px;
+          font-size: 96px;
+          line-height: 112px;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+          font-variant-numeric: tabular-nums;
+        }
+        .n-b {
+          font-size: 24px;
+          line-height: 34px;
+          color: #3f3f46;
+        }
+        .n-ink {
+          background: #111111;
+          box-shadow: none;
+        }
+        .n-ink .n-k {
+          color: #b9b9c2;
+        }
+        .n-ink .n-v {
+          color: #ffffff;
+        }
+        .n-ink .n-b {
+          color: #d6d6db;
+        }
+        .n-arrow {
+          position: absolute;
+          left: 618px;
+          top: 396px;
+          width: 60px;
+          height: 4px;
+          background: #111111;
+          transform-origin: left center;
+        }
+        .n-arrow::after {
+          content: "";
+          position: absolute;
+          right: -2px;
+          top: -9px;
+          border-left: 18px solid #111111;
+          border-top: 11px solid transparent;
+          border-bottom: 11px solid transparent;
+        }
+        .n-claim {
+          position: absolute;
+          left: 1092px;
+          top: 316px;
+          width: 688px;
+          box-sizing: border-box;
+          border-radius: 20px;
+          padding: 26px 30px 28px;
+          box-shadow: 0 0 0 2px #d4d4d8;
+          background: #ffffff;
+        }
+        .n-claim-h {
+          font-size: 36px;
+          line-height: 50px;
+          font-weight: 700;
+        }
+        .n-claim-b {
+          margin-top: 10px;
+          font-size: 25px;
+          line-height: 36px;
+          color: #3f3f46;
+        }
+        .n-row {
+          position: absolute;
+          left: 150px;
+          top: 566px;
+          width: 1630px;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          column-gap: 24px;
+        }
+        .n-cell {
+          box-sizing: border-box;
+          border-radius: 18px;
+          background: #ffffff;
+          box-shadow: 0 0 0 2px #d4d4d8;
+          padding: 20px 24px 22px;
+        }
+        .n-cell-v {
+          font-size: 54px;
+          line-height: 66px;
+          font-weight: 700;
+          font-variant-numeric: tabular-nums;
+        }
+        .n-cell-k {
+          margin-top: 2px;
+          font-size: 23px;
+          line-height: 32px;
+          color: #3f3f46;
+        }
+        .n-open {
+          position: absolute;
+          left: 150px;
+          top: 712px;
+          width: 1630px;
+          box-sizing: border-box;
+          border-radius: 18px;
+          padding: 18px 30px 20px;
+          box-shadow: 0 0 0 3px #111111;
+          background: #ffffff;
+          display: grid;
+          grid-template-columns: 250px 1fr;
+          column-gap: 26px;
+          align-items: center;
+        }
+        .n-open-k {
+          font-size: 25px;
+          line-height: 34px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          color: #5b5b66;
+        }
+        .n-open-t {
+          font-size: 31px;
+          line-height: 44px;
+          font-weight: 700;
+        }
+        .n-open-b {
+          margin-top: 2px;
+          font-size: 24px;
+          line-height: 34px;
+          font-weight: 400;
+          color: #3f3f46;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s11-numbers" data-width="1920" data-height="1080" data-duration="36.6">
+        <div class="fnv-grid"></div>
+
+        <div class="n-eyebrow" id="n-eyebrow">11 ／ 準不準</div>
+        <div class="n-h" id="n-h">評測與測試</div>
+        <div class="n-sub" id="n-sub">150 筆已標註的訊息，同一份題目，換模型前後各跑一次。</div>
+
+        <div class="n-card" id="n-old" style="left: 150px; top: 310px; width: 440px; height: 228px">
+          <div class="n-k">前一版模型</div>
+          <div class="n-v" id="n-old-v">0<span style="font-size: 56px">%</span></div>
+          <div class="n-b">gpt-5-mini・準確率</div>
+        </div>
+        <div class="n-arrow" id="n-arrow"></div>
+        <div class="n-card n-ink" id="n-new" style="left: 700px; top: 310px; width: 350px; height: 228px">
+          <div class="n-k">現在</div>
+          <div class="n-v" id="n-new-v">0<span style="font-size: 56px">%</span></div>
+          <div class="n-b">gpt-5.4-mini・準確率</div>
+        </div>
+
+        <div class="n-claim" id="n-claim">
+          <div class="n-claim-h">兩次評測都沒有把<br />詐騙或假訊息判成安全</div>
+          <div class="n-claim-b">也就是漏判（false negative）為 0；前一版有 5 則誤報成風險。</div>
+        </div>
+
+        <div class="n-row" id="n-row">
+          <div class="n-cell" id="n-c1">
+            <div class="n-cell-v">700</div>
+            <div class="n-cell-k">後端自動化測試</div>
+          </div>
+          <div class="n-cell" id="n-c2">
+            <div class="n-cell-v">385</div>
+            <div class="n-cell-k">前端自動化測試</div>
+          </div>
+          <div class="n-cell" id="n-c3">
+            <div class="n-cell-v">46</div>
+            <div class="n-cell-k">測試計畫書項目</div>
+          </div>
+          <div class="n-cell" id="n-c4">
+            <div class="n-cell-v">27／30</div>
+            <div class="n-cell-k">P0 重測通過</div>
+          </div>
+        </div>
+
+        <div class="n-open" id="n-open">
+          <div class="n-open-k">還沒過的一項</div>
+          <div>
+            <div class="n-open-t">語意快取命中率 65%，目標 70%</div>
+            <div class="n-open-b">沒有為了讓它通過而調低 0.75 的相似度門檻，也沒有回頭改題目。</div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s11-numbers"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+          // Narration (shot clock): 1.30 150 筆／96%→100% / 11.63 沒有漏判 / 15.74 自動化測試
+          //                         21.06 測試計畫書 P0 / 25.76 還沒過的一項
+          const CUE = { eval: 1.3, fn: 11.63, tests: 15.74, plan: 21.06, open: 25.76 };
+          const rise = (sel, t, y = 24, d = 0.5) =>
+            tl.fromTo($(sel), { opacity: 0, y }, { opacity: 1, y: 0, duration: d, ease: "power3.out" }, t);
+
+          // count-up: deterministic, driven only by the timeline position
+          const countUp = (sel, to, t, dur, decimals) => {
+            const el = $(sel);
+            const box = { v: 0 };
+            tl.to(box, {
+              v: to, duration: dur, ease: "power2.out",
+              onUpdate: () => {
+                el.firstChild.nodeValue = box.v.toFixed(decimals);
+              },
+            }, t);
+          };
+
+          tl.set([$("#n-arrow")], { scaleX: 0 });
+
+          rise("#n-eyebrow", 0.3, 10, 0.4);
+          rise("#n-h", CUE.eval - 0.5, 22, 0.55);
+          rise("#n-sub", CUE.eval - 0.1, 16, 0.45);
+          rise("#n-old", CUE.eval + 1.9);
+          countUp("#n-old-v", 96.0, CUE.eval + 2.2, 1.5, 1);
+          tl.to($("#n-arrow"), { scaleX: 1, duration: 0.4, ease: "power2.out" }, CUE.eval + 5.0);
+          rise("#n-new", CUE.eval + 5.3);
+          countUp("#n-new-v", 100, CUE.eval + 5.6, 1.6, 0);
+
+          rise("#n-claim", CUE.fn - 0.4, 22, 0.55);
+          rise("#n-row", CUE.tests - 0.35, 22, 0.5);
+          rise("#n-c1", CUE.tests - 0.2, 16, 0.4);
+          rise("#n-c2", CUE.tests + 0.9, 16, 0.4);
+          rise("#n-c3", CUE.plan - 0.2, 16, 0.4);
+          rise("#n-c4", CUE.plan + 1.4, 16, 0.4);
+          rise("#n-open", CUE.open - 0.4, 22, 0.55);
+
+          window.__timelines["s11-numbers"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

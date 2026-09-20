@@ -1,0 +1,169 @@
+/* Shared film components for demo_v0.4.0 (tokens: frame.md). Inlined into index.html by tools/build_timeline.mjs; every scene
+   sub-composition is cloned into that document, so these classes are available to all of them.
+   Scene-specific rules live inside each scene's own template style block (scoped per scene by the compiler).
+   ALL font-family declarations live in this file: scenes inherit the CJK stack from .fnv-root and use
+   .fnv-mono for monospace, so the system-font @font-face declarations below are declared exactly once. */
+
+/* System CJK stack (owner's choice): OS-bundled fonts, declared with local() as `hyperframes lint` asks. */
+@font-face {
+  font-family: "Microsoft JhengHei";
+  font-weight: 400;
+  src: local("Microsoft JhengHei"), local("Microsoft JhengHei Regular"), local("MicrosoftJhengHeiRegular");
+}
+@font-face {
+  font-family: "Microsoft JhengHei";
+  font-weight: 700;
+  src: local("Microsoft JhengHei Bold"), local("MicrosoftJhengHeiBold");
+}
+@font-face {
+  font-family: "Noto Sans TC";
+  font-weight: 100 900;
+  src: local("Noto Sans TC"), local("Noto Sans TC Regular"), local("NotoSansTC-Regular");
+}
+
+@font-face {
+  font-family: "Segoe UI Emoji";
+  src: local("Segoe UI Emoji");
+}
+
+.fnv-root {
+  font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+  color: #111111;
+}
+.fnv-mono {
+  font-family: "JetBrains Mono", "Microsoft JhengHei", "Noto Sans TC", monospace;
+  font-variant-ligatures: none; /* "->" in captured logs must stay "->" */
+}
+
+/* the only emoji in the film is the one inside the captured reply text */
+.fnv-emoji {
+  font-family: "Segoe UI Emoji", "Microsoft JhengHei", sans-serif;
+}
+
+/* stage texture: 48px hairline grid that fades toward the centre */
+.fnv-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(#e9e9ec 2px, rgba(233, 233, 236, 0) 2px),
+    linear-gradient(90deg, #e9e9ec 2px, rgba(233, 233, 236, 0) 2px);
+  background-size: 48px 48px;
+  background-position: 23px 27px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 1) 100%);
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 1) 100%);
+}
+
+/* footage panel: a window onto a 1920×1080 capture; the camera moves inside it */
+.fnv-panel {
+  position: absolute;
+  left: 96px;
+  top: 76px;
+  width: 1140px;
+  height: 800px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 2px #d4d4d8,
+    0 24px 60px rgba(17, 17, 17, 0.1);
+}
+.fnv-cam {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.fnv-cam video {
+  display: block;
+  width: 1920px;
+  height: 1080px;
+}
+
+/* emphasis ring: an ink outline drawn around a captured UI element. It lives INSIDE .fnv-cam, in capture
+   pixels, so it travels with the camera. It annotates the capture; it never replaces or edits UI pixels. */
+.fnv-ring {
+  position: absolute;
+  box-sizing: border-box;
+  border: 4px solid #111111;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+}
+.fnv-ring-box {
+  border-radius: 22px;
+}
+
+/* honesty tags and other small labels */
+.fnv-tag {
+  position: absolute;
+  display: inline-block;
+  padding: 8px 20px 9px;
+  border-radius: 999px;
+  background: #111111;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* Honesty tags sit in the top band, clear of the chrome brand AND of the live URL next to it
+   (全民查證公社 + fakenewsverify.vercel.app runs to about x 620 at these sizes). */
+.fnv-tag-panel {
+  left: 700px;
+  top: 16px;
+}
+.fnv-tag-speed {
+  left: 900px;
+  top: 16px;
+}
+.fnv-tag-ghost {
+  background: #ffffff;
+  color: #3f3f46;
+  box-shadow: 0 0 0 2px #d4d4d8;
+}
+.fnv-eyebrow {
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #5b5b66;
+}
+
+/* the obscured URL: a neutral block with NO url text underneath */
+.fnv-mask {
+  display: inline-block;
+  vertical-align: baseline;
+  border-radius: 0.22em;
+  background: repeating-linear-gradient(90deg, #c9c9cf 0 0.5em, #d6d6db 0.5em 0.62em);
+  filter: blur(0.06em);
+}
+
+/* three-layer cache ladder (L1 相同內容 → L2 語意相似 → L3 AI 判讀); the active step inverts to ink */
+.fnv-ladder {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fnv-step {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  align-items: center;
+  min-height: 62px;
+  padding: 0 22px;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #3f3f46;
+  box-shadow: 0 0 0 2px #d4d4d8;
+  font-size: 26px;
+  line-height: 36px;
+  font-weight: 700;
+  transform-origin: left center;
+}
+.fnv-step-n {
+  font-size: 22px;
+  color: inherit;
+}

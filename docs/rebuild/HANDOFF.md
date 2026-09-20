@@ -17,15 +17,26 @@
 2. 書面報告要給指導教授簽名；報告當天繳紙本：**書面報告、自評表、評分表，各印 3 份**；自備筆電。
 3. 空白表單在 `docs/course_forms/`（自評表、評分表，各 3 頁，九項核心能力）。
 
-## 待辦（依優先順序）
+## 待辦（依優先順序；第 1 項已完成）
 
-1. **5 分鐘簡報影片**（最急）：完整 brief 在 `docs/demo/presentation_video_brief.md`，照它做。工具：`video/hf-demo/`（HyperFrames，v0.4.0 demo 的專案與做法見該資料夾的 `CLAUDE.md`、`BRIEF.md`、`docs/demo/footage_log.md`）、edge-tts 男聲 `zh-TW-YunJheNeural`、ffmpeg（路徑在 brief 裡）。在正式站錄新畫面（先打 `/api/health` 叫醒後端；新的 AI 查證最多 12 次）。產出：`docs/demo/presentation_v1.0.mp4`、網站用的 `code/frontend/public/demo/presentation_v1.mp4`（<30 MB，要 commit）、旁白稿 `presentations/2026-09_進度報告/06_簡報影片旁白稿.md`。做完把影片網址加進報告資料夾 README 與根目錄 README。上一個助理剛開工就被中止，沒有留下可用的半成品。
+1. ~~**5 分鐘簡報影片**~~ **已完成（2026-09-20）**：`presentation_v1.0`，4 分 38 秒。
+   網址 <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>，網站用檔已提交在
+   `code/frontend/public/demo/presentation_v1.mp4`；母片與字幕在 `docs/demo/presentation_v1.0.mp4`／`.srt`。
+   原始碼 `video/hf-presentation/`（該資料夾的 README 寫了怎麼重建與怎麼改），旁白稿
+   `presentations/2026-09_進度報告/06_簡報影片旁白稿.md`，製作紀錄 `docs/demo/footage_log.md`。
+   **畫面全部是正式站實錄**（2026-09-20 用 headless Edge 重錄），整支片只花掉 1 次正式站的 AI 查證。
+   負責人還沒聽過聲音：旁白與音效請實際播一次。
+
 2. **自評表草稿**：`presentations/2026-09_進度報告/07_自評表草稿.md` 已寫好九項的等級建議與說明文字，請負責人確認後抄到紙本（或做成可列印的 PDF）。評分表只要填表頭（團隊成員、指導教授、專題名稱）。
 3. **列印與簽名**（只有負責人能做）：測試計畫書 PDF 給黃崇源老師簽 §6.4；三種文件各印 3 份。
 4. PF-2 重測：等姚睿填好 `docs/test/pf2_worksheet.csv`（說明在 `docs/test/PF-2_出題說明.md`），負責人確認後，用本機後端跑 20 句、記錄 `cache_layer`，結果寫進計畫書 6.5（**不可調低 0.75 門檻、不可回頭改句子**）。
 5. 後端防休眠：GitHub Actions 的 keepalive 實際每 2–5 小時才跑一次，Render 還是會睡（前端已能撐過冷啟動約 1 分鐘）。建議在 Supabase 用 `pg_cron` + `pg_net` 每 10 分鐘打 `/health`——**這是在負責人的資料庫新增常駐設定，要先得到他明確同意**（已問過兩次，尚未回答）。
 6. 雲端知識庫補 demo 用的 gold 列（細節在 `CLAUDE.md` 第 8 節待辦）。
 7. UI-1（深色全套截圖＋石岱勳勾核、張宇宏覆核）、UI-6（OpenCC 簡繁比對；英文字允許清單要老師裁定）。
+8. **雲端知識庫有 24 筆的「查核來源」是 Cofacts 的回報文章／討論頁，卻標成 Tier 1「查核機構」**
+   （2026-09-20 讀 `/api/knowledge?limit=200` 發現；其中幾筆的來源標題就是詐騙訊息原文）。
+   這違反「只有已做出判定的查核來源才算來源」。簡報影片已避開這些列，但資料本身要清掉或重新標記。
+9. 熱門牆的「資料更新時間」停在 2026-07-12（雲端排程關閉，目前為手動更新），簡報影片裡看得到這行字。
 
 ## 和負責人合作的規則（他已經講過，不要讓他再講一次）
 

@@ -1,0 +1,342 @@
+<!doctype html>
+<!--
+  s10-arch — 鏡 10「背後怎麼接的」
+  Two pages inside one scene: the deployment chain (browser → Vercel → Render → Supabase / CGU AIR),
+  then the decision pipeline (相同內容 → 語意相似 0.75，只比對已證實 → AI) with the live guardrails.
+  Every value here is from CLAUDE.md §12 and render.yaml: DAILY_AI_CALL_CAP=300, RATE_LIMIT_PER_MINUTE=30,
+  SIMILARITY_THRESHOLD=0.75, upload limit 10 MB, live since 2026-09-19.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+          color: #111111;
+        }
+        .a-page {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 1920px;
+          height: 1080px;
+        }
+        .a-eyebrow {
+          position: absolute;
+          left: 150px;
+          top: 112px;
+          font-size: 24px;
+          line-height: 32px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          color: #5b5b66;
+        }
+        .a-h {
+          position: absolute;
+          left: 150px;
+          top: 152px;
+          font-size: 58px;
+          line-height: 74px;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+        }
+        /* ── boxes ── */
+        .a-box {
+          position: absolute;
+          box-sizing: border-box;
+          border-radius: 18px;
+          background: #ffffff;
+          box-shadow: 0 0 0 2px #d4d4d8;
+          padding: 20px 24px;
+        }
+        .a-box-k {
+          font-size: 21px;
+          line-height: 28px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          color: #5b5b66;
+        }
+        .a-box-t {
+          margin-top: 6px;
+          font-size: 34px;
+          line-height: 44px;
+          font-weight: 700;
+        }
+        .a-box-b {
+          margin-top: 4px;
+          font-size: 23px;
+          line-height: 32px;
+          color: #3f3f46;
+        }
+        .a-ink {
+          background: #111111;
+          box-shadow: none;
+        }
+        .a-ink .a-box-k {
+          color: #b9b9c2;
+        }
+        .a-ink .a-box-t {
+          color: #ffffff;
+        }
+        .a-ink .a-box-b {
+          color: #d6d6db;
+        }
+        /* ── connectors ── */
+        .a-line {
+          position: absolute;
+          background: #111111;
+          transform-origin: left center;
+        }
+        .a-line-v {
+          transform-origin: center top;
+        }
+        .a-head {
+          position: absolute;
+          width: 0;
+          height: 0;
+          border-left: 16px solid #111111;
+          border-top: 10px solid transparent;
+          border-bottom: 10px solid transparent;
+        }
+        .a-head-d {
+          border-left: 10px solid transparent;
+          border-right: 10px solid transparent;
+          border-top: 16px solid #111111;
+          border-bottom: 0;
+        }
+        /* ── ladder ── */
+        .a-step {
+          position: absolute;
+          left: 150px;
+          width: 940px;
+          box-sizing: border-box;
+          border-radius: 18px;
+          background: #ffffff;
+          box-shadow: 0 0 0 2px #d4d4d8;
+          padding: 22px 28px 24px;
+          display: grid;
+          grid-template-columns: 96px 1fr;
+          column-gap: 18px;
+          align-items: center;
+        }
+        .a-step-n {
+          font-size: 30px;
+          line-height: 40px;
+          font-weight: 700;
+          color: #5b5b66;
+        }
+        .a-step-h {
+          font-size: 37px;
+          line-height: 48px;
+          font-weight: 700;
+        }
+        .a-step-b {
+          margin-top: 2px;
+          font-size: 25px;
+          line-height: 34px;
+          color: #3f3f46;
+        }
+        .a-step.a-ink .a-step-n {
+          color: #b9b9c2;
+        }
+        .a-step.a-ink .a-step-h {
+          color: #ffffff;
+        }
+        .a-step.a-ink .a-step-b {
+          color: #d6d6db;
+        }
+        /* ── guards ── */
+        .a-guards {
+          position: absolute;
+          left: 1160px;
+          top: 246px;
+          width: 620px;
+        }
+        .a-guards-h {
+          font-size: 24px;
+          line-height: 32px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          color: #5b5b66;
+        }
+        .a-guard {
+          margin-top: 18px;
+          padding-bottom: 16px;
+          border-bottom: 2px solid #d4d4d8;
+          font-size: 28px;
+          line-height: 40px;
+          font-weight: 700;
+        }
+        .a-guard span {
+          display: block;
+          margin-top: 2px;
+          font-size: 23px;
+          line-height: 32px;
+          font-weight: 400;
+          color: #3f3f46;
+        }
+        .a-live {
+          position: absolute;
+          left: 150px;
+          top: 768px;
+          width: 1630px;
+          box-sizing: border-box;
+          border-radius: 18px;
+          background: #111111;
+          color: #ffffff;
+          padding: 22px 30px 24px;
+          font-size: 32px;
+          line-height: 44px;
+          font-weight: 700;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s10-arch" data-width="1920" data-height="1080" data-duration="37.6">
+        <div class="fnv-grid"></div>
+
+        <!-- ── page A: how it is deployed ── -->
+        <div class="a-page" id="a-pageA">
+          <div class="a-eyebrow" id="a-eyeA">10 ／ 背後</div>
+          <div class="a-h" id="a-hA">線上是這樣接起來的</div>
+
+          <div class="a-box" id="a-b1" style="left: 150px; top: 320px; width: 330px; height: 160px">
+            <div class="a-box-k fnv-mono">USER</div>
+            <div class="a-box-t">瀏覽器</div>
+            <div class="a-box-b">手機或電腦，不用登入</div>
+          </div>
+          <div class="a-line" id="a-l1" style="left: 490px; top: 398px; width: 96px; height: 4px"></div>
+          <div class="a-head" id="a-h1" style="left: 586px; top: 392px"></div>
+
+          <div class="a-box" id="a-b2" style="left: 614px; top: 320px; width: 340px; height: 160px">
+            <div class="a-box-k fnv-mono">VERCEL</div>
+            <div class="a-box-t">前端</div>
+            <div class="a-box-b">React 靜態檔・/api 同源代理</div>
+          </div>
+          <div class="a-line" id="a-l2" style="left: 964px; top: 398px; width: 96px; height: 4px"></div>
+          <div class="a-head" id="a-h2" style="left: 1060px; top: 392px"></div>
+
+          <div class="a-box a-ink" id="a-b3" style="left: 1088px; top: 320px; width: 380px; height: 160px">
+            <div class="a-box-k fnv-mono">RENDER</div>
+            <div class="a-box-t">後端 FastAPI</div>
+            <div class="a-box-b">判讀流程都在這裡</div>
+          </div>
+
+          <div class="a-line a-line-v" id="a-l3" style="left: 1276px; top: 490px; width: 4px; height: 96px"></div>
+          <div class="a-head a-head-d" id="a-h3" style="left: 1268px; top: 586px"></div>
+          <div class="a-line" id="a-l4" style="left: 878px; top: 604px; width: 400px; height: 4px"></div>
+
+          <div class="a-box" id="a-b4" style="left: 470px; top: 640px; width: 420px; height: 168px">
+            <div class="a-box-k fnv-mono">SUPABASE</div>
+            <div class="a-box-t">資料庫</div>
+            <div class="a-box-b">Postgres ＋ pgvector</div>
+          </div>
+          <div class="a-box" id="a-b5" style="left: 1088px; top: 640px; width: 480px; height: 168px">
+            <div class="a-box-k fnv-mono">長庚 CGU AIR</div>
+            <div class="a-box-t">AI 閘道</div>
+            <div class="a-box-b"><span class="fnv-mono">gpt-5.4-mini</span>・學校提供的額度</div>
+          </div>
+        </div>
+
+        <!-- ── page B: how a message is decided ── -->
+        <div class="a-page" id="a-pageB">
+          <div class="a-eyebrow" id="a-eyeB">10 ／ 判讀順序</div>
+          <div class="a-h" id="a-hB">先找答案，找不到才問 AI</div>
+
+          <div class="a-step" id="a-s1" style="top: 246px">
+            <div class="a-step-n fnv-mono">L1</div>
+            <div>
+              <div class="a-step-h">相同內容</div>
+              <div class="a-step-b">雜湊比對，完全一樣就直接沿用</div>
+            </div>
+          </div>
+          <div class="a-step" id="a-s2" style="top: 400px">
+            <div class="a-step-n fnv-mono">L2</div>
+            <div>
+              <div class="a-step-h">語意相似</div>
+              <div class="a-step-b">向量比對，門檻 0.75，<b>只比對已經證實的資料</b></div>
+            </div>
+          </div>
+          <div class="a-step" id="a-s3" style="top: 554px">
+            <div class="a-step-n fnv-mono">L3</div>
+            <div>
+              <div class="a-step-h">AI 判讀</div>
+              <div class="a-step-b">前兩層都沒有命中，才真的呼叫一次 AI</div>
+            </div>
+          </div>
+
+          <div class="a-guards" id="a-guards">
+            <div class="a-guards-h">護欄</div>
+            <div class="a-guard" id="a-g1">每天 300 次 AI 上限<span>超過就只回快取，隔天歸零</span></div>
+            <div class="a-guard" id="a-g2">每個 IP 的頻率限制<span>每分鐘 30 次、每小時 200 次</span></div>
+            <div class="a-guard" id="a-g3">上傳大小限制<span>圖片端點 10 MB 以內</span></div>
+          </div>
+
+          <div class="a-live" id="a-live">2026-09-19 起上線運作・不需要任何人開著電腦</div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s10-arch"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+          // Narration (shot clock): 1.30 瀏覽器→Vercel→Render / 7.46 Supabase＋CGU / 13.32 判讀順序
+          //                         21.10 才問 AI / 24.03 護欄 / 29.72 已上線
+          const CUE = { chain: 1.3, data: 7.46, order: 13.32, ai: 21.1, guard: 24.03, live: 29.72 };
+          const rise = (sel, t, y = 26, d = 0.5) =>
+            tl.fromTo($(sel), { opacity: 0, y }, { opacity: 1, y: 0, duration: d, ease: "power3.out" }, t);
+
+          tl.set($("#a-pageB"), { opacity: 0, visibility: "hidden" });
+          tl.set([$("#a-l1"), $("#a-l2"), $("#a-l4")], { scaleX: 0 });
+          tl.set($("#a-l3"), { scaleY: 0 });
+          tl.set([$("#a-h1"), $("#a-h2"), $("#a-h3"), $("#a-b4"), $("#a-b5")], { opacity: 0 });
+
+          rise("#a-eyeA", 0.3, 10, 0.4);
+          rise("#a-hA", CUE.chain - 0.45, 22, 0.55);
+          rise("#a-b1", CUE.chain + 0.15);
+          tl.to($("#a-l1"), { scaleX: 1, duration: 0.35, ease: "power2.out" }, CUE.chain + 0.7);
+          tl.to($("#a-h1"), { opacity: 1, duration: 0.2 }, CUE.chain + 1.0);
+          rise("#a-b2", CUE.chain + 1.1);
+          tl.to($("#a-l2"), { scaleX: 1, duration: 0.35, ease: "power2.out" }, CUE.chain + 2.1);
+          tl.to($("#a-h2"), { opacity: 1, duration: 0.2 }, CUE.chain + 2.4);
+          rise("#a-b3", CUE.chain + 2.5);
+
+          tl.to($("#a-l3"), { scaleY: 1, duration: 0.35, ease: "power2.out" }, CUE.data - 0.3);
+          tl.to($("#a-h3"), { opacity: 1, duration: 0.2 }, CUE.data);
+          tl.to($("#a-l4"), { scaleX: 1, duration: 0.45, ease: "power2.out" }, CUE.data + 0.1);
+          tl.fromTo($("#a-b4"), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, CUE.data + 0.55);
+          tl.fromTo($("#a-b5"), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, CUE.data + 2.6);
+
+          // page A hands over to page B
+          tl.to($("#a-pageA"), { opacity: 0, y: -60, filter: "blur(9px)", duration: 0.7, ease: "power2.in" }, CUE.order - 1.15);
+          tl.set($("#a-pageA"), { visibility: "hidden" }, CUE.order - 0.4);
+          tl.set($("#a-pageB"), { visibility: "visible" }, CUE.order - 0.65);
+          tl.to($("#a-pageB"), { opacity: 1, duration: 0.5, ease: "none" }, CUE.order - 0.6);
+
+          rise("#a-eyeB", CUE.order - 0.55, 10, 0.4);
+          rise("#a-hB", CUE.order - 0.4, 22, 0.55);
+          rise("#a-s1", CUE.order + 0.4, 22, 0.45);
+          rise("#a-s2", CUE.order + 2.3, 22, 0.45);
+          rise("#a-s3", CUE.ai - 0.3, 22, 0.45);
+          // the AI step is the expensive one: it inverts to ink when the narration reaches it
+          tl.to($("#a-s3"), { backgroundColor: "#111111", boxShadow: "0 0 0 2px #111111", duration: 0.45, ease: "power2.out" }, CUE.ai + 0.5);
+          tl.to($("#a-s3"), { attr: { class: "a-step a-ink" }, duration: 0 }, CUE.ai + 0.5);
+
+          rise("#a-guards", CUE.guard - 0.35, 18, 0.45);
+          rise("#a-g1", CUE.guard + 0.2, 16, 0.4);
+          rise("#a-g2", CUE.guard + 1.6, 16, 0.4);
+          rise("#a-g3", CUE.guard + 3.1, 16, 0.4);
+          rise("#a-live", CUE.live - 0.35, 24, 0.55);
+
+          window.__timelines["s10-arch"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

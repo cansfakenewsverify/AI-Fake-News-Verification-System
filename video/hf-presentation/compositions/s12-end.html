@@ -1,0 +1,172 @@
+<!doctype html>
+<!--
+  s12-end — 鏡 12 片尾
+  Next steps, the live URL, the public repository, and the thank-you. The Threads limitation is stated
+  once more so the last thing on screen is accurate: the bot part of the film was a simulation.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+          color: #111111;
+        }
+        .e-eyebrow {
+          position: absolute;
+          left: 150px;
+          top: 150px;
+          font-size: 24px;
+          line-height: 32px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          color: #5b5b66;
+        }
+        .e-next {
+          position: absolute;
+          left: 150px;
+          top: 200px;
+          width: 1620px;
+        }
+        .e-h {
+          font-size: 54px;
+          line-height: 70px;
+          font-weight: 700;
+        }
+        .e-items {
+          margin-top: 22px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          column-gap: 28px;
+        }
+        .e-item {
+          box-sizing: border-box;
+          border-radius: 18px;
+          background: #ffffff;
+          box-shadow: 0 0 0 2px #d4d4d8;
+          padding: 22px 26px 24px;
+        }
+        .e-item-h {
+          font-size: 33px;
+          line-height: 44px;
+          font-weight: 700;
+        }
+        .e-item-b {
+          margin-top: 4px;
+          font-size: 24px;
+          line-height: 34px;
+          color: #3f3f46;
+        }
+        .e-rule {
+          position: absolute;
+          left: 150px;
+          top: 502px;
+          width: 1620px;
+          height: 4px;
+          background: #111111;
+          transform-origin: left center;
+        }
+        .e-links {
+          position: absolute;
+          left: 150px;
+          top: 548px;
+          width: 1620px;
+          display: grid;
+          grid-template-columns: 180px 1fr;
+          row-gap: 16px;
+          column-gap: 26px;
+          font-size: 32px;
+          line-height: 46px;
+        }
+        .e-k {
+          font-weight: 700;
+          color: #5b5b66;
+          letter-spacing: 0.08em;
+        }
+        .e-thanks {
+          position: absolute;
+          left: 150px;
+          top: 726px;
+          font-size: 86px;
+          line-height: 108px;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+        }
+        .e-fine {
+          position: absolute;
+          left: 150px;
+          top: 852px;
+          width: 1620px;
+          font-size: 23px;
+          line-height: 33px;
+          color: #5b5b66;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s12-end" data-width="1920" data-height="1080" data-duration="16">
+        <div class="fnv-grid"></div>
+
+        <div class="e-eyebrow" id="e-eyebrow">12 ／ 接下來</div>
+        <div class="e-next">
+          <div class="e-h" id="e-h">下一步</div>
+          <div class="e-items">
+            <div class="e-item" id="e-i1">
+              <div class="e-item-h">Threads 實機串接</div>
+              <div class="e-item-b">通過 Meta App Review 與企業驗證後對外開放</div>
+            </div>
+            <div class="e-item" id="e-i2">
+              <div class="e-item-h">更大的評測資料集</div>
+              <div class="e-item-b">現在是 150 筆，要再擴充並重新評測</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="e-rule" id="e-rule"></div>
+
+        <div class="e-links" id="e-links">
+          <div class="e-k">網站</div>
+          <div class="fnv-mono">fakenewsverify.vercel.app</div>
+          <div class="e-k">原始碼</div>
+          <div class="fnv-mono">github.com/cansfakenewsverify/AI-Fake-News-Verification-System</div>
+        </div>
+
+        <div class="e-thanks" id="e-thanks">謝謝各位老師</div>
+        <div class="e-fine" id="e-fine">
+          片中 Threads 機器人為模擬模式；判讀由 AI 自動產生，僅供參考，請自行查證。
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s12-end"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+          // Narration (shot clock): 1.10 下一步 / 5.73 網站與原始碼 / 9.65 謝謝各位老師
+          const CUE = { next: 1.1, links: 5.73, thanks: 9.65 };
+          const rise = (sel, t, y = 24, d = 0.5) =>
+            tl.fromTo($(sel), { opacity: 0, y }, { opacity: 1, y: 0, duration: d, ease: "power3.out" }, t);
+
+          rise("#e-eyebrow", 0.3, 10, 0.4);
+          rise("#e-h", CUE.next - 0.5, 22, 0.55);
+          rise("#e-i1", CUE.next + 0.3);
+          rise("#e-i2", CUE.next + 1.6);
+          tl.fromTo($("#e-rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: "power3.inOut" }, CUE.links - 0.8);
+          rise("#e-links", CUE.links - 0.35, 20, 0.5);
+          rise("#e-thanks", CUE.thanks - 0.5, 30, 0.7);
+          rise("#e-fine", CUE.thanks + 0.5, 14, 0.45);
+
+          // the film ends on a short fade
+          tl.to(root, { opacity: 0, duration: 0.6, ease: "power1.in" }, 15.4);
+
+          window.__timelines["s12-end"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

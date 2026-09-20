@@ -1,0 +1,480 @@
+{
+  "_doc": "presentation_v1.0 edit decision list. shots[n].dur = shot length in seconds; audio = where the narration clip starts inside the shot. scenes = one sub-composition per continuous stage. footage[*].pieces maps the film clock back onto the raw recording: from/to are raw seconds since that take started, speed>1 is accelerated footage (labelled 畫面加速 on screen), hold freezes the last shown frame, and a gap between two pieces is a stretch of recording where nothing moved, cut out. Every take is a genuine capture of https://fakenewsverify.vercel.app made on 2026-09-20 (docs/demo/footage_log.md).",
+  "fps": 30,
+  "transition": 0.5,
+  "overlap": 0.6,
+  "shots": {
+    "1": {
+      "dur": 15,
+      "audio": 0.9
+    },
+    "2": {
+      "dur": 15.5,
+      "audio": 0.7
+    },
+    "3": {
+      "dur": 16.5,
+      "audio": 0.8
+    },
+    "4": {
+      "dur": 39,
+      "audio": 0.9
+    },
+    "5": {
+      "dur": 20,
+      "audio": 0.8
+    },
+    "6": {
+      "dur": 20,
+      "audio": 0.9
+    },
+    "7": {
+      "dur": 24,
+      "audio": 1
+    },
+    "8": {
+      "dur": 15,
+      "audio": 0.8
+    },
+    "9": {
+      "dur": 24,
+      "audio": 1
+    },
+    "10": {
+      "dur": 37,
+      "audio": 1.2
+    },
+    "11": {
+      "dur": 36,
+      "audio": 1.2
+    },
+    "12": {
+      "dur": 16,
+      "audio": 1
+    }
+  },
+  "scenes": [
+    {
+      "id": "s01-hook",
+      "shots": [
+        1
+      ],
+      "in": "none"
+    },
+    {
+      "id": "s02-home",
+      "shots": [
+        2
+      ],
+      "in": "blur"
+    },
+    {
+      "id": "s03-check",
+      "shots": [
+        3
+      ],
+      "in": "push"
+    },
+    {
+      "id": "s04-result",
+      "shots": [
+        4
+      ],
+      "in": "push"
+    },
+    {
+      "id": "s05-url",
+      "shots": [
+        5
+      ],
+      "in": "push"
+    },
+    {
+      "id": "s06-cache",
+      "shots": [
+        6
+      ],
+      "in": "blur"
+    },
+    {
+      "id": "s07-wall",
+      "shots": [
+        7
+      ],
+      "in": "push"
+    },
+    {
+      "id": "s08-small",
+      "shots": [
+        8
+      ],
+      "in": "push"
+    },
+    {
+      "id": "s09-bot",
+      "shots": [
+        9
+      ],
+      "in": "blur"
+    },
+    {
+      "id": "s10-arch",
+      "shots": [
+        10
+      ],
+      "in": "blur"
+    },
+    {
+      "id": "s11-numbers",
+      "shots": [
+        11
+      ],
+      "in": "push-up"
+    },
+    {
+      "id": "s12-end",
+      "shots": [
+        12
+      ],
+      "in": "blur"
+    }
+  ],
+  "footage": {
+    "home": {
+      "take": "home",
+      "kind": "desktop",
+      "dur": 15.5,
+      "pieces": [
+        {
+          "from": 1.4,
+          "to": 7.8,
+          "speed": 1
+        },
+        {
+          "from": 7.8,
+          "to": 12.5,
+          "speed": 1.6,
+          "label": "畫面加速 ×1.6"
+        },
+        {
+          "from": 12.5,
+          "to": 20.5,
+          "speed": 2,
+          "label": "畫面加速 ×2"
+        },
+        {
+          "hold": 2.2
+        }
+      ]
+    },
+    "check": {
+      "take": "text_flow",
+      "kind": "desktop",
+      "dur": 16.5,
+      "pieces": [
+        {
+          "from": 3.2,
+          "to": 11.3,
+          "speed": 1
+        },
+        {
+          "from": 11.3,
+          "to": 21.5,
+          "speed": 3,
+          "label": "畫面加速 ×3"
+        },
+        {
+          "from": 21.5,
+          "to": 23.8,
+          "speed": 1
+        },
+        {
+          "hold": 2.7
+        }
+      ]
+    },
+    "result": {
+      "take": "result_walk",
+      "kind": "desktop",
+      "dur": 39,
+      "pieces": [
+        {
+          "from": 0.6,
+          "to": 10.4,
+          "speed": 1
+        },
+        {
+          "hold": 1.5
+        },
+        {
+          "from": 10.4,
+          "to": 17.6,
+          "speed": 1
+        },
+        {
+          "hold": 2.5
+        },
+        {
+          "from": 17.6,
+          "to": 24.4,
+          "speed": 1
+        },
+        {
+          "from": 24.4,
+          "to": 27.5,
+          "speed": 1
+        },
+        {
+          "hold": 2.2
+        },
+        {
+          "from": 27.5,
+          "to": 31.5,
+          "speed": 1
+        },
+        {
+          "hold": 1.9
+        }
+      ]
+    },
+    "url": {
+      "take": "url_check",
+      "kind": "desktop",
+      "dur": 20,
+      "pieces": [
+        {
+          "from": 3,
+          "to": 7.6,
+          "speed": 1
+        },
+        {
+          "from": 7.6,
+          "to": 10.6,
+          "speed": 1
+        },
+        {
+          "from": 10.6,
+          "to": 14.6,
+          "speed": 1.6,
+          "label": "畫面加速 ×1.6"
+        },
+        {
+          "from": 14.6,
+          "to": 19.4,
+          "speed": 2.4,
+          "label": "畫面加速 ×2.4"
+        },
+        {
+          "from": 19.4,
+          "to": 24.8,
+          "speed": 1
+        },
+        {
+          "hold": 2.5
+        }
+      ]
+    },
+    "cache_hash": {
+      "take": "cache_hash",
+      "kind": "desktop",
+      "dur": 7,
+      "pieces": [
+        {
+          "from": 1.5,
+          "to": 5,
+          "speed": 1.2,
+          "label": "畫面加速 ×1.2"
+        },
+        {
+          "from": 5,
+          "to": 9.5,
+          "speed": 2.6,
+          "label": "畫面加速 ×2.6"
+        },
+        {
+          "from": 9.5,
+          "to": 11.5,
+          "speed": 1.6,
+          "label": "畫面加速 ×1.6"
+        },
+        {
+          "hold": 1.102
+        }
+      ]
+    },
+    "cache_vector": {
+      "take": "cache_vector",
+      "kind": "desktop",
+      "dur": 13,
+      "pieces": [
+        {
+          "from": 1.5,
+          "to": 5,
+          "speed": 1
+        },
+        {
+          "from": 5,
+          "to": 9.5,
+          "speed": 2,
+          "label": "畫面加速 ×2"
+        },
+        {
+          "from": 9.5,
+          "to": 14,
+          "speed": 1.6,
+          "label": "畫面加速 ×1.6"
+        },
+        {
+          "hold": 4.4375
+        }
+      ]
+    },
+    "trending": {
+      "take": "trending",
+      "kind": "desktop",
+      "dur": 7.4,
+      "pieces": [
+        {
+          "from": 2.6,
+          "to": 6.5,
+          "speed": 1.3,
+          "label": "畫面加速 ×1.3"
+        },
+        {
+          "from": 9.9,
+          "to": 13.5,
+          "speed": 2,
+          "label": "畫面加速 ×2"
+        },
+        {
+          "from": 16.5,
+          "to": 22.5,
+          "speed": 2.6,
+          "label": "畫面加速 ×2.6"
+        },
+        {
+          "hold": 0.29
+        }
+      ]
+    },
+    "knowledge": {
+      "take": "knowledge",
+      "kind": "desktop",
+      "dur": 16.6,
+      "pieces": [
+        {
+          "from": 7.2,
+          "to": 8.6,
+          "speed": 1
+        },
+        {
+          "from": 8.6,
+          "to": 12.4,
+          "speed": 1.1,
+          "label": "畫面加速 ×1.1"
+        },
+        {
+          "from": 12.4,
+          "to": 17.2,
+          "speed": 1.2,
+          "label": "畫面加速 ×1.2"
+        },
+        {
+          "from": 17.2,
+          "to": 23.8,
+          "speed": 1.4,
+          "label": "畫面加速 ×1.4"
+        },
+        {
+          "hold": 3.031
+        }
+      ]
+    },
+    "theme": {
+      "take": "theme",
+      "kind": "desktop",
+      "dur": 3.4,
+      "pieces": [
+        {
+          "from": 2.6,
+          "to": 4,
+          "speed": 1
+        },
+        {
+          "from": 4,
+          "to": 8,
+          "speed": 2.4,
+          "label": "畫面加速 ×2.4"
+        },
+        {
+          "hold": 0.333
+        }
+      ]
+    },
+    "phone": {
+      "take": "phone",
+      "kind": "phone",
+      "dur": 5.6,
+      "pieces": [
+        {
+          "from": 1.6,
+          "to": 5,
+          "speed": 1.2,
+          "label": "畫面加速 ×1.2"
+        },
+        {
+          "from": 5,
+          "to": 8,
+          "speed": 1.5,
+          "label": "畫面加速 ×1.5"
+        },
+        {
+          "hold": 0.767
+        }
+      ]
+    },
+    "policy": {
+      "take": "policy",
+      "kind": "desktop",
+      "dur": 6,
+      "pieces": [
+        {
+          "from": 2,
+          "to": 4.6,
+          "speed": 1.3,
+          "label": "畫面加速 ×1.3"
+        },
+        {
+          "from": 8.8,
+          "to": 11,
+          "speed": 1.2,
+          "label": "畫面加速 ×1.2"
+        },
+        {
+          "hold": 2.167
+        }
+      ]
+    },
+    "phone_result": {
+      "take": "phone_result",
+      "kind": "phone",
+      "dur": 8,
+      "pieces": [
+        {
+          "from": 1,
+          "to": 5,
+          "speed": 1
+        },
+        {
+          "from": 5,
+          "to": 10.5,
+          "speed": 1.6,
+          "label": "畫面加速 ×1.6"
+        },
+        {
+          "hold": 0.56
+        }
+      ]
+    }
+  }
+}

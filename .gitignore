@@ -113,3 +113,16 @@ video/hf-demo/.hyperframes/
 video/hf-demo/.hf-tmp/
 video/hf-demo/.debug/
 video/hf-demo/.media/
+
+# ── HyperFrames 影片專案 video/hf-presentation（5 分鐘簡報影片）：只提交原始碼 ──
+# 大型媒體與產物：正式站實錄重建的素材、旁白與音效音檔、render、快取、原始擷取影格
+video/hf-presentation/assets/footage/
+video/hf-presentation/assets/audio/
+video/hf-presentation/renders/
+video/hf-presentation/snapshots/
+video/hf-presentation/node_modules/
+video/hf-presentation/.hyperframes/
+video/hf-presentation/.hf-tmp/
+video/hf-presentation/.debug/
+video/hf-presentation/.media/
+video/hf-presentation/.raw/

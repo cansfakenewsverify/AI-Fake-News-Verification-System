@@ -1,0 +1,20 @@
+{
+  "name": "hf-presentation",
+  "private": true,
+  "type": "module",
+  "description": "presentation_v1.0: the 5-minute recorded course presentation (unboxing style), built from live-site captures. HyperFrames, local rendering only.",
+  "scripts": {
+    "capture": "node tools/capture.mjs",
+    "footage": "node tools/build_footage.mjs",
+    "tts": "..\\..\\code\\backend\\venv\\Scripts\\python tools\\tts.py",
+    "sfx": "..\\..\\code\\backend\\venv\\Scripts\\python tools\\sfx.py",
+    "scenes": "node tools/build_scenes.mjs",
+    "place-sfx": "node tools/build_sfx.mjs",
+    "timeline": "node tools/build_timeline.mjs",
+    "narration-doc": "node tools/build_narration_doc.mjs",
+    "verify": "node tools/verify.mjs",
+    "dev": "npx --yes hyperframes@0.8.50 preview",
+    "check": "npx --yes hyperframes@0.8.50 check",
+    "render": "npx --yes hyperframes@0.8.50 render --quality delivery --video-frame-format png --workers 5 --output renders/presentation_v1.0.mp4"
+  }
+}

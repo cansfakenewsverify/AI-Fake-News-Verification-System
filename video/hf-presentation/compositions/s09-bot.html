@@ -1,0 +1,273 @@
+<!doctype html>
+<!--
+  s09-bot — 鏡 9「Threads 查核機器人（模擬模式）」
+  The post, the mention and the bot's reply are the VERBATIM strings produced by the 2026-09-16 simulation
+  run (video/hf-demo/data/captured.json; docs/demo/demo_posts.md §1) — redrawn here, not re-invented.
+  The suspicious URL inside the post is a mask block with no url text underneath. The 模擬模式 tag is on
+  screen for the whole scene. The phone at the end is this project's own live-site capture of a result
+  page, shown as an example of what such a link opens, not as that particular result id.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+          color: #111111;
+        }
+        .b-card {
+          position: absolute;
+          border-radius: 22px;
+          background: #ffffff;
+          box-shadow:
+            0 0 0 2px #d4d4d8,
+            0 20px 48px rgba(17, 17, 17, 0.09);
+          padding: 26px 30px 28px;
+        }
+        .b-who {
+          font-size: 24px;
+          line-height: 32px;
+          font-weight: 700;
+          color: #5b5b66;
+          letter-spacing: 0.04em;
+        }
+        .b-text {
+          margin-top: 12px;
+          font-size: 32px;
+          line-height: 48px;
+          font-weight: 700;
+        }
+        #b-post {
+          left: 110px;
+          top: 168px;
+          width: 800px;
+        }
+        #b-mention {
+          left: 196px;
+          top: 396px;
+          width: 714px;
+        }
+        #b-reply {
+          left: 986px;
+          top: 168px;
+          width: 824px;
+          padding: 28px 32px 30px;
+        }
+        .b-reply-head {
+          display: flex;
+          align-items: baseline;
+          column-gap: 14px;
+        }
+        .b-bot {
+          font-size: 24px;
+          line-height: 32px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          color: #5b5b66;
+        }
+        .b-line {
+          margin-top: 14px;
+          font-size: 30px;
+          line-height: 44px;
+          font-weight: 700;
+        }
+        .b-line-2 {
+          font-weight: 400;
+          color: #1d1d21;
+          font-size: 27px;
+          line-height: 41px;
+        }
+        .b-line-url {
+          margin-top: 12px;
+          font-size: 22px;
+          line-height: 32px;
+          color: #3f3f46;
+          word-break: break-all;
+        }
+        .b-line-tail {
+          margin-top: 14px;
+          font-size: 23px;
+          line-height: 32px;
+          color: #5b5b66;
+        }
+        .b-arrow {
+          position: absolute;
+          left: 916px;
+          top: 300px;
+          width: 62px;
+          height: 4px;
+          background: #111111;
+          transform-origin: left center;
+        }
+        .b-arrow::after {
+          content: "";
+          position: absolute;
+          right: -2px;
+          top: -9px;
+          border-left: 18px solid #111111;
+          border-top: 11px solid transparent;
+          border-bottom: 11px solid transparent;
+        }
+        #b-phone {
+          position: absolute;
+          left: 1330px;
+          top: 128px;
+          width: 380px;
+          height: 822px;
+          overflow: hidden;
+          border-radius: 36px;
+          background: #ffffff;
+          box-shadow:
+            0 0 0 3px #d4d4d8,
+            0 24px 60px rgba(17, 17, 17, 0.12);
+        }
+        #b-phone .fnv-cam {
+          width: 780px;
+          height: 1688px;
+          transform-origin: 0 0;
+        }
+        #b-phone .fnv-cam video {
+          width: 780px;
+          height: 1688px;
+        }
+        .b-note {
+          position: absolute;
+          left: 110px;
+          top: 700px;
+          width: 1060px;
+        }
+        .b-note-h {
+          font-size: 40px;
+          line-height: 54px;
+          font-weight: 700;
+        }
+        .b-note-b {
+          margin-top: 14px;
+          font-size: 29px;
+          line-height: 44px;
+          color: #3f3f46;
+        }
+        .b-note-rule {
+          width: 1060px;
+          height: 3px;
+          background: #111111;
+          transform-origin: left center;
+          margin-bottom: 22px;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s09-bot" data-width="1920" data-height="1080" data-duration="24.6">
+        <div class="fnv-grid"></div>
+
+        <div class="fnv-tag" id="b-sim" style="left: 700px; top: 16px">
+          模擬模式：流程與正式串接相同，正式上線需 Meta App Review
+        </div>
+
+        <div class="b-card" id="b-post">
+          <div class="b-who fnv-mono">@tester_a ・ Threads 貼文</div>
+          <div class="b-text">
+            健保卡即日起停用！請點
+            <span class="fnv-mask" id="b-mask" style="width: 188px; height: 32px"></span>
+            重新驗證，逾期停卡
+          </div>
+        </div>
+
+        <div class="b-card" id="b-mention">
+          <div class="b-who fnv-mono">@tester_b ・ 回覆這則貼文</div>
+          <div class="b-text"><span class="fnv-mono">@factcheck_tw_bot</span> 這真的嗎</div>
+        </div>
+
+        <div class="b-arrow" id="b-arrow"></div>
+
+        <div class="b-card" id="b-reply">
+          <div class="b-reply-head">
+            <span class="b-bot fnv-mono">@factcheck_tw_bot</span>
+            <span class="b-bot">的回覆（實際輸出，逐字）</span>
+          </div>
+          <div class="b-line" id="b-l1"><span class="fnv-emoji">🔴</span> 詐騙警告</div>
+          <div class="b-line b-line-2" id="b-l2">
+            冒用健保署名義的釣魚詐騙：以「即日起停用、逾期停卡」製造急迫感誘騙點連結，健保署不會要求民眾點連結驗證健保卡
+          </div>
+          <div class="b-line-url fnv-mono" id="b-l3">查核來源：https://www.mygopen.com/2026/08/line.html</div>
+          <div class="b-line-url fnv-mono" id="b-l4">
+            完整判讀：https://fakenewsverify.vercel.app/r/eb06622e-0592-4361-bfbd-0046b745cba6
+          </div>
+          <div class="b-line-tail" id="b-l5">AI 自動判讀，請自行查證。</div>
+        </div>
+
+        <div id="b-phone">
+          <div class="fnv-cam" id="b-phone-cam" data-layout-allow-overflow>
+            <video
+              id="b-phone-v"
+              src="assets/footage/phone_result.mp4"
+              data-start="10.6"
+              data-duration="8"
+              data-track-index="0"
+              muted
+              playsinline
+            ></video>
+          </div>
+        </div>
+        <div class="fnv-tag fnv-tag-ghost" id="b-phone-tag" style="left: 1330px; top: 972px">
+          結果頁・正式站實錄（手機寬度 390）
+        </div>
+
+        <div class="b-note" id="b-note">
+          <div class="b-note-rule" id="b-note-rule"></div>
+          <div class="b-note-h">這一段是模擬模式</div>
+          <div class="b-note-b">
+            輪詢、判定、回覆的流程與正式串接相同，用的是本專題留下的實際輸出；<br />
+            要真的對外公開回覆，還需要通過 Meta App Review 與企業驗證。
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s09-bot"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+          // Narration (shot clock): 1.10 機器人 / 3.82 有人標記… / 10.71 點開那個連結… / 14.36 模擬模式…
+          const CUE = { intro: 1.1, tagged: 3.82, link: 10.71, sim: 14.36 };
+
+          tl.set([$("#b-reply"), $("#b-arrow"), $("#b-phone"), $("#b-phone-tag"), $("#b-note")], { opacity: 0 });
+          tl.set($("#b-phone-cam"), { x: 10, y: 0, scale: 0.487 });
+          tl.set([$("#b-l1"), $("#b-l2"), $("#b-l3"), $("#b-l4"), $("#b-l5")], { opacity: 0, y: 12 });
+
+          tl.fromTo($("#b-sim"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 0.35);
+          tl.fromTo($("#b-post"), { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, CUE.intro - 0.3);
+          tl.fromTo($("#b-mention"), { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, CUE.tagged - 0.2);
+
+          tl.fromTo($("#b-arrow"), { opacity: 0, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.45, ease: "power3.out" }, CUE.tagged + 1.0);
+          tl.to($("#b-reply"), { opacity: 1, duration: 0.4, ease: "none" }, CUE.tagged + 1.25);
+          [1, 2, 3, 4, 5].forEach((n, i) => {
+            tl.to($("#b-l" + n), { opacity: 1, y: 0, duration: 0.38, ease: "power3.out" }, CUE.tagged + 1.5 + i * 0.85);
+          });
+
+          // hand the stage over to the phone: the two Threads cards leave, the reply slides left
+          tl.to([$("#b-post"), $("#b-mention"), $("#b-arrow")], { opacity: 0, x: -60, duration: 0.5, ease: "power2.in" }, CUE.link - 0.9);
+          tl.to($("#b-reply"), { x: -876, duration: 0.8, ease: "power3.inOut" }, CUE.link - 0.75);
+          tl.to($("#b-phone"), { opacity: 1, duration: 0.55, ease: "power2.out" }, CUE.link - 0.1);
+          tl.fromTo($("#b-phone"), { y: 40 }, { y: 0, duration: 0.7, ease: "power3.out" }, CUE.link - 0.1);
+          tl.to($("#b-phone-tag"), { opacity: 1, duration: 0.35, ease: "none" }, CUE.link + 0.5);
+
+          tl.fromTo($("#b-note-rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power3.inOut" }, CUE.sim - 0.4);
+          tl.to($("#b-note"), { opacity: 1, duration: 0.45, ease: "none" }, CUE.sim - 0.4);
+
+          // the phone clip runs out at 18.6s; let it leave rather than freeze mid-scroll
+          tl.to([$("#b-phone"), $("#b-phone-tag")], { opacity: 0, y: -24, duration: 0.5, ease: "power2.in" }, 18.2);
+          tl.to($("#b-reply"), { opacity: 0, duration: 0.45, ease: "power2.in" }, 18.4);
+          tl.to($("#b-note"), { y: -210, duration: 0.9, ease: "power3.inOut" }, 18.6);
+
+          window.__timelines["s09-bot"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

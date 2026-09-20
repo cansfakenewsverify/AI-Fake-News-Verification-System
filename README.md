@@ -27,7 +27,10 @@
 | 熱門牆：最近的查核結果（來源為 MyGoPen、台灣事實查核中心、Cofacts） | [`/trending`](https://fakenewsverify.vercel.app/trending) |
 | 知識庫：用關鍵字搜尋、依判定篩選已證實的查證內容 | [`/knowledge`](https://fakenewsverify.vercel.app/knowledge) |
 
-**Demo 影片**（2 分 37 秒，有旁白與字幕，瀏覽器直接播放）：
+**簡報影片**（4 分 38 秒，旁白＋音效＋字幕，整套功能與操作的完整導覽，瀏覽器直接播放）：
+https://fakenewsverify.vercel.app/demo/presentation_v1.mp4
+
+**舊版 demo 影片**（2 分 37 秒）：
 https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4
 
 使用前先知道這幾件事：
@@ -122,7 +125,7 @@ AI-Fake-News-Verification-System/
 │   │
 │   └── frontend/                ← React 前端（Vercel 的 Root Directory）→ 見 code/frontend/README.md
 │       ├── src/                 ← pages / components / lib / dev/fixtures、i18n.js、index.css、routes.jsx
-│       ├── public/              ← privacy.html、data-deletion.html、deauthorize.html、og.png、demo/demo_v0.4.0.mp4
+│       ├── public/              ← privacy.html、data-deletion.html、deauthorize.html、og.png、demo/（簡報影片與 demo 影片）
 │       └── vercel.json          ← /api/* 代理到 Render + SPA fallback
 │
 ├── .github/workflows/           ← ci.yml、keepalive.yml、cgu-reachability.yml
@@ -130,9 +133,10 @@ AI-Fake-News-Verification-System/
 │   ├── rebuild/                 ← 2026-09 重做文件：00_consensus、01_spec、02_mockup_brief + mockup/、03_tickets、
 │   │                              owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel
 │   ├── test/                    ← 測試計畫書 TP-FNV-2026-01.md、results/、screens/、ui_checklist.csv
-│   └── demo/                    ← demo 影片的分鏡、素材紀錄、字幕
+│   └── demo/                    ← 簡報影片規格、分鏡、素材紀錄、字幕
 ├── presentations/               ← 2026-09_進度報告/ 與前兩次報告的簡報
-├── video/hf-demo/               ← demo 影片原始碼
+├── video/hf-presentation/       ← 5 分鐘簡報影片原始碼（presentation_v1.0）
+├── video/hf-demo/               ← 舊版 demo 影片原始碼（v0.4.0）
 ├── assets/                      ← PlantUML 圖、confusion_matrix.png、期末專題文件/（OOSE 文件）
 └── legacy/                      ← 已封存、不再維護的舊版單檔查核儀
 ```

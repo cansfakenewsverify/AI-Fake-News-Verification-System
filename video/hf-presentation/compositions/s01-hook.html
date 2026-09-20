@@ -1,0 +1,200 @@
+<!doctype html>
+<!--
+  s01-hook — 鏡 1「這種訊息你一定收過」＋ 標題卡
+  The message is simulated test data (the p100 post used throughout the project); the URL inside it is a
+  mask block with NO url text underneath, as in v0.4.0. The title card carries the formal project title,
+  the system name, the course, the team (廖育翔 is 育, not 昱), the advisor and the live URL.
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #f7f7f8;
+          color: #111111;
+        }
+        .h-stage {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 1920px;
+          height: 1080px;
+        }
+        /* ── the message ── */
+        .h-msg {
+          position: absolute;
+          left: 470px;
+          top: 366px;
+          width: 980px;
+          padding: 40px 46px 44px;
+          border-radius: 28px;
+          background: #ffffff;
+          box-shadow:
+            0 0 0 2px #d4d4d8,
+            0 30px 70px rgba(17, 17, 17, 0.12);
+        }
+        .h-msg-from {
+          font-size: 25px;
+          line-height: 34px;
+          font-weight: 700;
+          color: #5b5b66;
+          letter-spacing: 0.06em;
+        }
+        .h-msg-text {
+          margin-top: 16px;
+          font-size: 52px;
+          line-height: 78px;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+        }
+        .h-note {
+          position: absolute;
+          left: 470px;
+          top: 636px;
+          width: 980px;
+          font-size: 24px;
+          line-height: 34px;
+          color: #5b5b66;
+        }
+        .h-kicker {
+          position: absolute;
+          left: 470px;
+          top: 262px;
+          font-size: 40px;
+          line-height: 54px;
+          font-weight: 700;
+          color: #3f3f46;
+        }
+        /* ── the title card ── */
+        .h-title {
+          position: absolute;
+          left: 150px;
+          top: 176px;
+          width: 1620px;
+        }
+        .h-eyebrow {
+          font-size: 26px;
+          line-height: 36px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          color: #5b5b66;
+        }
+        .h-h1 {
+          margin-top: 18px;
+          font-size: 104px;
+          line-height: 1.12;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+        }
+        .h-h2 {
+          margin-top: 20px;
+          font-size: 54px;
+          line-height: 1.2;
+          font-weight: 700;
+          color: #3f3f46;
+        }
+        .h-rule {
+          margin-top: 36px;
+          width: 1620px;
+          height: 4px;
+          background: #111111;
+          transform-origin: left center;
+        }
+        .h-meta {
+          margin-top: 34px;
+          display: grid;
+          grid-template-columns: 210px 1fr;
+          row-gap: 18px;
+          column-gap: 28px;
+          font-size: 31px;
+          line-height: 44px;
+        }
+        .h-k {
+          font-weight: 700;
+          color: #5b5b66;
+          letter-spacing: 0.06em;
+        }
+        .h-url {
+          position: absolute;
+          left: 150px;
+          top: 936px;
+          font-size: 34px;
+          line-height: 46px;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+        }
+      </style>
+
+      <div id="root" class="fnv-root" data-composition-id="s01-hook" data-width="1920" data-height="1080" data-duration="15.6">
+        <div class="fnv-grid"></div>
+
+        <div class="h-stage" id="h-scene-a">
+          <div class="h-kicker" id="h-kicker">這種訊息，你一定收過。</div>
+          <div class="h-msg" id="h-msg">
+            <div class="h-msg-from fnv-mono">LINE ・ 未知號碼</div>
+            <div class="h-msg-text">
+              健保卡即日起停用！請點
+              <span class="fnv-mask" id="h-mask" style="width: 300px; height: 52px"></span>
+              重新驗證，逾期停卡
+            </div>
+          </div>
+          <div class="h-note" id="h-note">示意訊息（本專題的模擬測試資料）・網址已遮蔽，底下沒有任何網址文字</div>
+        </div>
+
+        <div class="h-stage" id="h-scene-b">
+          <div class="h-title">
+            <div class="h-eyebrow" id="h-eyebrow">長庚大學 資訊工程學系 ・ 軟硬體專題</div>
+            <div class="h-h1" id="h-h1">AI 為核心的<br />假訊息驗證系統</div>
+            <div class="h-h2" id="h-h2">全民查證公社</div>
+            <div class="h-rule" id="h-rule"></div>
+            <div class="h-meta" id="h-meta">
+              <div class="h-k">組員</div>
+              <div>廖晢勛　石岱勳　姚睿　張宇宏　廖育翔</div>
+              <div class="h-k">指導教授</div>
+              <div>黃崇源</div>
+            </div>
+          </div>
+          <div class="h-url fnv-mono" id="h-url">fakenewsverify.vercel.app</div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const root = document.querySelector('[data-composition-id="s01-hook"]');
+          const $ = (s) => root.querySelector(s);
+          const tl = gsap.timeline({ paused: true });
+          // Narration (shot clock): 1.00 這種訊息… / 3.89 說健保卡要停用… / 7.56 今天就帶大家開箱…
+          const CUE = { seen: 1.0, msg: 3.89, unbox: 7.56 };
+
+          tl.set($("#h-scene-b"), { opacity: 0 });
+
+          tl.fromTo($("#h-kicker"), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, CUE.seen - 0.35);
+          tl.fromTo($("#h-msg"), { opacity: 0, y: 46, scale: 0.985 }, { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: "power3.out" }, CUE.msg - 0.75);
+          tl.fromTo($("#h-note"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, CUE.msg + 0.4);
+          // a small settle so the message is read, not skimmed
+          tl.to($("#h-msg"), { y: -10, duration: 1.6, ease: "sine.inOut" }, CUE.msg + 1.2);
+
+          // hand off to the title card
+          tl.to($("#h-scene-a"), { opacity: 0, y: -54, filter: "blur(9px)", duration: 0.66, ease: "power2.in" }, CUE.unbox - 0.9);
+          tl.set($("#h-scene-a"), { visibility: "hidden" }, CUE.unbox - 0.2);
+          tl.to($("#h-scene-b"), { opacity: 1, duration: 0.5, ease: "none" }, CUE.unbox - 0.35);
+
+          tl.fromTo($("#h-eyebrow"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, CUE.unbox - 0.3);
+          tl.fromTo($("#h-h1"), { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, CUE.unbox - 0.05);
+          tl.fromTo($("#h-h2"), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, CUE.unbox + 0.55);
+          tl.fromTo($("#h-rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: "power3.inOut" }, CUE.unbox + 0.95);
+          tl.fromTo($("#h-meta"), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, CUE.unbox + 1.45);
+          tl.fromTo($("#h-url"), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, CUE.unbox + 2.1);
+
+          window.__timelines["s01-hook"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>
