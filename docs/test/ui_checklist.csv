@@ -1,4 +1,4 @@
-ID,screen,state,width,theme,file,result,note
+﻿ID,screen,state,width,theme,file,result,note
 UI-1-001,S1 首頁,backend_down,375,light,docs/test/screens/S1_backend_down_375_light.png,通過,證據：後端不可用（dev 代理目標無服務→502）；目視（Claude，非組員勾核）：backend_down 橫幅為 yellow-soft 底／yellow 字（mockup brief §11 指定；與 §8.1「紅黃綠只用於判定」並存，記入 UI-3 觀察）；自動檢查：橫向溢出=無、h1=1、<13px 文字=0、導覽/按鈕紅黃綠=0、title 提示=0、news.google.com=無、tier 小標=0、未證實橫幅=無
 UI-1-002,S1 首頁,backend_down,1280,light,docs/test/screens/S1_backend_down_1280_light.png,通過,證據：後端不可用（dev 代理目標無服務→502）；目視（Claude，非組員勾核）：backend_down 橫幅為 yellow-soft 底／yellow 字（mockup brief §11 指定；與 §8.1「紅黃綠只用於判定」並存，記入 UI-3 觀察）；自動檢查：橫向溢出=無、h1=1、<13px 文字=0、導覽/按鈕紅黃綠=0、title 提示=0、news.google.com=無、tier 小標=0、未證實橫幅=無
 UI-1-003,S1 首頁,empty,375,light,docs/test/screens/S1_empty_375_light.png,通過,證據：真後端；目視（Claude，非組員勾核）：home_tagline／home_sub、文字／網址 tab（圖片 tab 依 FR-03 P1 隱藏）、0/20000、3 個範例 chip＋history_empty、Threads 說明卡、頁尾；無紅黃綠；自動檢查：橫向溢出=無、h1=1、<13px 文字=0、導覽/按鈕紅黃綠=0、title 提示=0、news.google.com=無、tier 小標=0、未證實橫幅=無

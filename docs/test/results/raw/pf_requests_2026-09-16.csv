@@ -1,4 +1,4 @@
-section,idx,started_local,http,result_id,cache_layer,cached,client_ms,server_elapsed_ms,provider,usd_est,risk_type,frame_type,verification_status,n_sources,source_tiers,offline_top1_sim,offline_sim_to_original,kb_id_expected,kb_id,text
+﻿section,idx,started_local,http,result_id,cache_layer,cached,client_ms,server_elapsed_ms,provider,usd_est,risk_type,frame_type,verification_status,n_sources,source_tiers,offline_top1_sim,offline_sim_to_original,kb_id_expected,kb_id,text
 hash_warmup,0,2026-09-16T03:23:54,200,6c5a5e39-686d-4c06-b538-f5826e53dd8a,hash,True,200.0,163,,,MISINFO,red,verified,1,[1],,,15187fc0-0961-4e7b-a05d-7657750401d8,15187fc0-0961-4e7b-a05d-7657750401d8,吃這些天然「增肌果」比雞蛋厲害
 hash,1,2026-09-16T03:23:54,200,8e659c33-6587-4d12-81fc-b116c7785107,hash,True,227.6,165,,,MISINFO,red,verified,1,[1],,,cdb968b1-faba-4866-81bd-0602459b9661,cdb968b1-faba-4866-81bd-0602459b9661,紅豆營養價值比牛肉高的比較圖表
 hash,2,2026-09-16T03:23:54,200,72affe6e-f88b-4dae-aa86-c7d1074480f8,hash,True,195.3,155,,,MISINFO,red,verified,1,[1],,,d9f8fd2f-8976-4ea3-8baa-951094b3640f,d9f8fd2f-8976-4ea3-8baa-951094b3640f,從屏東農場挖出「抗癌導彈」

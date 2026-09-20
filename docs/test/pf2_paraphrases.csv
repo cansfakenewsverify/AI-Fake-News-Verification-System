@@ -1,4 +1,4 @@
-no,kb_id,original,paraphrase,expected_frame_type,original_risk_type,note
+﻿no,kb_id,original,paraphrase,expected_frame_type,original_risk_type,note
 1,53f3c784-93d9-4eab-96f6-d7ac7df272f6,80萬1台的無人機起飛不到20秒就墜落的影片,網傳影片：一台要價80萬元的無人機，才剛升空不到20秒就摔下來了,red,MISINFO,PF-2 量測用測試資料：Claude 於 2026-09-16 為本次量測產生（非組員 C 準備、未經負責人逐筆確認）
 2,80bd7c12-5e92-4a99-9368-3e9bd5b8a06e,台灣提出參與日菲海域磋商慘遭日本拒絕,聽說台灣要求加入日本和菲律賓的海域協商，結果被日本一口回絕,red,MISINFO,PF-2 量測用測試資料：Claude 於 2026-09-16 為本次量測產生（非組員 C 準備、未經負責人逐筆確認）
 3,cc4e8761-d0ba-4741-95a9-f5c51ea632ca,韓國地方選舉早上十點就投票用紙不足,南韓地方選舉才到上午10點，投票所的選票就已經不夠用了,red,MISINFO,PF-2 量測用測試資料：Claude 於 2026-09-16 為本次量測產生（非組員 C 準備、未經負責人逐筆確認）
