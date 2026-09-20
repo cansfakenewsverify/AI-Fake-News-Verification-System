@@ -2,9 +2,13 @@
 // out in the same format as each other and as the originals.
 //
 // Usage:
-//   node presentations/tools/build_course_forms.mjs
-//   node code/frontend/tools/html_to_pdf.mjs "presentations/2026-09_進度報告/09_學生自評表_已填.html" "presentations/2026-09_進度報告/09_學生自評表_已填.pdf"
-//   node code/frontend/tools/html_to_pdf.mjs "presentations/2026-09_進度報告/11_評分表_已填表頭.html" "presentations/2026-09_進度報告/11_評分表_已填表頭.pdf"
+//   node presentations/tools/build_course_forms.mjs        (writes the two .html next to the report)
+//   then the two html_to_pdf commands this script prints   (writes the PDFs into docs/)
+//
+// 繳出去的表單放在 docs/，檔名沿用 2026.4.19 那份的格式：
+//   docs/<日期> forIEET_軟硬體專題學生自評表_20230317_1.pdf
+//   docs/<日期> forIEET_軟硬體專題評分表_20230317_1.pdf
+// 報告資料夾只放可編輯的 .html 與指向 docs/ 的說明，不重複放同一份 PDF。
 //
 // The nine competencies, their four level descriptions, the score bands, the instruction lines and
 // the SDG list are TRANSCRIBED VERBATIM from the blank forms the advisor issued
@@ -292,7 +296,16 @@ const outputs = [
   ["09_學生自評表_已填.html", build("self")],
   ["11_評分表_已填表頭.html", build("score")],
 ];
+const DATE = "2026.9.21";
+const PDF = {
+  "09_學生自評表_已填.html": `docs/${DATE} forIEET_軟硬體專題學生自評表_20230317_1.pdf`,
+  "11_評分表_已填表頭.html": `docs/${DATE} forIEET_軟硬體專題評分表_20230317_1.pdf`,
+};
 for (const [name, html] of outputs) {
   fs.writeFileSync(path.join(DIR, name), html, "utf8");
   console.log(`${name}  ${(Buffer.byteLength(html) / 1024).toFixed(0)} KB`);
+}
+console.log("\n接著產生 PDF（放到 docs/，檔名沿用 2026.4.19 那份）：");
+for (const [name, out] of Object.entries(PDF)) {
+  console.log(`  node code/frontend/tools/html_to_pdf.mjs "presentations/2026-09_進度報告/${name}" "${out}"`);
 }
