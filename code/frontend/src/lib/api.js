@@ -34,6 +34,9 @@ export const BASE = ENV.VITE_API_BASE_URL || "";
 export const DEFAULT_GET_TIMEOUT_MS = 15000;
 export const DEFAULT_POST_TIMEOUT_MS = 30000;
 export const IMAGE_TIMEOUT_MS = 60000;
+// Submitting a check may be the request that wakes the sleeping backend (about a minute on the free host).
+// Vercel's proxy waits up to 120 s, so waiting 75 s here turns a cold start into a slow submit instead of an error.
+export const ANALYZE_TIMEOUT_MS = 75000;
 
 // spec §5.5 fallback 字樣。辨識點清單（改字樣時要一起改）：
 //   後端 app/services/ai_service.py `_default_fallback_result`、app/utils/verdict.py `is_fallback()`
@@ -213,10 +216,10 @@ export async function request(path, { method = "GET", body, timeoutMs, signal, h
 // ---- 端點函式 -------------------------------------------------------------
 
 export const analyzeText = (content, opts = {}) =>
-  request("/api/analyze/text", { ...opts, method: "POST", body: { content } });
+  request("/api/analyze/text", { timeoutMs: ANALYZE_TIMEOUT_MS, ...opts, method: "POST", body: { content } });
 
 export const analyzeUrl = (content, opts = {}) =>
-  request("/api/analyze/url", { ...opts, method: "POST", body: { content } });
+  request("/api/analyze/url", { timeoutMs: ANALYZE_TIMEOUT_MS, ...opts, method: "POST", body: { content } });
 
 /** P1（S-13）：multipart 欄位名 `file` */
 export function analyzeImage(file, opts = {}) {
@@ -286,12 +289,27 @@ const TERMINAL = new Set(["completed", "failed"]);
  * 輪詢請求帶 cache:"no-store"：/api/result 回 Cache-Control: max-age=5（spec §5.3），
  * 不略過 HTTP 快取時 2 秒後與 4 秒後的輪詢會拿到快取的 pending，完成最多晚 5 秒才被看到（S-04 實測）。
  */
+/**
+ * 「後端可能正在喚醒」的錯誤：連不上、逾時、或代理回 502／503／504。
+ * 免費雲端主機閒置後會休眠，第一個請求要等約 1 分鐘；這類錯誤值得再試，不該立刻當成失敗。
+ */
+export function isWakingError(err) {
+  if (!(err instanceof ApiError)) return false;
+  if (err.kind === "network" || err.kind === "timeout") return true;
+  return err.kind === "http" && [502, 503, 504].includes(Number(err.status));
+}
+
 export async function pollResult(id, { intervalMs = 2000, maxMs = 90000, onUpdate, signal } = {}) {
   const started = Date.now();
   let last = null;
+  let wakingError = null;
   for (;;) {
     const remaining = maxMs - (Date.now() - started);
-    if (remaining <= 0) return { timedOut: true, last };
+    if (remaining <= 0) {
+      // 整段時限內一次都沒連上：回報連線錯誤，而不是「還在處理中」
+      if (!last && wakingError) throw wakingError;
+      return { timedOut: true, last };
+    }
     try {
       last = await getResult(id, {
         signal,
@@ -300,8 +318,16 @@ export async function pollResult(id, { intervalMs = 2000, maxMs = 90000, onUpdat
       });
     } catch (err) {
       // 單次請求被「剩餘時間」截斷而逾時 → 視為整體輪詢超時，而非網路錯誤
-      if (err instanceof ApiError && err.kind === "timeout" && Date.now() - started >= maxMs) {
+      if (err instanceof ApiError && err.kind === "timeout" && Date.now() - started >= maxMs && last) {
         return { timedOut: true, last };
+      }
+      // 後端喚醒中：在整體時限內繼續試（期間頁面維持載入畫面，AppShell 顯示連線橫幅）；
+      // 時限用完還是連不上，才把最後一個錯誤丟出去讓頁面顯示「連不上伺服器」。
+      const left = maxMs - (Date.now() - started);
+      if (isWakingError(err) && left > 0) {
+        wakingError = err;
+        await sleep(Math.min(intervalMs, left), signal);
+        continue;
       }
       throw err;
     }

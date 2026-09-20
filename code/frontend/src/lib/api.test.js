@@ -12,6 +12,8 @@ import {
   getHealth,
   isFallback,
   parseRetryAfter,
+  ANALYZE_TIMEOUT_MS,
+  isWakingError,
   pollResult,
   request,
 } from "./api.js";
@@ -273,4 +275,44 @@ test("fixture mode: path mapping rules", async () => {
     "threads_status_live.json",
     "analyze_url_invalid.json",
   ]);
+});
+
+// Cold start of the free backend host: keep trying inside the polling budget
+
+test("isWakingError: network, timeout and 502/503/504 only", () => {
+  assert.equal(isWakingError(new ApiError({ kind: "network" })), true);
+  assert.equal(isWakingError(new ApiError({ kind: "timeout" })), true);
+  for (const status of [502, 503, 504]) assert.equal(isWakingError(new ApiError({ kind: "http", status })), true);
+  for (const status of [400, 404, 429, 500]) assert.equal(isWakingError(new ApiError({ kind: "http", status })), false);
+  assert.equal(isWakingError(new Error("boom")), false);
+});
+
+test("pollResult keeps trying while the backend wakes up, then returns the result", async () => {
+  const calls = mockFetch((url, init, n) => {
+    if (n === 1) throw new TypeError("fetch failed");
+    if (n === 2) return jsonResponse(503, { detail: "waking" });
+    if (n === 3) return jsonResponse(200, { id: "w1", status: "pending" });
+    return jsonResponse(200, { id: "w1", status: "completed", result: { risk_type: "SAFE" } });
+  });
+  const out = await pollResult("w1", { intervalMs: 5, maxMs: 5000 });
+  assert.equal(out.timedOut, false);
+  assert.equal(out.last.status, "completed");
+  assert.equal(calls.length, 4);
+});
+
+test("pollResult gives up with the last connection error when the whole budget is used", async () => {
+  mockFetch(() => {
+    throw new TypeError("fetch failed");
+  });
+  await assert.rejects(pollResult("w2", { intervalMs: 10, maxMs: 80 }), (err) => isWakingError(err));
+});
+
+test("pollResult still fails immediately on errors that are not a cold start", async () => {
+  const calls = mockFetch(() => jsonResponse(500, { detail: "boom", code: "analysis_failed" }));
+  await assert.rejects(pollResult("w3", { intervalMs: 5, maxMs: 5000 }), (err) => err.status === 500);
+  assert.equal(calls.length, 1);
+});
+
+test("submitting a check waits long enough for a cold start", () => {
+  assert.ok(ANALYZE_TIMEOUT_MS >= 60000 && ANALYZE_TIMEOUT_MS < 120000);
 });
