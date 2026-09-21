@@ -35,10 +35,11 @@
   原始碼 `video/hf-presentation/`，旁白稿 `presentations/2026-09_進度報告/06_簡報影片旁白稿.md`，
   製作紀錄 `docs/demo/footage_log.md`。整支影片僅耗用正式站 1 次 AI 查證。
 - **書面報告**：`presentations/2026-09_進度報告/10_書面報告.pptx`，10 張投影片，封面含簽名欄。
-- **學生自評表與評分表**：依空白表原格式填製，
+- **學生自評表與評分表**：依空白表原格式製作，
   `docs/2026.9.21 forIEET_軟硬體專題學生自評表_20230317_1.pdf` 與
   `docs/2026.9.21 forIEET_軟硬體專題評分表_20230317_1.pdf`，
-  產生器 `presentations/tools/build_course_forms.mjs`。
+  產生器 `presentations/tools/build_course_forms.mjs`。自評表的等級、說明與 SDG 勾選由團隊填妥；
+  評分表僅填表頭，等級、分數、SDG 勾選與建議事項留空，由評審老師當場填寫。
 - **UI-1 深色版截圖**（2026-09-20）：補齊 54 張，檢核表 `docs/test/ui_checklist.csv` 擴充為 143 列
   並加入勾核與覆核欄位。擷取工具 `code/frontend/tools/capture_ui.mjs`，
   作業說明 `docs/test/UI-1_勾核說明.md`。
