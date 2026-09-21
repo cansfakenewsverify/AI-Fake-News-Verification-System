@@ -200,7 +200,7 @@ function card(s, { x, y, w, h, tint = false }) {
 {
   const s = page("關鍵技術", "四項技術決定了這套系統能不能便宜、穩定而且誠實地回答問題。");
   const items = [
-    ["向量語意檢索", "以 text-embedding-3-small 將訊息轉成 1536 維向量，存入 PostgreSQL 的 pgvector 並以 cosine 相似度比對。門檻 0.75 是用實測資料校準出來的：同一謠言的改寫版落在 0.79–0.82，不同謠言不超過 0.68。"],
+    ["向量語意檢索", "以向量模型把訊息轉成 1536 維向量，存入 PostgreSQL 的 pgvector，再以 cosine 相似度比對已證實的資料列。門檻 0.75 是用實測資料校準出來的：同一謠言的改寫版落在 0.79–0.82，不同謠言不超過 0.68。"],
     ["三層快取", "相同內容、語意相似、AI 判讀依序嘗試，把最貴的一步留到最後。雜湊命中 213 ms、向量命中約 3 秒、AI 判讀 9–27 秒；命中快取不耗用 AI 額度。"],
     ["來源分級", "把查核來源分成三級，只有已經做出判定的機構或媒體查核報導能顯示為來源。找不到就標示「尚無查核機構證實」，而且不給綠燈——寧可說還沒被證實，也不給一個看起來有來源的答案。"],
     ["雲端部署與護欄", "Vercel 靜態前端同源代理到 Render 的 FastAPI 後端，資料在 Supabase。對外連線一律經 SSRF 防護，另有每日 AI 次數上限、每個 IP 的頻率限制與請求大小上限。"],
@@ -208,16 +208,30 @@ function card(s, { x, y, w, h, tint = false }) {
   const colW = (CW - 0.4) / 2;
   items.forEach(([h, b], i) => {
     const x = M + (i % 2) * (colW + 0.4);
-    const y = 1.86 + Math.floor(i / 2) * 2.34;
-    card(s, { x, y, w: colW, h: 2.12, tint: i === 0 });
+    const y = 1.84 + Math.floor(i / 2) * 2.24;
+    card(s, { x, y, w: colW, h: 2.02, tint: i === 0 });
     s.addText(h, {
       x: x + 0.28, y: y + 0.2, w: colW - 0.56, h: 0.44, isTextBox: true, margin: 0,
       fontFace: SANS, fontSize: 20, bold: true, color: INK, valign: "middle",
     });
     s.addText(b, {
-      x: x + 0.28, y: y + 0.68, w: colW - 0.56, h: 1.3, isTextBox: true, margin: 0,
-      fontFace: SANS, fontSize: 12, color: "3F3F46", lineSpacingMultiple: 1.3, valign: "top",
+      x: x + 0.28, y: y + 0.66, w: colW - 0.56, h: 1.24, isTextBox: true, margin: 0,
+      fontFace: SANS, fontSize: 12, color: "3F3F46", lineSpacingMultiple: 1.28, valign: "top",
     });
+  });
+
+  // 兩個模型是不同的東西，報告時最常被追問，所以獨立列出來
+  card(s, { x: M, y: 6.2, w: CW, h: 0.46 });
+  s.addText([
+    { text: "判讀模型　", options: { bold: true, color: MUTED } },
+    { text: "gpt-5.4-mini", options: { bold: true } },
+    { text: "（推理強度 medium）　　", options: { color: "3F3F46" } },
+    { text: "向量模型　", options: { bold: true, color: MUTED } },
+    { text: "text-embedding-3-small", options: { bold: true } },
+    { text: "（1536 維）　　兩者皆經長庚 CGU AIR 閘道；語意快取命中時完全不呼叫判讀模型。", options: { color: "3F3F46" } },
+  ], {
+    x: M + 0.26, y: 6.2, w: CW - 0.52, h: 0.46, isTextBox: true, margin: 0,
+    fontFace: SANS, fontSize: 11.5, color: INK, valign: "middle",
   });
 }
 
