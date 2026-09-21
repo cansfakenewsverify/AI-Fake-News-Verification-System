@@ -6,7 +6,7 @@ import json
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Iterable, Optional, List, Tuple
 import uuid
 from datetime import datetime
 
@@ -163,10 +163,12 @@ class PandasStore:
         self,
         query_vector: List[float],
         threshold: Optional[float] = None,
+        label_sources: Optional[Iterable[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         以 cosine similarity 找出語義最相近的快取記錄（numpy 矩陣化，一次算完全部）。
         只有超過 threshold 才算命中。threshold 預設讀取 settings.SIMILARITY_THRESHOLD。
+        label_sources：只比對這些 label_source 的列（None = 不限）；快取取代用它只找確定性標記。
         """
         if threshold is None:
             from app.config import settings
@@ -180,6 +182,9 @@ class PandasStore:
             df["verified"].fillna(False).astype(bool) if "verified" in df.columns
             else pd.Series(False, index=df.index)
         )
+        if label_sources is not None:
+            labels = df["label_source"] if "label_source" in df.columns else pd.Series("ai", index=df.index)
+            verified_mask &= labels.fillna("ai").isin(list(label_sources))
         df_vec = df[df["content_vector"].notna() & verified_mask]
         if df_vec.empty:
             return None

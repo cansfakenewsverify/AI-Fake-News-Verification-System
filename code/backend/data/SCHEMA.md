@@ -28,22 +28,27 @@
 | `ai_analysis` | dict | 完整 AI 結果（含上述欄位） |
 | `created_at` | datetime | 建立時間 |
 | `last_accessed_at` | datetime | 最後一次命中快取的時間 |
-| `hit_count` | int | 命中次數（熱門度） |
+| `hit_count` | int | 累計命中次數（不分時間；熱門頁「本站熱門查證」改用查證紀錄 `tasks.kb_id` 的時間衰減分數，見 `app/services/hot_claims.py`） |
 
-### 三層快取流程（2026-07 修正：文字輸入的向量比對在爬蟲之前、以原文比對）
+### 三層快取流程（文字輸入以使用者原文比對、不爬取；2026-09-22 加查核結果回補）
 
 ```
-文字輸入 ──► Layer 1: data_hash 比對 ──► 命中？回傳
+文字輸入 ──► Layer 1: data_hash 比對 ──► 命中？回傳（命中未證實列時先做「查核結果回補」）
                         │ miss
                         ▼
-            Layer 2: 原文向量相似度比對(門檻 0.75 實測校準) ──► 命中？回傳(連爬蟲/AI 都省)
+            Layer 2: 原文向量相似度比對（只比 verified 列，門檻 0.75 實測校準）──► 命中？回傳
                         │ miss
                         ▼
-            爬蟲(相關查核文章當參考脈絡) ──► Layer 3: AI 分析，存入快取
+            Layer 3: AI 分析使用者原文，存入快取
 
 網址輸入 ──► Layer 0: source_url 比對 ──► Layer 1: hash ──► 爬蟲 ──►
             Layer 2: 內文向量比對 ──► Layer 3: AI 分析，存入快取
 ```
+
+**查核結果回補**：Layer 0／1 不過濾 `verified`，一字不差的重複查詢會拿到當初的結果。命中的是
+`verified=false` 列時，先以該列的向量（沒有就以 `raw_content` 算一次）到向量層**只比對
+`label_source` 為 rule／gold／admin 的列**；達門檻就改回那一筆（`cache_layer="vector"`）。
+查核機構之後發布的結論（熱門牆抓取時以 `rule` 寫入）因此不會被舊的「尚無查核機構證實」擋住。
 
 API 回應的 `cache_layer` 欄位（url / hash / vector / null）標示命中層。
 

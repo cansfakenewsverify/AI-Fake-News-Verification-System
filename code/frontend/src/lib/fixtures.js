@@ -52,6 +52,7 @@ export function resolveFixtureName(path, method = "GET", search = "") {
   }
   if (pathname === "/api/trending") return fx === "empty" ? "trending_empty.json" : "trending_ok.json";
   if (pathname === "/api/knowledge/stats") return "knowledge_stats.json";
+  if (pathname === "/api/knowledge/hot") return fx === "empty" ? "knowledge_hot_empty.json" : "knowledge_hot.json";
   if (pathname === "/api/knowledge") {
     if (fx === "empty") return "knowledge_empty.json";
     const offset = Math.max(0, Number(params.get("offset")) || 0);

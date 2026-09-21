@@ -15,7 +15,7 @@ import importlib.util
 import json
 import os
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -274,6 +274,18 @@ def test_vector_only_matches_verified_rows(kb):
     assert hit is not None and hit["verified"] is False
 
 
+def test_vector_label_sources_filter(kb):
+    """查核結果回補只找確定性標記（label_sources），與本機版同一語意。"""
+    base = _vec(20)
+    ai_row, _ = _save(kb, "AI 判定＋來源", ai_result=AI_RESULT, vector=base)
+    rule_row, _ = _save(kb, "查核主張", ai_result=AI_RESULT, vector=_mix(base, _vec(21), 0.90),
+                        label_source="rule")
+    assert kb.find_similar_by_vector(base, threshold=0.75)["id"] == ai_row["id"]
+    hit = kb.find_similar_by_vector(base, threshold=0.75, label_sources=("rule", "gold", "admin"))
+    assert hit["id"] == rule_row["id"]
+    assert kb.find_similar_by_vector(base, threshold=0.75, label_sources=("gold",)) is None
+
+
 def test_vector_guards_never_raise(kb):
     vec = _vec(7)
     _save(kb, "守門", ai_result=AI_RESULT, vector=vec)
@@ -475,6 +487,27 @@ def test_task_lifecycle_defaults_and_json_columns(tasks):
     assert web["verified"] is False and web["source_tier"] is None
     assert tasks.get_task(tasks.create_task("analyze_text", "x", input_type="image"))["input_type"] == "image"
     assert tasks.get_task(tasks.create_task("analyze_image", "img.png"))["input_type"] == "image"
+
+
+def test_recent_kb_refs_matches_local_store(tasks, tmp_path):
+    """熱門查證的原始資料：兩個後端回同樣的 (kb_id, origin)、時間為 datetime、依建立先後。"""
+    local = ts_mod.TaskStore(data_dir=str(tmp_path))
+    for store in (tasks, local):
+        done = store.create_task("analyze_text", "a")
+        store.update_task(done, status="completed", kb_id="kb-1")
+        threads = store.create_task("threads_mention", "b", origin="threads")
+        store.update_task(threads, status="completed", kb_id="kb-2")
+        no_row = store.create_task("analyze_text", "c")
+        store.update_task(no_row, status="completed")
+        failed = store.create_task("analyze_text", "d")
+        store.update_task(failed, status="failed", kb_id="kb-3")
+        store.create_task("analyze_text", "e")
+    since = datetime.utcnow() - timedelta(days=7)
+    pg_refs, local_refs = tasks.recent_kb_refs(since), local.recent_kb_refs(since)
+    assert [(r["kb_id"], r["origin"]) for r in pg_refs] == [("kb-1", "web"), ("kb-2", "threads")]
+    assert [(r["kb_id"], r["origin"]) for r in pg_refs] == [(r["kb_id"], r["origin"]) for r in local_refs]
+    assert all(isinstance(r["created_at"], datetime) for r in pg_refs)
+    assert tasks.recent_kb_refs(datetime.utcnow() + timedelta(minutes=1)) == []
 
 
 def test_task_prune_only_finished_oldest_first(tasks, monkeypatch):

@@ -72,8 +72,8 @@ app/
 ├── api/                    ← REST 路由
 │   ├── analyze.py          ← /api/analyze/{text,url,sync,image,task/{id},task/{id}/status}
 │   ├── result.py           ← /api/result/{id}（結果頁 /r/<id> 的資料）
-│   ├── trending.py         ← /api/trending、/api/trending/refresh（管理）
-│   ├── knowledge.py        ← /api/knowledge、/api/knowledge/stats（只回已證實的資料列）
+│   ├── trending.py         ← /api/trending、/api/trending/refresh（管理；?analyze=false 不呼叫判讀模型）
+│   ├── knowledge.py        ← /api/knowledge、/api/knowledge/stats、/api/knowledge/hot（只回已證實的資料列）
 │   ├── feedback.py         ← /api/feedback/tasks/{id}
 │   ├── admin.py            ← /api/admin/tasks/{id}/override（管理：人工覆寫判定）
 │   └── threads.py          ← /api/threads/{status,replies,poll}
@@ -92,6 +92,7 @@ app/
 │   ├── pg_store.py         ← 雲端版三個 store（Postgres + pgvector），公開方法與本機版相同
 │   ├── search_service.py   ← 熱門來源：MyGoPen RSS、TFC RSS、Cofacts API（只取已有 RUMOR 判定的文章）
 │   ├── news_fetcher.py     ← 熱門新聞兩階段流程與標記規則（規則說明見根目錄 CLAUDE.md 第 9 節）
+│   ├── hot_claims.py       ← 本站熱門查證排行（查證紀錄 × 半衰期 3 小時的時間衰減）
 │   ├── threads_service.py  ← Threads Graph API 客戶端
 │   ├── threads_sim.py      ← 模擬模式 FakeThreadsService（THREADS_MODE=sim，讀寫 data/threads_sim/）
 │   ├── threads_state.py    ← 機器人狀態與回覆紀錄（原子寫入）
@@ -227,6 +228,7 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 - AI 失敗的 fallback 結果不寫進知識庫，也不會被當成快取命中。
 - 回應的 `cached`／`cache_layer`（`url`／`hash`／`vector`）標示命中哪一層。快取命中不佔每日 AI 額度。線上實測：AI 判定約 9–27 秒，向量命中約 3 秒。
 - 沒有 embedding 金鑰時向量層自動停用，其餘兩層照常運作。
+- **查核結果回補**：網址層與 hash 層命中 `verified=false` 的列時，先以該列的向量到向量層只找 `label_source` 為 rule／gold／admin 的列（查核機構文章索引或人工確認）；對得上就改回那一筆（`cache_layer=vector`）。一般 AI 判定的列不能取代舊結果。查核機構的新結論由 `POST /api/trending/refresh?analyze=false` 寫入（只耗 embedding）；`scripts/recheck_unverified.py` 可唯讀盤點哪些未證實資料已有查核結果對得上。
 
 ---
 
@@ -283,8 +285,9 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | GET | `/api/result/{id}` | 結果頁資料：`status`、`result`、`error`、`share`；找不到回 404 `result_not_found` |
 | GET | `/api/knowledge` | 知識庫列表與搜尋：`q`、`risk_type`、`limit`（1–200，預設 30）、`offset`。只回已證實的資料列 |
 | GET | `/api/knowledge/stats` | 知識庫統計 |
+| GET | `/api/knowledge/hot` | 本站熱門查證：`limit`（1–50，預設 10）。最近 7 天被查證（含快取命中）的次數以半衰期 3 小時衰減排序；只回已證實的資料列，另帶 `recent_24h`、`recent_7d`、`last_seen_at` |
 | GET | `/api/trending` | 熱門牆：`limit`（1–50，預設 10）、`risk_type` |
-| POST | `/api/trending/refresh` | 手動觸發抓取熱門（管理端點） |
+| POST | `/api/trending/refresh` | 手動觸發抓取熱門（管理端點）：`analyze`（預設 `true`；`false` 只抓查核文章並寫入知識庫、不呼叫判讀模型）、`per_feed`（1–25，預設 4） |
 | POST | `/api/feedback/tasks/{id}` | 使用者回饋：`rating`、`comment`（選填） |
 | POST | `/api/admin/tasks/{id}/override` | 人工覆寫判定（管理端點）：`risk_type`、`category`、`confidence_score`、`reason`、`admin_id` |
 | GET | `/api/threads/status`、`/api/threads/replies` | Threads 機器人狀態與回覆紀錄（公開唯讀，不含 token） |
@@ -354,7 +357,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q; Remove-Item Env:RUN_PG_TESTS
 ```
 
-- **700 個通過**；另有 **24 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
+- **718 個通過**；另有 **26 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
 - `tests/conftest.py` 在測試中預設關閉限速與每日上限，要測護欄的測試再自己打開。
 - GitHub Actions（`.github/workflows/ci.yml` 的 `test` job）在每次 push／PR 到 `main` 時用 Python 3.12 跑 `python -m pytest tests -q`。
 

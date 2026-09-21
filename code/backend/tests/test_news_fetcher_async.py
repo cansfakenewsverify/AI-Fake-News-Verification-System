@@ -48,6 +48,30 @@ def test_run_trending_fetch_offloads_blocking_calls(monkeypatch):
     assert saved == ["https://example.com/a", "https://example.com/b"]
 
 
+def test_run_trending_fetch_without_analysis_skips_the_ai_step(monkeypatch):
+    """analyze_pending=False：只抓 RSS 與寫入確定性結論，不進 retry_pending_records（不呼叫判讀模型）。"""
+    _install_recording_to_thread(monkeypatch)
+    per_feed_seen = []
+    saved = []
+
+    def fetch_rss_items(num_per_feed=4):
+        per_feed_seen.append(num_per_feed)
+        return [{"url": "https://www.mygopen.com/2026/09/a.html", "title": "【錯誤】網傳 A？"}]
+
+    async def retry_pending_records():
+        raise AssertionError("analyze_pending=False 不得呼叫 AI 分析")
+
+    monkeypatch.setattr(nf.SearchService, "fetch_rss_items", staticmethod(fetch_rss_items))
+    monkeypatch.setattr(nf, "_save_rss_record", lambda item: saved.append(item["url"]))
+    monkeypatch.setattr(nf, "_cleanup_legacy_strings", lambda: None)
+    monkeypatch.setattr(nf, "retry_pending_records", retry_pending_records)
+
+    asyncio.run(nf.run_trending_fetch(analyze_pending=False, per_feed=25))
+
+    assert per_feed_seen == [25]
+    assert saved == ["https://www.mygopen.com/2026/09/a.html"]
+
+
 def test_analyze_record_offloads_store_and_ai(monkeypatch):
     calls = _install_recording_to_thread(monkeypatch)
 

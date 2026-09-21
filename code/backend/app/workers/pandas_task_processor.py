@@ -82,6 +82,25 @@ def _safe_str(val):
     return str(val) if val else ""
 
 
+def _is_verified_row(row: Dict[str, Any]) -> bool:
+    """知識庫列的 verified（numpy bool／None／NaN 都要算對；NaN 視為未證實）。"""
+    value = row.get("verified")
+    if isinstance(value, float) and value != value:
+        return False
+    return bool(value)
+
+
+def _stored_vector(value: Any) -> Optional[List[float]]:
+    """快取列內存的向量（本機版有、Postgres 版的 find_* 不載入）；不是可用的 1536 維就回 None。"""
+    if value is None:
+        return None
+    try:
+        vector = [float(x) for x in (value.tolist() if hasattr(value, "tolist") else value)]
+    except (TypeError, ValueError):
+        return None
+    return vector if len(vector) == settings.VECTOR_DIMENSION and any(vector) else None
+
+
 # confidence_score 由 LLM 自評，未經機率校準。對外改以離散等級呈現，
 # 避免把「自評信心」誤當成「真實命中機率」。實際準確率以評測腳本量測。
 CONFIDENCE_NOTE = "模型自評信心，未經機率校準（實際效能請參考評測報告）"
@@ -439,6 +458,37 @@ async def process_analysis_task_async(
     def _usable(row: Optional[Dict[str, Any]]) -> bool:
         return bool(row) and not is_fallback(row.get("ai_analysis"))
 
+    async def _newer_factcheck(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        查核結果回補：URL／hash 層不過濾 verified，所以一字不差的重複查詢會一直拿到當初
+        「尚無查核機構證實」的舊結果。命中的是未證實列時，先以它的內容到向量層只找確定性標記
+        （rule／gold／admin，即查核機構文章索引或人工確認的結論）；對得上就改回那一筆。
+        只限確定性標記：舊結果是針對這段原文判的，換掉它要有查核機構層級的證據，
+        一般 AI 判定＋來源的列不夠（可能只是長得像的另一則訊息）。
+        已證實的列、embedding 不可用、沒有對上 → None，照舊回原列。不呼叫判讀模型。
+        這一步是加分項：查詢出錯只記 log、照舊回原列，不讓原本會命中的快取變成失敗。
+        """
+        if _is_verified_row(row):
+            return None
+        try:
+            vector = _stored_vector(row.get("content_vector"))
+            if vector is None:
+                text = _safe_str(row.get("raw_content"))
+                if not text:
+                    return None
+                vector = await asyncio.to_thread(vector_service.vectorize_content, text)
+            if not vector:
+                return None
+            found = await asyncio.to_thread(
+                lambda: pandas_store.find_similar_by_vector(
+                    vector, label_sources=DETERMINISTIC_LABEL_SOURCES,
+                )
+            )
+        except Exception as e:
+            logger.warning("fact-check supersede lookup failed for task %s: %s", task_id, e)
+            return None
+        return found if _usable(found) else None
+
     try:
         is_url = input_data.startswith("http://") or input_data.startswith("https://")
 
@@ -446,6 +496,9 @@ async def process_analysis_task_async(
         if input_type in ("text", "url") and is_url:
             url_cached = await asyncio.to_thread(pandas_store.find_by_url, input_data)
             if _usable(url_cached):
+                newer = await _newer_factcheck(url_cached)
+                if newer is not None:
+                    return await _finish_cached(newer, "vector", (input_data,))
                 return await _finish_cached(url_cached, "url", (input_data,))
 
         # ── Layer 1: Hash 快取（對原始輸入做 hash）────────────────────
@@ -453,9 +506,11 @@ async def process_analysis_task_async(
         # find_by_hash 命中時會回寫整個 knowledge_base.parquet（hit_count）
         hash_cached = await asyncio.to_thread(pandas_store.find_by_hash, content_hash)
         if _usable(hash_cached):
-            return await _finish_cached(
-                hash_cached, "hash", (input_data,) if is_url else (),
-            )
+            input_urls = (input_data,) if is_url else ()
+            newer = await _newer_factcheck(hash_cached)
+            if newer is not None:
+                return await _finish_cached(newer, "vector", input_urls)
+            return await _finish_cached(hash_cached, "hash", input_urls)
 
         # ── 圖片分析路徑（無快取層、不寫知識庫）──────────────────────
         if input_type == "image":

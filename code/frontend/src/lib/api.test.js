@@ -7,6 +7,7 @@ import {
   getThreadsStatus,
   analyzeText,
   getKnowledge,
+  getKnowledgeHot,
   getResult,
   getTrending,
   getHealth,
@@ -126,6 +127,10 @@ test("POST sends JSON body; query params skip empty values", async () => {
   assert.equal(calls[1].url, "/api/trending?limit=10");
   await getKnowledge({ q: "健保", limit: 30, offset: 30 });
   assert.equal(calls[2].url, `/api/knowledge?q=${encodeURIComponent("健保")}&limit=30&offset=30`);
+  await getKnowledgeHot({ limit: 10 });
+  assert.equal(calls[3].url, "/api/knowledge/hot?limit=10");
+  await getKnowledgeHot();
+  assert.equal(calls[4].url, "/api/knowledge/hot");
 });
 
 test("external signal abort rejects with AbortError, not ApiError", async () => {
@@ -275,6 +280,16 @@ test("fixture mode: path mapping rules", async () => {
     "threads_status_live.json",
     "analyze_url_invalid.json",
   ]);
+});
+
+test("fixture mode: /api/knowledge/hot -> knowledge_hot.json, ?fixture=empty -> knowledge_hot_empty.json", async () => {
+  noFetch();
+  const { loader, asked } = fixtureLoader({});
+  configureFixtures({ loader, search: "" });
+  await getKnowledgeHot({ limit: 10 }).catch(() => {});
+  configureFixtures({ loader, search: "?fixture=empty" });
+  await getKnowledgeHot().catch(() => {});
+  assert.deepEqual(asked, ["knowledge_hot.json", "knowledge_hot_empty.json"]);
 });
 
 // Cold start of the free backend host: keep trying inside the polling budget

@@ -53,13 +53,22 @@ def get_trending(
 
 
 @router.post("/refresh", dependencies=[Depends(require_admin)])
-async def trigger_refresh(background_tasks: BackgroundTasks):
+async def trigger_refresh(
+    background_tasks: BackgroundTasks,
+    analyze: bool = Query(default=True, description="false = 只抓查核文章並寫入知識庫，不呼叫判讀模型"),
+    per_feed: int = Query(default=4, ge=1, le=25, description="每個 RSS 來源取幾篇"),
+):
     """
     Manually trigger a trending news fetch in background.
     Requires X-Admin-Token (spec §5.2 / §5.6: 401 unauthorized, 403 admin_disabled).
     Requires a configured AI provider and DEMO_MODE=false to produce real results.
+    ?analyze=false skips the AI step: fact-check claims are indexed (embedding only), nothing is judged.
     """
     from app.services.news_fetcher import run_trending_fetch
     # FastAPI BackgroundTasks handles async functions natively
-    background_tasks.add_task(run_trending_fetch)
-    return {"message": "Trending refresh started. Check /api/trending in a few minutes."}
+    background_tasks.add_task(run_trending_fetch, analyze_pending=analyze, per_feed=per_feed)
+    return {
+        "message": "Trending refresh started. Check /api/trending in a few minutes.",
+        "analyze": analyze,
+        "per_feed": per_feed,
+    }

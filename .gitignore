@@ -51,6 +51,8 @@ code/backend/data/uploads/
 code/backend/data/check_*.txt
 code/backend/data/fix_labels_report.txt
 code/backend/data/llm_second_opinion.csv
+# scripts/recheck_unverified.py：內含使用者送出、尚未證實的原文，不公開
+code/backend/data/recheck_unverified_*
 docs/test/op7_legacy/
 # Fallback: stores use Path("data") relative to CWD; running the backend or a
 # script from the repo root would create <root>/data/*.parquet / *.db.

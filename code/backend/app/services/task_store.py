@@ -9,7 +9,7 @@ import functools
 import json
 import math
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 import uuid
 
@@ -229,6 +229,31 @@ class TaskStore:
             df.loc[mask, key] = value
 
         self._save_tasks(df)
+
+    def recent_kb_refs(self, since: datetime) -> List[Dict[str, Any]]:
+        """
+        熱門查證（app/services/hot_claims.py）的原始資料：since 之後建立（UTC、不帶時區，
+        與 created_at 相同）、已完成、且對應到知識庫某一列的任務。每筆回
+        {kb_id, created_at, origin}，依建立先後；不含使用者輸入。Postgres 版行為相同。
+        """
+        df = self._load_tasks()
+        if df.empty:
+            return []
+        created = pd.to_datetime(df["created_at"], errors="coerce")
+        kb_ids = df["kb_id"].astype(object).where(df["kb_id"].notna(), None)
+        mask = (
+            (df["status"] == "completed")
+            & kb_ids.map(lambda v: bool(v) and str(v).strip() != "")
+            & (created >= pd.Timestamp(since))
+        )
+        return [
+            {
+                "kb_id": str(kb_ids[idx]),
+                "created_at": created[idx].to_pydatetime(),
+                "origin": str(df.at[idx, "origin"] or "web"),
+            }
+            for idx in df.index[mask.fillna(False)]
+        ]
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """

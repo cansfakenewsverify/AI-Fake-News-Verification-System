@@ -1,0 +1,111 @@
+{
+  "window_days": 7,
+  "half_life_hours": 3,
+  "total": 4,
+  "records": [
+    {
+      "id": "kb-fx-01",
+      "data_type": "TEXT",
+      "raw_content": "【健保署通知】您的健保卡因系統升級即日起停用，請於 24 小時內點擊連結重新驗證身分，逾期將影響就醫權益。驗證網址：https://nhi-verify-tw.com/login",
+      "risk_type": "SCAM",
+      "category": "詐騙",
+      "summary": "健保署未發送此類簡訊，連結為釣魚網站，目的在竊取個資與信用卡資料，請勿點擊。",
+      "confidence_score": 0.97,
+      "sources": [
+        {
+          "title": "網傳健保卡停用需重新驗證？健保署：詐騙簡訊",
+          "url": "https://tfc-taiwan.org.tw/articles/12001",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "rule",
+      "last_result_id": null,
+      "hit_count": 37,
+      "created_at": "2026-09-15 08:12:00.000000",
+      "recent_24h": 12,
+      "recent_7d": 41,
+      "last_seen_at": "2026-09-22T11:48:00"
+    },
+    {
+      "id": "kb-fx-02",
+      "data_type": "TEXT",
+      "raw_content": "網傳吃香蕉配優格會中毒！營養師說兩者一起吃會在胃裡產生毒素，很多人都不知道，快轉給家人朋友。",
+      "risk_type": "MISINFO",
+      "category": "健康",
+      "summary": "香蕉與優格並無食物相剋，MyGoPen 查證營養師指出無此禁忌，正常食用不會產生毒素。",
+      "confidence_score": 0.94,
+      "sources": [
+        {
+          "title": "【錯誤】網傳香蕉配優格會中毒？營養師：沒有食物相剋",
+          "url": "https://www.mygopen.com/2026/09/banana-yogurt.html",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "ai",
+      "last_result_id": "fx-red-misinfo",
+      "hit_count": 21,
+      "created_at": "2026-09-15 07:40:00.000000",
+      "recent_24h": 5,
+      "recent_7d": 9,
+      "last_seen_at": "2026-09-22T10:05:00"
+    },
+    {
+      "id": "kb-fx-03",
+      "data_type": "TEXT",
+      "raw_content": "165 反詐騙專線提醒：遇到「保證獲利」請掛斷。任何自稱投資老師、要求下載 App 或加入群組的訊息，都是詐騙前兆。",
+      "risk_type": "SAFE",
+      "category": "反詐宣導",
+      "summary": "內容為內政部警政署 165 專線的官方反詐宣導，非詐騙訊息，可放心轉傳。",
+      "confidence_score": 0.9,
+      "sources": [
+        {
+          "title": "165 全民防騙網：投資詐騙手法",
+          "url": "https://165.npa.gov.tw/#/article/news/1",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "admin",
+      "last_result_id": null,
+      "hit_count": 12,
+      "created_at": "2026-09-14 22:05:00.000000",
+      "recent_24h": 0,
+      "recent_7d": 6,
+      "last_seen_at": "2026-09-21T19:30:00"
+    },
+    {
+      "id": "kb-fx-04",
+      "data_type": "TEXT",
+      "raw_content": "LINE 官方公告：自年底起 LINE 將全面收費，若不想被收費，請將此訊息轉傳給 20 位好友，即可免費繼續使用。",
+      "risk_type": "MISINFO",
+      "category": "科技",
+      "summary": "LINE 台灣已多次澄清不會對一般用戶收費，此為流傳多年的轉傳型謠言。",
+      "confidence_score": 0.96,
+      "sources": [
+        {
+          "title": "網傳 LINE 年底開始收費？LINE 台灣：不實訊息",
+          "url": "https://tfc-taiwan.org.tw/articles/11500",
+          "tier": 1,
+          "tier_label": "查核機構"
+        }
+      ],
+      "source_tier": 1,
+      "source_url": "",
+      "label_source": "gold",
+      "last_result_id": null,
+      "hit_count": 58,
+      "created_at": "2026-09-14 20:00:00.000000",
+      "recent_24h": 1,
+      "recent_7d": 2,
+      "last_seen_at": "2026-09-22T07:12:00"
+    }
+  ]
+}

@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Button from "../components/Button.jsx";
 import Card from "../components/Card.jsx";
 import Chip from "../components/Chip.jsx";
 import EmptyState from "../components/EmptyState.jsx";
+import SegmentedTabs from "../components/SegmentedTabs.jsx";
 import Skeleton from "../components/Skeleton.jsx";
 import { t } from "../i18n.js";
 import { getHealth, getTrending } from "../lib/api.js";
 import { useDocumentTitle } from "../lib/useDocumentTitle.js";
+import HotList from "./trending/HotList.jsx";
 import TrendingCard from "./trending/TrendingCard.jsx";
 import { TRENDING_COPY } from "./trending/copy.js";
+import { TRENDING_TABS, tabFromSearch } from "./trending/hotModel.js";
 import {
   TRENDING_FILTERS,
   TRENDING_LIMIT,
@@ -19,22 +23,75 @@ import {
 } from "./trending/trendingModel.js";
 
 // Trending wall "/trending" (S-09; spec 8.3 S3, 8.4 S3 row, FR-06; Trending.dc.html "S3").
-// - Header: h1 trending_title + trending_sub ({scheduler_state} from GET /api/health scheduler block)
+// Two tabs (SegmentedTabs, ?tab=hot deep-links the second one):
+// - "查核機構最新" (feed, default): the fact-checker wall below, unchanged.
+// - "本站熱門查證" (hot): what people checked on this site recently (HotList, GET /api/knowledge/hot).
+// Feed tab:
+// - Header: trending_sub ({scheduler_state} from GET /api/health scheduler block)
 //   + trending_updated (newest created_at). There is no manual update control (FR-06 acceptance 3).
 // - Report-week cut (tickets 0.5): filter chips "all" / "pending" only. One GET /api/trending?limit=20
 //   (no risk_type) feeds both; "pending" filters on the client (trendingModel.isUnverifiedRecord).
 // - States: loading = 6 skeleton cards; error = backend_down + retry (never the empty state);
 //   no records = trending_empty; filter leaves nothing = filter_empty.
-// - Requests are aborted on unmount; "retry" starts a new attempt for both requests.
+// - Requests are aborted on unmount; "retry" starts a new attempt for both requests. The feed is only
+//   fetched while its tab is shown.
 // - All user-visible text comes from i18n.js or ./trending/copy.js.
 
 const SKELETON_CARDS = 6;
 const LIST_CLASS = "m-0 flex list-none flex-col p-0";
+const TABS_ID = "trending";
+const PANEL_ID = "trending-panel";
 
 export default function Trending() {
   const title = t("trending_title");
   useDocumentTitle(title);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = tabFromSearch(searchParams.toString());
+
+  function changeTab(value) {
+    const next = new URLSearchParams(searchParams);
+    if (value === "hot") next.set("tab", "hot");
+    else next.delete("tab");
+    setSearchParams(next, { replace: true });
+  }
+
+  return (
+    <div className="flex flex-col" style={{ gap: 16, padding: "24px 0" }}>
+      <h1 className="t-h1 m-0" style={{ color: "var(--c-ink)" }}>
+        {title}
+      </h1>
+      <SegmentedTabs
+        tabs={TRENDING_TABS.map((item) => ({ value: item.value, label: t(item.labelKey) }))}
+        value={tab}
+        onChange={changeTab}
+        label={t("trending_tabs_label")}
+        idBase={TABS_ID}
+        panelId={PANEL_ID}
+      />
+      <div
+        role="tabpanel"
+        id={PANEL_ID}
+        aria-labelledby={`${TABS_ID}-tab-${tab}`}
+        className="flex flex-col"
+        style={{ gap: 16 }}
+      >
+        {tab === "hot" ? (
+          <>
+            <p className="t-body m-0" style={{ color: "var(--c-ink-2)" }}>
+              {t("hot_sub")}
+            </p>
+            <HotList />
+          </>
+        ) : (
+          <FactCheckerFeed />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FactCheckerFeed() {
   const [filter, setFilter] = useState("all");
   const [attempt, setAttempt] = useState(0);
   const [list, setList] = useState({ attempt: -1, status: "loading", records: [] });
@@ -63,11 +120,8 @@ export default function Trending() {
   const hasRecords = records.length > 0;
 
   return (
-    <div className="flex flex-col" style={{ gap: 16, padding: "24px 0" }}>
+    <>
       <div className="flex flex-col" style={{ gap: 6 }}>
-        <h1 className="t-h1 m-0" style={{ color: "var(--c-ink)" }}>
-          {title}
-        </h1>
         <p className="t-body m-0" style={{ color: "var(--c-ink-2)" }}>
           {t("trending_sub", { scheduler_state: schedulerStateText(health) })}
         </p>
@@ -133,6 +187,6 @@ export default function Trending() {
           </ul>
         ) : null}
       </div>
-    </div>
+    </>
   );
 }

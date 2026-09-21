@@ -55,7 +55,7 @@ npm run dev
 |------|------|------|
 | `/` | `pages/Home.jsx` | 首頁：輸入卡（文字／網址）、範例、Threads 說明卡、最近查證 |
 | `/r/:id` | `pages/Result.jsx` | 結果頁，可分享。輪詢 `/api/result/{id}`，依狀態顯示載入、成功、無法查證、AI 暫時無法使用、找不到、錯誤 |
-| `/trending` | `pages/Trending.jsx` | 熱門牆 |
+| `/trending` | `pages/Trending.jsx` | 熱門：兩個分頁，「查核機構最新」（熱門牆）與「本站熱門查證」（`?tab=hot`，最近 7 天大家查最多的已證實內容） |
 | `/knowledge` | `pages/Knowledge.jsx` | 知識庫：關鍵字搜尋、依判定篩選 |
 | `/bot` | `pages/Bot.jsx` | Threads 機器人頁，**目前是佔位頁** |
 | `/oauth/callback` | `pages/OAuthCallback.jsx` | Meta 授權完成後的導回頁：只顯示授權碼讓負責人複製，不發任何網路請求 |
@@ -85,7 +85,7 @@ code/frontend/
     │   ├── Home.jsx、Result.jsx、Trending.jsx、Knowledge.jsx、Bot.jsx、OAuthCallback.jsx、NotFound.jsx
     │   ├── home/            ← 範例 chips、最近查證、Threads 說明卡、useSubmitAnalysis（送出查證）
     │   ├── result/          ← 結果頁各狀態的元件、useResultPolling、useReanalyze、resultState、buildThreadsIntent
-    │   ├── trending/        ← TrendingCard、trendingModel、sourceOrgName、copy.js
+    │   ├── trending/        ← TrendingCard、trendingModel、sourceOrgName、copy.js、HotList、hotModel
     │   └── knowledge/       ← KnowledgeCard、SearchBar、useKnowledgeList、knowledgeModel、copy.js
     ├── components/          ← 共用元件：Banner、Button、Card、Chip、ConfirmDialog、Disclosure、DotRow、EmptyState、
     │   │                      Icon、InputCard、SegmentedTabs、Skeleton、SourceRow、ThemeToggle、Toast、VerdictBlock
@@ -116,6 +116,7 @@ code/frontend/
 | `getResult`、`pollResult` | `GET /api/result/{id}` |
 | `getTrending` | `GET /api/trending?limit=&risk_type=` |
 | `getKnowledge`、`getKnowledgeStats` | `GET /api/knowledge?q=&risk_type=&limit=&offset=`、`GET /api/knowledge/stats` |
+| `getKnowledgeHot` | `GET /api/knowledge/hot?limit=`（熱門頁「本站熱門查證」） |
 | `getHealth` | `GET /api/health` |
 | `getThreadsStatus`、`getThreadsReplies` | `GET /api/threads/status`、`GET /api/threads/replies` |
 
@@ -197,6 +198,7 @@ VITE_FIXTURES=1 npm run dev
 | `http://localhost:5173/r/fx-ai-unavailable` | `result_fx-ai-unavailable.json` |
 | `http://localhost:5173/trending?fixture=empty` | `trending_empty.json` |
 | `http://localhost:5173/knowledge?fixture=empty` | `knowledge_empty.json` |
+| `http://localhost:5173/trending?tab=hot&fixture=empty` | `knowledge_hot_empty.json` |
 | `http://localhost:5173/?fixture=analyze_rate_limited` | 送出查證時回 `analyze_rate_limited.json`（429） |
 
 - fixture JSON 的頂層可以帶 `_status`（HTTP 狀態碼）與 `_headers`（例如 `Retry-After`）來模擬錯誤，走與真實回應相同的錯誤處理。
@@ -209,7 +211,7 @@ VITE_FIXTURES=1 npm run dev
 
 ```powershell
 cd code\frontend
-npm run test:unit   # 單元測試：Node 內建 test runner（node --test），380 個，離線
+npm run test:unit   # 單元測試：Node 內建 test runner（node --test），390 個，離線
 npm run lint        # ESLint 9（設定在 eslint.config.js）
 npm run build       # 產出 dist/
 npm run preview     # 在本機預覽 build 結果

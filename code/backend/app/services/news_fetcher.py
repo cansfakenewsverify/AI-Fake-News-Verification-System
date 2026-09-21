@@ -463,8 +463,15 @@ def _apply_ai_result(url: str, ai_result: dict, content: str, title: str,
         db.close()
 
 
-async def run_trending_fetch():
-    """Full pipeline: RSS fetch + classify + AI analyze. Runs every 6 hours."""
+async def run_trending_fetch(analyze_pending: bool = True, per_feed: int = 4):
+    """
+    Full pipeline: RSS fetch + classify + AI analyze. Runs every 6 hours when the scheduler is on.
+
+    analyze_pending=False 只做第一階段（抓 RSS、確定性標記、把已判定不實的主張寫進知識庫），
+    不呼叫判讀模型：查核機構新發布的結論因此進入知識庫，之後重複查詢的舊的未證實結果
+    就能在快取層被改回查核結果（pandas_task_processor 的查核結果回補）。只耗 embedding。
+    per_feed：每個 RSS 來源取幾篇（排程沿用 4；補抓時可調高，MyGoPen RSS 一次最多 25 篇）。
+    """
     _print(f"\n{'='*60}")
     _print(f"[NewsFetcher] Full fetch at {datetime.now():%Y-%m-%d %H:%M}")
     _print(f"{'='*60}")
@@ -472,7 +479,7 @@ async def run_trending_fetch():
     # SQLite / Parquet / RSS HTTP 皆為阻塞呼叫 → to_thread（只包呼叫，不動判斷邏輯）
     await asyncio.to_thread(_cleanup_legacy_strings)
 
-    items = await asyncio.to_thread(SearchService.fetch_rss_items, num_per_feed=4)
+    items = await asyncio.to_thread(SearchService.fetch_rss_items, num_per_feed=per_feed)
     _print(f"[NewsFetcher] RSS items: {len(items)}")
     classified = 0
     for item in items:
@@ -481,7 +488,8 @@ async def run_trending_fetch():
             classified += 1
     _print(f"[NewsFetcher] {len(items)} saved, {classified} auto-classified")
 
-    await retry_pending_records()
+    if analyze_pending:
+        await retry_pending_records()
 
 
 def _mark_unverifiable(url: str) -> None:

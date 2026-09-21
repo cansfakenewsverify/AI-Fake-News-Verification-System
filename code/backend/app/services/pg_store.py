@@ -503,10 +503,12 @@ class PgKnowledgeStore(_PgStoreBase):
         self,
         query_vector: List[float],
         threshold: Optional[float] = None,
+        label_sources: Optional[Iterable[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         cosine similarity 最高且 >= threshold 的「verified」列（FR-17）；threshold 預設
         settings.SIMILARITY_THRESHOLD。空向量／零向量／維度不符 → None（不查資料庫）。
+        label_sources：只比對這些 label_source 的列（None = 不限），與本機版相同。
         """
         if threshold is None:
             from app.config import settings
@@ -517,12 +519,14 @@ class PgKnowledgeStore(_PgStoreBase):
         if literal is None or not np.any(np.asarray(query_vector, dtype=np.float32)):
             return None
 
+        label_filter = "" if label_sources is None else "  AND label_source = ANY(:labels)"
         returning = ", ".join(f"kb.{c}" for c in _KB_READ_COLUMNS)
         statement = text(
             "WITH best AS ("
             "  SELECT id, 1 - (content_vector <=> CAST(:q AS vector)) AS similarity"
             "  FROM knowledge_base"
             "  WHERE verified AND content_vector IS NOT NULL"
+            f"{label_filter}"
             "  ORDER BY content_vector <=> CAST(:q AS vector), seq"
             "  LIMIT 1"
             ") "
@@ -535,6 +539,8 @@ class PgKnowledgeStore(_PgStoreBase):
             f" RETURNING {returning}, best.similarity"
         )
         params = {"q": literal, "now": datetime.now(), "threshold": float(threshold)}
+        if label_sources is not None:
+            params["labels"] = [str(label) for label in label_sources]
         with self._connect() as conn:
             row = conn.execute(statement, params).mappings().first()
         return _kb_row(row) if row is not None else None
@@ -723,6 +729,21 @@ class PgTaskStore(_PgStoreBase):
         if not record.get("input_type"):
             record["input_type"] = _ts.input_type_from_task_type(record.get("task_type"))
         return record
+
+    def recent_kb_refs(self, since: datetime) -> List[Dict[str, Any]]:
+        """since 之後建立、已完成、對應到知識庫列的任務 {kb_id, created_at, origin}（同本機版）。"""
+        statement = text(
+            "SELECT kb_id, created_at, origin FROM tasks"
+            " WHERE status = 'completed' AND kb_id IS NOT NULL AND kb_id <> ''"
+            "   AND created_at >= :since"
+            " ORDER BY seq"
+        )
+        with self._connect() as conn:
+            rows = conn.execute(statement, {"since": since}).mappings().all()
+        return [
+            {"kb_id": str(r["kb_id"]), "created_at": r["created_at"], "origin": r["origin"] or "web"}
+            for r in rows
+        ]
 
 
 # ── 覆寫與回饋 ─────────────────────────────────────────────────────────────

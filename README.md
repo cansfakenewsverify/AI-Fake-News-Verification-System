@@ -25,6 +25,7 @@
 | 貼上文字或網址，取得紅／黃／綠判定、摘要、白話說明與查核來源 | 首頁 [`/`](https://fakenewsverify.vercel.app/) |
 | 每一筆查證都有自己的結果頁，可以複製連結或分享到 Threads | `/r/<id>` |
 | 熱門牆：最近的查核結果（來源為 MyGoPen、台灣事實查核中心、Cofacts） | [`/trending`](https://fakenewsverify.vercel.app/trending) |
+| 本站熱門查證：最近 7 天大家查最多的已證實內容，越近的查證權重越高 | [`/trending?tab=hot`](https://fakenewsverify.vercel.app/trending?tab=hot) |
 | 知識庫：用關鍵字搜尋、依判定篩選已證實的查證內容 | [`/knowledge`](https://fakenewsverify.vercel.app/knowledge) |
 
 **簡報影片**（4 分 38 秒，旁白＋音效＋字幕，整套功能與操作的完整導覽，瀏覽器直接播放）：
@@ -80,7 +81,8 @@ GitHub Actions keepalive（每 10 分鐘）→ Render /health + /api/knowledge/s
 | **來源品質規則** | 只有「已經有判定」的來源才算查核來源。Tier 1：查核機構與官方網域（TFC、MyGoPen、`gov.tw`、WHO、CDC；Cofacts 文章必須已有 RUMOR／NOT_RUMOR 回覆）。Tier 2：媒體的查核報導。其餘（Tier 3）只列在「相關討論」，不當作證據。 |
 | **沒有證據就不給綠燈** | 沒有已證實來源的結果顯示「尚無查核機構證實」，不會出現綠燈。 |
 | **可分享的結果頁** | 每筆查證的網址是 `/r/<id>`，任何人打開都看得到同一份結果；可複製連結或分享到 Threads。 |
-| **熱門牆與知識庫** | 熱門牆來自 MyGoPen、TFC 的 RSS 與 Cofacts（只取已有 RUMOR 判定的文章）。知識庫只顯示已證實的資料列。兩者都不呼叫 AI。 |
+| **熱門牆與知識庫** | 熱門牆來自 MyGoPen、TFC 的 RSS 與 Cofacts（只取已有 RUMOR 判定的文章）。知識庫只顯示已證實的資料列。「本站熱門查證」依查證紀錄排序（半衰期 3 小時的時間衰減、7 天視窗），同樣只列已證實內容。三者都不呼叫 AI。 |
+| **查核結果回補** | 一字不差的重複查詢若命中「尚無查核機構證實」的舊資料，而查核機構之後的結論已寫進知識庫且語意對得上，就改回查核結論；只有查核機構或人工確認的結論能取代舊結果。 |
 | **防止 AI 編造連結** | 系統 prompt 規定找不到來源就回空陣列；後端再逐一檢查 AI 回傳的來源網址，失效的剔除。 |
 | **上線護欄** | 每日 AI 次數上限、每 IP 限速、請求大小上限（JSON 1 MB／圖片 10 MB）、SSRF 防護（拒絕內部與保留位址，每次轉址重新檢查）、管理端點需要 `X-Admin-Token`。 |
 | **AI 失效時的降級** | AI 閘道失敗時結果頁顯示灰色「AI 暫時無法使用」，失敗結果不寫進快取；熱門牆與知識庫不受影響。 |
@@ -164,8 +166,8 @@ AI-Fake-News-Verification-System/
 
 | 項目 | 數量 | 怎麼跑 |
 |------|------|--------|
-| 後端 pytest | 700 個通過；另有 24 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
-| 前端單元測試 | 380 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
+| 後端 pytest | 718 個通過；另有 26 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
+| 前端單元測試 | 390 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
 
 - 兩邊的測試都離線執行，不呼叫 AI、不花額度。
 - CI（`.github/workflows/ci.yml`）在每次 push／PR 到 `main` 時跑兩個 job：`test`（後端 pytest）與 `frontend`（`npm ci` → `npm run build` → `npm run test:unit`）。
@@ -187,6 +189,7 @@ Swagger UI：https://fakenewsverify-api.onrender.com/docs
 | GET | `/api/result/{id}` | 結果頁資料（`status` 為 `completed` 或 `failed` 時停止輪詢） |
 | GET | `/api/trending?limit=&risk_type=` | 熱門牆 |
 | GET | `/api/knowledge?q=&risk_type=&limit=&offset=`、`/api/knowledge/stats` | 知識庫與統計 |
+| GET | `/api/knowledge/hot?limit=` | 本站熱門查證（最近 7 天、只列已證實內容） |
 | GET | `/api/health` | 健康檢查（資料層、AI 是否可用、今日 AI 用量） |
 
 完整路由（圖片、回饋、Threads、管理端點）見 [`code/backend/README.md`](code/backend/README.md)。

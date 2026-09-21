@@ -6,13 +6,16 @@
 - 關鍵字比對一律字面比對（regex=False）：q 含 ( [ * 等字元不得 500（FR-07 驗收 1）。
 - offset 分頁：排序 created_at desc、id asc，同一時間寫入的列順序也固定，分頁不重複不遺漏。
 - sources 只留 Tier 1／2（FR-16），raw_content 只回前 500 字（spec §9 隱私）。
+- /hot：最近 7 天的熱門查證（查證紀錄 × 時間衰減），同樣只回 verified 列。
 """
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from fastapi import APIRouter, Query
 
-from app.services.store_factory import get_knowledge_store
+from app.services import hot_claims
+from app.services.store_factory import get_knowledge_store, get_task_store
 from app.utils.source_tier import (
     ALWAYS_TIER3_DOMAINS,
     COFACTS_DOMAINS,
@@ -26,6 +29,8 @@ router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 # 本機 PandasStore 或 Supabase 的 PgKnowledgeStore（store_factory）；兩者 get_all_records() 回傳同形狀的
 # DataFrame。端點是同步 def（FastAPI 丟 threadpool），阻塞讀取不卡 event loop。
 _store = get_knowledge_store()
+# 熱門查證讀查證紀錄（本機 TaskStore 或 PgTaskStore）；測試以 monkeypatch 換掉
+_task_store = get_task_store()
 
 RAW_CONTENT_MAX = 500
 _VERDICT_TYPES = ("RUMOR", "NOT_RUMOR")
@@ -173,25 +178,71 @@ def list_knowledge(
 
     total = int(len(df))
     page = _newest_first(df).iloc[offset:offset + limit]
+    return {"total": total, "records": [_public_record(r) for _, r in page.iterrows()]}
+
+
+@router.get("/hot")
+def hot_knowledge(limit: int = Query(default=10, ge=1, le=50)):
+    """
+    熱門查證（熱門頁「本站熱門查證」分頁）：最近 7 天被查證的次數，依時間衰減排序
+    （演算法見 app/services/hot_claims.py）。快取命中也算一次查證。
+    只列已證實的列，與 /api/knowledge 同一份欄位，另加 recent_24h／recent_7d／last_seen_at；
+    尚未證實的內容是使用者送出的原文，不公開。
+    """
+    now = datetime.utcnow()
+    ranked = hot_claims.rank(
+        _task_store.recent_kb_refs(now - timedelta(days=hot_claims.WINDOW_DAYS)), now,
+    )
+    body = {
+        "window_days": hot_claims.WINDOW_DAYS,
+        "half_life_hours": hot_claims.HALF_LIFE_HOURS,
+        "total": 0,
+        "records": [],
+    }
+    if not ranked:
+        return body
+
+    df = _verified_only(_store.get_all_records())
+    if df.empty or "id" not in df.columns:
+        return body
+    ids = {item["kb_id"] for item in ranked}
+    rows = {_s(r.get("id")): r for _, r in df[df["id"].astype(str).isin(ids)].iterrows()}
 
     records = []
-    for _, r in page.iterrows():
-        sources = _public_sources(r.get("sources"))
-        records.append({
-            "id": _s(r.get("id")),
-            "data_type": _s(r.get("data_type")),
-            "raw_content": _s(r.get("raw_content"))[:RAW_CONTENT_MAX],
-            "risk_type": _s(r.get("risk_type")) or "UNKNOWN",
-            "category": _s(r.get("category")),
-            "summary": _s(r.get("summary")),
-            "confidence_score": _num(r.get("confidence_score")),
-            "sources": sources,
-            # 與 sources 同一份分級結果：其中最高等級（1 或 2），無 Tier 1／2 來源為 null
-            "source_tier": min((s["tier"] for s in sources), default=None),
-            "source_url": _s(r.get("source_url")),
-            "label_source": _s(r.get("label_source")) or "ai",
-            "last_result_id": _s(r.get("last_result_id")) or None,
-            "hit_count": _num(r.get("hit_count"), int),
-            "created_at": _s(r.get("created_at")),
+    for item in ranked:
+        row = rows.get(item["kb_id"])
+        if row is None:          # 未證實、已刪除或不在這個資料庫
+            continue
+        record = _public_record(row)
+        record.update({
+            "recent_24h": item["count_24h"],
+            "recent_7d": item["count_window"],
+            "last_seen_at": item["last_seen"].isoformat(),
         })
-    return {"total": total, "records": records}
+        records.append(record)
+        if len(records) >= limit:
+            break
+    body.update({"total": len(records), "records": records})
+    return body
+
+
+def _public_record(r) -> Dict[str, Any]:
+    """知識庫列 → 對外欄位（/api/knowledge 與 /api/knowledge/hot 共用）。"""
+    sources = _public_sources(r.get("sources"))
+    return {
+        "id": _s(r.get("id")),
+        "data_type": _s(r.get("data_type")),
+        "raw_content": _s(r.get("raw_content"))[:RAW_CONTENT_MAX],
+        "risk_type": _s(r.get("risk_type")) or "UNKNOWN",
+        "category": _s(r.get("category")),
+        "summary": _s(r.get("summary")),
+        "confidence_score": _num(r.get("confidence_score")),
+        "sources": sources,
+        # 與 sources 同一份分級結果：其中最高等級（1 或 2），無 Tier 1／2 來源為 null
+        "source_tier": min((s["tier"] for s in sources), default=None),
+        "source_url": _s(r.get("source_url")),
+        "label_source": _s(r.get("label_source")) or "ai",
+        "last_result_id": _s(r.get("last_result_id")) or None,
+        "hit_count": _num(r.get("hit_count"), int),
+        "created_at": _s(r.get("created_at")),
+    }

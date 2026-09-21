@@ -23,7 +23,8 @@
 **全民查證公社 — AI 假訊息與詐騙查證系統**（學生專題 / 論文；GitHub repo 是公開的）。
 使用者到網站貼上**文字或網址**，系統判定 **詐騙(SCAM) / 假訊息(MISINFO) / 安全(SAFE)**（查不了 = `UNVERIFIABLE`），
 以紅黃綠燈呈現並附上**已做出判定的查核來源**；每筆結果有可分享的獨立網址 `/r/{id}`。
-另有熱門牆（MyGoPen／TFC RSS＋Cofacts）、知識庫搜尋、三層快取＋向量檢索、Threads 查核機器人（目前用模擬模式）。
+另有熱門頁（「查核機構最新」＝MyGoPen／TFC RSS＋Cofacts；「本站熱門查證」＝最近 7 天大家查最多的已證實內容）、知識庫搜尋、
+三層快取＋向量檢索、Threads 查核機器人（目前用模擬模式）。
 
 - **使用方式**：直接開線上網站。`start.bat` / `start.sh` 只供**本機開發**（後端 8000 + React dev server 5173，用本機資料）。
 - **輸入**：網頁 UI 只開放文字與網址。圖片端點 `/api/analyze/image` 後端已有（檔頭檢查、10 MB 上限），上傳 UI 尚未開放。
@@ -104,6 +105,7 @@
 網址輸入 → L0: URL 快取 → L1: Hash → 爬蟲（爬不到 → UNVERIFIABLE，不呼叫 AI）→ L2: 向量（以爬到的內文比對）→ L3: AI
 圖片輸入 → 沒有快取層，直接 L3（不寫知識庫）
 L3 之後  → 剔除與被查網址同網域的來源 → 過濾死連結 → 來源分級 → 回填知識庫（AI 失敗的 fallback 不寫）
+L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向量層只找 rule／gold／admin 列，對得上就改回那一筆（spec FR-20）
 ```
 - 實作：`app/workers/pandas_task_processor.py`（主流程）。快取存取經 `store_factory.get_knowledge_store()`：本機
   `pandas_store.PandasStore`（Parquet、numpy 矩陣化 cosine），雲端 `pg_store.PgKnowledgeStore.find_similar_by_vector`（pgvector）。
@@ -119,6 +121,12 @@ L3 之後  → 剔除與被查網址同網域的來源 → 過濾死連結 → �
 - 實測：L1 命中 p50 213 ms、L2 向量命中 p50 3.06 s（2026-09-16 本機，測試計畫書 6.4）；
   線上新內容 AI 判讀 9–27 秒、語意快取命中約 3 秒（2026-09-19）。
 - embedding 沒有可用金鑰或呼叫失敗時 Layer 2 自動停用，URL/Hash 仍正常。
+- **查核結果回補（FR-20，2026-09-22）**：URL／Hash 層不過濾 verified，一字不差的重複查詢原本會一直拿到當初「尚無查核機構證實」。
+  命中未證實列時，處理器以該列向量（Postgres 版沒載入向量時以原文算一次 embedding）呼叫
+  `find_similar_by_vector(..., label_sources=DETERMINISTIC_LABEL_SOURCES)`，**只讓 rule／gold／admin 列取代舊結果**
+  （一般 AI 判定＋來源的列可能只是長得像的另一則訊息）。查核機構的新結論靠熱門牆抓取以 `rule` 寫入：
+  `POST /api/trending/refresh?analyze=false&per_feed=25` 只抓 RSS 與寫入結論、不呼叫判讀模型。
+  盤點用 `scripts/recheck_unverified.py [--cloud]`（唯讀）：2026-09-22 正式資料 86 筆可比對、0 筆達 0.75。
 
 ---
 
@@ -132,8 +140,9 @@ code/backend/
 │   ├── database_sql.py         SQL engine：本機 SQLite／雲端 Supabase Postgres（錯誤訊息遮蔽連線字串）
 │   ├── api/analyze.py          /api/analyze/{text,url,sync,image}、task/{id}、task/{id}/status（限速→SSRF→每日上限→建任務）
 │   ├── api/result.py           /api/result/{id} 結果頁資料（讀任務 store；含分享文案）
-│   ├── api/knowledge.py        /api/knowledge、/stats（只回 verified 列）
+│   ├── api/knowledge.py        /api/knowledge、/stats、/hot（熱門查證；三者都只回 verified 列）
 │   ├── api/trending.py         /api/trending（查核機構優先、Cofacts ≤3 筆排最後）；POST /refresh 需管理 token
+│   │                            （?analyze=false 只抓查核文章寫入知識庫、不呼叫判讀模型；?per_feed=1..25）
 │   ├── api/threads.py          /api/threads/{status,replies} 公開唯讀；POST /poll 需管理 token
 │   ├── api/admin.py            /api/admin/tasks/{id}/override 管理者覆寫（X-Admin-Token；label_source=admin）
 │   ├── api/feedback.py         /api/feedback/tasks/{id} 使用者回饋
@@ -148,6 +157,7 @@ code/backend/
 │   │   ├── audit_store.py      本機覆寫／回饋紀錄 Parquet
 │   │   ├── crawler.py          網址爬取（safe_url + trafilatura）；影音與 FB／IG 回 unsupported_platform
 │   │   ├── news_fetcher.py     熱門牆流程＋第 9 節標記規則；search_service.py = MyGoPen／TFC RSS＋Cofacts
+│   │   ├── hot_claims.py       熱門查證排行：查證紀錄 tasks.kb_id × 半衰期 3 小時的時間衰減、7 天視窗（FR-21）
 │   │   ├── cache_service.py / vector_service.py   內容 SHA-256 hash／embedding 包裝
 │   │   ├── threads_service.py  Threads Graph API 客戶端（live）、ThreadsClient 介面、token 檔
 │   │   └── threads_sim.py / threads_state.py / threads_reply.py   模擬模式／狀態與回覆紀錄（原子寫入）／回覆模板
@@ -169,12 +179,13 @@ code/backend/
 │   ├── check_db.py / check_supabase.py   本機資料分佈（唯讀）／Supabase 連線檢查（不印連線字串）
 │   ├── migrate_to_supabase.py  本機 Parquet／SQLite → Supabase（預設 dry-run；--apply、--insert-only）
 │   ├── clean_sources_2026_09.py  FR-18 資料清洗（預設 dry-run、冪等、--apply 前自動備份；2026-09-16 已套用）
+│   ├── recheck_unverified.py   FR-20 唯讀盤點：未證實列 vs 已證實列／最新查核文章／Cofacts 新回覆（輸出含原文，gitignored）
 │   ├── llm_second_opinion.py / fix_factcheck_labels.py   清洗審閱輔助（CGU 本地模型）／2026-07 一次性標籤修復
 │   ├── ensure_admin_token.py   啟動腳本每次呼叫：.env 的 ADMIN_TOKEN 空就補亂數（不印出）
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **700 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **24 個** Postgres
+├── tests/                      ★pytest **718 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **26 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -202,7 +213,7 @@ code/frontend/                  React 19 + Vite 8.3.0 + Tailwind 4
     ├── lib/                    api.js（★所有後端呼叫的唯一入口、FALLBACK_PREFIX）、fixtures.js、verdict.js、history.js、
     │                            validateInput.js、httpUrl.js、theme.js、useDocumentTitle.js
     ├── dev/fixtures/           開發用假回應（VITE_FIXTURES=1 才生效，production build 會剔除；用法看該資料夾 README）
-    └── **/*.test.js            單元測試（node --test，**380 個**）
+    └── **/*.test.js            單元測試（node --test，**390 個**）
 legacy/                         已封存、不再維護：舊單檔查核儀 fake-news-detector.html、_run_detector.bat、README.md
 render.yaml                     Render Blueprint（後端雲端部署設定；金鑰只在 Render 後台輸入，檔案裡只有鍵名）
 .github/workflows/ci.yml        push／PR：test（後端 pytest）＋ frontend（build、單元測試）
@@ -247,7 +258,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 700 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 718 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -255,6 +266,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 .\venv\Scripts\python scripts\reembed_vectors.py                     # 列出維度不對的向量；--apply [--target both] 才重算（DEF-05）
 .\venv\Scripts\python scripts\evaluate.py --delay 0                   # 重跑 150 筆評測（約 USD 1）；加 --seed-db 會把判對的寫進知識庫
 .\venv\Scripts\python scripts\clean_sources_2026_09.py                # 資料清洗 dry-run（預設）；--apply 要負責人核准
+.\venv\Scripts\python scripts\recheck_unverified.py                   # 未證實資料能否由查核結果回補（唯讀；--cloud 讀正式資料）
 
 # Threads 機器人（模式說明見第 11 節）
 .\venv\Scripts\python scripts\test_threads_bot.py                # 乾跑：檢查設定＋產生範例回覆（免 token、零點數）
@@ -274,7 +286,7 @@ $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q
 # ── 前端：以下都先 cd code\frontend ──
 npm ci                 # 依 package-lock.json 安裝
 npm run dev            # http://localhost:5173，/api 由 vite 代理到 localhost:8000
-npm run test:unit      # node --test，380 個
+npm run test:unit      # node --test，390 個
 npm run lint
 npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:unit
 ```
@@ -357,8 +369,17 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] `/bot` 機器人狀態頁（票 S-11）：目前是佔位頁（`src/pages/Bot.jsx`）；後端 `/api/threads/status`、`/replies` 已就緒
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準（現有 150 筆已飽和，見第 6 節）
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
+- [ ] 查核結論每日進庫（FR-20）：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25`，
+      需負責人把 `ADMIN_TOKEN` 加入 repository secret；在那之前是手動觸發。不呼叫判讀模型，只耗 embedding
+- [ ] 提供查核機構的熱搜名單（FR-21 延伸）：`hot_claims.rank()` 已可用於未證實內容；還缺管理端點、電話／帳號／人名遮蔽、
+      隱私政策增列「提供查核機構」用途（現行政策只寫「供後續相同或相似內容快速比對」）
+- [ ] 熱門牆標記規則的缺口（第 9 節範圍，改規則需負責人決定）：MyGoPen 的【詐騙】標籤不算確定判定，詐騙警示文章不會寫進知識庫；
+      TFC 近期 RSS 標題多半沒有判定標籤（2026-09-22 抽 10 篇只有 1 篇命中），查核結論進庫以 MyGoPen 與 Cofacts 為主
 
 ### 已完成（2026-09 重做與上雲）
+- [x] 查核結果回補與本站熱門查證（2026-09-22，spec v1.4 FR-20／FR-21，票 D-06、B-27～B-29、S-15）：
+      URL／hash 命中未證實列時只讓 rule／gold／admin 列取代；`/api/trending/refresh?analyze=false`；
+      `recheck_unverified.py` 唯讀盤點；`GET /api/knowledge/hot` 與熱門頁「本站熱門查證」分頁。pytest 718、Postgres 契約 26、前端 390
 - [x] 2026-09 重做流程啟動：`docs/rebuild/` 依序為 00_consensus（grill 共識）→ 01_spec（功能+UX v1.3）
       → 02_mockup_brief + mockup/（設計畫布 .dc.html）→ 03_tickets（109 張票，依賴/排程/驗收指令）。
       **之後的實作一律照 03_tickets.md 的票做**；來源分級規則見共識 §9（只有已判定的查核來源才算來源）

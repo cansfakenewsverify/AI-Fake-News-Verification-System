@@ -19,6 +19,8 @@ import { firstVerifiedSourceDomain, hitCountOf, knowledgeLink } from "./knowledg
 //   The Disclosure only renders when the 2-line summary is really cut off (useIsClamped); a summary
 //   that already fits is shown in full and has nothing to expand. Without ResizeObserver it always renders.
 // - data-kb-id on the card root (used by the de-duplication console check).
+// - countText (optional): replaces the all-time hit_count chip text; the trending page's hot tab passes
+//   "近 24 小時 N 次・近 7 天 M 次" so the chip shows recent demand instead.
 
 const SUMMARY_TEXT = { fontSize: 15, lineHeight: "22px", overflowWrap: "anywhere" };
 const SMALL_TEXT = { fontSize: 13, lineHeight: "16px", color: "var(--c-ink-3)" };
@@ -43,11 +45,12 @@ function useIsClamped(ref, text) {
   return clamped;
 }
 
-export default function KnowledgeCard({ record }) {
+export default function KnowledgeCard({ record, countText = null }) {
   const to = knowledgeLink(record);
   const summary = typeof record?.summary === "string" ? record.summary.trim() : "";
   const labelKey = labelSourceKey(record?.label_source);
-  const hits = hitCountOf(record);
+  const hitCount = hitCountOf(record);
+  const hits = countText ?? (hitCount !== null ? t("hit_count", { n: hitCount }) : null);
   const domain = firstVerifiedSourceDomain(record?.sources);
   const cardStyle = { display: "flex", flexDirection: "column", gap: 8 };
   const summaryRef = useRef(null);
@@ -68,7 +71,7 @@ export default function KnowledgeCard({ record }) {
       {hits !== null || labelKey || domain ? (
         <div className="flex flex-wrap items-center justify-between" style={{ columnGap: 8, rowGap: 4 }}>
           <span className="flex min-w-0 flex-wrap items-center" style={{ gap: 8 }}>
-            {hits !== null ? <Chip variant="live">{t("hit_count", { n: hits })}</Chip> : null}
+            {hits !== null ? <Chip variant="live">{hits}</Chip> : null}
             {labelKey ? (
               <span data-label-source="" style={SMALL_TEXT}>
                 {t(labelKey)}

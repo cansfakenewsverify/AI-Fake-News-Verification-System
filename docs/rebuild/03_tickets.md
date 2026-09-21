@@ -10,7 +10,7 @@
 | 設計畫布 | https://claude.ai/artifact/A4UtUPgSwRCfHAmAKM6TKh（工作檔 `docs/rebuild/mockup/*.dc.html`） |
 | 實作者 | 負責人一人 + Claude Code 寫程式；組員承接非程式線 |
 | 交付假設 | 進度報告 + 3 分鐘 demo 影片 2026-09-22（D-1 待確認） |
-| 票數 | 109 張：P- 19、S- 14、B- 26、D- 5、T- 17、O- 28 |
+| 票數 | 109 張：P- 19、S- 14、B- 26、D- 5、T- 17、O- 28（另有第 11 節報告後新增的 5 張，不計入總覽表與工時表） |
 | 工時 | 全部 197.5h；P0 179.5h；本週已排程 179.5h（全為 P0：Claude 152.5h、負責人 17h、組員 10h），另計負責人驗收 19h；第一批刪減移出 5.5h（不排）與報告後 14.5h |
 
 **全票共通規則**
@@ -2543,3 +2543,74 @@ flowchart LR
 | `AccentOptions.dc.html` | 強調色候選 a／b／c | P-08（`--c-accent` 單一 token，預設 a `#111111`）、O-01（負責人選色） |
 | `DirectionB.dc.html` | 方向 B 編輯感 | 無（brief §7-1 不採用） |
 | `DirectionC.dc.html` | 方向 C 親切感 | 無（brief §7-1 不採用） |
+
+## 11. 報告後新增票（2026-09-22）
+
+負責人於第三次進度報告後提出兩項需求：①查核機構之後才發布的結論，要能接回資料庫中「尚無查核機構證實」的舊資料；②熱門搜尋獨立成一個功能，先做成網站上的熱門查證牆，之後再延伸為提供查核機構的熱搜名單。對應 spec v1.4 的 FR-20、FR-21。以下 5 張票不在第 1 節總覽表、依賴圖與工時表內。
+
+### D-06 撰寫未證實資料的唯讀盤點腳本 recheck_unverified.py
+- 優先級：P1
+- 依賴：D-05、B-12
+- 對應：FR-20 第 3 部分
+- 範圍：`code/backend/scripts/recheck_unverified.py`（新增）、`.gitignore`（`code/backend/data/recheck_unverified_*`）
+- 做什麼：
+  1. 取出 `verified=false` 且有 1536 維向量的列，與 `find_similar_by_vector` 同一套取樣與 cosine 算法。
+  2. 每列找三種候選中最接近者：已證實列（區分 AI 判定與 rule／gold／admin）、最新查核文章（`SearchService.fetch_rss_items` 取回後以 `_extract_claim_from_title` 取主張再算向量）、該列引用過且現在已有回覆的 Cofacts 文章（`cofacts_has_verdict`）。
+  3. 依 `hit_count` 排序寫 `data/recheck_unverified_{local|cloud}_{日期}.csv`；主控台印可回補／接近／尚無對應三類筆數，以及「判定會改變」的配對。
+  4. `--cloud` 讀 Supabase（只 SELECT）；`--no-fetch` 不抓查核文章；不呼叫判讀模型、不寫入任何資料。
+- 驗收：本機與 `--cloud` 各跑一次，輸出檔不進 `git status`；主控台輸出只有 ASCII 與中文（cp950）。
+- 預估：1.5h
+- 排程：報告後
+- 狀態：已完成（2026-09-22）。實測本機 75 筆、正式資料 86 筆可比對，皆 0 筆達 0.75；正式資料 8 筆落在 0.65～0.75，均為同類詐騙話術。
+
+### B-27 URL／hash 命中未證實列時以查核機構的確定性結論取代
+- 優先級：P1
+- 依賴：B-13、D-06
+- 對應：FR-20 第 1 部分、FR-17
+- 範圍：`code/backend/app/workers/pandas_task_processor.py`（`_newer_factcheck`）、`code/backend/app/services/pandas_store.py`、`code/backend/app/services/pg_store.py`（`find_similar_by_vector(..., label_sources=None)`）、`code/backend/tests/test_factcheck_supersede.py`（新增）、`code/backend/tests/test_pg_store.py`
+- 做什麼：
+  1. 兩個 store 的 `find_similar_by_vector` 加 `label_sources`：給定時只比對這些 `label_source` 的 verified 列（本機 `isin`，Postgres `label_source = ANY(:labels)`）。
+  2. 處理器在 L0／L1 命中且該列 `verified=false` 時，取列內向量（沒有就以 `raw_content` 算一次 embedding），以 `label_sources=DETERMINISTIC_LABEL_SOURCES` 查向量層；有結果就以 `cache_layer="vector"` 回那一筆，否則照舊回原列。已證實列不做這一步；查詢出錯只記 log、照舊回原列。
+  3. 一般「AI 判定＋來源」的列不得取代舊結果（避免長得像的另一則訊息蓋掉針對原文的判定）。
+- 驗收：`pytest tests/test_factcheck_supersede.py -q`（8 項）；`RUN_PG_TESTS=1` 時 `test_vector_label_sources_filter` 通過；`pytest tests -q` 全綠。
+- 預估：2h
+- 排程：報告後
+- 狀態：已完成（2026-09-22）
+
+### B-28 讓熱門牆抓取可以只寫入查核結論、不呼叫判讀模型
+- 優先級：P1
+- 依賴：D-01
+- 對應：FR-20 第 2 部分
+- 範圍：`code/backend/app/services/news_fetcher.py`（`run_trending_fetch(analyze_pending=True, per_feed=4)`）、`code/backend/app/api/trending.py`（`POST /refresh?analyze=&per_feed=`）、`code/backend/tests/test_news_fetcher_async.py`
+- 做什麼：`analyze_pending=False` 時跳過 `retry_pending_records()`；`per_feed` 傳給 `fetch_rss_items`。端點預設值與排程行為不變；標記規則與 `_save_rss_record` 判斷樹不動（全票共通規則 2）。
+- 驗收：`pytest tests/test_news_fetcher_async.py tests/test_admin_auth.py -q` 通過。
+- 預估：0.5h
+- 排程：報告後
+- 狀態：已完成（2026-09-22）。每日自動觸發（GitHub Actions 帶管理金鑰呼叫）尚未設定，需負責人把 `ADMIN_TOKEN` 加入 repository secret。
+
+### B-29 新增 GET /api/knowledge/hot 熱門查證排行
+- 優先級：P1
+- 依賴：B-21
+- 對應：FR-21
+- 範圍：`code/backend/app/services/hot_claims.py`（新增）、`code/backend/app/api/knowledge.py`（`/hot`、`_public_record` 與 `/api/knowledge` 共用）、`code/backend/app/services/task_store.py`、`code/backend/app/services/pg_store.py`（`recent_kb_refs`）、`code/backend/tests/test_hot_claims.py`（新增）、`code/backend/tests/test_pg_store.py`
+- 做什麼：
+  1. 兩個 task store 加 `recent_kb_refs(since)`：`status=completed` 且有 `kb_id` 的任務，只回 `{kb_id, created_at, origin}`。
+  2. `hot_claims.rank()`：半衰期 3 小時的時間衰減分數、7 天視窗、`count_24h`／`count_window`／`last_seen`，同分依最近一次查證、再依 `kb_id`。
+  3. 端點只回 `verified=true` 列，欄位同 `/api/knowledge`，另加 `recent_24h`、`recent_7d`、`last_seen_at`；`limit` 1～50。
+- 驗收：`pytest tests/test_hot_claims.py -q`（9 項）；`RUN_PG_TESTS=1` 時 `test_recent_kb_refs_matches_local_store` 通過。
+- 預估：2h
+- 排程：報告後
+- 狀態：已完成（2026-09-22）
+
+### S-15 熱門頁加入「本站熱門查證」分頁
+- 優先級：P1
+- 依賴：S-09、S-10、B-29
+- 對應：FR-21、spec 8.3 S3
+- 範圍：`code/frontend/src/pages/Trending.jsx`（SegmentedTabs、`?tab=hot`）、`src/pages/trending/HotList.jsx`、`hotModel.js`、`hot.test.js`（新增）、`src/pages/knowledge/KnowledgeCard.jsx`（`countText`）、`src/lib/api.js`（`getKnowledgeHot`）、`src/lib/fixtures.js`、`src/dev/fixtures/knowledge_hot*.json`、`src/i18n.js`（EXTRA）
+- 做什麼：
+  1. 熱門頁標題下加兩格分頁「查核機構最新」「本站熱門查證」，選取狀態寫入網址 `?tab=hot`（保留其他參數，例如 `fixture`）；原熱門牆內容移到 `FactCheckerFeed`，只在其分頁顯示時抓資料。
+  2. 熱門查證分頁：說明文字 `hot_sub`、知識庫卡片（次數 chip 改為 `hot_count`）、載入骨架、錯誤重試、空狀態 `hot_empty`。
+- 驗收：`npm run test:unit`、`npm run lint` 通過；`VITE_FIXTURES=1` 下 `/trending?tab=hot` 顯示 4 張卡片、`?tab=hot&fixture=empty` 顯示空狀態；375 寬無橫向捲動、分頁文字不截斷。截圖與 `ui_checklist.csv` 列待下一輪 UI-1。
+- 預估：2h
+- 排程：報告後
+- 狀態：已完成（2026-09-22）

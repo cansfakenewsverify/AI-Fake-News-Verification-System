@@ -208,6 +208,13 @@ export const EXTRA = {
   btn_refresh: "重新整理", // S-04 超時態重新開始輪詢（spec 8.3 S2 狀態 2 有此字、8.7 無 key）
   result_steps_label: "查證進度", // S-04 三步指示 <ol aria-label>（依 ResultStates.dc.html）
   excerpt_expand: "展開全文", // S-05 摘錄卡超過 3 行的展開鈕 aria-label（依 Result.dc.html）
+  // 熱門頁分頁：查核機構最新（原熱門牆）／本站熱門查證（GET /api/knowledge/hot）
+  trending_tabs_label: "熱門內容",
+  trending_tab_feed: "查核機構最新",
+  trending_tab_hot: "本站熱門查證",
+  hot_sub: "大家最近在查的內容，依最近 7 天的查證次數排序，越近的查證權重越高。只列出已有查核來源佐證的判定。",
+  hot_count: "近 24 小時 {day} 次・近 7 天 {week} 次",
+  hot_empty: "最近 7 天還沒有已證實的熱門查證。",
 };
 
 const PLACEHOLDER = /\{([A-Za-z_][A-Za-z0-9_]*)(?:≤(\d+))?\}/g;

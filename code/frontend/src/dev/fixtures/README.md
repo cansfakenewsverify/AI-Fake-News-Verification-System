@@ -23,6 +23,7 @@ production build（`npm run build`）整段剔除，不含任何 fixture；只�
 | `GET /api/trending` | `trending_ok.json`；頁面網址 `?fixture=empty` → `trending_empty.json` |
 | `GET /api/knowledge?offset=N` | `knowledge_page{floor(N/30)+1}.json`；`?fixture=empty` → `knowledge_empty.json` |
 | `GET /api/knowledge/stats` | `knowledge_stats.json` |
+| `GET /api/knowledge/hot` | `knowledge_hot.json`；頁面網址 `?fixture=empty` → `knowledge_hot_empty.json` |
 | `GET /api/threads/status` | `threads_status_{?fixture 值，預設 sim}.json` |
 | `GET /api/threads/replies` | `threads_replies.json` |
 | `GET /api/health` | `health_ok.json` |

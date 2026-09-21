@@ -245,6 +245,10 @@ export const getKnowledge = ({ q, risk_type, limit, offset } = {}, opts = {}) =>
 
 export const getKnowledgeStats = (opts = {}) => request("/api/knowledge/stats", opts);
 
+/** 熱門頁「本站熱門查證」：最近 7 天被查證次數（時間衰減）排序的已證實內容 */
+export const getKnowledgeHot = ({ limit } = {}, opts = {}) =>
+  request(withQuery("/api/knowledge/hot", { limit }), opts);
+
 export const getHealth = (opts = {}) => request("/api/health", opts);
 
 export const getThreadsStatus = (opts = {}) => request("/api/threads/status", opts);

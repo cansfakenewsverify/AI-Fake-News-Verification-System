@@ -1,7 +1,7 @@
-# 專案現況與待辦（2026-09-21）
+# 專案現況與待辦（2026-09-22）
 
 本文件記錄專案在第三次進度報告前後的狀態、指導教授的最新規定，以及尚未完成的工作。
-上游文件依序為 `00_consensus.md`（共識）→ `01_spec.md`（規格 v1.3）→ `03_tickets.md`（實作票）；
+上游文件依序為 `00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）→ `03_tickets.md`（實作票）；
 測試項目與結果在 `docs/test/TP-FNV-2026-01.md`。
 
 ## 現況
@@ -9,7 +9,8 @@
 - 系統已上線：<https://fakenewsverify.vercel.app>。前端 Vercel、後端 Render
   （`https://fakenewsverify-api.onrender.com`）、資料 Supabase PostgreSQL 與 pgvector；
   AI 使用學校 CGU AIR 閘道的 `gpt-5.4-mini`。金鑰僅存在本機設定檔與 Render 後台，不進版本庫。
-- 測試：後端 700 項通過（另 24 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`）、前端 385 項通過，CI 綠燈。
+- 測試：後端 718 項通過（另 26 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-22 對 Supabase 全數通過）、
+  前端 390 項通過。
 - 測試計畫書 `docs/test/TP-FNV-2026-01.md` 為 v1.5，第 6.5 節為 2026-09-19～20 的重測結果：
   P0 通過 27／30；PF-2 未通過，UI-6 未執行。PDF 在 `presentations/2026-09_進度報告/`。
 - 第三次進度報告的資料集中在 `presentations/2026-09_進度報告/`，見該資料夾的 README。
@@ -43,6 +44,15 @@
 - **UI-1 深色版截圖**（2026-09-20）：補齊 54 張，檢核表 `docs/test/ui_checklist.csv` 擴充為 143 列
   並加入勾核與覆核欄位。擷取工具 `code/frontend/tools/capture_ui.mjs`，
   作業說明 `docs/test/UI-1_勾核說明.md`。
+- **查核結果回補與本站熱門查證**（2026-09-22，規格 v1.4 的 FR-20、FR-21，票 D-06、B-27～B-29、S-15）：
+  - 一字不差的重複查詢命中「尚無查核機構證實」的舊資料時，若查核機構之後的結論已寫進知識庫且語意對得上，
+    改回查核結論；只有查核機構或人工確認的結論能取代舊結果。
+  - 熱門牆抓取可只寫入查核結論、不呼叫判讀模型（`POST /api/trending/refresh?analyze=false&per_feed=25`）。
+  - 唯讀盤點 `code/backend/scripts/recheck_unverified.py`：2026-09-22 正式資料 86 筆未證實資料中，
+    沒有一筆能由現有已證實資料或最新 66 篇查核文章補上（相似度皆低於 0.75），8 筆落在 0.65～0.75，
+    皆為同類詐騙話術。
+  - 熱門頁新增「本站熱門查證」分頁（`/trending?tab=hot`）：最近 7 天被查證次數，以半衰期 3 小時的時間衰減排序，
+    只列已證實內容。
 
 ## 審查意見（2026-09-21，陳仁暉教授）
 
@@ -79,3 +89,7 @@
 8. **UI-6**：OpenCC 簡繁比對，其中英文字允許清單須經指導教授裁定。
 9. **熱門牆資料更新**：雲端排程關閉，目前為手動更新，資料更新時間停在 2026-07-12。
 10. **Threads 實機串接**：排在報告後，需 Meta App Review 與企業驗證，詳見 `CLAUDE.md` 第 11 節。
+11. **查核結論每日進庫**：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25`，
+    需先把 `ADMIN_TOKEN` 加入 GitHub repository secret；此步驟不呼叫判讀模型。
+12. **提供查核機構的熱搜名單**：排序已完成（`app/services/hot_claims.py`），尚缺管理端點、個資遮蔽，
+    以及隱私政策增列「提供查核機構」的用途；公開頁維持只列已證實內容。
