@@ -41,7 +41,7 @@ pres.author = "廖晢勛、石岱勳、姚睿、張宇宏、廖育翔";
 pres.title = "AI 為核心的假訊息驗證系統 — 第三次進度報告";
 
 let pageNo = 0;
-const TOTAL = 10;
+const TOTAL = 12;
 
 /** Every content page: title at the top, page number bottom-right, nothing decorative. */
 function page(title, kicker) {
@@ -195,7 +195,33 @@ function card(s, { x, y, w, h, tint = false }) {
   });
 }
 
-/* ────────────────────────── 4. 系統架構 ────────────────────────── */
+
+/* ───────────────────────── 4. 關鍵技術 ───────────────────────── */
+{
+  const s = page("關鍵技術", "四項技術決定了這套系統能不能便宜、穩定而且誠實地回答問題。");
+  const items = [
+    ["向量語意檢索", "以 text-embedding-3-small 將訊息轉成 1536 維向量，存入 PostgreSQL 的 pgvector 並以 cosine 相似度比對。門檻 0.75 是用實測資料校準出來的：同一謠言的改寫版落在 0.79–0.82，不同謠言不超過 0.68。"],
+    ["三層快取", "相同內容、語意相似、AI 判讀依序嘗試，把最貴的一步留到最後。雜湊命中 213 ms、向量命中約 3 秒、AI 判讀 9–27 秒；命中快取不耗用 AI 額度。"],
+    ["來源分級", "把查核來源分成三級，只有已經做出判定的機構或媒體查核報導能顯示為來源。找不到就標示「尚無查核機構證實」，而且不給綠燈——寧可說還沒被證實，也不給一個看起來有來源的答案。"],
+    ["雲端部署與護欄", "Vercel 靜態前端同源代理到 Render 的 FastAPI 後端，資料在 Supabase。對外連線一律經 SSRF 防護，另有每日 AI 次數上限、每個 IP 的頻率限制與請求大小上限。"],
+  ];
+  const colW = (CW - 0.4) / 2;
+  items.forEach(([h, b], i) => {
+    const x = M + (i % 2) * (colW + 0.4);
+    const y = 1.86 + Math.floor(i / 2) * 2.34;
+    card(s, { x, y, w: colW, h: 2.12, tint: i === 0 });
+    s.addText(h, {
+      x: x + 0.28, y: y + 0.2, w: colW - 0.56, h: 0.44, isTextBox: true, margin: 0,
+      fontFace: SANS, fontSize: 20, bold: true, color: INK, valign: "middle",
+    });
+    s.addText(b, {
+      x: x + 0.28, y: y + 0.68, w: colW - 0.56, h: 1.3, isTextBox: true, margin: 0,
+      fontFace: SANS, fontSize: 12, color: "3F3F46", lineSpacingMultiple: 1.3, valign: "top",
+    });
+  });
+}
+
+/* ────────────────────────── 5. 系統架構 ────────────────────────── */
 {
   const s = page("系統架構", "金鑰只存在負責人本機的設定檔與 Render 後台；版本庫是公開的，裡面不含任何金鑰。");
   const boxes = [
@@ -307,7 +333,43 @@ function card(s, { x, y, w, h, tint = false }) {
   });
 }
 
-/* ────────────────────────── 6. 評測結果 ────────────────────────── */
+
+/* ──────────────────────── 7. 實際困難點 ──────────────────────── */
+{
+  const s = page("實際困難點", "以下四項是開發過程中真正卡住、而且改了設計才解決的問題。");
+  const rows = [
+    ["向量層形同虛設", "相似度門檻原本設 0.88。實測發現同一謠言的改寫版只有 0.79–0.82，全部被擋在門外，語意快取等於沒有作用。",
+      "改以實測資料校準門檻為 0.75，並確認不同謠言之間不超過 0.68，不會誤命中。改寫版開始正常命中。"],
+    ["分析對象被偷換", "使用者貼文字時，系統原本會先去爬網頁，再拿爬到的全文與知識庫比對。長篇網頁對上一句話的謠言，相似度永遠過不了門檻。",
+      "改為文字輸入一律以使用者原文送 AI 與向量比對，爬到的頁面降級為參考資料，並補上回歸測試防止改回去。"],
+    ["同一則謠言出現兩種標籤", "查核報導被當成謠言本身判定：同一則 SIM 卡謠言，一家媒體的查核報導被標成假訊息，另一家被標成安全。",
+      "判定對象改為「被查核的主張」而非報導本身，並以標題判定詞、AI 指示與既有資料修復三道防線處理。"],
+    ["免費雲端主機會休眠", "後端閒置 15 分鐘即休眠，喚醒約需 1 分鐘，但結果頁 15 秒逾時就顯示「連不上伺服器」，使用者以為壞掉。",
+      "結果頁改為在 90 秒內持續重試並維持載入畫面，後端恢復後自動重新載入；送出查證的逾時延長至 75 秒。"],
+  ];
+  rows.forEach(([title, problem, fix], i) => {
+    const y = 1.84 + i * 1.19;
+    card(s, { x: M, y, w: CW, h: 1.05 });
+    s.addText(title, {
+      x: M + 0.26, y: y + 0.14, w: 2.5, h: 0.78, isTextBox: true, margin: 0,
+      fontFace: SANS, fontSize: 16, bold: true, color: INK, valign: "top",
+    });
+    s.addText([{ text: "問題　", options: { bold: true, color: MUTED } }, { text: problem }], {
+      x: M + 2.86, y: y + 0.13, w: 4.4, h: 0.82, isTextBox: true, margin: 0,
+      fontFace: SANS, fontSize: 10.5, color: "3F3F46", lineSpacingMultiple: 1.22, valign: "top",
+    });
+    s.addText([{ text: "解法　", options: { bold: true, color: MUTED } }, { text: fix }], {
+      x: M + 7.46, y: y + 0.13, w: CW - 7.72, h: 0.82, isTextBox: true, margin: 0,
+      fontFace: SANS, fontSize: 10.5, color: "3F3F46", lineSpacingMultiple: 1.22, valign: "top",
+    });
+  });
+  s.addText("每一項都留下缺陷編號與回歸測試，修正內容可在測試計畫書與版本庫中回溯。", {
+    x: M, y: 6.62, w: CW, h: 0.34, isTextBox: true, margin: 0,
+    fontFace: SANS, fontSize: 11.5, color: MUTED, valign: "middle",
+  });
+}
+
+/* ────────────────────────── 8. 評測結果 ────────────────────────── */
 {
   const s = page("評測結果", "自建 150 筆已標註的訊息（詐騙、假訊息、安全各 50），其中刻意放入「看起來像詐騙的合法官方訊息」當難題。");
   const cards = [
@@ -362,7 +424,7 @@ function card(s, { x, y, w, h, tint = false }) {
 
 /* ───────────────────────── 7. 測試與品質 ───────────────────────── */
 {
-  const s = page("測試與品質", "自動化測試全部離線執行、不消耗 AI 額度，每次提交由 GitHub Actions 自動跑完。");
+  const s = page("用什麼方法檢驗成果", "四種方法並行，其中兩種刻意交給沒有參與實作的人執行，避免自己檢查自己。");
   const stats = [["700", "後端自動化測試"], ["385", "前端自動化測試"], ["46", "測試計畫書項目"], ["27 / 30", "P0 重測通過"]];
   const sw = (CW - 0.36 * 3) / 4;
   stats.forEach(([v, k], i) => {
@@ -441,6 +503,7 @@ function card(s, { x, y, w, h, tint = false }) {
   });
   const next = [
     "Threads 實機串接：申請 Meta App Review 與企業驗證，完成後對外開放。",
+    "找非團隊成員的一般使用者實測，記錄達成率與誤解之處，作為第三方驗證。",
     "擴充評測資料集並重新評測，取得能分辨模型差異的結果。",
     "完成 PF-2 重測，並清理知識庫中 24 筆標記錯誤的來源。",
     "補做 UI-6、PF-1、OP-1 三項未執行的測試。",
