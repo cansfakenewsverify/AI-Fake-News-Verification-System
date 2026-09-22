@@ -20,7 +20,7 @@ def test_run_trending_fetch_offloads_blocking_calls(monkeypatch):
     calls = _install_recording_to_thread(monkeypatch)
     saved = []
 
-    def fetch_rss_items(num_per_feed=4):
+    def fetch_rss_items(num_per_feed=4, include_cofacts=True):
         return [
             {"url": "https://example.com/a", "title": "新聞 A"},
             {"url": "https://example.com/b", "title": "新聞 B"},
@@ -54,7 +54,7 @@ def test_run_trending_fetch_without_analysis_skips_the_ai_step(monkeypatch):
     per_feed_seen = []
     saved = []
 
-    def fetch_rss_items(num_per_feed=4):
+    def fetch_rss_items(num_per_feed=4, include_cofacts=True):
         per_feed_seen.append(num_per_feed)
         return [{"url": "https://www.mygopen.com/2026/09/a.html", "title": "【錯誤】網傳 A？"}]
 

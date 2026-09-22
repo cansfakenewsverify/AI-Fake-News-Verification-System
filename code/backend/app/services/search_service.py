@@ -44,6 +44,15 @@ def _is_aggregator_url(url: str) -> bool:
     return host == "news.google.com" or host.endswith(".news.google.com")
 
 
+# 查核機構 RSS 裡不是「查核某個說法」的文章：徵才、每週闢謠排行、小考題。
+# 2026-09 資料清洗（FR-18）以人工刪過這幾類；進熱門牆前就擋下，不必再清一次。
+_NON_FACTCHECK_TITLE = re.compile(r"(徵才|誠徵|TOP\s*10|小考題|小測驗)", re.IGNORECASE)
+
+
+def _is_non_factcheck_post(title: str) -> bool:
+    return bool(_NON_FACTCHECK_TITLE.search(title or ""))
+
+
 def _strip_html(text: str) -> str:
     """去 HTML 標籤 + 解碼 entities（&nbsp; &amp; 等，Google News RSS 摘要常見）。"""
     s = re.sub(r"<[^>]+>", "", text or "")
@@ -106,8 +115,9 @@ def _parse_rss_xml(xml_bytes: bytes, source_name: str, num: int) -> List[Dict]:
 class SearchService:
 
     @staticmethod
-    def fetch_rss_items(num_per_feed: int = 4) -> List[Dict]:
-        """Aggregate items from the fact-checker RSS feeds and Cofacts."""
+    def fetch_rss_items(num_per_feed: int = 4, include_cofacts: bool = True) -> List[Dict]:
+        """Aggregate items from the fact-checker RSS feeds and (unless include_cofacts=False) Cofacts.
+        Posts that are not fact-checks of a claim (job ads, weekly top-10 roundups, quizzes) are dropped."""
         all_items = []
         seen_urls = set()
         seen_tfc = False  # only need one working TFC URL
@@ -130,6 +140,8 @@ class SearchService:
                     seen_tfc = True
                 added = 0
                 for it in items:
+                    if _is_non_factcheck_post(it.get("title", "")):
+                        continue
                     if it["url"] not in seen_urls:
                         seen_urls.add(it["url"])
                         all_items.append(it)
@@ -139,6 +151,8 @@ class SearchService:
                 print(f"[SearchService] {feed['name']} error: {e}")
 
         # ── Cofacts API (collaborative fact-checks) ─────────────
+        if not include_cofacts:
+            return [it for it in all_items if not _is_aggregator_url(it.get("url", ""))]
         try:
             cofacts_items = SearchService._fetch_cofacts(num=num_per_feed * 2)
             added = 0

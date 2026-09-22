@@ -287,7 +287,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | GET | `/api/knowledge/stats` | 知識庫統計 |
 | GET | `/api/knowledge/hot` | 本站熱門查證：`limit`（1–50，預設 10）。最近 7 天被查證（含快取命中）的次數以半衰期 3 小時衰減排序；只回已證實的資料列，另帶 `recent_24h`、`recent_7d`、`last_seen_at` |
 | GET | `/api/trending` | 熱門牆：`limit`（1–50，預設 10）、`risk_type` |
-| POST | `/api/trending/refresh` | 手動觸發抓取熱門（管理端點）：`analyze`（預設 `true`；`false` 只抓查核文章並寫入知識庫、不呼叫判讀模型）、`per_feed`（1–25，預設 4） |
+| POST | `/api/trending/refresh` | 手動觸發抓取熱門（管理端點）：`analyze`（預設 `true`；`false` 只抓查核文章並寫入知識庫、不呼叫判讀模型）、`per_feed`（1–25，預設 4）、`cofacts`（預設 `true`；`false` 只抓 MyGoPen／TFC）。一律擋下徵才、闢謠 TOP10、小考題等非查核文章 |
 | POST | `/api/feedback/tasks/{id}` | 使用者回饋：`rating`、`comment`（選填） |
 | POST | `/api/admin/tasks/{id}/override` | 人工覆寫判定（管理端點）：`risk_type`、`category`、`confidence_score`、`reason`、`admin_id` |
 | GET | `/api/threads/status`、`/api/threads/replies` | Threads 機器人狀態與回覆紀錄（公開唯讀，不含 token） |
@@ -357,7 +357,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q; Remove-Item Env:RUN_PG_TESTS
 ```
 
-- **718 個通過**；另有 **26 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
+- **729 個通過**；另有 **26 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
 - `tests/conftest.py` 在測試中預設關閉限速與每日上限，要測護欄的測試再自己打開。
 - GitHub Actions（`.github/workflows/ci.yml` 的 `test` job）在每次 push／PR 到 `main` 時用 Python 3.12 跑 `python -m pytest tests -q`。
 

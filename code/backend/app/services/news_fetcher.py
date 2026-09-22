@@ -333,8 +333,10 @@ def _cleanup_legacy_strings():
                     r.ai_summary = f"[{source['name']}] {claim or title}"
                     _index_factcheck_claim(r.source_url, title, source)
                     fixed += 1
-                elif r.risk_type == "MISINFO":
-                    # 之前被誤標成假訊息，但其實沒有不實判定 → 退回未查證
+                elif r.risk_type == "MISINFO" and "cofacts.tw" not in (r.source_url or ""):
+                    # 之前被誤標成假訊息，但其實沒有不實判定 → 退回未查證。
+                    # Cofacts 例外：它的判定來自文章的 RUMOR 回覆（抓取時的 verdict），標題本來就
+                    # 不會有【錯誤】標籤，以標題判斷會把已查核的謠言誤退成未查證。
                     r.risk_type = "PENDING"
                     r.ai_summary = None
                     fixed += 1
@@ -463,7 +465,7 @@ def _apply_ai_result(url: str, ai_result: dict, content: str, title: str,
         db.close()
 
 
-async def run_trending_fetch(analyze_pending: bool = True, per_feed: int = 4):
+async def run_trending_fetch(analyze_pending: bool = True, per_feed: int = 4, include_cofacts: bool = True):
     """
     Full pipeline: RSS fetch + classify + AI analyze. Runs every 6 hours when the scheduler is on.
 
@@ -471,6 +473,8 @@ async def run_trending_fetch(analyze_pending: bool = True, per_feed: int = 4):
     不呼叫判讀模型：查核機構新發布的結論因此進入知識庫，之後重複查詢的舊的未證實結果
     就能在快取層被改回查核結果（pandas_task_processor 的查核結果回補）。只耗 embedding。
     per_feed：每個 RSS 來源取幾篇（排程沿用 4；補抓時可調高，MyGoPen RSS 一次最多 25 篇）。
+    include_cofacts=False：只抓 MyGoPen／TFC。Cofacts 的 RUMOR 文章常是對話片段，
+    寫進知識庫前需要另外審閱，手動補抓時可先略過。
     """
     _print(f"\n{'='*60}")
     _print(f"[NewsFetcher] Full fetch at {datetime.now():%Y-%m-%d %H:%M}")
@@ -479,7 +483,9 @@ async def run_trending_fetch(analyze_pending: bool = True, per_feed: int = 4):
     # SQLite / Parquet / RSS HTTP 皆為阻塞呼叫 → to_thread（只包呼叫，不動判斷邏輯）
     await asyncio.to_thread(_cleanup_legacy_strings)
 
-    items = await asyncio.to_thread(SearchService.fetch_rss_items, num_per_feed=per_feed)
+    items = await asyncio.to_thread(
+        SearchService.fetch_rss_items, num_per_feed=per_feed, include_cofacts=include_cofacts,
+    )
     _print(f"[NewsFetcher] RSS items: {len(items)}")
     classified = 0
     for item in items:

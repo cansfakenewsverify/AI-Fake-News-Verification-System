@@ -263,7 +263,7 @@
 ### FR-20 查核結果回補（P1；2026-09-22 新增）
 - **描述**：FR-17 讓沒有 Tier 1／2 來源的判定以 `verified=false` 保存，而 URL／hash 層不過濾 `verified`，所以一字不差的重複查詢會一直拿到當初「尚無查核機構證實」的結果，即使查核機構之後已經發布查核。處理分三部分：
   1. **快取層（自動）**：URL／hash 命中 `verified=false` 列時，以該列的向量（本機版列內已存；Postgres 版 `find_*` 不載入向量，改以 `raw_content` 算一次 embedding）到向量層**只比對確定性標記**（`label_source ∈ {rule, gold, admin}`，`find_similar_by_vector(..., label_sources=...)`），達 `SIMILARITY_THRESHOLD` 就改回那一筆，`cache_layer="vector"`。一般「AI 判定＋來源」的列不能取代舊結果：舊結果是針對這段原文判的，換掉它要有查核機構層級的證據，長得像的另一則訊息不夠。不呼叫判讀模型。
-  2. **查核文章進庫（不耗判讀模型）**：`POST /api/trending/refresh?analyze=false&per_feed=25` 只做熱門牆第一階段——抓 MyGoPen／TFC RSS 與 Cofacts、確定性標記、把已判定不實的主張以 `label_source="rule"` 寫進知識庫（`_index_factcheck_claim`，標記規則不變）；只耗 embedding。預設 `analyze=true`、`per_feed=4` 與排程行為相同。
+  2. **查核文章進庫（不耗判讀模型）**：`POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false` 只做熱門牆第一階段——抓 MyGoPen／TFC RSS 與 Cofacts、確定性標記、把已判定不實的主張以 `label_source="rule"` 寫進知識庫（`_index_factcheck_claim`，標記規則不變）；只耗 embedding。預設 `analyze=true`、`per_feed=4`、`cofacts=true` 與排程行為相同。`cofacts=false` 只抓 MyGoPen／TFC：Cofacts 的 RUMOR 文章常是對話片段，寫進知識庫前需另外審閱。抓取時一律擋下徵才、闢謠 TOP10、小考題等非查核文章；`_cleanup_legacy_strings` 不再依標題把 Cofacts 已查核的謠言退回 PENDING（2026-09-22 盤點正式資料，原本會誤退 8 筆）。
   3. **唯讀盤點**：`scripts/recheck_unverified.py [--cloud] [--no-fetch]` 對每筆未證實列找最接近的已證實列、最新查核文章，以及該列引用過、現在已有回覆的 Cofacts 文章，依 `hit_count` 排序輸出 `data/recheck_unverified_*.csv`（內含使用者原文，gitignored）。不寫入任何資料。
 - **2026-09-22 盤點結果**：正式資料未證實 101 筆（有 1536 維向量 86 筆），對已證實列與 66 篇最新查核文章都沒有達 0.75 者；0.65～0.75 之間 8 筆，皆為同類詐騙話術而非同一則主張。本機資料 75 筆可比對，同樣 0 筆可回補。
 - **驗收**：`tests/test_factcheck_supersede.py`（確定性標記取代、AI 判定不取代、低於門檻不取代、已證實列不查向量層、無向量時以原文 embedding、embedding 不可用照舊、查詢出錯照舊回原列、store 標記過濾）；`tests/test_pg_store.py::test_vector_label_sources_filter`；`tests/test_news_fetcher_async.py::test_run_trending_fetch_without_analysis_skips_the_ai_step`。
@@ -303,7 +303,7 @@
 | `POST /api/analyze/url` | 伺服器端驗證 URL 與私網過濾；`task_type="analyze_url"`；不再委派 `/text` | analyze.py:165；FR-02 |
 | `POST /api/analyze/image` | magic bytes（415）、10 MB 上限（413）、bytes hash | analyze.py:209-225；FR-03 |
 | `POST /api/analyze/sync` | 回應 `AnalysisResult` v2：加 `result_id`、`ai_unavailable`、`similar_news`（response_model 補宣告）、`category_label`、`analyzed_at`；文字不爬 Google；網址爬取失敗回 200 UNVERIFIABLE 而非 500；`cached`／`cache_layer` 保留（共識 §4）；fallback 契約見 5.5 | backend_api tech_debt 第 1 條 |
-| `POST /api/trending/refresh` | 需 `X-Admin-Token`；2026-09-22 加 `analyze`（預設 `true`；`false` 不呼叫判讀模型）與 `per_feed`（預設 4，1～25） | backend_api gaps 第 1 條；FR-20 |
+| `POST /api/trending/refresh` | 需 `X-Admin-Token`；2026-09-22 加 `analyze`（預設 `true`；`false` 不呼叫判讀模型）、`per_feed`（預設 4，1～25）與 `cofacts`（預設 `true`） | backend_api gaps 第 1 條；FR-20 |
 | `GET /api/threads/status` | 欄位擴充（5.3） | — |
 | `POST /api/threads/poll` | 需 `X-Admin-Token`；**非同步**啟動一輪（維持現況），立即回 202 `{started:true}`；`/bot` 頁與 `scripts/test_threads_bot.py --poll` 改輪詢 `GET /api/threads/status.last_poll_at` 直到變動（腳本印出 `last_poll_stats`）。理由：單則最壞路徑（爬蟲 ≤`CRAWLER_TIMEOUT` + AI provider 鏈每個 60 s；現為單一 `cgu` 但程式仍支援多個，且 `_run_analysis` 最後會關 web_search 再試一次）可達 2–4 分鐘，且 Cloudflare Tunnel 單請求上限 100 s 會回 524。進行中 → 409 `poll_in_progress`；`THREADS_MODE=off` → 200 `{started:false, code:"threads_disabled"}`。demo 週 `THREADS_MAX_REPLIES_PER_POLL=2` | 共識 §10；審查 |
 

@@ -2582,8 +2582,8 @@ flowchart LR
 - 依賴：D-01
 - 對應：FR-20 第 2 部分
 - 範圍：`code/backend/app/services/news_fetcher.py`（`run_trending_fetch(analyze_pending=True, per_feed=4)`）、`code/backend/app/api/trending.py`（`POST /refresh?analyze=&per_feed=`）、`code/backend/tests/test_news_fetcher_async.py`
-- 做什麼：`analyze_pending=False` 時跳過 `retry_pending_records()`；`per_feed` 傳給 `fetch_rss_items`。端點預設值與排程行為不變；標記規則與 `_save_rss_record` 判斷樹不動（全票共通規則 2）。
-- 驗收：`pytest tests/test_news_fetcher_async.py tests/test_admin_auth.py -q` 通過。
+- 做什麼：`analyze_pending=False` 時跳過 `retry_pending_records()`；`per_feed` 傳給 `fetch_rss_items`；`include_cofacts=False`（端點 `cofacts=false`）只抓 MyGoPen／TFC。`fetch_rss_items` 擋下徵才、闢謠 TOP10、小考題等非查核文章。`_cleanup_legacy_strings` 的「沒有不實標籤就退回 PENDING」不再套用在 Cofacts 列（盤點正式資料時發現會誤退 8 筆已查核的謠言）。端點預設值與排程行為不變；`_title_says_false` 等標記函式與 `_save_rss_record` 判斷樹不動（全票共通規則 2）。
+- 驗收：`pytest tests/test_news_fetcher_async.py tests/test_admin_auth.py tests/test_trending_refresh_safety.py -q` 通過。
 - 預估：0.5h
 - 排程：報告後
 - 狀態：已完成（2026-09-22）。每日自動觸發（GitHub Actions 帶管理金鑰呼叫）尚未設定，需負責人把 `ADMIN_TOKEN` 加入 repository secret。

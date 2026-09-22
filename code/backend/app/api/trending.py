@@ -57,6 +57,7 @@ async def trigger_refresh(
     background_tasks: BackgroundTasks,
     analyze: bool = Query(default=True, description="false = 只抓查核文章並寫入知識庫，不呼叫判讀模型"),
     per_feed: int = Query(default=4, ge=1, le=25, description="每個 RSS 來源取幾篇"),
+    cofacts: bool = Query(default=True, description="false = 只抓 MyGoPen／TFC，不抓 Cofacts"),
 ):
     """
     Manually trigger a trending news fetch in background.
@@ -66,9 +67,12 @@ async def trigger_refresh(
     """
     from app.services.news_fetcher import run_trending_fetch
     # FastAPI BackgroundTasks handles async functions natively
-    background_tasks.add_task(run_trending_fetch, analyze_pending=analyze, per_feed=per_feed)
+    background_tasks.add_task(
+        run_trending_fetch, analyze_pending=analyze, per_feed=per_feed, include_cofacts=cofacts,
+    )
     return {
         "message": "Trending refresh started. Check /api/trending in a few minutes.",
         "analyze": analyze,
         "per_feed": per_feed,
+        "cofacts": cofacts,
     }

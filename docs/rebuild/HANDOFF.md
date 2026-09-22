@@ -9,7 +9,7 @@
 - 系統已上線：<https://fakenewsverify.vercel.app>。前端 Vercel、後端 Render
   （`https://fakenewsverify-api.onrender.com`）、資料 Supabase PostgreSQL 與 pgvector；
   AI 使用學校 CGU AIR 閘道的 `gpt-5.4-mini`。金鑰僅存在本機設定檔與 Render 後台，不進版本庫。
-- 測試：後端 718 項通過（另 26 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-22 對 Supabase 全數通過）、
+- 測試：後端 729 項通過（另 26 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-22 對 Supabase 全數通過）、
   前端 390 項通過。
 - 測試計畫書 `docs/test/TP-FNV-2026-01.md` 為 v1.5，第 6.5 節為 2026-09-19～20 的重測結果：
   P0 通過 27／30；PF-2 未通過，UI-6 未執行。PDF 在 `presentations/2026-09_進度報告/`。
@@ -89,7 +89,7 @@
 8. **UI-6**：OpenCC 簡繁比對，其中英文字允許清單須經指導教授裁定。
 9. **熱門牆資料更新**：雲端排程關閉，目前為手動更新，資料更新時間停在 2026-07-12。
 10. **Threads 實機串接**：排在報告後，需 Meta App Review 與企業驗證，詳見 `CLAUDE.md` 第 11 節。
-11. **查核結論每日進庫**：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25`，
+11. **查核結論每日進庫**：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false`，
     需先把 `ADMIN_TOKEN` 加入 GitHub repository secret；此步驟不呼叫判讀模型。
 12. **提供查核機構的熱搜名單**：排序已完成（`app/services/hot_claims.py`），尚缺管理端點、個資遮蔽，
     以及隱私政策增列「提供查核機構」的用途；公開頁維持只列已證實內容。

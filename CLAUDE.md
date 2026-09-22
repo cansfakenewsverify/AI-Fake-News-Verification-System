@@ -125,7 +125,9 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   命中未證實列時，處理器以該列向量（Postgres 版沒載入向量時以原文算一次 embedding）呼叫
   `find_similar_by_vector(..., label_sources=DETERMINISTIC_LABEL_SOURCES)`，**只讓 rule／gold／admin 列取代舊結果**
   （一般 AI 判定＋來源的列可能只是長得像的另一則訊息）。查核機構的新結論靠熱門牆抓取以 `rule` 寫入：
-  `POST /api/trending/refresh?analyze=false&per_feed=25` 只抓 RSS 與寫入結論、不呼叫判讀模型。
+  `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false` 只抓 MyGoPen／TFC 的 RSS 與寫入結論、不呼叫判讀模型
+  （Cofacts 的 RUMOR 文章常是對話片段，寫進知識庫前要另外審閱）。抓取時擋下徵才、闢謠 TOP10、小考題等非查核文章；
+  `_cleanup_legacy_strings` 不再把 Cofacts 已查核的謠言退回未查證（它的判定來自回覆、標題沒有【錯誤】標籤）。
   盤點用 `scripts/recheck_unverified.py [--cloud]`（唯讀）：2026-09-22 正式資料 86 筆可比對、0 筆達 0.75。
 
 ---
@@ -142,7 +144,8 @@ code/backend/
 │   ├── api/result.py           /api/result/{id} 結果頁資料（讀任務 store；含分享文案）
 │   ├── api/knowledge.py        /api/knowledge、/stats、/hot（熱門查證；三者都只回 verified 列）
 │   ├── api/trending.py         /api/trending（查核機構優先、Cofacts ≤3 筆排最後）；POST /refresh 需管理 token
-│   │                            （?analyze=false 只抓查核文章寫入知識庫、不呼叫判讀模型；?per_feed=1..25）
+│   │                            （?analyze=false 只抓查核文章寫入知識庫、不呼叫判讀模型；?per_feed=1..25；
+│   │                            ?cofacts=false 只抓 MyGoPen／TFC）
 │   ├── api/threads.py          /api/threads/{status,replies} 公開唯讀；POST /poll 需管理 token
 │   ├── api/admin.py            /api/admin/tasks/{id}/override 管理者覆寫（X-Admin-Token；label_source=admin）
 │   ├── api/feedback.py         /api/feedback/tasks/{id} 使用者回饋
@@ -185,7 +188,7 @@ code/backend/
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **718 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **26 個** Postgres
+├── tests/                      ★pytest **729 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **26 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -258,7 +261,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 718 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 729 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -369,7 +372,7 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] `/bot` 機器人狀態頁（票 S-11）：目前是佔位頁（`src/pages/Bot.jsx`）；後端 `/api/threads/status`、`/replies` 已就緒
 - [ ] （選）擴充 eval_set 到 300 筆、做信心校準（現有 150 筆已飽和，見第 6 節）
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
-- [ ] 查核結論每日進庫（FR-20）：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25`，
+- [ ] 查核結論每日進庫（FR-20）：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false`，
       需負責人把 `ADMIN_TOKEN` 加入 repository secret；在那之前是手動觸發。不呼叫判讀模型，只耗 embedding
 - [ ] 提供查核機構的熱搜名單（FR-21 延伸）：`hot_claims.rank()` 已可用於未證實內容；還缺管理端點、電話／帳號／人名遮蔽、
       隱私政策增列「提供查核機構」用途（現行政策只寫「供後續相同或相似內容快速比對」）
