@@ -344,6 +344,10 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | `clean_sources_2026_09.py` | 2026-09 來源清洗（一次性、冪等，預設 dry-run；已於 2026-09-16 套用） |
 | `fix_factcheck_labels.py` | 一次性修復：查核報導錯標與 RSS 殘留的 HTML entities（冪等，支援 `--dry-run`） |
 | `llm_second_opinion.py` | 清洗審閱輔助：用閘道的本地模型挑出「不是可查核主張」的資料列（只讀資料檔） |
+| `reembed_vectors.py` | 列出維度不是 1536 的向量；`--apply [--target both]` 才以現行模型重算（DEF-05，2026-09-19 已套用） |
+| `run_pf2.py` | PF-2 量測：對本機後端送出組員審定的改寫句，記錄命中層與延遲（執行前自動備份資料檔） |
+| `pf2_similarity.py` | PF-2 診斷：算出每一句改寫句與知識庫的實際相似度（唯讀，不呼叫判讀模型） |
+| `recheck_unverified.py` | 查核結果回補盤點：未證實列能否由已證實列、最新查核文章或 Cofacts 新回覆補上（唯讀；`--cloud` 讀正式資料；輸出含使用者原文，已 gitignore） |
 
 ---
 
