@@ -1,8 +1,9 @@
-# hf-presentation — 5 分鐘簡報影片（presentation_v1.0）
+# hf-presentation — 5 分鐘簡報影片（presentation_v1.1）
 
 老師 2026-09-20 的規定：簡報就是一支**預先錄好、最長 5 分鐘、有旁白與音效**的影片，像「系統開箱文」，
 要介紹整個系統的功能、所有操作與輸入輸出。規格在 `docs/demo/presentation_video_brief.md`，
-製作紀錄在 `docs/demo/footage_log.md` 的 `presentation_v1.0` 一節。
+製作紀錄在 `docs/demo/footage_log.md` 的 `presentation_v1.0` 與 `presentation_v1.1` 兩節。
+v1.1（2026-09-22）只把旁白換成 `zh-TW-HsiaoChenNeural`，畫面與片長不變。
 
 **只在本機 render。** 不執行 `publish`／`cloud`／`lambda`／`cloudrun`／`auth`／`feedback`，不登入任何服務；
 遙測以 `HYPERFRAMES_NO_TELEMETRY=1`、`DO_NOT_TRACK=1` 關閉。
@@ -12,8 +13,8 @@
 
 | 檔案 | 說明 |
 |------|------|
-| `docs/demo/presentation_v1.0.mp4` | 母片 1920×1080、30 fps、H.264＋AAC（`docs/demo/*.mp4` 不進 git） |
-| `docs/demo/presentation_v1.0.srt` | 字幕 |
+| `docs/demo/presentation_v1.1.mp4` | 母片 1920×1080、30 fps、H.264＋AAC（`docs/demo/*.mp4` 不進 git） |
+| `docs/demo/presentation_v1.1.srt` | 字幕 |
 | `code/frontend/public/demo/presentation_v1.mp4` | 網站用的壓縮版（**會提交**，<30 MB） |
 | `presentations/2026-09_進度報告/06_簡報影片旁白稿.md` | 逐段旁白與時間碼，給組員重新配音用 |
 
@@ -41,7 +42,7 @@ PowerShell 沒有 `&&`：上面每一行請分開貼。
 
 | 想改什麼 | 改哪裡 |
 |----------|--------|
-| 旁白文字、讀音 | `data/narration.json` → 重跑 `tts.py`、`build_timeline.mjs`、`build_narration_doc.mjs` |
+| 旁白文字、讀音、聲音與語速 | `data/narration.json`（`voice`、`rate`；個別段落可另設 `rate`）→ 重跑 `tts.py`、`build_timeline.mjs`、`build_narration_doc.mjs` |
 | 每段多長、段落順序、轉場 | `data/plan.json` 的 `shots`／`scenes` |
 | 哪一段實錄怎麼剪（加速、剪掉空檔、靜止延長） | `data/plan.json` 的 `footage` → 重跑 `build_footage.mjs` |
 | 實錄場景的鏡頭運動與右欄文字 | `data/scenes.json` → 重跑 `build_scenes.mjs` |

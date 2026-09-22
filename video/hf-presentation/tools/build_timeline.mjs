@@ -1,11 +1,11 @@
-// Assembles presentation_v1.0 from data/plan.json (edit decision list) + data/timing.json (real narration timings).
+// Assembles presentation_v1.1 from data/plan.json (edit decision list) + data/timing.json (real narration timings).
 //
 // Usage (from video/hf-demo):  node tools/build_timeline.mjs
 // Writes:
 //   index.html                      thin orchestrator: scene hosts, chrome, caption track, narration clips,
 //                                   scene-to-scene transitions on the root timeline
 //   compositions/captions.html      the single caption track (one group per narration cue)
-//   ../../docs/demo/presentation_v1.0.srt the same cues as a sidecar subtitle file
+//   ../../docs/demo/presentation_v1.1.srt the same cues as a sidecar subtitle file
 //   data/schedule.json              where every shot / scene / cue lands on the film clock (reference)
 //   compositions/chrome.html        persistent brand + progress rule (durations follow the plan)
 // Scene files (compositions/sNN-*.html) are hand-authored; their root
@@ -129,7 +129,7 @@ const index = `<!doctype html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
-    <title>全民查證公社 簡報影片 presentation v1.0</title>
+    <title>全民查證公社 簡報影片 presentation v1.1</title>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <style>
       /* ── assets/film.css, inlined by tools/build_timeline.mjs: the render compiler only embeds fonts
@@ -163,7 +163,7 @@ ${scenes.map((sc) => host(sc.id, sc.start, sc.hostDur, 1, "graphics")).join("\n"
 ${host("chrome", 0, TOTAL, 5, "graphics")}
 ${host("captions", 0, TOTAL, 6, "captions")}
 
-      <!-- narration (track 20): edge-tts zh-TW-YunJheNeural, one clip per shot, gentle fades -->
+      <!-- narration (track 20): edge-tts (voice and rate in data/narration.json), one clip per shot, gentle fades -->
 ${audio.join("\n")}
 
       <!-- sound effects (tracks 21-24): synthesised locally by tools/sfx.py, placed by tools/build_sfx.mjs -->
@@ -339,7 +339,7 @@ const tc = (t) => {
   return `${p(Math.floor(ms / 3600000))}:${p(Math.floor(ms / 60000) % 60)}:${p(Math.floor(ms / 1000) % 60)},${p(ms % 1000, 3)}`;
 };
 const srt = cues.map((c, i) => `${i + 1}\n${tc(c.in)} --> ${tc(c.out)}\n${c.text}\n`).join("\n");
-const srtPath = path.resolve(ROOT, "..", "..", "docs", "demo", "presentation_v1.0.srt");
+const srtPath = path.resolve(ROOT, "..", "..", "docs", "demo", "presentation_v1.1.srt");
 fs.writeFileSync(srtPath, srt, "utf8");
 
 fs.writeFileSync(path.join(ROOT, "data", "schedule.json"), JSON.stringify({ total: TOTAL, shots, scenes, cues }, null, 1) + "\n", "utf8");

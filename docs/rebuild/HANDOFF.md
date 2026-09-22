@@ -30,9 +30,9 @@
 
 ## 已完成
 
-- **簡報影片 presentation_v1.0**（2026-09-20）：4 分 38 秒，畫面全部為正式站實錄。
+- **簡報影片 presentation_v1.1**（2026-09-20 製作，09-22 更換旁白為女聲 `zh-TW-HsiaoChenNeural`）：4 分 38 秒，畫面全部為正式站實錄。
   網址 <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>，
-  網站播放版在 `code/frontend/public/demo/presentation_v1.mp4`，字幕在 `docs/demo/presentation_v1.0.srt`。
+  網站播放版在 `code/frontend/public/demo/presentation_v1.mp4`，字幕在 `docs/demo/presentation_v1.1.srt`。
   原始碼 `video/hf-presentation/`，旁白稿 `presentations/2026-09_進度報告/06_簡報影片旁白稿.md`，
   製作紀錄 `docs/demo/footage_log.md`。整支影片僅耗用正式站 1 次 AI 查證。
 - **書面報告**：`presentations/2026-09_進度報告/10_書面報告.pptx`，10 張投影片，封面含簽名欄。
@@ -87,7 +87,9 @@
    呼叫 `/health`；此為在正式資料庫新增常駐設定，須先取得測試負責人同意。
 7. **雲端知識庫補入示範用的 gold 列**：細節見 `CLAUDE.md` 第 8 節。
 8. **UI-6**：OpenCC 簡繁比對，其中英文字允許清單須經指導教授裁定。
-9. **熱門牆資料更新**：雲端排程關閉，目前為手動更新，資料更新時間停在 2026-07-12。
+9. **熱門牆資料更新**：雲端排程關閉，目前為手動更新。2026-09-22 以「只抓不判」更新一次（MyGoPen 與台灣事實查核中心 31 篇；
+   其中 23 則查核結論寫入知識庫，知識庫確定性標記由 0 筆增為 23 筆；既有 24 筆熱門牆資料未被改動）。
+   之後改由第 11 項的每日排程處理。
 10. **Threads 實機串接**：排在報告後，需 Meta App Review 與企業驗證，詳見 `CLAUDE.md` 第 11 節。
 11. **查核結論每日進庫**：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false`，
     需先把 `ADMIN_TOKEN` 加入 GitHub repository secret；此步驟不呼叫判讀模型。

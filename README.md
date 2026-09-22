@@ -137,7 +137,7 @@ AI-Fake-News-Verification-System/
 │   ├── test/                    ← 測試計畫書 TP-FNV-2026-01.md、results/、screens/、ui_checklist.csv
 │   └── demo/                    ← 簡報影片規格、分鏡、素材紀錄、字幕
 ├── presentations/               ← 2026-09_進度報告/ 與前兩次報告的簡報
-├── video/hf-presentation/       ← 5 分鐘簡報影片原始碼（presentation_v1.0）
+├── video/hf-presentation/       ← 5 分鐘簡報影片原始碼（presentation_v1.1）
 ├── video/hf-demo/               ← 舊版 demo 影片原始碼（v0.4.0）
 ├── assets/                      ← PlantUML 圖、confusion_matrix.png、期末專題文件/（OOSE 文件）
 └── legacy/                      ← 已封存、不再維護的舊版單檔查核儀

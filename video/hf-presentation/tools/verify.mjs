@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = path.resolve(ROOT, "..", "..");
-const film = process.argv[2] || path.join(REPO, "docs", "demo", "presentation_v1.0.mp4");
+const film = process.argv[2] || path.join(REPO, "docs", "demo", "presentation_v1.1.mp4");
 const webCopy = path.join(REPO, "code", "frontend", "public", "demo", "presentation_v1.mp4");
 const SHEET_DIR = process.env.FNV_SHEETS || path.join(os.tmpdir(), "fnv-verify");
 

@@ -1,7 +1,11 @@
-"""Narration for demo_v0.4.0: edge-tts (zh-TW-YunJheNeural) + per-cue timings.
+"""Narration for presentation_v1.x: edge-tts (voice and rate from data/narration.json) + per-cue timings.
 
-Usage (from video/hf-demo):
+Usage (from video/hf-presentation):
     ..\\..\\code\\backend\\venv\\Scripts\\python tools\\tts.py [shot ...]
+
+A shot may carry its own "rate" in narration.json; it overrides the file-wide rate for that shot only.
+Shot lengths are fixed by data/plan.json, so a shot whose narration would not fit is read slightly faster
+instead of moving the picture.
 
 Writes assets/audio/raw/shotNN.mp3 (edge-tts output), assets/audio/shotNN.wav
 (48 kHz, loudness-normalised to -16 LUFS, tail trimmed) and data/timing.json
@@ -46,8 +50,8 @@ def ffmpeg_bin():
     raise SystemExit("ffmpeg not found on PATH")
 
 
-async def synth(text, out):
-    comm = edge_tts.Communicate(text, NARR["voice"], rate=NARR["rate"], boundary="WordBoundary")
+async def synth(text, out, rate):
+    comm = edge_tts.Communicate(text, NARR["voice"], rate=rate, boundary="WordBoundary")
     words = []
     with open(out, "wb") as f:
         async for chunk in comm.stream():
@@ -121,7 +125,7 @@ async def main():
         tts = s.get("tts", cues)
         assert len(tts) == len(cues)
         raw = os.path.join(RAW_DIR, f"shot{n:02d}.mp3")
-        words = await synth("".join(tts), raw)
+        words = await synth("".join(tts), raw, s.get("rate", NARR["rate"]))
         per = assign(tts, words)
         items = []
         for i, c in enumerate(cues):

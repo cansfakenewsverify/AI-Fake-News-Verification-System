@@ -38,6 +38,11 @@
    "why": "progress step 2"
   },
   {
+   "sound": "tick",
+   "t": 41.252,
+   "why": "progress step 3"
+  },
+  {
    "sound": "chime",
    "t": 43.744,
    "why": "check result_top"
@@ -51,11 +56,6 @@
    "sound": "click",
    "t": 58.374,
    "why": "result click @raw 10.474"
-  },
-  {
-   "sound": "click",
-   "t": 74.574,
-   "why": "result click @raw 24.174"
   },
   {
    "sound": "click",
@@ -111,6 +111,11 @@
    "sound": "click",
    "t": 115.745,
    "why": "cache_vector click @raw 4.245"
+  },
+  {
+   "sound": "chime",
+   "t": 118.761,
+   "why": "cache_vector vector_chip"
   },
   {
    "sound": "whoosh",

@@ -212,3 +212,16 @@
 2. 熱門牆的「資料更新時間」是 2026-07-12（雲端排程關閉，目前為手動更新）；影片裡這行字看得到。要不要在報告前手動更新一次由負責人決定。
 3. 熱門牆捲動時仍會經過幾則 Cofacts 使用者回報的詐騙訊息原文（真實資料，標了來源與日期）。
 4. 我聽不到聲音：**旁白與音效請負責人實際播一次**，特別是音效的音量是否太小或太吵。
+
+# presentation_v1.1：更換旁白聲音（2026-09-22）
+
+| 項目 | 內容 |
+|------|------|
+| 原因 | 報告後老師回饋：v1.0 的旁白男聲聽起來「很像剛變聲的國中生」 |
+| 選擇過程 | 同一段開場旁白（第 1、2 段）做成六種試聽：原聲 `zh-TW-YunJheNeural`、學校閘道 `gpt-4o-mini-tts` 的 `coral`（女聲）與 `onyx`（男聲）、edge-tts `zh-TW-HsiaoChenNeural`（台灣華語女聲）、`zh-TW-YunJheNeural` 壓低音高並放慢、`zh-CN-YunyangNeural`（新聞主播男聲）。負責人選定 `zh-TW-HsiaoChenNeural` |
+| 變更範圍 | 只換旁白與字幕時間。畫面未重錄、剪輯未更動（`data/plan.json` 不變），片長仍為 278.0 秒 |
+| 語速 | `zh-TW-HsiaoChenNeural` 念得比原聲慢：全片同為 +10% 時，第 4 段超出鏡頭長度 0.04 秒、第 10 段超出 1.06 秒。這兩段改為 +12%、+15%（`data/narration.json` 的每段 `rate`），其餘維持 +10%；最緊的第 9 段仍有 0.13 秒餘裕 |
+| 字幕 | 依新旁白的 WordBoundary 重新計時，45 句：`docs/demo/presentation_v1.1.srt` |
+| 規格 | 278.0 秒；1920×1080、30 fps、H.264 High；母片 81.6 MB（`docs/demo/presentation_v1.1.mp4`，未進 git）；網站用檔 23.2 MB（CRF 24、`+faststart`），覆蓋 `code/frontend/public/demo/presentation_v1.mp4`，網址不變；整體響度 −16 LUFS、LRA 3 LU、真實峰值 −4.5 dBFS；`tools/verify.mjs` 12／12 項通過 |
+| 製作 | 本機 render 9 分 21 秒（5 workers）；C 槽空間不足，暫存目錄改用 E 槽 |
+| 讀音 | 旁白文字與送合成的文字（`tts` 欄）沿用 v1.0，未針對新聲音另做讀音調整；多音字的實際讀法以播放成片確認 |

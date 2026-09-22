@@ -1,6 +1,6 @@
 {
-  "_doc": "Narration for presentation_v1.0. cues = the sentence as it appears in captions and in the SRT. tts = what is actually sent to edge-tts when the reading needs help (homophones for polyphonic characters, digits spelled out); it must have the same number of entries as cues. Pronunciation notes are in docs/demo/footage_log.md. 重 meaning 'again' is read zhong4 by this voice, so the word is avoided in narration rather than patched.",
-  "voice": "zh-TW-YunJheNeural",
+  "_doc": "Narration for presentation_v1.0. cues = the sentence as it appears in captions and in the SRT. tts = what is actually sent to edge-tts when the reading needs help (homophones for polyphonic characters, digits spelled out); it must have the same number of entries as cues. Pronunciation notes are in docs/demo/footage_log.md. 重 meaning 'again' is read zhong4 by this voice, so the word is avoided in narration rather than patched. v1.1 (2026-09-22): voice changed from zh-TW-YunJheNeural to zh-TW-HsiaoChenNeural after the presentation review said the male voice sounded like a teenager whose voice was breaking. HsiaoChen reads more slowly, so shots 4 and 10 carry their own faster rate to fit the fixed shot lengths in plan.json.",
+  "voice": "zh-TW-HsiaoChenNeural",
   "rate": "+10%",
   "shots": [
     {
@@ -54,7 +54,8 @@
         "往下是你查的內容、判讀摘要，詳細說明可以展開。",
         "再往下是查核來源；沒有就是沒有。",
         "最後三個動作：分享到 Threads、複製連結、再查一則。每一筆結果都有自己的網址。"
-      ]
+      ],
+      "rate": "+12%"
     },
     {
       "shot": 5,
@@ -135,7 +136,8 @@
         "都沒有命中，才真的去問 A I。",
         "護欄有每天三百次的上限、每個 I P 的頻率限制，還有上傳大小限制。",
         "系統從九月十九號就上線了，不需要任何人開著電腦。"
-      ]
+      ],
+      "rate": "+15%"
     },
     {
       "shot": 11,

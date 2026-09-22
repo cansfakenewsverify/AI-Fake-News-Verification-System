@@ -10,10 +10,10 @@
 - AI 只用學校 **CGU AIR 閘道的 `gpt-5.4-mini`**（embedding `text-embedding-3-small`），沒有備援；myai168 已停用（第 2 節）。
 - 進度報告資料都在 `presentations/2026-09_進度報告/`（簡報影片網址、投影片、報告內容說明、測試計畫書 PDF、分工表；
   先看該資料夾的 README）。**報告當天播的是 5 分鐘簡報影片**（老師 2026-09-20 的新規定）：
-  <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>（4 分 38 秒，原始碼 `video/hf-presentation/`，
+  <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>（4 分 38 秒；v1.1 起旁白為女聲 `zh-TW-HsiaoChenNeural`；原始碼 `video/hf-presentation/`，
   規格 `docs/demo/presentation_video_brief.md`，製作紀錄 `docs/demo/footage_log.md`）。
   舊的 demo 影片 v0.4.0：<https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4>（`video/hf-demo/`）。
-- **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.3）；
+- **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
   測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.5；6.5 為 2026-09-19～20 重測）。
 
 ---

@@ -36,7 +36,7 @@ const ON_SCREEN = {
 };
 
 const lines = [];
-lines.push("# 簡報影片旁白稿（presentation_v1.0）");
+lines.push("# 簡報影片旁白稿（presentation_v1.1）");
 lines.push("");
 lines.push("> 這份是**機器產生**的：`video/hf-presentation/tools/build_narration_doc.mjs` 從實際的剪輯資料產生，");
 lines.push("> 所以時間碼就是成片的時間碼。要改旁白請改 `video/hf-presentation/data/narration.json`，");
@@ -44,9 +44,10 @@ lines.push("> 再跑 `npm run tts`、`npm run timeline`，這份文件重跑本�
 lines.push("");
 lines.push("| 項目 | 內容 |");
 lines.push("|------|------|");
-lines.push(`| 成品 | \`docs/demo/presentation_v1.0.mp4\`（1920×1080、30 fps）＋ \`docs/demo/presentation_v1.0.srt\` |`);
+lines.push(`| 成品 | \`docs/demo/presentation_v1.1.mp4\`（1920×1080、30 fps）＋ \`docs/demo/presentation_v1.1.srt\` |`);
 lines.push(`| 全長 | ${sched.total} 秒（${mmss(sched.total)}），上限 5 分鐘 |`);
-lines.push(`| 配音 | edge-tts \`${narr.voice}\`、語速 ${narr.rate}；共 ${Object.keys(timing).length} 段，${sched.cues.length} 句字幕 |`);
+const rateOverrides = narr.shots.filter((s) => s.rate).map((s) => `第 ${s.shot} 段 ${s.rate}`);
+lines.push(`| 配音 | edge-tts \`${narr.voice}\`、語速 ${narr.rate}${rateOverrides.length ? `（${rateOverrides.join("、")}，配合固定的鏡頭長度）` : ""}；共 ${Object.keys(timing).length} 段，${sched.cues.length} 句字幕 |`);
 lines.push("| 要換成真人聲音 | 照下表逐段錄，每段從「段落起點」開始講，講完不要超過「段落結束」前 0.3 秒即可；畫面不必重做 |");
 lines.push("");
 lines.push("## 逐段旁白");
