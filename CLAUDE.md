@@ -226,7 +226,8 @@ start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + Reac
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
 docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.5）、results/（原始紀錄）、screens/（截圖）、ui_checklist.csv、
-                                pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）
+                                pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）、
+                                上線後準確率驗證計畫.md（上線後怎麼量準確率與信心校準）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
 video/hf-demo/                  demo 影片 v0.4.0 的 HyperFrames 專案原始碼（有自己的 CLAUDE.md；只在本機 render）。
                                 video/ 其餘是未採用的 Remotion 試作，不進 git
@@ -305,6 +306,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
   封存在 `data/eval_archive_gpt5mini_2026-06/`。兩版判定不同的 6 筆全是「舊錯新對」。
 - **誠實的限制**：150 筆全對代表這組題庫對新模型已經**飽和**（太簡單），分不出模型或設定之間的差異；題庫從 2026-06 起就公開在 repo，
   也無法排除新模型看過。所以 100% **不能解讀成「系統不會出錯」**，對外要連同這個限制一起講；下一步是擴充題庫再比（第 8 節）。
+  **上線後的準確率不用這組題庫量**：方法、真值來源、信心校準與判定準則寫在 `docs/test/上線後準確率驗證計畫.md`
+  （新題庫不公開、只把雜湊進 git；線上抽樣雙人獨立覆核；查核結論回溯比對；使用者回饋只作抽樣導引）。
 - 重跑評測會呼叫真實 AI；`--report-only` 只重算報告、零點數。
 
 ---
@@ -370,7 +373,9 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       DEF-08 `backend_down` 橫幅與首頁 inline 驗證紅字用了判定色 token，與 spec §8.1「紅黃綠只用於判定」字面衝突（待 6.4 審查裁定）
 - [ ] 首頁圖片上傳 UI（票 S-13，P1）：後端端點已有檔頭檢查與 10 MB 上限；票 B-26 的圖片 bytes hash 快取與寫知識庫尚未做
 - [ ] `/bot` 機器人狀態頁（票 S-11）：目前是佔位頁（`src/pages/Bot.jsx`）；後端 `/api/threads/status`、`/replies` 已就緒
-- [ ] （選）擴充 eval_set 到 300 筆、做信心校準（現有 150 筆已飽和，見第 6 節）
+- [ ] 上線後準確率量測（計畫已寫：`docs/test/上線後準確率驗證計畫.md`）：先建 90 題的不公開新題庫（M1，約 USD 0.6），
+      再開始每週 20 筆的線上抽樣雙人獨立覆核（M2）。現有 150 筆已飽和且公開，不能用來宣稱上線準確率（第 6 節）
+- [ ] （選）信心分數校準：可靠度圖、ECE、Brier，並檢驗 `GREEN_MIN_CONFIDENCE=0.7` 實際擋掉多少錯誤（同上計畫第 4 節）
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 - [ ] 查核結論每日進庫（FR-20）：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false`，
       需負責人把 `ADMIN_TOKEN` 加入 repository secret；在那之前是手動觸發。不呼叫判讀模型，只耗 embedding
