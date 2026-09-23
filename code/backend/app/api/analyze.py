@@ -248,8 +248,10 @@ class AnalysisResult(BaseModel):
     risk_type: str
     category: str
     confidence_score: float
-    confidence_level: str | None = None      # 高/中/低（模型自評，未校準）
-    confidence_note: str | None = None        # 校準說明
+    confidence_level: str | None = None      # 高/中/低（證據信心：與已證實內容的相似度；app/services/evidence.py）
+    confidence_basis: str | None = None      # 依據代碼（factchecked／similar_case／pattern／…）
+    confidence_note: str | None = None        # 依據說明
+    evidence: dict | None = None             # nearest_similarity／nearest_degrees／pattern_margin
     summary: str
     explanation: str
     sources: list

@@ -208,7 +208,7 @@ class PandasStore:
         neighbours = []
         for i in order:
             row = df.loc[indices[i]]
-            item = {col: row.get(col) for col in NEIGHBOR_COLUMNS}
+            item = {col: _neighbour_value(col, row.get(col)) for col in NEIGHBOR_COLUMNS}
             item["similarity"] = float(scores[i])
             neighbours.append(item)
         return neighbours
@@ -313,6 +313,17 @@ class PandasStore:
 
 # 證據信心（nearest_verified）回傳的欄位
 NEIGHBOR_COLUMNS = ["id", "raw_content", "risk_type", "label_source", "source_url", "sources", "summary"]
+
+
+def _neighbour_value(col: str, value: Any) -> Any:
+    """Parquet 讀回來的 sources 是 numpy 陣列、缺值是 NaN：轉成與 Postgres 版相同的 list／None。"""
+    if col == "sources":
+        if value is None or isinstance(value, float):
+            return []
+        return [dict(s) if isinstance(s, dict) else s for s in list(value)]
+    if isinstance(value, float) and value != value:
+        return None
+    return value
 
 
 def _verified_scores(

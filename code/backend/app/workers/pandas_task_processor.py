@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 from app.config import settings
 from app.services.task_store import TaskStore
 from app.services.pandas_store import PandasStore, DETERMINISTIC_LABEL_SOURCES
+from app.services import evidence as evidence_mod
 from app.services.store_factory import get_knowledge_store, get_task_store
 from app.services.crawler import CrawlerService
 from app.services.ai_budget import ai_budget
@@ -99,20 +100,6 @@ def _stored_vector(value: Any) -> Optional[List[float]]:
     except (TypeError, ValueError):
         return None
     return vector if len(vector) == settings.VECTOR_DIMENSION and any(vector) else None
-
-
-# confidence_score 由 LLM 自評，未經機率校準。對外改以離散等級呈現，
-# 避免把「自評信心」誤當成「真實命中機率」。實際準確率以評測腳本量測。
-CONFIDENCE_NOTE = "模型自評信心，未經機率校準（實際效能請參考評測報告）"
-
-
-def _confidence_level(score: float) -> str:
-    """把模型自評信心轉成離散等級（高/中/低），僅供顯示。"""
-    if score >= 0.8:
-        return "高"
-    if score >= 0.5:
-        return "中"
-    return "低"
 
 
 def _now_taipei_iso() -> str:
@@ -192,6 +179,8 @@ def _build_result(
     sources: Optional[List[Dict[str, Any]]] = None,
     related_discussions: Optional[List[Dict[str, Any]]] = None,
     kb_id: Optional[str] = None,
+    evidence: Optional[Dict[str, Any]] = None,
+    similar: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     ai_analysis = ai_analysis if isinstance(ai_analysis, dict) else {}
     ai_unavailable = is_fallback(ai_analysis)
@@ -213,18 +202,26 @@ def _build_result(
     })
     conf = float(ai_analysis.get("confidence_score") or 0.0)
     category = _safe_str(ai_analysis.get("category")) or "Irrelevant"
+    risk_type = _safe_str(ai_analysis.get("risk_type")) or "SAFE"
+    # 信心等級依證據（夾角；app/services/evidence.py），不用 AI 自評分數。沒帶 evidence 時
+    # （快取命中的舊資料、圖片）只依標記來源與查核來源判斷
+    ev = evidence or evidence_mod.assess(
+        risk_type, ai_unavailable=ai_unavailable, label_source=label_source, verification_status=status,
+    )
     return {
         "result_id": result_id,
         "frame_type": ft,
         "frame_label": fl,
         "ai_unavailable": ai_unavailable,
         "is_risk": bool(ai_analysis.get("is_risk", False)),
-        "risk_type": _safe_str(ai_analysis.get("risk_type")) or "SAFE",
+        "risk_type": risk_type,
         "category": category,
         "category_label": category_label(category),
         "confidence_score": conf,
-        "confidence_level": _confidence_level(conf),
-        "confidence_note": CONFIDENCE_NOTE,
+        "confidence_level": ev["level"],
+        "confidence_basis": ev["basis"],
+        "confidence_note": ev["note"],
+        "evidence": {k: ev.get(k) for k in ("nearest_similarity", "nearest_degrees", "pattern_margin")},
         "summary": _safe_str(ai_analysis.get("summary")),
         "explanation": _safe_str(ai_analysis.get("explanation")),
         "sources": tiered,
@@ -232,8 +229,8 @@ def _build_result(
         "verified": status != "unverified",
         "verification_status": status,
         "source_tier": source_tier,
-        # v1.2：本次固定 []，P1 才補向量近鄰
-        "similar_news": [],
+        # FR-02：知識庫中的相似查證（向量近鄰，只在 AI 判讀時計算；快取命中為 []）
+        "similar_news": list(similar or []),
         "cached": cached,
         # 哪一層快取命中（url / hash / vector；None = 走了完整 AI 分析）。
         "cache_layer": cache_layer,
@@ -241,6 +238,28 @@ def _build_result(
         "kb_id": kb_id,
         "analyzed_at": _now_taipei_iso(),
     }
+
+
+def _stored_evidence(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """知識庫列存下的證據（第一次 AI 判讀時算的）；等級與說明依現行規則重新對應，舊資料沒有則 None。"""
+    analysis = row.get("ai_analysis") if isinstance(row.get("ai_analysis"), dict) else {}
+    stored = analysis.get("evidence")
+    if not isinstance(stored, dict) or stored.get("basis") not in evidence_mod.LEVEL_OF_BASIS:
+        return None
+    basis = stored["basis"]
+    return {**stored, "level": evidence_mod.LEVEL_OF_BASIS[basis], "note": evidence_mod.NOTE_OF_BASIS[basis]}
+
+
+async def _evidence_inputs(store: Any, vector: Optional[List[float]]) -> Tuple[List[Dict[str, Any]], Optional[float]]:
+    """證據信心的輸入：最接近的已證實列與話術差距。加分項：查詢失敗只記 log，信心退回只看來源。"""
+    if not vector:
+        return [], None
+    try:
+        neighbours = await asyncio.to_thread(store.nearest_verified, vector, evidence_mod.EVIDENCE_NEIGHBOURS)
+    except Exception as e:
+        logger.warning("evidence neighbour lookup failed: %s", e)
+        neighbours = []
+    return neighbours, evidence_mod.pattern_margin(vector)
 
 
 def _estimate_usd(ai_result: Dict[str, Any], model: Optional[str]) -> Optional[float]:
@@ -445,11 +464,13 @@ async def process_analysis_task_async(
         for input_url in input_urls:
             tiered = _drop_same_domain_sources(tiered, input_url)
             related = _drop_same_domain_sources(related, input_url)
+        label_source = _safe_str(row.get("label_source")) or "ai"
         result = _build_result(
             row.get("ai_analysis"), cached=True, cache_layer=layer, result_id=task_id,
-            label_source=_safe_str(row.get("label_source")) or "ai",
+            label_source=label_source,
             sources=tiered, related_discussions=related,
             kb_id=_safe_str(row.get("id")) or None,
+            evidence=None if label_source in DETERMINISTIC_LABEL_SOURCES else _stored_evidence(row),
         )
         await asyncio.to_thread(_complete, task_store, task_id, result)
         _log_verification(result, origin, started, None, None, None)
@@ -574,13 +595,20 @@ async def process_analysis_task_async(
             content_vector = query_vector
 
         # ── Layer 3: AI 分析（全流程）─────────────────────────────────
-        ai_result = await _call_ai_within_budget(
-            ai_service.analyze_content, content, url=url, context={"similar_news": []}
-        )
+        # 證據信心的近鄰查詢與 AI 判讀同時進行（查詢約 0.2～0.5 秒，AI 9～27 秒，不增加等待時間）
+        evidence_task = asyncio.create_task(_evidence_inputs(pandas_store, content_vector))
+        try:
+            ai_result = await _call_ai_within_budget(
+                ai_service.analyze_content, content, url=url, context={"similar_news": []}
+            )
+        except BaseException:
+            evidence_task.cancel()
+            raise
+        neighbours, margin = await evidence_task
 
         return await _finish_ai(
             task_store, task_id, ai_result, ai_service, origin, started,
-            input_url=url,
+            input_url=url, neighbours=neighbours, margin=margin,
             save=lambda graded_ai, related: pandas_store.save_record(
                 data_type=input_type.upper(),
                 # 文字輸入存「使用者原文」：與 content_vector 語意一致；網址輸入存爬到的內文
@@ -607,6 +635,7 @@ async def _finish_ai(
     task_store: TaskStore, task_id: str, ai_result: Dict[str, Any], ai_service: Any,
     origin: str, started: float, save=None, kb_id: Optional[str] = None,
     input_url: Optional[str] = None,
+    neighbours: Optional[List[Dict[str, Any]]] = None, margin: Optional[float] = None,
 ) -> Dict[str, Any]:
     """L3 之後：剔除同網域 → filter_valid_sources → grade_sources → 寫知識庫（fallback 不寫）→ 組結果。"""
     ai_result = dict(ai_result) if isinstance(ai_result, dict) else {}
@@ -630,6 +659,14 @@ async def _finish_ai(
         tiered, related, tier_ms = await grade_sources(sources)
         ai_result["sources"] = tiered
 
+    evidence = evidence_mod.assess(
+        _safe_str(ai_result.get("risk_type")) or "SAFE", ai_unavailable=fallback, label_source="ai",
+        verification_status=_verification_status("ai", tiered, ai_result, fallback),
+        neighbours=neighbours, margin=margin,
+    )
+    if not fallback:
+        # 存進知識庫的 ai_analysis：之後快取命中沿用同一份依據（同一則訊息每次查都得到相同的信心）
+        ai_result["evidence"] = evidence
         if save is not None:
             record = await asyncio.to_thread(save, ai_result, related)
             kb_id = (record or {}).get("id") or kb_id
@@ -637,6 +674,7 @@ async def _finish_ai(
     result = _build_result(
         ai_result, cached=False, cache_layer=None, result_id=task_id,
         label_source="ai", sources=tiered, related_discussions=related, kb_id=kb_id,
+        evidence=evidence, similar=[] if fallback else evidence_mod.similar_news(neighbours),
     )
     await asyncio.to_thread(_complete, task_store, task_id, result)
 

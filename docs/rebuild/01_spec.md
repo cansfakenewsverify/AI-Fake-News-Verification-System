@@ -4,7 +4,7 @@
 
 | 項目 | 內容 |
 |------|------|
-| 文件版本 | v1.4（2026-09-22 增補 FR-20 查核結果回補、FR-21 本站熱門查證；v1.3 為 v1.2 審查修訂第二輪：21 條一致性／可行性意見全部採納，主要為 FR-16～19 內部一致性、Day 2.5 工時重排、`verified` 計算位置；變更紀錄見文末） |
+| 文件版本 | v1.5（2026-09-23 增補 FR-22 證據信心，FR-02 `similar_news` 由 P1 改為已實作；v1.4 為 2026-09-22 增補 FR-20 查核結果回補、FR-21 本站熱門查證；v1.3 為 v1.2 審查修訂第二輪：21 條一致性／可行性意見全部採納，主要為 FR-16～19 內部一致性、Day 2.5 工時重排、`verified` 計算位置；變更紀錄見文末） |
 | 日期 | 2026-09-22（v1.0：2026-09-14；v1.1：2026-09-15 上午；v1.2：2026-09-15 下午；v1.3：2026-09-15） |
 | 上游依據 | `docs/rebuild/00_consensus.md`（2026-09-14 grill 結論 + 2026-09-15 §4「AI 額度已解決」、§9「來源品質與資料清潔」補充；§9 插入後原「掃描發現的既有事實」為 **§10**）。本文件每條決策皆可回溯至該檔章節，標示為「共識 §n」；本文件與共識衝突時以共識為準。**已知共識內部矛盾**：共識 §6「要買：OpenAI API 額度 USD 5–10」已被 §4（2026-09-15「不買 OpenAI 直連額度」）取代，本文件不採 §6 該行；建議下次更新共識時刪除（本次修訂不改共識檔） |
 | 事實來源 | 掃描結果 `ai_engine / backend_api / pipeline_store / crawler_news / frontend_react / offline_ops / tests_eval / docs_usecases / threads_code / threads_gap_analysis / threads_verify_10`（後者的 `refuted` 條目視為對前者的修正）；程式碼行號以掃描時 Read 輸出為準 |
@@ -83,7 +83,7 @@
 
 ### FR-02 網址查證（P0）
 - **描述**：`http(s)://` 網址走「L0 URL → L1 hash(網址) → trafilatura 爬取（共識 §4 保留）→ L2 向量（以爬到內文）→ L3 AI（帶 `url`）」。
-- **`similar_news` 的來源（FR-15 移除 `googlesearch` 後；v1.2 降 P1）**：現況網址輸入的 `similar_news` 來自 `crawler.py:516-533` 以標題再搜一次 googlesearch，隨套件移除而消失；文字輸入本就不爬。重做後 `similar_news` **只**來自知識庫向量近鄰 top-3（`find_similar_by_vector` 改可回多筆，零 AI 成本；相似度 ≥0.6、排除自己、**只取 `verified=true` 列**），文字／網址／Threads 三種來源一致；S2 元件 5 改名「知識庫中的相似查證」。**v1.2：此近鄰功能降為 P1、不排進一週時程**（時程空間讓給 FR-16～18）；本次 `similar_news` 固定回 `[]`、S2 元件 5 空時隱藏。provider web_search 的 `url_citation` 仍只進 `sources`（既有），再經 FR-16 分級。
+- **`similar_news` 的來源（FR-15 移除 `googlesearch` 後；v1.2 降 P1；v1.5 實作，見 FR-22）**：只來自知識庫向量近鄰（`nearest_verified`，**只取 `verified=true` 列**、相似度 ≥0.60、最多 3 筆，零 AI 成本），只在 AI 判讀時計算，快取命中時為 `[]`；文字與網址輸入一致（網址以爬到的內文比對），圖片沒有向量故為 `[]`。每筆連到該列的 Tier 1／2 查核來源（查核機構原文），沒有則 `url=null`。provider web_search 的 `url_citation` 仍只進 `sources`，再經 FR-16 分級。
 - **輸入**：`POST /api/analyze/url` `{content}`。後端**必須驗證** `content.strip()` 以 `http://`／`https://` 開頭且 `urlparse` 有 host，否則 422 `code:"invalid_url"`（修正 analyze.py:165 直接委派 `/text`、`task_type` 誤記 `analyze_text`、`data_type` 存成 `TEXT` 的問題）。
 - **輸出**：同 FR-01；`task_type="analyze_url"`、`input_type="url"`，知識庫 `data_type="URL"`。
 - **驗收**：
@@ -275,6 +275,19 @@
 - **文案**（8.7 之外，`i18n.js` EXTRA）：`trending_tabs_label`「熱門內容」、`trending_tab_feed`「查核機構最新」、`trending_tab_hot`「本站熱門查證」、`hot_sub`「大家最近在查的內容，依最近 7 天的查證次數排序，越近的查證權重越高。只列出已有查核來源佐證的判定。」、`hot_count`「近 24 小時 {day} 次・近 7 天 {week} 次」、`hot_empty`「最近 7 天還沒有已證實的熱門查證。」
 - **驗收**：`tests/test_hot_claims.py`（衰減排序、視窗、同分順序、查證紀錄篩選、端點只回已證實列且欄位與 `/api/knowledge` 一致、`limit` 界線）；`tests/test_pg_store.py::test_recent_kb_refs_matches_local_store`；前端 `src/pages/trending/hot.test.js`；fixture `knowledge_hot.json`／`knowledge_hot_empty.json`（`/trending?tab=hot`、`?fixture=empty`）。
 
+### FR-22 證據信心（P1；2026-09-23 新增）
+- **描述**：信心等級（`confidence_level` 高／中／低）不再由 AI 自評的 `confidence_score` 換算，而是依「判定與查核機構已證實內容的相似度（夾角）」與來源決定（`app/services/evidence.py`；說明文件 `docs/rebuild/信心程度的產生方式.md`）。規則依序、先符合者為準：
+  1. AI 不可用 → 低（`ai_unavailable`，前端不顯示信心）；2. 結果來自確定性標記（rule／gold／admin）→ **高**（`factchecked`）；
+  3. 判定有風險且最接近的已證實不實內容相似度 ≥0.65 → 中（`similar_case`）；4. 判定有風險且話術差距 ≥0.10 → 中（`pattern`）；
+  5. 判定有風險且有 Tier 1／2 來源 → 中（`cited_source`）；6. 判定為安全但規則 3 或 4 的條件成立 → 低（`conflict`，提醒使用者）；
+  7. 判定為安全且有 Tier 1／2 來源 → 中（`safe_source`）；8. 無法查證 → 低（`unverifiable`）；9. 其他 → 低（`ai_only`）。
+- **話術差距**：與最接近的「話術原型」（已證實不實內容 KMeans 40 群的中心）相似度，減去與最接近的「正常訊息原型」（查核結果為真的內容 12 群）相似度；中心向量 `code/backend/data/claim_prototypes.npz`，由 `scripts/evidence_confidence_study.py` 產生。
+- **門檻依據**（`docs/test/results/evidence_confidence_2026-09-23.md`，評測題庫 150 題）：最近鄰相似度 ≥0.65 的 31 題有 28 題真的有風險、0.55～0.65 為 70%（與基準 67% 相當）、<0.55 為 36%；話術差距 ≥0.10 的 24 題有 23 題有風險。燈號仍只由 `frame_of()` 決定（7.8），綠燈的信心條件仍讀 `confidence_score`。
+- **計算時機**：近鄰查詢與 AI 判讀同時進行（不增加等待時間）；結果存進知識庫列的 `ai_analysis.evidence`，之後快取命中沿用同一份依據（確定性標記一律依規則 2）；查詢失敗只記 log，信心退回只看來源。v1.5 以前的舊結果沒有 `confidence_basis`，畫面仍顯示原本的 `confidence_note`。
+- **API**：結果多 `confidence_basis`（上列代碼）、`evidence`（`nearest_similarity`、`nearest_degrees`、`pattern_margin`），`confidence_note` 改為依據說明；`similar_news` 每筆為 `{title, url, source, risk_type, frame_type, frame_label, similarity, degrees, kb_id}`（5.3）。
+- **文案**（`i18n.js` EXTRA）：`confidence_basis_{factchecked|similar_case|pattern|cited_source|conflict|safe_source|unverifiable|ai_only|ai_unavailable}`、`confidence_evidence`「最接近的已查核案例：相似度 {similarity}（夾角約 {degrees}°）。」、`confidence_method`「信心依「和查核機構已證實內容的相似度」判斷，不是 AI 自評的分數。」、`similar_sub`「查核機構已查證、內容相近的案例；相似度越高越接近。」；8.7 的 `similar_item` 改為「相似度 {similarity}・夾角約 {degrees}°」。
+- **驗收**：`tests/test_evidence.py`（規則表、門檻含等號、只有風險列算佐證、相似查證最多 3 筆且 ≥0.60、機構名稱、話術差距與缺檔、處理器整合：AI 判讀帶證據並存進知識庫、快取命中沿用、安全判定遇近鄰給衝突、命中查核機構列為高、查詢失敗退回來源）；`tests/test_pg_store.py::test_nearest_verified_matches_local_store`；前端 `src/pages/result/similarNews.test.js`；fixture `result_fx-red-similar.json`（`/r/fx-red-similar`）。
+
 ---
 
 ## 5. API 契約
@@ -337,7 +350,9 @@
     "category_label": "釣魚詐騙",
     "confidence_score": 0.93,
     "confidence_level": "高 | 中 | 低",
-    "confidence_note": "模型自評信心，未經機率校準（實際效能請參考評測報告）",
+    "confidence_basis": "factchecked | similar_case | pattern | cited_source | conflict | safe_source | unverifiable | ai_only | ai_unavailable",
+    "confidence_note": "相近的已查核案例支持此判定（依據說明，FR-22）",
+    "evidence": {"nearest_similarity": 0.7234, "nearest_degrees": 43.6, "pattern_margin": 0.083},
     "summary": "≤120 字一句摘要",
     "explanation": "白話說明",
     "sources": [{"title": "MyGoPen：健保卡停用是假的", "url": "https://www.mygopen.com/...", "tier": 1, "tier_label": "查核機構"}],
@@ -345,7 +360,7 @@
     "verified": true,
     "verification_status": "verified | rule | unverified",
     "source_tier": 1,
-    "similar_news": [{"title": "raw_content 前 60 字", "url": "{PUBLIC_BASE_URL}/r/{last_result_id} 或 null", "date": "2026-09-10", "source": "知識庫", "similarity": 0.81}],
+    "similar_news": [{"title": "raw_content 前 60 字", "url": "Tier 1／2 查核來源或 null", "source": "MyGoPen", "risk_type": "MISINFO", "frame_type": "red", "frame_label": "假訊息", "similarity": 0.7234, "degrees": 43.6, "kb_id": "knowledge_base 列 id"}],
     "cached": true,
     "cache_layer": "url | hash | vector | null",
     "label_source": "ai | rule | gold | admin",
@@ -391,7 +406,7 @@
 
 ### 5.4 `POST /api/analyze/sync` 回應欄位（完整）
 
-`AnalysisResult` v2（analyze.py:113-130 擴充）：既有 `frame_type, frame_label, border_color, display_info, related_links, is_risk, risk_type, category, confidence_score, confidence_level, confidence_note, summary, explanation, sources, cached, cache_layer` 保留；新增 `result_id: str`、`ai_unavailable: bool`、`similar_news: list`（v1.2 本次固定 `[]`，P1 後填向量近鄰）、`category_label: str`、`label_source: str`、`analyzed_at: str`、`verified: bool`、`verification_status: str`、`source_tier: int|None`、`related_discussions: list`（FR-16／17；`sources[]` 每項加 `tier`／`tier_label`）。`timeline` 不再產生（`similar_news` 已含日期）。`GET /api/analyze/task/{id}`（completed）與 `GET /api/result/{id}.result` 回同一結構。
+`AnalysisResult` v2（analyze.py:113-130 擴充）：既有 `frame_type, frame_label, border_color, display_info, related_links, is_risk, risk_type, category, confidence_score, confidence_level, confidence_note, summary, explanation, sources, cached, cache_layer` 保留；新增 `result_id: str`、`ai_unavailable: bool`、`similar_news: list`（v1.5 起由向量近鄰填入，FR-22）、`confidence_basis: str|None`、`evidence: dict|None`（v1.5）、`category_label: str`、`label_source: str`、`analyzed_at: str`、`verified: bool`、`verification_status: str`、`source_tier: int|None`、`related_discussions: list`（FR-16／17；`sources[]` 每項加 `tier`／`tier_label`）。`timeline` 不再產生（`similar_news` 已含日期）。`GET /api/analyze/task/{id}`（completed）與 `GET /api/result/{id}.result` 回同一結構。
 
 ### 5.5 fallback 契約（AI 不可用）
 
@@ -701,11 +716,11 @@ AI 自動判讀，請自行查證。
 
 #### S2 結果頁 `/r/{id}`
 元件（由上而下，手機單欄）：
-1. 返回鍵；燈號區塊（全寬）：實心圓點 + `frame_label`（24 px 粗體、h1）+ `category_label`（次級）；右側信心 chip「信心 高／中／低」（點擊展開 `confidence_note`）；快取 chip（`chip_cache_*`，點擊展開 `cache_hint`）或 `chip_live`。
+1. 返回鍵；燈號區塊（全寬）：實心圓點 + `frame_label`（24 px 粗體、h1）+ `category_label`（次級）；右側信心 chip「信心 高／中／低」（點擊展開信心依據：`confidence_basis_*` 說明、造成該等級的最近已查核案例與夾角、`confidence_method`；舊結果沒有 `confidence_basis` 時展開 `confidence_note`；FR-22）；快取 chip（`chip_cache_*`，點擊展開 `cache_hint`）或 `chip_live`。
 2. 「你查的內容」摘錄卡：`input_preview`（≤200 字、可展開）；`platform_post` 有值時顯示 `from_threads` + 外連原貼文。
 3. 判讀摘要 `summary`（粗體一句）+ 詳細說明 `explanation`（可折疊）。
 4. 查核來源：清單，**只列 Tier 1／2**（FR-16），每項標題 + 網域 + `tier_label` chip（`tier_1_chip`「查核機構」／`tier_2_chip`「媒體查核報導」，中性色）+ 外連圖示（`rel="noopener"`）；`verification_status="unverified"` 時（此時 `sources` 必為空，5.3；`rule`／`verified` 狀態保證非空）顯示 `sources_empty`（逐字「尚無查核機構證實這則訊息，請自行查證。」）並於本區上方另有 `no_verified_source_title/body` 橫幅（黃色 `-soft` 底、「!」記號、位置在燈號區之下、摘要之上，所有燈色皆顯示）。Tier 3 `related_discussions` **不顯示**（P2 才加折疊區）。
-5. 知識庫中的相似查證 `similar_news`（向量近鄰最多 3 筆，FR-02；每筆 `raw_content` 前 60 字 + 燈號點 + 相似度 + 有 `last_result_id` 時內連 `/r/{id}`；可折疊；快取命中時隱藏）。**v1.2：降 P1，本次 `similar_news=[]` 時整區隱藏**（元件保留在設計，不實作資料來源）。
+5. 知識庫中的相似查證 `similar_news`（向量近鄰最多 3 筆，FR-02、FR-22）：標題 `section_similar` + 說明 `similar_sub`；每筆為燈號點列（點與判定文字依 `frame_type`）+ 內容前 60 字 + 次文字「機構名稱・`similar_item`」，連到查核機構原文（新分頁）；快取命中或沒有近鄰時整區隱藏。**v1.5 實作**（v1.2 曾降 P1 隱藏）。
 6. 動作列（手機 sticky 於視窗底部、分頁列之上；桌機回到燈號區下方）：「分享到 Threads」（主）、「複製連結」（次）、「再查一則」（→ `/`）。
 7. 頁尾細字：`analyzed_at`、`label_source` 說明、`disclaimer_short`。
 
@@ -802,9 +817,9 @@ P0 畫面 = S1、S2、S3、S4、S6（只讀版）；UI-1 截圖檢核表以此�
 | `frame_green` | 查無異常 |
 | `frame_grey` | AI 暫時無法使用 |
 | `confidence_chip` | 信心 {高\|中\|低} |
-| `confidence_note` | 模型自評信心，未經機率校準（實際效能請參考評測報告） |
+| `confidence_note` | 模型自評信心，未經機率校準（實際效能請參考評測報告）（v1.5 起只用於沒有 `confidence_basis` 的舊結果；新結果顯示 FR-22 的依據文案） |
 | `section_input` / `section_summary` / `section_explanation` / `section_sources` / `section_similar` | 你查的內容／判讀摘要／詳細說明／查核來源／知識庫中的相似查證 |
-| `similar_item` | 相似度 {pct}%・{frame_label} |
+| `similar_item` | 相似度 {similarity}・夾角約 {degrees}°（v1.5；原「相似度 {pct}%・{frame_label}」，燈號文字已由點列顯示） |
 | `sources_empty` | 尚無查核機構證實這則訊息，請自行查證。 |
 | `tier_1_chip` / `tier_2_chip` | 查核機構／媒體查核報導 |
 | `no_verified_source_title` | 尚無查核機構證實 |
@@ -918,7 +933,7 @@ Threads 回覆與分享專用文案見 7.7。
 |----|--------|---------|------|
 | FN-1 | P0 | FR-01、FR-19 | 既有測試依 5.5／7.7／7.8 新契約更新後全過（**允許改寫** `tests/test_ai_service_contract.py` 的框色案例（改驗 7.8 表 **8 列**）與 Threads 回覆案例（改驗 7.7 新模板，含「尚無查核機構證實」替代行）；其餘 `test_cache_and_store`／`test_marking_rules`／`test_api`／`test_url_validator`／`test_processor_flow` 五檔**不得修改斷言**——`test_cache_and_store` 的 fixture 直接呼叫 `save_record`、無 `verified` 參數，其來源 `165.npa.gov.tw` 為 `gov.tw` Tier 1，由 `save_record` 內部離線計算得 `verified=true`（FR-17「計算位置」），`test_vector_search_exact_hit` 在 `find_similar_by_vector` 加 `verified` 過濾後仍原樣通過）+ 新增：文字輸入不呼叫 crawler（mock 斷言 `process_input` 未被呼叫）；系統 prompt 含 FR-19 逐字規則（字串比對「找不到這類來源就回 `sources: []`」） |
 | FN-2a | P0 | FR-02 | `test_safe_url.py`：10 個私網／協定樣本全部拒絕（422 `blocked_url`）且未發出請求、3 個公網放行；連線逾時 10 s 與總逾時 `CRAWLER_TIMEOUT` 以 mock 各自驗證生效；爬取失敗回 UNVERIFIABLE 而非例外；非網址 422；輸入網址同網域的 `sources` 項被剔除。（`similar_news` 向量近鄰斷言隨功能降 P1 移至 FN-2c） |
-| FN-2c | P1 | FR-02 `similar_news` | `similar_news` 由向量近鄰填入（固定向量 fixture）、只取 `verified=true` 列、排除自己、≥0.6 |
+| FN-2c | P1 | FR-02 `similar_news`、FR-22 | `similar_news` 由向量近鄰填入（固定向量 fixture）、只取 `verified=true` 列、≥0.6、最多 3 筆、快取命中為 `[]`；信心依 FR-22 規則表（`tests/test_evidence.py`、`test_pg_store.py::test_nearest_verified_matches_local_store`） |
 | FN-2b | P1 | FR-03 | 非圖片 415、>10 MB 413、bytes hash 命中 |
 | FN-3 | P0 | FR-04、5.1 | `test_result_api.py`：`/api/result/{id}` 對 pending／completed／failed／404／ai_unavailable 五態 schema 正確；sync／async／threads_sim 三種來源皆 200；`/health` 含 `scheduler.{enabled,interval_hours}` |
 | FN-4 | P0 | FR-09／FR-10 | `test_threads_bot_sim.py`：文字 mention 產生 `threads_len ≤ 400` 回覆且含 `/r/`；圖片 mention（`media_type=IMAGE`、無文字）→ `reply_media_only`；`get_post` HTTP 403 → `reply_cannot_read`；HTTP 429 → `backoff_until` 設定；未知 4xx → 標 failed 不回覆；二次 poll 不重複；fallback 不回覆不標記；自我貼文跳過（`username == bot` 與 `reply_id` 在本機清單兩種）；每則後 state 已寫入（crash 模擬）；container `FINISHED` 才 publish、`ERROR` 重試一次 |
@@ -1151,3 +1166,4 @@ Threads 回覆與分享專用文案見 7.7。
 | v1.2 | 2026-09-15 | 依共識 2026-09-15 三項更新修訂：**AI 額度（共識 §4）**——CGU AIR 新學期金鑰已到手並實測（`gpt-5.4-mini` + `text-embedding-3-small`、鏈 `['cgu']`、USD 10 + 1,000 萬本地 tokens），**取消**所有 OpenAI 直連假設（C2 儲值、Day 0 `.env` 切換 `OPENAI_RELAY_URL`／清空 `CLAUDE_RELAY_URL`、月預算硬上限、D-8「OpenAI 直連」、R1、OP-2 `--provider openai`、QA-1a、PF-5、§9 成本列、10.6 4.1 AI 列與成本證據）；demo 週護欄改為 CGU `GET /me/usage`（`batch_verify_pending.py` 既有）+ `USE_WEB_SEARCH`；`gpt-5.4` 列為績效測試可選比較組（PF-6、D-8）；C11 CGU 申請標已完成；§1 成功定義 4 改寫。**來源品質與資料清潔（共識 §9）**——新增 FR-16 來源分級與顯示（P0）、FR-17 知識庫寫入門檻（P0）、FR-18 一次性冪等清洗腳本 `clean_sources_2026_09.py --dry-run`（P0；236 筆知識庫／52 無來源／Cofacts 33 筆逐筆確認、63 筆熱門／31 筆 Google News）、FR-19 web_search 網域限制（prompt 規則 P0、`allowed_domains` P1 視 OP-2）；§5 `sources[].tier`／`tier_label`、`verified`、`verification_status`、`source_tier`、`related_discussions`，`/api/knowledge` 只回 `verified=true`；§6 三張表加 `verified`／`source_tier`（`_load()` 預設 False）、6.4 加清洗檔；7.7「查核來源」行只放 Tier 1／2、無來源改「尚無查核機構證實」、分享文案加 `share_text_yellow_unverified`；7.8 加第 8 列「SAFE 未證實 → 黃」、綠燈需已證實；8.3 S2 元件 4 tier chip + 橫幅、狀態 10、S3／S4 規則；8.4 加「未經證實」欄；8.7 加 `tier_1_chip`／`tier_2_chip`／`no_verified_source_*`／`frame_yellow_no_source`／`knowledge_verified_note`、改 `sources_empty`；§9 加「資料品質」列；§10 加 OP-9、FN-12／13／14、UI-8、QA-5、PF-6，FN-6 改 8 列，4.2 彙總更新；§11 加「v1.2 範圍調整」、Day 0／1／2／2.5／4／6 併入、分鏡更新；§12 R1 改寫、加 R15～R17；§13 加 D-15～D-18；附錄 A 加 A17～A20。**為不超過 v1.1 可行性修正，`similar_news` 向量近鄰降 P1**（FR-02、S2 元件 5、FN-2c、A14、D-18）。**機器人 handle**——`@factcommons_tw` 佔位全數替換為已建立的 `@factcheck_tw_bot`（§0 慣例、§2、7.9 fixture、分鏡、C1／C7、D-3）；品牌名 3 候選保留，D-3 改為只選品牌名與顯示名稱。 |
 | v1.3 | 2026-09-15 | v1.2 審查修訂第二輪（21 條，全部採納）：**共識引用**——5.2 poll／6.2 `label_source`／6.3 `platform`／7.8 四處掃描事實改引「共識 §10」（§9 插入後改號）；§0 加註共識 §6「要買 OpenAI 額度」已被 §4 取代、本文件不採。**FR-16／17 內部一致**——`verified`／`source_tier` 改由 `PandasStore.save_record` 內部以 `tier_of(..., offline=True)` 計算（processor／`_index_factcheck_claim` 只傳 `label_source`），`test_cache_and_store` 五檔斷言不動（fixture `165.npa.gov.tw` = Tier 1）；`tier_of` 輸出統一為 int + `TIER_LABELS` 查表；Cofacts GraphQL 端點改 `https://api.cofacts.tw/graphql`（以程式碼為準）、同請求並行 + 總逾時 5 s + 程序內 LRU、§9 效能列註明另計；6.1 `tasks.parquet` 舊列 `verified` 一律 False（不在啟動路徑發網路請求）。**狀態推導**——5.3 明訂 `verification_status` 順序（rule → verified → unverified）、`rule`／`verified` 保證 `sources` 非空（`source_url` 補進 `sources`，FR-17／FR-18 規則 1）、UNVERIFIABLE／`ai_unavailable` 不觸發 `no_verified_source_*` 橫幅（S2 狀態 10 例外）；7.7 替代行只以 `verification_status=="unverified"` 觸發；S2 元件 4 同步。**FR-18**——加 `--retry-cofacts` 旗標定義；規則 4 熱門牆 Cofacts 列同樣逐筆查 GraphQL；`--apply` 通過 OP-9 後提交清洗後 `knowledge_base.parquet` 一次作新種子（FR-15 `.gitignore`、6.2、10.6 4.1、QA-4 例外同步）；OP-1 加 `stats.total ≥150`；D-17 門檻 >120 改 **>86**（與 OP-9 `verified ≥150` 一致，R15 同步）。**FR-19**——`allowed_domains` 固定 P1、OP-2 只記錄不升 P0（FR-19、OP-2、D-16、A20 統一）；預設清單 = `TIER1_DOMAINS`（≤20、無萬用字元、`gov.tw` 子網域涵蓋於 OP-2 驗證）；OP-2 拆「P0 條件（關 web_search 一次）」與「記錄項」，避免 400 觸發 4.3 中止。**時程**——Day 2.5 工時重排：後端契約 B 四項 + FN-2a／8／9 前移 Day 2 尾段，Day 2.5 只留 FR-18 全流程 + ALTER 回填 + FN-14，OP-5 由組員 A 主跑（§11「v1.2 範圍調整」⑤）。**其他**——FN-5 六種→七種並加「尚無查核機構證實 + 替代行」長度案例；FN-12 加 offline 案例與端點；S6 P1 加「知識庫未證實筆數」（5.1 `unverified_count` 用途對齊）；7.2 機器人帳號改「已建立 `@factcheck_tw_bot`」、§13 引言去掉「Day 1 建帳號／handle 綁死」；§0 狀態列補 Day 1 答 D-13／D-16／D-18。 |
 | v1.4 | 2026-09-22 | 負責人於報告後提出兩項需求（查核機構之後更新的結論要能接回舊資料；熱門搜尋獨立成可與查核機構合作的功能）：新增 **FR-20 查核結果回補**（URL／hash 命中未證實列時只以確定性標記取代、`/api/trending/refresh?analyze=false` 只抓查核文章不呼叫判讀模型、`recheck_unverified.py` 唯讀盤點）與 **FR-21 本站熱門查證**（`GET /api/knowledge/hot`、半衰期 3 小時的時間衰減排序、熱門頁分頁；公開頁只列已證實內容，給查核機構的名單待隱私政策與去識別化後另做）；5.2、5.3 同步。 |
+| v1.5 | 2026-09-23 | 陳仁暉教授審查意見（檢驗方法）與指導教授「以夾角看信心」的建議：新增 **FR-22 證據信心**——信心等級改依與查核機構已證實內容的相似度（夾角）與來源決定，不用 AI 自評分數（規則表 9 列、門檻 0.65／話術差距 0.10 依 `evidence_confidence_2026-09-23.md` 實測）；**FR-02 `similar_news` 實作**（v1.2 降 P1 的知識庫向量近鄰，連到查核機構原文）；5.3 回應加 `confidence_basis`、`evidence`，`similar_news` 欄位改為 `{title, url, source, risk_type, frame_type, frame_label, similarity, degrees, kb_id}`；8.3 S2 元件 1、5 與 8.7 `similar_item`、`confidence_note` 同步；FN-2c 改為可驗收。資料面：查核機構已證實資料批次入庫腳本 `ingest_factchecks.py`（18,587 筆）。 |

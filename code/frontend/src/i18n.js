@@ -62,7 +62,7 @@ export const STRINGS = {
   section_explanation: "詳細說明",
   section_sources: "查核來源",
   section_similar: "知識庫中的相似查證",
-  similar_item: "相似度 {pct}%・{frame_label}",
+  similar_item: "相似度 {similarity}・夾角約 {degrees}°", // spec v1.5 8.7（原為百分比＋燈號文字；燈號已由點列顯示）
   sources_empty: "尚無查核機構證實這則訊息，請自行查證。",
   tier_1_chip: "查核機構",
   tier_2_chip: "媒體查核報導",
@@ -215,6 +215,20 @@ export const EXTRA = {
   hot_sub: "大家最近在查的內容，依最近 7 天的查證次數排序，越近的查證權重越高。只列出已有查核來源佐證的判定。",
   hot_count: "近 24 小時 {day} 次・近 7 天 {week} 次",
   hot_empty: "最近 7 天還沒有已證實的熱門查證。",
+  // 證據信心（FR-22；docs/rebuild/信心程度的產生方式.md）：信心 chip 的說明，依後端 confidence_basis
+  confidence_basis_factchecked: "查核機構已查證過同一則訊息。",
+  confidence_basis_similar_case: "有相近的已查核案例支持這個判定。",
+  confidence_basis_pattern: "寫法符合已知的詐騙或謠言話術。",
+  confidence_basis_cited_source: "AI 引用了查核機構的資料。",
+  confidence_basis_conflict: "內容和已查核的不實訊息相近，請小心求證。",
+  confidence_basis_safe_source: "有查核機構或官方資料佐證。",
+  confidence_basis_unverifiable: "無法取得內容，無從判斷。",
+  confidence_basis_ai_only: "只有 AI 判斷，沒有相近的查核案例。",
+  confidence_basis_ai_unavailable: "AI 服務暫時無法使用。",
+  confidence_evidence: "最接近的已查核案例：相似度 {similarity}（夾角約 {degrees}°）。",
+  confidence_method: "信心依「和查核機構已證實內容的相似度」判斷，不是 AI 自評的分數。",
+  // 知識庫中的相似查證（spec 8.3 S2 元件 5，FR-02 similar_news；標題用 8.7 的 section_similar）
+  similar_sub: "查核機構已查證、內容相近的案例；相似度越高越接近。",
 };
 
 const PLACEHOLDER = /\{([A-Za-z_][A-Za-z0-9_]*)(?:≤(\d+))?\}/g;

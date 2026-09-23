@@ -9,8 +9,8 @@
 - 系統已上線：<https://fakenewsverify.vercel.app>。前端 Vercel、後端 Render
   （`https://fakenewsverify-api.onrender.com`）、資料 Supabase PostgreSQL 與 pgvector；
   AI 使用學校 CGU AIR 閘道的 `gpt-5.4-mini`。金鑰僅存在本機設定檔與 Render 後台，不進版本庫。
-- 測試：後端 732 項通過（另 29 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-23 對 Supabase 全數通過）、
-  前端 394 項通過。
+- 測試：後端 757 項通過（另 29 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-23 對 Supabase 全數通過）、
+  前端 403 項通過。
 - 測試計畫書 `docs/test/TP-FNV-2026-01.md` 為 v1.5，第 6.5 節為 2026-09-19～20 的重測結果：
   P0 通過 27／30；PF-2 未通過，UI-6 未執行。PDF 在 `presentations/2026-09_進度報告/`。
 - 第三次進度報告的資料集中在 `presentations/2026-09_進度報告/`，見該資料夾的 README。
@@ -111,4 +111,5 @@
     M4 使用者回饋只作抽樣導引不計入正確率。下一步是由姚睿出題（依票 O-11 的原則，AI 助理不代為產生題目）。
 14. **查核機構資料寫入正式資料庫**：先部署知識庫分頁，再執行 `ingest_factchecks.py apply --target cloud --apply`
     （約 182 MB；可用 `rollback` 撤回）。須負責人核准。
-15. **證據信心（夾角）上線**：信心等級改依與已證實內容的相似度，結果頁顯示「知識庫中的相似查證」。
+15. **證據信心（夾角）上線**：信心等級改依與已證實內容的相似度，結果頁顯示「知識庫中的相似查證」（規格 v1.5 FR-22）。
+    程式、測試與說明文件（`docs/rebuild/信心程度的產生方式.md`）已完成，待第 14 項完成後推送。

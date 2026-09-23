@@ -23,6 +23,7 @@
 **全民查證公社 — AI 假訊息與詐騙查證系統**（學生專題 / 論文；GitHub repo 是公開的）。
 使用者到網站貼上**文字或網址**，系統判定 **詐騙(SCAM) / 假訊息(MISINFO) / 安全(SAFE)**（查不了 = `UNVERIFIABLE`），
 以紅黃綠燈呈現並附上**已做出判定的查核來源**；每筆結果有可分享的獨立網址 `/r/{id}`。
+信心等級依「和查核機構已證實內容的相似度（夾角）」決定，結果頁列出「知識庫中的相似查證」（FR-22，見第 3 節）。
 另有熱門頁（「查核機構最新」＝MyGoPen／TFC RSS＋Cofacts；「本站熱門查證」＝最近 7 天大家查最多的已證實內容）、知識庫搜尋、
 三層快取＋向量檢索、Threads 查核機器人（目前用模擬模式）。
 
@@ -139,6 +140,11 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   評測 50 題安全訊息對 18,587 筆可入庫列的最近相似度最高 0.70（沒有一題會被語意快取誤判）；最近鄰相似度越高、
   題目真的有風險的比例越高（≥0.75：3／3、0.70～0.75：93%、0.65～0.70：86%、<0.55：36%）。話術原型（KMeans 40 群，
   中心向量存 `data/claim_prototypes.npz`）單獨判斷會把 28／50 題安全訊息當成可疑，只能當輔助（差距 ≥0.10 時 23／24 題有風險）。
+- **證據信心（FR-22，2026-09-23，`app/services/evidence.py`）**：`confidence_level` 不再由 AI 自評分數換算，改依規則表
+  （確定性標記→高；有風險＋最近已證實不實內容 ≥0.65 或話術差距 ≥0.10 或有 Tier 1／2 來源→中；安全但近鄰是不實內容→低並提醒；
+  其餘→低）。近鄰查詢 `nearest_verified` 與 AI 判讀同時跑，結果存進 `ai_analysis.evidence` 供快取命中沿用；回應多
+  `confidence_basis`、`evidence`，`similar_news` 列出最多 3 筆 ≥0.60 的已證實近鄰（連到查核機構原文）。燈號規則不變
+  （綠燈仍讀 `confidence_score`）。說明文件 `docs/rebuild/信心程度的產生方式.md`；舊結果沒有 `confidence_basis`，前端沿用舊說明。
 
 ---
 
@@ -171,6 +177,7 @@ code/backend/
 │   │   ├── crawler.py          網址爬取（safe_url + trafilatura）；影音與 FB／IG 回 unsupported_platform
 │   │   ├── news_fetcher.py     熱門牆流程＋第 9 節標記規則；search_service.py = MyGoPen／TFC RSS＋Cofacts
 │   │   ├── hot_claims.py       熱門查證排行：查證紀錄 tasks.kb_id × 半衰期 3 小時的時間衰減、7 天視窗（FR-21）
+│   │   ├── evidence.py         ★證據信心（FR-22）：信心規則表 assess、相似查證 similar_news、話術差距 pattern_margin
 │   │   ├── cache_service.py / vector_service.py   內容 SHA-256 hash／embedding 包裝
 │   │   ├── threads_service.py  Threads Graph API 客戶端（live）、ThreadsClient 介面、token 檔
 │   │   └── threads_sim.py / threads_state.py / threads_reply.py   模擬模式／狀態與回覆紀錄（原子寫入）／回覆模板
@@ -200,7 +207,7 @@ code/backend/
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **732 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **29 個** Postgres
+├── tests/                      ★pytest **757 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **29 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -230,7 +237,7 @@ code/frontend/                  React 19 + Vite 8.3.0 + Tailwind 4
     ├── lib/                    api.js（★所有後端呼叫的唯一入口、FALLBACK_PREFIX）、fixtures.js、verdict.js、history.js、
     │                            validateInput.js、httpUrl.js、theme.js、useDocumentTitle.js
     ├── dev/fixtures/           開發用假回應（VITE_FIXTURES=1 才生效，production build 會剔除；用法看該資料夾 README）
-    └── **/*.test.js            單元測試（node --test，**394 個**）
+    └── **/*.test.js            單元測試（node --test，**403 個**）
 legacy/                         已封存、不再維護：舊單檔查核儀 fake-news-detector.html、_run_detector.bat、README.md
 render.yaml                     Render Blueprint（後端雲端部署設定；金鑰只在 Render 後台輸入，檔案裡只有鍵名）
 .github/workflows/ci.yml        push／PR：test（後端 pytest）＋ frontend（build、單元測試）
@@ -276,7 +283,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 732 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 757 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -308,7 +315,7 @@ $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q
 # ── 前端：以下都先 cd code\frontend ──
 npm ci                 # 依 package-lock.json 安裝
 npm run dev            # http://localhost:5173，/api 由 vite 代理到 localhost:8000
-npm run test:unit      # node --test，394 個
+npm run test:unit      # node --test，403 個
 npm run lint
 npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:unit
 ```
@@ -400,8 +407,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] 查核機構資料寫入正式資料庫：`ingest_factchecks.py apply --target cloud --apply`（18,587 筆、約 182 MB，免費上限 500 MB）。
       **要先部署知識庫頁的資料庫分頁**（`list_verified` 等；舊版每次把整個知識庫載入記憶體，1.9 萬列會撐爆 Render 512 MB）。
       已知限制：Cofacts 的 RUMOR 一律標 MISINFO，其中的詐騙訊息（釣魚、假中獎）命中時燈號是紅色「假訊息」而不是「詐騙警告」
-- [ ] 證據信心（夾角）上線：信心等級改依「與已證實內容的相似度」、結果頁顯示「知識庫中的相似查證」（spec FR-02 `similar_news`，
-      原為 P1）；門檻依 `docs/test/results/evidence_confidence_2026-09-23.md`（0.65／0.75、話術差距 0.10）
+- [ ] 證據信心（FR-22）部署：程式與測試已完成（後端 `evidence.py`、結果頁 `SimilarNewsSection`），待負責人核准推送；
+      要在查核機構資料寫入正式資料庫之後才有足夠的近鄰（寫入前正式知識庫只有約 150 筆已證實列）
 - [ ] 提供查核機構的熱搜名單（FR-21 延伸）：`hot_claims.rank()` 已可用於未證實內容；還缺管理端點、電話／帳號／人名遮蔽、
       隱私政策增列「提供查核機構」用途（現行政策只寫「供後續相同或相似內容快速比對」）
 - [ ] 熱門牆標記規則的缺口（第 9 節範圍，改規則需負責人決定）：MyGoPen 的【詐騙】標籤不算確定判定，詐騙警示文章不會寫進知識庫；

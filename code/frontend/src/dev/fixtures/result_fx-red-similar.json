@@ -1,0 +1,83 @@
+{
+  "id": "fx-red-similar",
+  "status": "completed",
+  "input_type": "text",
+  "input_preview": "網傳用鋁箔紙包食物去烤，鋁會溶出來，吃多了會得失智症，醫生都不敢說，快告訴家裡煮飯的人別再用了！",
+  "source_url": null,
+  "origin": "web",
+  "platform_post": null,
+  "created_at": "2026-09-23T15:02:10+08:00",
+  "completed_at": "2026-09-23T15:02:24+08:00",
+  "ai_unavailable": false,
+  "result": {
+    "result_id": "fx-red-similar",
+    "frame_type": "red",
+    "frame_label": "假訊息",
+    "ai_unavailable": false,
+    "is_risk": true,
+    "risk_type": "MISINFO",
+    "category": "Health_Rumor",
+    "category_label": "健康謠言",
+    "confidence_score": 0.9,
+    "confidence_level": "中",
+    "confidence_basis": "similar_case",
+    "confidence_note": "相近的已查核案例支持此判定",
+    "evidence": {
+      "nearest_similarity": 0.7234,
+      "nearest_degrees": 43.6,
+      "pattern_margin": 0.083
+    },
+    "summary": "一般烹調使用鋁箔紙不會讓人得失智症，鋁與失智症的因果關係沒有科學證據支持。",
+    "explanation": "鋁箔紙在高溫或接觸酸性食物時確實會溶出微量的鋁，但正常人會經由腎臟排出。\n目前沒有研究證實日常使用鋁箔紙會導致阿茲海默症或其他失智症；若擔心，可避免用鋁箔紙包酸性或醃漬食物加熱。",
+    "sources": [],
+    "related_discussions": [],
+    "verified": false,
+    "verification_status": "unverified",
+    "source_tier": null,
+    "similar_news": [
+      {
+        "title": "鋁箔紙的鋁是阿茲海默症老人癡呆起因",
+        "url": "https://www.mygopen.com/2019/05/aluminum-foil.html",
+        "source": "MyGoPen",
+        "risk_type": "MISINFO",
+        "frame_type": "red",
+        "frame_label": "假訊息",
+        "similarity": 0.7234,
+        "degrees": 43.6,
+        "kb_id": "kb-aluminum-1"
+      },
+      {
+        "title": "用鋁鍋煮飯、鋁箔紙烤肉會吸收過量的鋁，長期下來會導致老年失智，趕快把家裡的鋁鍋丟掉",
+        "url": "https://tfc-taiwan.org.tw/fact-check-reports/aluminum-cookware-dementia/",
+        "source": "台灣事實查核中心",
+        "risk_type": "MISINFO",
+        "frame_type": "red",
+        "frame_label": "假訊息",
+        "similarity": 0.6811,
+        "degrees": 47.1,
+        "kb_id": "kb-aluminum-2"
+      },
+      {
+        "title": "錫箔紙烤肉會致癌，千萬不要再用了，請轉給身邊愛烤肉的朋友",
+        "url": "https://cofacts.tw/article/fx-foil-bbq",
+        "source": "Cofacts",
+        "risk_type": "MISINFO",
+        "frame_type": "red",
+        "frame_label": "假訊息",
+        "similarity": 0.6305,
+        "degrees": 50.9,
+        "kb_id": "kb-aluminum-3"
+      }
+    ],
+    "cached": false,
+    "cache_layer": null,
+    "label_source": "ai",
+    "kb_id": "kb-fx-red-similar",
+    "analyzed_at": "2026-09-23T15:02:24+08:00"
+  },
+  "error": null,
+  "share": {
+    "text": "🔴 AI 判定這則訊息是假訊息：一般烹調使用鋁箔紙不會讓人得失智症，鋁與失智症的因果關係沒有科學證據支持。",
+    "url": "https://fcc-demo.vercel.app/r/fx-red-similar"
+  }
+}

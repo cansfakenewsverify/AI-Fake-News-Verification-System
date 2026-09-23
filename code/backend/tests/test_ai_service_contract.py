@@ -5,10 +5,7 @@ from app.services.ai_service import AIService, _default_fallback_result
 from app.services.threads_service import format_verdict_reply, THREADS_TEXT_LIMIT, threads_len
 from app.utils.verdict import frame_of
 from app.utils.verdict import is_fallback as _is_fallback
-from app.workers.pandas_task_processor import (
-    _build_result,
-    _confidence_level,
-)
+from app.workers.pandas_task_processor import _build_result
 
 
 # ── JSON 鬆散解析 ─────────────────────────────────────────────
@@ -71,10 +68,12 @@ def test_frame_mapping():
         assert frame_of(result)[:2] == expected
 
 
-def test_confidence_level_bands():
-    assert _confidence_level(0.95) == "高"
-    assert _confidence_level(0.6) == "中"
-    assert _confidence_level(0.1) == "低"
+def test_confidence_level_no_longer_follows_the_model_self_score():
+    # 信心改依證據（app/services/evidence.py）：AI 自評 0.99、沒有任何證據 → 低（只有 AI 判斷）
+    result = _build_result({"is_risk": True, "risk_type": "SCAM", "confidence_score": 0.99,
+                            "summary": "s", "explanation": "e", "sources": []})
+    assert (result["confidence_level"], result["confidence_basis"]) == ("低", "ai_only")
+    assert result["confidence_score"] == 0.99          # 原始自評仍保留在欄位裡供稽核
 
 
 def test_build_result_reports_cache_layer():

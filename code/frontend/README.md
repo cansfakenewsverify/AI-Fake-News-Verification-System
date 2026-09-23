@@ -136,6 +136,8 @@ code/frontend/
 - 「AI 暫時無法使用」只看 `ai_unavailable` 這個布林值。`api.js` 的 `FALLBACK_PREFIX`（「AI 分析暫時無法使用」）只用來相容舊資料；這段字樣與後端的 fallback 契約綁在一起，要改必須兩邊一起改。
 - 結果沒有已證實的來源時（`verification_status` 為 `unverified`），紅燈與黃燈的結果頁都會顯示「尚無查核機構證實」提示（`pages/result/NoVerifiedSourceBanner.jsx`）；這個元件不會改變燈號本身。
 - `sources` 只會有 Tier 1／2 的來源；Tier 3 在 `related_discussions`，以「相關討論」另外呈現。
+- 信心 chip 的說明依後端 `confidence_basis`（證據信心，spec FR-22）：依據一句話、造成該等級的最近已查核案例與夾角、以及「信心怎麼來」；沒有 `confidence_basis` 的舊結果仍顯示原本的 `confidence_note`（`pages/result/similarNews.js`）。
+- 「知識庫中的相似查證」（`pages/result/SimilarNewsSection.jsx`）列出後端 `similar_news` 的最多 3 筆，燈號點依每筆的 `frame_type`，連到查核機構原文；快取命中時不顯示。
 
 ### 結果頁的載入進度只會往前
 
@@ -196,6 +198,7 @@ VITE_FIXTURES=1 npm run dev
 |------|----------------|
 | `http://localhost:5173/r/fx-pending` | `result_fx-pending.json`（載入中） |
 | `http://localhost:5173/r/fx-red-misinfo` | `result_fx-red-misinfo.json` |
+| `http://localhost:5173/r/fx-red-similar` | `result_fx-red-similar.json`（證據信心「中」＋知識庫中的相似查證 3 筆） |
 | `http://localhost:5173/r/fx-green-cache-vector` | `result_fx-green-cache-vector.json`（向量快取命中） |
 | `http://localhost:5173/r/fx-ai-unavailable` | `result_fx-ai-unavailable.json` |
 | `http://localhost:5173/trending?fixture=empty` | `trending_empty.json` |
@@ -213,7 +216,7 @@ VITE_FIXTURES=1 npm run dev
 
 ```powershell
 cd code\frontend
-npm run test:unit   # 單元測試：Node 內建 test runner（node --test），394 個，離線
+npm run test:unit   # 單元測試：Node 內建 test runner（node --test），403 個，離線
 npm run lint        # ESLint 9（設定在 eslint.config.js）
 npm run build       # 產出 dist/
 npm run preview     # 在本機預覽 build 結果

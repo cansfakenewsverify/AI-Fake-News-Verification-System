@@ -2546,7 +2546,7 @@ flowchart LR
 
 ## 11. 報告後新增票（2026-09-22）
 
-負責人於第三次進度報告後提出兩項需求：①查核機構之後才發布的結論，要能接回資料庫中「尚無查核機構證實」的舊資料；②熱門搜尋獨立成一個功能，先做成網站上的熱門查證牆，之後再延伸為提供查核機構的熱搜名單。對應 spec v1.4 的 FR-20、FR-21。以下各票（2026-09-22 的 5 張，與 2026-09-23 追加的 S-16、D-07、B-30、B-31、D-08）不在第 1 節總覽表、依賴圖與工時表內。
+負責人於第三次進度報告後提出兩項需求：①查核機構之後才發布的結論，要能接回資料庫中「尚無查核機構證實」的舊資料；②熱門搜尋獨立成一個功能，先做成網站上的熱門查證牆，之後再延伸為提供查核機構的熱搜名單。對應 spec v1.4 的 FR-20、FR-21。以下各票（2026-09-22 的 5 張，與 2026-09-23 追加的 S-16、D-07、B-30、B-31、D-08、B-32、S-17）不在第 1 節總覽表、依賴圖與工時表內。
 
 ### D-06 撰寫未證實資料的唯讀盤點腳本 recheck_unverified.py
 - 優先級：P1
@@ -2672,3 +2672,25 @@ flowchart LR
 - 預估：2h
 - 排程：報告後
 - 狀態：已完成（2026-09-23）
+
+### B-32 證據信心：信心等級依與已證實內容的相似度決定
+- 優先級：P1
+- 依賴：B-30、D-08
+- 對應：FR-22、FR-02（`similar_news`）、spec 5.3
+- 範圍：`code/backend/app/services/evidence.py`（新增）、`app/workers/pandas_task_processor.py`（近鄰查詢與 AI 判讀同時進行、`ai_analysis.evidence`、快取命中沿用、移除舊的 `_confidence_level`）、`app/api/analyze.py`（`confidence_basis`、`evidence`）、`app/services/pandas_store.py`（近鄰欄位正規化）、`tests/test_evidence.py`（新增）、`tests/test_ai_service_contract.py`
+- 做什麼：依 FR-22 的 9 列規則表決定信心；`similar_news` 由向量近鄰填入（≥0.60、最多 3 筆、連到查核機構原文、機構名稱）；話術差距讀 `data/claim_prototypes.npz`，缺檔不影響判讀。
+- 驗收：`pytest tests -q`（757）；`tests/test_evidence.py`（25）。
+- 預估：3h
+- 排程：報告後
+- 狀態：已完成（2026-09-23），待部署
+
+### S-17 結果頁顯示信心依據與知識庫中的相似查證
+- 優先級：P1
+- 依賴：S-05、B-32
+- 對應：FR-22、spec 8.3 S2 元件 1、5，8.7 `section_similar`／`similar_item`
+- 範圍：`code/frontend/src/pages/result/ResultSuccess.jsx`、`SimilarNewsSection.jsx`（新增）、`similarNews.js`（新增）、`similarNews.test.js`（新增）、`src/i18n.js`、`src/dev/fixtures/result_fx-red-similar.json`（新增）
+- 做什麼：信心 chip 展開後顯示依據、造成該等級的最近已查核案例與夾角、信心怎麼來；舊結果沒有 `confidence_basis` 時沿用舊說明。元件 5 列出最多 3 筆相似查證（燈號點依 `frame_type`、機構名稱、相似度與夾角、外連原文）；快取命中時不顯示。
+- 驗收：`npm run test:unit`（403）、`npm run lint`、`npm run build`；`VITE_FIXTURES=1` 下 `/r/fx-red-similar` 顯示信心「中」與 3 筆相似查證，375 寬無橫向捲動；`/r/fx-red-misinfo`（舊格式）仍顯示原本的說明、不顯示相似查證。截圖與 `ui_checklist.csv` 列待下一輪 UI-1。
+- 預估：2h
+- 排程：報告後
+- 狀態：已完成（2026-09-23），待部署
