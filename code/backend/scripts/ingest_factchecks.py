@@ -56,19 +56,16 @@ HEADERS = {"User-Agent": "fakenewsverify-ingest/1.0 (+https://fakenewsverify.ver
 DELAY_S = 0.6            # 每個請求之間的間隔（對來源網站客氣一點）
 EMBED_MAX_CHARS = 2000   # 送 embedding 的文字上限（長篇轉傳文只取前段）
 MIN_TEXT_CHARS = 15
-MIN_RUMOR_CHARS = 20     # 台灣事實查核中心的謠言原文太短（多半是圖片或影片的配文）就改用標題裡的主張
 
 MYGOPEN_FEED = "https://www.mygopen.com/feeds/posts/summary"
 TFC_API = "https://tfc-taiwan.org.tw/wp-json/wp/v2"
 COFACTS_API = "https://api.cofacts.tw/graphql"
 COFACTS_SCAM_CATEGORY = "nD2n7nEBrIRcahlYwQoW"   # Cofacts 分類「詐騙」（主題分類，不等於訊息本身是詐騙）
 
-TFC_LABELS = {"incorrect": "MISINFO", "partially-incorrect": "MISINFO", "correct": "SAFE"}
 CJK_RE = re.compile(r"[一-鿿]")
 TAG_RE = re.compile(r"^【[^】]+】")
 # MyGoPen 查核結論為「真」的標籤（【真詐騙】是「確實是詐騙」，不算）
 SAFE_TAG_RE = re.compile(r"^【(真(?!詐騙)[^】]*|這真的|還真的)】")
-NORM_RE = re.compile(r"[\s。．.!！?？、，,「」『』“”\"'（）()：:；;…\-—–|｜]+")
 
 ORIGIN = "factcheck_batch"   # 批次入庫列的 origin（rollback 以此撤回）
 SOURCE_NAMES = {"MyGoPen": "MyGoPen", "TFC": "台灣事實查核中心", "Cofacts": "Cofacts"}
@@ -84,18 +81,6 @@ def log(msg: str) -> None:
 def content_hash(text: str) -> str:
     # 與 app/services/cache_service.CacheService.generate_hash 相同（hash 層命中要一字不差）
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def strip_html(value: str) -> str:
-    text = re.sub(r"<style[^>]*>.*?</style>", " ", value or "", flags=re.S)
-    text = re.sub(r"<br\s*/?>|</p>|</div>|</li>", "\n", text, flags=re.I)
-    text = html.unescape(re.sub(r"<[^>]+>", " ", text))
-    text = re.sub(r"[ \t　\xa0]+", " ", text)
-    return re.sub(r"\s*\n\s*", "\n", text).strip()
-
-
-def norm_title(title: str) -> str:
-    return NORM_RE.sub("", html.unescape(title or ""))
 
 
 def is_message_text(text: str) -> bool:
@@ -155,8 +140,9 @@ def fetch_mygopen(refresh: bool) -> list:
 
 def mygopen_rows(entries: list, skipped: dict) -> list:
     from app.services.news_fetcher import (
-        _NEGATED_VERDICT_RE, _extract_claim_from_title, _is_real_claim, _title_says_false,
+        _NEGATED_VERDICT_RE, _claim_for_index, _is_real_claim, _title_says_false,
     )
+    from app.services import tfc_client
     from app.services.search_service import _is_non_factcheck_post
 
     rows = []
@@ -178,11 +164,11 @@ def mygopen_rows(entries: list, skipped: dict) -> list:
             key = f"mygopen:tag {tag or '(none)'}"
             skipped[key] = skipped.get(key, 0) + 1
             continue
-        claim = _extract_claim_from_title(title)
+        claim = _claim_for_index(title)
         if not _is_real_claim(claim):
-            skipped["mygopen:not_claim"] = skipped.get("mygopen:not_claim", 0) + 1
+            skipped["mygopen:no identifiable claim"] = skipped.get("mygopen:no identifiable claim", 0) + 1
             continue
-        summary = strip_html((e.get("summary") or {}).get("$t", ""))
+        summary = tfc_client.strip_html((e.get("summary") or {}).get("$t", ""))
         use = "analysis" if label == "SAFE" else "kb"
         rows.append({"source": "MyGoPen", "kind": "title_claim", "use": use, "label": label, "verdict_raw": tag,
                      "text": claim, "url": link, "title": title,
@@ -210,53 +196,39 @@ def tfc_paged(kind: str, fields: str, refresh: bool) -> list:
     return items
 
 
-def tfc_quoted_claim(title: str) -> str:
-    """新版標題「背景。網傳「主張」說法，結論」取引號內的主張；舊版【錯誤】標題沿用 _extract_claim_from_title。"""
-    from app.services.news_fetcher import _extract_claim_from_title
-
-    m = re.search(r"(?:網傳|流傳|宣稱|傳言|影片稱|貼文稱)[^「]{0,12}「([^」]{6,120})」", title)
-    return m.group(1).strip() if m else _extract_claim_from_title(title)
-
-
 def fetch_tfc(refresh: bool, skipped: dict) -> list:
-    from app.services.news_fetcher import _is_real_claim
+    """查核報告＋謠言原文（解析規則與熱門牆抓取共用 app/services/tfc_client.py）。"""
+    from app.services import tfc_client
+    from app.services.news_fetcher import _claim_for_index, _is_real_claim
 
     classes = cached("tfc_classes.json", lambda: http_json(
         "GET", f"{TFC_API}/fact-check-report-classification",
         params={"per_page": 100, "_fields": "id,slug,name"})["_body"], refresh)
     slug_of = {c["id"]: c["slug"] for c in classes}
-    reports = tfc_paged("fact-check-reports", "id,date,link,title,excerpt,fact-check-report-classification", refresh)
-    rumors = tfc_paged("rumor-sources", "id,date,link,title,content", refresh)
+    reports = tfc_paged("fact-check-reports", tfc_client.REPORT_FIELDS, refresh)
+    rumors = tfc_paged("rumor-sources", tfc_client.RUMOR_FIELDS, refresh)
     log(f"[tfc] reports: {len(reports)}  rumor-sources: {len(rumors)}")
-
-    rumor_texts = {}
-    for r in rumors:
-        text = strip_html((r.get("content") or {}).get("rendered", ""))
-        if is_message_text(text) and len(text) >= MIN_RUMOR_CHARS:
-            rumor_texts.setdefault(norm_title((r.get("title") or {}).get("rendered", "")), []).append(text)
+    rumor_texts = tfc_client.rumor_texts_by_title(rumors)
 
     rows, matched = [], 0
-    for rep in reports:
-        title = html.unescape((rep.get("title") or {}).get("rendered", "")).strip()
-        slugs = [slug_of.get(i, "") for i in rep.get("fact-check-report-classification") or []]
-        labels = {TFC_LABELS[s] for s in slugs if s in TFC_LABELS}
-        if len(labels) != 1:
-            key = f"tfc:class {'+'.join(sorted(slugs)) or '(none)'}"
+    for raw in reports:
+        rep = tfc_client.report_item(raw, slug_of)
+        title, label = rep["title"], rep["label"]
+        if label is None:
+            key = f"tfc:class {'+'.join(sorted(rep['classification'])) or '(none)'}"
             skipped[key] = skipped.get(key, 0) + 1
             continue
-        label = labels.pop()
-        use = "kb" if label != "SAFE" else "analysis"
-        base = {"source": "TFC", "use": use, "label": label, "verdict_raw": "+".join(slugs), "url": rep.get("link", ""),
-                "title": title, "published": (rep.get("date") or "")[:10], "requests": None, "scam_topic": False,
-                "extra": strip_html((rep.get("excerpt") or {}).get("rendered", ""))[:300]}
-        texts = rumor_texts.get(norm_title(title), [])
+        base = {"source": "TFC", "use": "kb" if label != "SAFE" else "analysis", "label": label,
+                "verdict_raw": "+".join(rep["classification"]), "url": rep["url"], "title": title,
+                "published": rep["published"], "requests": None, "scam_topic": False, "extra": rep["summary"][:300]}
+        texts = rumor_texts.get(tfc_client.norm_title(title), [])
         if texts:
             matched += 1
             rows.extend({**base, "kind": "rumor_text", "text": t} for t in texts)
             continue
-        claim = tfc_quoted_claim(title)
+        claim = _claim_for_index(title)
         if not _is_real_claim(claim):
-            skipped["tfc:not_claim"] = skipped.get("tfc:not_claim", 0) + 1
+            skipped["tfc:no identifiable claim"] = skipped.get("tfc:no identifiable claim", 0) + 1
             continue
         rows.append({**base, "kind": "title_claim", "text": claim})
     log(f"[tfc] reports with rumor text: {matched}")

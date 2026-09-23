@@ -122,6 +122,21 @@ class SearchService:
         seen_urls = set()
         seen_tfc = False  # only need one working TFC URL
 
+        # ── 台灣事實查核中心：查核報告（REST，判定來自「查核結果」分類）；失敗才讀 RSS ──
+        try:
+            tfc_items = SearchService._fetch_tfc_reports(num_per_feed)
+        except Exception as e:
+            print(f"[SearchService] TFC reports API error, falling back to RSS: {e}")
+            tfc_items = []
+        for it in tfc_items:
+            if _is_non_factcheck_post(it.get("title", "")) or it["url"] in seen_urls:
+                continue
+            seen_urls.add(it["url"])
+            all_items.append(it)
+        if tfc_items:
+            seen_tfc = True
+            print(f"[SearchService] TFC reports: +{len(tfc_items)} items")
+
         # ── Direct RSS feeds ────────────────────────────────────
         for feed in RSS_FEEDS:
             if feed["name"] == "TFC" and seen_tfc:
@@ -167,6 +182,44 @@ class SearchService:
 
         # FR-06 acceptance 6: aggregator items must never reach _save_rss_record.
         return [it for it in all_items if not _is_aggregator_url(it.get("url", ""))]
+
+    @staticmethod
+    def _fetch_tfc_reports(num: int = 4) -> List[Dict]:
+        """
+        台灣事實查核中心最新的查核報告（app/services/tfc_client.py）。只收「查核結果」為錯誤或部分錯誤
+        （verdict="FALSE"，確定不實，等同 Cofacts 的 RUMOR），且抽得出被查核主張者：claim 優先用同標題的
+        謠言原文，其次是標題裡的主張（news_fetcher._claim_for_index）。新版標題寫的是結論（例：「健保署不會用
+        LINE 通知健保卡異常」），直接配上「假訊息」會被讀成相反的意思，所以熱門牆顯示「網傳「主張」」。
+        謠言原文查不到不影響報告本身。例外往外拋，由呼叫端改讀 RSS。
+        """
+        from app.services import tfc_client
+        from app.services.news_fetcher import _claim_for_index
+
+        reports = tfc_client.latest_reports(num)
+        try:
+            texts = tfc_client.latest_rumor_texts(max(num * 3, 30))
+        except Exception:
+            texts = {}
+        items = []
+        for rep in reports:
+            title = rep["title"]
+            if not rep["url"] or not title or rep["label"] != "MISINFO":
+                continue
+            claim = (texts.get(tfc_client.norm_title(title)) or [None])[0] or _claim_for_index(title)
+            if not claim:
+                continue
+            first_line = claim.strip().splitlines()[0]
+            short = first_line if len(first_line) <= 50 else first_line[:50] + "…"
+            items.append({
+                "url": rep["url"],
+                "title": title if title.startswith("【") else f"網傳「{short}」",
+                "summary": (title + "。" + rep["summary"])[:500],
+                "published": rep["published"],
+                "source": "TFC",
+                "verdict": "FALSE",
+                "claim": claim,
+            })
+        return items
 
     @staticmethod
     def _fetch_cofacts(num: int = 5) -> List[Dict]:

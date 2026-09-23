@@ -17,6 +17,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from app.services.search_service import SearchService
+from app.services.tfc_client import quoted_claim
 from app.services.crawler import CrawlerService
 from app.services.ai_service import AIService
 from app.services.vector_service import VectorService
@@ -97,6 +98,8 @@ def _extract_claim_from_title(title: str) -> str:
 
 
 _CJK_RE = re.compile(r"[一-鿿]")
+_QUESTION_RE = re.compile(r"[？?！!]")
+_LEADING_TAG_RE = re.compile(r"^【[^】]+】\s*")
 # MyGoPen / TFC 標題若帶這些查核標籤，代表已判定為不實
 _FALSE_TAG_RE = re.compile(r"^【[^】]*(錯誤|誤導|謠言|不實|易誤解|假)[^】]*】")
 # 否定的判定（【非謠言】【非詐騙】、內文「官方澄清：並非謠言」）結論是「不是假的」，不能因為含「謠言」二字就標不實
@@ -128,6 +131,20 @@ _NEWS_ANALYSIS_GUIDANCE = (
 )
 
 
+def _claim_for_index(title: str) -> str:
+    """
+    查核文章標題 → 寫進知識庫的主張；看不出被查核的說法時回 ""（寧可不收，也不把結論句當成謠言）。
+    - 舊版標籤標題「【錯誤】網傳XXX？說明」：標籤後面要有問號或驚嘆號，取 _extract_claim_from_title 的結果
+      （與既有索引一致）；「【易誤解】普悠瑪本來就沒有安全帶…」這類沒有問句的說明文字不收。
+    - 沒有標籤的標題（台灣事實查核中心新版「背景。網傳「主張」說法，結論」）：只收「網傳／流傳…「主張」」
+      引號裡的主張；「健保署不會用 LINE 通知健保卡異常」這類結論句不收（2026-09-24 全站語料檢查時發現）。
+    """
+    t = (title or "").strip()
+    if _LEADING_TAG_RE.match(t):
+        return _extract_claim_from_title(t) if _QUESTION_RE.search(_LEADING_TAG_RE.sub("", t)) else ""
+    return quoted_claim(t) or ""
+
+
 def _is_real_claim(claim: str) -> bool:
     """是否為可索引的真實主張：非網址、含中文、不太短、非標籤雲。"""
     c = (claim or "").strip()
@@ -147,17 +164,34 @@ def _title_says_false(title: str) -> bool:
 
 
 def _is_confirmed_false(item: dict, title: str) -> bool:
-    """是否「明確被判定為假訊息」：Cofacts 的 RUMOR 判定，或標題帶查核標籤。"""
-    return (item or {}).get("verdict") == "RUMOR" or _title_says_false(title)
+    """
+    是否「明確被判定為假訊息」：Cofacts 的 RUMOR 判定、台灣事實查核中心「查核結果」分類為錯誤或部分錯誤
+    （search_service 標 verdict="FALSE"），或標題帶查核標籤。
+    """
+    return (item or {}).get("verdict") in ("RUMOR", "FALSE") or _title_says_false(title)
 
 
-def _index_factcheck_claim(url: str, title: str, source_meta: dict):
+def _is_tfc_report(url: str) -> bool:
+    """台灣事實查核中心的查核報告頁：判定來自「查核結果」分類，標題不帶【錯誤】標籤。"""
+    u = (url or "").lower()
+    return "tfc-taiwan.org.tw/fact-check-reports/" in u
+
+
+def _index_factcheck_claim(url: str, title: str, source_meta: dict, claim: Optional[str] = None):
     """
     Extract the false claim and save it to knowledge_base.parquet
     so future user queries about this claim hit the cache.
+    claim：抓取端已知的主張文字（台灣事實查核中心的謠言原文）；沒有就從標題抽。
     """
-    claim = _extract_claim_from_title(title)
-    if not _is_real_claim(claim):
+    provided = (claim or "").strip()
+    if provided:
+        # 謠言原文常有很多逗號，不套標籤雲的判斷；只要求含中文、不是純網址、夠長
+        claim = provided
+        real = len(claim) >= 6 and bool(_CJK_RE.search(claim)) and not claim.startswith(("http://", "https://"))
+    else:
+        claim = _claim_for_index(title)
+        real = _is_real_claim(claim)
+    if not real:
         _print(f"[NewsFetcher]   not a real claim, skip indexing: {claim[:30]}")
         return
 
@@ -181,7 +215,7 @@ def _index_factcheck_claim(url: str, title: str, source_meta: dict):
         "risk_type": "MISINFO",
         "category": source_meta["category"],
         "confidence_score": 0.95,
-        "summary": f"此為已被查核的假訊息：「{claim}」",
+        "summary": f"此為已被查核的假訊息：「{claim if len(claim) <= 60 else claim[:60] + '…'}」",
         "explanation": (
             f"{source_meta['name']} 已對此訊息進行查證，判定為假訊息或誤導內容。"
             f"建議勿轉傳，並參考下方查核來源了解事實。"
@@ -267,7 +301,8 @@ def _save_rss_record(item: dict):
             rec.risk_type = "MISINFO"
             rec.category = source["category"]
             rec.ai_score = 0.95
-            claim = _extract_claim_from_title(title)
+            claim = item.get("claim") or _claim_for_index(title) or title
+            claim = claim if len(claim) <= 80 else claim[:80] + "…"
             rec.ai_summary = f"[{source['name']}] {claim or title}"
             rec.label_source = "rule"
         elif not source and _title_indicates_debunk(title) and \
@@ -288,7 +323,7 @@ def _save_rss_record(item: dict):
 
         # Phase 2: 只索引「確定不實 + 真實主張」的項目進知識庫
         if source and source.get("is_factcheck") and confirmed_false:
-            _index_factcheck_claim(url, title, source)
+            _index_factcheck_claim(url, title, source, claim=item.get("claim"))
         elif not source and _title_indicates_debunk(title):
             _index_factcheck_claim(url, title, {"name": "事實查核報導", "category": "已查核假訊息"})
     finally:
@@ -337,10 +372,12 @@ def _cleanup_legacy_strings():
                     r.ai_summary = f"[{source['name']}] {claim or title}"
                     _index_factcheck_claim(r.source_url, title, source)
                     fixed += 1
-                elif r.risk_type == "MISINFO" and "cofacts.tw" not in (r.source_url or ""):
+                elif r.risk_type == "MISINFO" and "cofacts.tw" not in (r.source_url or "") \
+                        and not _is_tfc_report(r.source_url):
                     # 之前被誤標成假訊息，但其實沒有不實判定 → 退回未查證。
-                    # Cofacts 例外：它的判定來自文章的 RUMOR 回覆（抓取時的 verdict），標題本來就
-                    # 不會有【錯誤】標籤，以標題判斷會把已查核的謠言誤退成未查證。
+                    # 例外：Cofacts 的判定來自文章的 RUMOR 回覆、台灣事實查核中心查核報告的判定來自
+                    # 「查核結果」分類（抓取時的 verdict），兩者標題本來就不會有【錯誤】標籤，
+                    # 以標題判斷會把已查核的謠言誤退成未查證。
                     r.risk_type = "PENDING"
                     r.ai_summary = None
                     fixed += 1

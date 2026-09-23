@@ -1,5 +1,7 @@
 # 證據信心研究（2026-09-23）
 
+> 初版。當時的語料誤收了約 120 筆以「結論句」當主張的查核報告（例：「健保署不會用 LINE 通知健保卡異常」），2026-09-24 修正語料後重跑，數字以 `evidence_confidence_2026-09-24.md` 為準；本檔保留作對照。
+
 由 `code/backend/scripts/evidence_confidence_study.py` 產生；語料來自 `scripts/ingest_factchecks.py`。
 相似度為 cosine（text-embedding-3-small，1536 維），夾角 = arccos(相似度)。
 

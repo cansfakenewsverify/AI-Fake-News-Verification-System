@@ -133,14 +133,16 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   盤點用 `scripts/recheck_unverified.py [--cloud]`（唯讀）：2026-09-22 正式資料 86 筆可比對、0 筆達 0.75。
 - **查核機構資料批次入庫（2026-09-23，`scripts/ingest_factchecks.py`）**：MyGoPen 全站（Blogger feed）、台灣事實查核中心
   全部查核報告（WordPress REST 的「查核結果」分類＋「謠言原文」）、Cofacts 文字訊息（RUMOR 回覆獲正面評價、至少 3 人回報、
-  沒有 NOT_RUMOR 回覆）→ 可入庫 18,587 筆（MISINFO／SCAM，`label_source=rule`、`origin=factcheck_batch`），
-  另 1,822 筆「查核結果為真」只供分析、**永不寫入**（仿冒官方通知的詐騙若命中 SAFE 列會拿到綠燈）。
+  沒有 NOT_RUMOR 回覆）→ 可入庫 18,469 筆（MISINFO／SCAM，`label_source=rule`、`origin=factcheck_batch`），
+  另 1,813 筆「查核結果為真」只供分析、**永不寫入**（仿冒官方通知的詐騙若命中 SAFE 列會拿到綠燈）。
+  主張只收看得出被查核說法者（`news_fetcher._claim_for_index`：舊版問句標題，或「網傳「…」」引號內）；台灣事實查核中心
+  新版標題寫的是結論，直接當謠言會把正確說法標成假訊息（2026-09-24 排除 120 筆）。
   步驟 fetch → embed（2026-09-23 實測 609 萬 tokens、CGU 扣 USD 0.24）→ apply（預設 dry-run；`--target cloud --apply`
   要負責人核准）→ 需要時 `rollback`。**截至 2026-09-23 尚未寫入正式資料庫**。
-- **證據信心研究（`scripts/evidence_confidence_study.py`，報告 `docs/test/results/evidence_confidence_2026-09-23.md`）**：
-  評測 50 題安全訊息對 18,587 筆可入庫列的最近相似度最高 0.70（沒有一題會被語意快取誤判）；最近鄰相似度越高、
-  題目真的有風險的比例越高（≥0.75：3／3、0.70～0.75：93%、0.65～0.70：86%、<0.55：36%）。話術原型（KMeans 40 群，
-  中心向量存 `data/claim_prototypes.npz`）單獨判斷會把 28／50 題安全訊息當成可疑，只能當輔助（差距 ≥0.10 時 23／24 題有風險）。
+- **證據信心研究（`scripts/evidence_confidence_study.py`，報告 `docs/test/results/evidence_confidence_2026-09-24.md`）**：
+  評測 50 題安全訊息對 18,469 筆可入庫列的最近相似度最高 0.70（沒有一題會被語意快取誤判）；最近鄰相似度越高、
+  題目真的有風險的比例越高（≥0.75：3／3、0.70～0.75：93%、0.65～0.70：85%、<0.55：36%）。話術原型（KMeans 40 群，
+  中心向量存 `data/claim_prototypes.npz`）單獨判斷會把 25／50 題安全訊息當成可疑，只能當輔助（差距 ≥0.10 時 27／29 題有風險）。
 - **證據信心（FR-22，2026-09-23，`app/services/evidence.py`）**：`confidence_level` 不再由 AI 自評分數換算，改依規則表
   （確定性標記→高；有風險＋最近已證實不實內容 ≥0.65 或話術差距 ≥0.10 或有 Tier 1／2 來源→中；安全但近鄰是不實內容→低並提醒；
   其餘→低）。近鄰查詢 `nearest_verified` 與 AI 判讀同時跑，結果存進 `ai_analysis.evidence` 供快取命中沿用；回應多
@@ -406,7 +408,7 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 - [ ] 查核結論每日進庫（FR-20）：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false`，
       需負責人把 `ADMIN_TOKEN` 加入 repository secret；在那之前是手動觸發。不呼叫判讀模型，只耗 embedding
-- [ ] 查核機構資料寫入正式資料庫：`ingest_factchecks.py apply --target cloud --apply`（18,587 筆、約 182 MB，免費上限 500 MB）。
+- [ ] 查核機構資料寫入正式資料庫：`ingest_factchecks.py apply --target cloud --apply`（18,469 筆、約 180 MB，免費上限 500 MB）。
       **要先部署知識庫頁的資料庫分頁**（`list_verified` 等；舊版每次把整個知識庫載入記憶體，1.9 萬列會撐爆 Render 512 MB）。
       已知限制：Cofacts 的 RUMOR 一律標 MISINFO，其中的詐騙訊息（釣魚、假中獎）命中時燈號是紅色「假訊息」而不是「詐騙警告」
 - [ ] 證據信心（FR-22）部署：程式與測試已完成（後端 `evidence.py`、結果頁 `SimilarNewsSection`），待負責人核准推送；
@@ -520,6 +522,12 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
   ③ 既有資料修復：`scripts/fix_factcheck_labels.py`（冪等、支援 --dry-run，
   同時清 RSS 殘留的 &nbsp; 等 HTML entities；`_strip_html` 已改為會解 entities）。
 - `_is_real_claim()`：純網址 / 無中文 / 標籤雲 / 太短 → 不索引進 knowledge_base。
+- **台灣事實查核中心的判定取自「查核結果」分類**（2026-09-24，`app/services/tfc_client.py`；熱門牆抓取與批次入庫共用）：
+  錯誤、部分錯誤 → 確定不實（`verdict="FALSE"`，與 Cofacts 的 RUMOR 同等）；事實釐清、證據不足不算判定。新版標題沒有
+  【錯誤】標籤，所以 `_cleanup_legacy_strings` 對 `/fact-check-reports/` 網址與 Cofacts 一樣不以標題退回未查證。
+- **寫進知識庫的主張只收看得出被查核說法者**（`_claim_for_index`）：舊版問句標題（【錯誤】網傳XXX？）取問號前的主張；
+  沒有標籤的標題只收「網傳／流傳…「主張」」引號內的主張；台灣事實查核中心新版的**結論句標題不收**（「健保署不會用 LINE
+  通知健保卡異常」當成謠言會把正確說法標成假訊息）。熱門牆上這類報告改以「網傳「主張」」呈現。
 - **否定的判定不算不實**（2026-09-23）：【非謠言】【非詐騙】【不是謠言】與標題中的「並非謠言」結論是「不是假的」，
   `_NEGATED_VERDICT_RE` 讓 `_title_says_false`／`_title_indicates_debunk` 不因含「謠言」二字就標 MISINFO
   （批次抓 MyGoPen 全站時發現 7 篇【非謠言】被標成假訊息）。

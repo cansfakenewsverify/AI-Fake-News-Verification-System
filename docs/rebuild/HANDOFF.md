@@ -56,8 +56,9 @@
 
 - **查核機構資料批次語料與證據信心研究**（2026-09-23）：
   - `code/backend/scripts/ingest_factchecks.py` 抓取 MyGoPen 全站、台灣事實查核中心全部查核報告與 Cofacts 已有判定的訊息，
-    可入庫 18,587 筆；求證平台上沒有判定的訊息一律不收。向量已算好（CGU 扣 USD 0.24），**尚未寫入正式資料庫**。
-  - `code/backend/scripts/evidence_confidence_study.py` 的報告 `docs/test/results/evidence_confidence_2026-09-23.md`：
+    可入庫 18,469 筆；求證平台上沒有判定的訊息、抽不出被查核主張的文章一律不收。向量已算好（CGU 扣 USD 0.24），
+    **尚未寫入正式資料庫**。
+  - `code/backend/scripts/evidence_confidence_study.py` 的報告 `docs/test/results/evidence_confidence_2026-09-24.md`：
     評測的 50 題安全訊息沒有一題會因入庫而被誤判；最近的已查核案例相似度越高，題目真的有風險的比例越高，
     可作為「夾角信心」的依據。
   - 知識庫頁改在資料庫裡分頁與計數（入庫後的必要條件）；修正【非謠言】被標成假訊息的標記規則錯誤。

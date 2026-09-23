@@ -1,7 +1,7 @@
 """
 證據信心（夾角）：信心等級依「判定與查核機構已證實內容的相似度」決定，不用 AI 自評分數。
 
-規則、門檻與依據寫在 docs/rebuild/信心程度的產生方式.md（實測：docs/test/results/evidence_confidence_2026-09-23.md）。
+規則、門檻與依據寫在 docs/rebuild/信心程度的產生方式.md（實測：docs/test/results/evidence_confidence_2026-09-24.md）。
 判斷順序（先符合者為準）：
 
   1. AI 服務暫時無法使用                                   → 低  ai_unavailable（前端不顯示信心）
@@ -32,8 +32,8 @@ from app.utils.verdict import frame_of
 
 logger = logging.getLogger(__name__)
 
-MID_SIMILARITY = 0.65        # 規則 3／6：評測題庫中 ≥0.65 的 31 題有 28 題真的有風險
-PATTERN_MARGIN = 0.10        # 規則 4／6：話術差距 ≥0.10 的 24 題有 23 題真的有風險
+MID_SIMILARITY = 0.65        # 規則 3／6：評測題庫中 ≥0.65 的 30 題有 27 題真的有風險
+PATTERN_MARGIN = 0.10        # 規則 4／6：話術差距 ≥0.10 的 29 題有 27 題真的有風險
 EVIDENCE_NEIGHBOURS = 5      # 查幾筆最近的已證實列
 SIMILAR_NEWS_MIN = 0.60      # 「知識庫中的相似查證」列出的下限（spec FR-02）
 SIMILAR_NEWS_MAX = 3

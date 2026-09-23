@@ -2546,7 +2546,7 @@ flowchart LR
 
 ## 11. 報告後新增票（2026-09-22）
 
-負責人於第三次進度報告後提出兩項需求：①查核機構之後才發布的結論，要能接回資料庫中「尚無查核機構證實」的舊資料；②熱門搜尋獨立成一個功能，先做成網站上的熱門查證牆，之後再延伸為提供查核機構的熱搜名單。對應 spec v1.4 的 FR-20、FR-21。以下各票（2026-09-22 的 5 張，與 2026-09-23 追加的 S-16、D-07、B-30、B-31、D-08、B-32、S-17）不在第 1 節總覽表、依賴圖與工時表內。
+負責人於第三次進度報告後提出兩項需求：①查核機構之後才發布的結論，要能接回資料庫中「尚無查核機構證實」的舊資料；②熱門搜尋獨立成一個功能，先做成網站上的熱門查證牆，之後再延伸為提供查核機構的熱搜名單。對應 spec v1.4 的 FR-20、FR-21。以下各票（2026-09-22 的 5 張，與 2026-09-23 追加的 S-16、D-07、B-30、B-31、D-08、B-32、S-17，2026-09-24 追加的 B-33、B-34、O-29）不在第 1 節總覽表、依賴圖與工時表內。
 
 ### D-06 撰寫未證實資料的唯讀盤點腳本 recheck_unverified.py
 - 優先級：P1
@@ -2635,7 +2635,7 @@ flowchart LR
   1. `fetch`：MyGoPen 全站（Blogger feed）、台灣事實查核中心全部查核報告（WordPress REST 的查核結果分類，錯誤／部分錯誤 → MISINFO，正確 → SAFE，事實釐清與證據不足不收；文字優先用同標題的謠言原文）、Cofacts 文字訊息（RUMOR 回覆正面評價多於負面、至少 3 人回報、沒有 NOT_RUMOR 回覆）。沒有判定的求證平台訊息一律不收。
   2. SAFE 列只供分析（`use=analysis`），永不寫入知識庫。
   3. `embed`（CGU embedding，只補缺的）、`apply`（預設 dry-run；`label_source=rule`、`origin=factcheck_batch`；已存在的已證實文字略過）、`rollback`。
-- 驗收：fetch 產出 20,409 筆（可入庫 18,587）；embed 全數完成；`apply --target local` dry-run 數量正確。
+- 驗收：fetch 產出 20,282 筆（可入庫 18,469；2026-09-24 起只收看得出被查核主張的文章）；embed 全數完成；`apply --target local` dry-run 數量正確。
 - 預估：3h
 - 排程：報告後
 - 狀態：語料與向量已完成（2026-09-23）；寫入正式資料庫待負責人核准（依賴 B-30 先部署）
@@ -2666,7 +2666,7 @@ flowchart LR
 - 優先級：P1
 - 依賴：D-07
 - 對應：陳仁暉教授 2026-09-21 審查意見（檢驗方法）、`docs/test/上線後準確率驗證計畫.md` 第 4 節
-- 範圍：`code/backend/scripts/evidence_confidence_study.py`（新增）、`code/backend/data/claim_prototypes.npz`、`docs/test/results/evidence_confidence_2026-09-23.md`
+- 範圍：`code/backend/scripts/evidence_confidence_study.py`（新增）、`code/backend/data/claim_prototypes.npz`、`docs/test/results/evidence_confidence_2026-09-23.md`（初版）與 `evidence_confidence_2026-09-24.md`（修正語料後）
 - 做什麼：評測 150 題對可入庫列的最近相似度（誤命中檢查）、PF-2 改寫句的相似度分布、夾角分段校準、話術原型（KMeans 40 群＋正常訊息 12 群）的判斷力。
 - 驗收：報告產出；評測的 50 題安全訊息沒有一題的最近鄰 ≥ 0.75。
 - 預估：2h
@@ -2694,3 +2694,35 @@ flowchart LR
 - 預估：2h
 - 排程：報告後
 - 狀態：已完成（2026-09-23），待部署
+
+### B-33 台灣事實查核中心改讀查核報告與「查核結果」分類；主張只收看得出被查核說法者
+- 優先級：P1
+- 依賴：B-28、D-07
+- 對應：FR-20、CLAUDE.md 第 9 節
+- 範圍：`code/backend/app/services/tfc_client.py`（新增）、`app/services/search_service.py`（`_fetch_tfc_reports`，失敗退回 RSS）、`app/services/news_fetcher.py`（`verdict="FALSE"`、`_claim_for_index`、`_index_factcheck_claim(claim=)`、`_cleanup_legacy_strings` 排除查核報告網址）、`scripts/ingest_factchecks.py`（改用 `tfc_client`）、`tests/test_tfc_reports.py`（新增）
+- 做什麼：TFC 的 RSS 多為活動與公告、新版標題不帶判定標籤，改讀 WordPress REST 的查核報告與謠言原文；錯誤、部分錯誤 → 確定不實。寫進知識庫的主張只收舊版問句標題或「網傳「…」」引號內者，結論句標題不收（語料排除 120 筆）；熱門牆以「網傳「主張」」呈現。
+- 驗收：`pytest tests -q`（771）；`tests/test_tfc_reports.py`（12）；實測最新 6 篇報告的判定與主張。
+- 預估：3h
+- 排程：報告後
+- 狀態：已完成（2026-09-24）
+
+### B-34 修正 DEF-06（價目表）與 DEF-07（concat FutureWarning）
+- 優先級：P2
+- 依賴：—
+- 對應：測試計畫書 6.3 DEF-06、DEF-07
+- 範圍：`code/backend/app/workers/pandas_task_processor.py`、`app/utils/parquet_io.py`（`concat_rows`）、`app/services/pandas_store.py`、`app/services/audit_store.py`、`tests/test_parquet_io.py`
+- 驗收：全套 pytest 以 `-W error::FutureWarning` 通過；`test_parquet_io.py` +2。
+- 預估：1h
+- 排程：報告後
+- 狀態：已完成（2026-09-24）
+
+### O-29 查核結論每日進庫 workflow
+- 優先級：P1
+- 依賴：B-28、B-33
+- 對應：FR-20、HANDOFF 待辦第 11 項
+- 範圍：`.github/workflows/factcheck-daily.yml`（新增）
+- 做什麼：每天 UTC 11:17 叫醒後端後呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false`；沒有 `ADMIN_TOKEN` secret 或 `BACKEND_BASE_URL` 時印出說明並正常結束，token 錯誤（401／403）才讓 workflow 失敗。
+- 驗收：YAML 可解析；負責人加入 secret 後以 workflow_dispatch 手動觸發一次，log 顯示 http 200。
+- 預估：0.5h
+- 排程：報告後
+- 狀態：檔案已完成（2026-09-24）；**待負責人把 `ADMIN_TOKEN` 加入 repository secret**

@@ -1,0 +1,69 @@
+# 查核結論每日進庫（spec FR-20；CLAUDE.md 第 3、8 節）：
+# 每天呼叫一次 POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false，
+# 讓 MyGoPen／台灣事實查核中心新發布的查核結論以 label_source=rule 寫進知識庫。
+# 只抓查核文章與寫入結論，不呼叫判讀模型（只耗 embedding）。
+#
+# 需要兩個設定（沒設好時本 workflow 印出說明後正常結束，不會變紅）：
+# - repository variable BACKEND_BASE_URL（keepalive 已在用）
+# - repository secret ADMIN_TOKEN：值與 Render 後台 Environment 頁的 ADMIN_TOKEN 相同
+#   （負責人在 GitHub → Settings → Secrets and variables → Actions → New repository secret 加入）
+# token 只放在 X-Admin-Token 標頭，GitHub 會在 log 中自動遮蔽 secret 的值。
+name: factcheck-daily
+
+on:
+  schedule:
+    # 每天 UTC 11:17（台灣 19:17）：查核機構多在白天發文；避開整點的 GitHub 排程尖峰
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: factcheck-daily
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BACKEND_BASE_URL: ${{ vars.BACKEND_BASE_URL }}
+      ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+    steps:
+      - name: Index new fact-check verdicts
+        run: |
+          base="${BACKEND_BASE_URL%/}"
+          if [ -z "$base" ]; then
+            echo "Repository variable BACKEND_BASE_URL is not set -- skipping."
+            exit 0
+          fi
+          if [ -z "$ADMIN_TOKEN" ]; then
+            echo "Repository secret ADMIN_TOKEN is not set -- skipping."
+            echo "Add it under Settings > Secrets and variables > Actions (same value as ADMIN_TOKEN on Render)."
+            exit 0
+          fi
+
+          # A sleeping free instance needs about a minute to wake up: poll /health first.
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 60 "$base/health" 2>/dev/null || true)
+            echo "GET /health -> http ${code:-000} (attempt ${attempt})"
+            [ "$code" = "200" ] && break
+            sleep 10
+          done
+
+          url="$base/api/trending/refresh?analyze=false&per_feed=25&cofacts=false"
+          code=$(curl -sS -o response.json -w "%{http_code}" --max-time 60 -X POST \
+            -H "X-Admin-Token: ${ADMIN_TOKEN}" "$url" 2>/dev/null || true)
+          echo "POST /api/trending/refresh -> http ${code:-000}"
+          cat response.json 2>/dev/null || true
+          echo
+          case "$code" in
+            200) echo "Refresh started in the background on the server." ;;
+            401|403)
+              echo "::error::The backend rejected ADMIN_TOKEN (http $code). Check that the secret matches Render."
+              exit 1
+              ;;
+            *)
+              echo "::warning::Refresh request did not succeed (http ${code:-000}); it will be retried tomorrow."
+              ;;
+          esac
