@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ApiError } from "../../lib/api.js";
-import { HEALTH_RETRY_MS, isBackendDownError, startHealthRetry } from "./useBackendStatus.js";
+import { BACKEND_UP_EVENT } from "../../lib/api.js";
+import { HEALTH_RETRY_MS, isBackendDownError, retryOnBackendUp, startHealthRetry } from "./useBackendStatus.js";
 
 // 「後端不可用」橫幅的判定（P-14）：只有真的連不上／閘道錯誤才顯示。
 
@@ -99,4 +100,66 @@ test("health retry survives a failing check", async () => {
   timers.state.tick();
   await flush();
   assert.equal(calls, 2);
+});
+
+// 頁面列表在冷啟動時載入失敗，後端回應後自動重抓（useRetryWhenBackendUp）
+
+function fakeClock(start = 0) {
+  const clock = { at: start };
+  clock.now = () => clock.at;
+  return clock;
+}
+
+test("a failed list reloads when the backend answers again", () => {
+  const target = new EventTarget();
+  const clock = fakeClock(100000);
+  let calls = 0;
+  const stop = retryOnBackendUp(() => { calls += 1; }, { target, now: clock.now });
+
+  assert.equal(calls, 0, "waits for the backend instead of retrying right away");
+  target.dispatchEvent(new Event(BACKEND_UP_EVENT));
+  assert.equal(calls, 1);
+  stop();
+});
+
+test("automatic reloads are at least 10 seconds apart", () => {
+  const target = new EventTarget();
+  const clock = fakeClock(100000);
+  let calls = 0;
+  retryOnBackendUp(() => { calls += 1; }, { target, now: clock.now });
+
+  target.dispatchEvent(new Event(BACKEND_UP_EVENT));
+  clock.at += 2000; // the page's own /api/health succeeded while the list request failed again
+  target.dispatchEvent(new Event(BACKEND_UP_EVENT));
+  assert.equal(calls, 1, "a list that keeps failing must not be re-sent in a tight loop");
+
+  clock.at += HEALTH_RETRY_MS;
+  target.dispatchEvent(new Event(BACKEND_UP_EVENT));
+  assert.equal(calls, 2);
+});
+
+test("the gap survives re-subscribing after another failure", () => {
+  const target = new EventTarget();
+  const clock = fakeClock(100000);
+  const lastRetry = { current: -Infinity };
+  let calls = 0;
+  const retry = () => { calls += 1; };
+
+  const first = retryOnBackendUp(retry, { target, now: clock.now, lastRetry });
+  target.dispatchEvent(new Event(BACKEND_UP_EVENT));
+  first(); // the retry started: the page left its error state and unsubscribed
+
+  clock.at += 1000; // the retry failed again and the page subscribed anew
+  retryOnBackendUp(retry, { target, now: clock.now, lastRetry });
+  target.dispatchEvent(new Event(BACKEND_UP_EVENT));
+  assert.equal(calls, 1);
+});
+
+test("stopping removes the listener", () => {
+  const target = new EventTarget();
+  let calls = 0;
+  const stop = retryOnBackendUp(() => { calls += 1; }, { target, now: () => 0 });
+  stop();
+  target.dispatchEvent(new Event(BACKEND_UP_EVENT));
+  assert.equal(calls, 0);
 });

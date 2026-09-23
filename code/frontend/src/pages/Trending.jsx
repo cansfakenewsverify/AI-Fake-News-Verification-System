@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Button from "../components/Button.jsx";
 import Card from "../components/Card.jsx";
@@ -6,6 +6,7 @@ import Chip from "../components/Chip.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import SegmentedTabs from "../components/SegmentedTabs.jsx";
 import Skeleton from "../components/Skeleton.jsx";
+import { isBackendDownError, useRetryWhenBackendUp } from "../components/shell/useBackendStatus.js";
 import { t } from "../i18n.js";
 import { getHealth, getTrending } from "../lib/api.js";
 import { useDocumentTitle } from "../lib/useDocumentTitle.js";
@@ -34,7 +35,8 @@ import {
 // - States: loading = 6 skeleton cards; error = backend_down + retry (never the empty state);
 //   no records = trending_empty; filter leaves nothing = filter_empty.
 // - Requests are aborted on unmount; "retry" starts a new attempt for both requests. The feed is only
-//   fetched while its tab is shown.
+//   fetched while its tab is shown. A failure to reach the backend (cold start) is retried on its own
+//   as soon as the backend answers again (useRetryWhenBackendUp).
 // - All user-visible text comes from i18n.js or ./trending/copy.js.
 
 const SKELETON_CARDS = 6;
@@ -106,14 +108,16 @@ function FactCheckerFeed() {
     );
     getTrending({ limit: TRENDING_LIMIT }, { signal }).then(
       (data) => setList({ attempt, status: "ok", records: Array.isArray(data?.records) ? data.records : [] }),
-      () => {
-        if (!signal.aborted) setList({ attempt, status: "error", records: [] });
+      (err) => {
+        if (!signal.aborted) setList({ attempt, status: "error", records: [], down: isBackendDownError(err) });
       },
     );
     return () => controller.abort();
   }, [attempt]);
 
+  const retry = useCallback(() => setAttempt((n) => n + 1), [setAttempt]);
   const status = list.attempt === attempt ? list.status : "loading";
+  useRetryWhenBackendUp(status === "error" && list.down === true, retry);
   const records = status === "ok" ? list.records : [];
   const visible = applyTrendingFilter(records, filter);
   const updated = latestCreatedAt(records);
@@ -155,7 +159,7 @@ function FactCheckerFeed() {
               mark="exclamation"
               title={t("backend_down")}
               action={
-                <Button variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+                <Button variant="secondary" onClick={retry}>
                   {t("btn_retry")}
                 </Button>
               }

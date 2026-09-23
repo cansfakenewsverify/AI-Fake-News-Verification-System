@@ -124,6 +124,8 @@ code/frontend/
 - **逾時**：GET 15 秒、POST 30 秒、圖片 60 秒。
 - **錯誤**：一律轉成 `ApiError`（`kind` 為 `network`／`timeout`／`http`，另有 `status`、`code`、`retryAfter`）。後端的錯誤格式是 `{detail, code}`；429 會帶 `Retry-After`。
 - **連不上後端**：任何請求遇到網路錯誤、逾時或 5xx，`AppShell` 就在頂欄下方顯示「暫時連不上伺服器」橫幅，並每 10 秒自動重試 `/api/health`，成功後橫幅自己消失。雲端免費主機休眠後第一次喚醒約 1 分鐘，使用者不用手動重新整理。
+  頁面自己的內容（熱門頁兩個分頁、知識庫列表、結果頁）若因連不上後端而載入失敗，也會在後端回應後自動重抓
+  （`components/shell/useBackendStatus.js` 的 `useRetryWhenBackendUp`；兩次自動重抓至少間隔 10 秒，一直失敗的請求不會連續重送）。
 - **最近查證**：只存在瀏覽器 `localStorage`（key `fcc_history_v1`，最多 50 筆），沒有伺服器副本，也沒有登入。
 
 ---
@@ -211,7 +213,7 @@ VITE_FIXTURES=1 npm run dev
 
 ```powershell
 cd code\frontend
-npm run test:unit   # 單元測試：Node 內建 test runner（node --test），390 個，離線
+npm run test:unit   # 單元測試：Node 內建 test runner（node --test），394 個，離線
 npm run lint        # ESLint 9（設定在 eslint.config.js）
 npm run build       # 產出 dist/
 npm run preview     # 在本機預覽 build 結果

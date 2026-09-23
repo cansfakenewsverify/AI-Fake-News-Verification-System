@@ -216,7 +216,7 @@ code/frontend/                  React 19 + Vite 8.3.0 + Tailwind 4
     ├── lib/                    api.js（★所有後端呼叫的唯一入口、FALLBACK_PREFIX）、fixtures.js、verdict.js、history.js、
     │                            validateInput.js、httpUrl.js、theme.js、useDocumentTitle.js
     ├── dev/fixtures/           開發用假回應（VITE_FIXTURES=1 才生效，production build 會剔除；用法看該資料夾 README）
-    └── **/*.test.js            單元測試（node --test，**390 個**）
+    └── **/*.test.js            單元測試（node --test，**394 個**）
 legacy/                         已封存、不再維護：舊單檔查核儀 fake-news-detector.html、_run_detector.bat、README.md
 render.yaml                     Render Blueprint（後端雲端部署設定；金鑰只在 Render 後台輸入，檔案裡只有鍵名）
 .github/workflows/ci.yml        push／PR：test（後端 pytest）＋ frontend（build、單元測試）
@@ -290,7 +290,7 @@ $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q
 # ── 前端：以下都先 cd code\frontend ──
 npm ci                 # 依 package-lock.json 安裝
 npm run dev            # http://localhost:5173，/api 由 vite 代理到 localhost:8000
-npm run test:unit      # node --test，390 個
+npm run test:unit      # node --test，394 個
 npm run lint
 npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:unit
 ```
@@ -565,7 +565,8 @@ GitHub Actions keepalive（每 10 分鐘）→ Render /health + /api/knowledge/s
 - **操作手冊**：`docs/rebuild/runbook_cloud_deploy.md`（負責人 Part A、驗證 Part B、免費方案限制、退回本機 + tunnel 的方法）。
 - **確認雲端真的接上資料庫**：`/health` 的 `"storage_backend":"supabase"`。`SUPABASE_DB_URL` 沒設時後端會
   默默退回暫時硬碟上的本機檔案（看起來正常，但主機一休眠資料就消失）。
-- **免費方案行為**：Render 15 分鐘沒流量休眠、喚醒約 1 分鐘（前端橫幅會自動重試）；硬碟是暫時的；
+- **免費方案行為**：Render 15 分鐘沒流量休眠、喚醒約 1 分鐘（前端橫幅每 10 秒重試 `/api/health`；熱門、知識庫、結果頁的內容
+  在後端回應後自動重抓，見 `useBackendStatus.js` 的 `useRetryWhenBackendUp`）；硬碟是暫時的；
   Supabase 免費專案 7 天沒活動會被暫停（keepalive 會讀資料庫）。
 - **上線護欄數值寫在 `render.yaml`**（後台手動改的值，下次 Blueprint 同步會被檔案蓋回去）：
   `DAILY_AI_CALL_CAP=300`、`RATE_LIMIT_PER_MINUTE=30`、`RATE_LIMIT_PER_HOUR=200`；用量看 `/health.daily_ai_calls`。

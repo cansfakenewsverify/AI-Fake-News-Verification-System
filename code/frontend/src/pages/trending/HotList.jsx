@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Button from "../../components/Button.jsx";
 import Card from "../../components/Card.jsx";
 import EmptyState from "../../components/EmptyState.jsx";
 import Skeleton from "../../components/Skeleton.jsx";
+import { isBackendDownError, useRetryWhenBackendUp } from "../../components/shell/useBackendStatus.js";
 import { t } from "../../i18n.js";
 import { getKnowledgeHot } from "../../lib/api.js";
 import KnowledgeCard from "../knowledge/KnowledgeCard.jsx";
@@ -11,6 +12,7 @@ import { HOT_LIMIT, hotCountText } from "./hotModel.js";
 // "本站熱門查證" tab of /trending: GET /api/knowledge/hot?limit=10.
 // - Same card as the knowledge page (KnowledgeCard); the chip shows recent demand (hotCountText).
 // - States: loading = skeleton cards; error = backend_down + retry; no records = hot_empty.
+//   A failure to reach the backend (cold start) is retried on its own once the backend answers again.
 // - The backend lists verified rows only, ranked by time-decayed demand (app/services/hot_claims.py).
 
 const SKELETON_CARDS = 4;
@@ -25,14 +27,16 @@ export default function HotList() {
     const { signal } = controller;
     getKnowledgeHot({ limit: HOT_LIMIT }, { signal }).then(
       (data) => setList({ attempt, status: "ok", records: Array.isArray(data?.records) ? data.records : [] }),
-      () => {
-        if (!signal.aborted) setList({ attempt, status: "error", records: [] });
+      (err) => {
+        if (!signal.aborted) setList({ attempt, status: "error", records: [], down: isBackendDownError(err) });
       },
     );
     return () => controller.abort();
   }, [attempt]);
 
+  const retry = useCallback(() => setAttempt((n) => n + 1), [setAttempt]);
   const status = list.attempt === attempt ? list.status : "loading";
+  useRetryWhenBackendUp(status === "error" && list.down === true, retry);
   const records = status === "ok" ? list.records : [];
 
   return (
@@ -43,7 +47,7 @@ export default function HotList() {
             mark="exclamation"
             title={t("backend_down")}
             action={
-              <Button variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+              <Button variant="secondary" onClick={retry}>
                 {t("btn_retry")}
               </Button>
             }

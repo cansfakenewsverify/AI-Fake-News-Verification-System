@@ -36,7 +36,7 @@ https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4
 
 使用前先知道這幾件事：
 
-- **第一次打開可能要等約 1 分鐘。** 後端在 Render 免費方案上，15 分鐘沒有流量就會休眠。休眠時頁面會顯示「暫時連不上伺服器」，並每 10 秒自動重試，不用手動重新整理。
+- **第一次打開可能要等約 1 分鐘。** 後端在 Render 免費方案上，15 分鐘沒有流量就會休眠。休眠時頁面會顯示「暫時連不上伺服器」，並每 10 秒自動重試；後端醒來後內容會自己載入，不用手動重新整理。
 - **查證時間**：沒查過的內容由 AI 判定，實測約 9–27 秒；查過的內容（包含換句話說的同一則謠言）直接命中快取，實測約 3 秒，也不佔每日 AI 額度。
 - **額度**：全站每天最多 300 次 AI 判定（台灣時間 00:00 歸零）；每個 IP 每分鐘 30 次、每小時 200 次。額度用完後，查過的內容仍可查到結果。
 - **輸入方式**：網頁目前開放文字與網址。圖片查證的後端端點已完成，上傳介面尚未開放。
@@ -167,7 +167,7 @@ AI-Fake-News-Verification-System/
 | 項目 | 數量 | 怎麼跑 |
 |------|------|--------|
 | 後端 pytest | 729 個通過；另有 26 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
-| 前端單元測試 | 390 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
+| 前端單元測試 | 394 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
 
 - 兩邊的測試都離線執行，不呼叫 AI、不花額度。
 - CI（`.github/workflows/ci.yml`）在每次 push／PR 到 `main` 時跑兩個 job：`test`（後端 pytest）與 `frontend`（`npm ci` → `npm run build` → `npm run test:unit`）。
