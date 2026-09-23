@@ -8,6 +8,8 @@ import uuid
 
 import pandas as pd
 
+from app.utils.parquet_io import concat_rows
+
 
 class AuditStore:
     """
@@ -78,7 +80,7 @@ class AuditStore:
             "reason": reason,
             "created_at": datetime.utcnow(),
         }
-        df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
+        df = concat_rows(df, pd.DataFrame([record]))
         self._save_overrides(df)
         record["created_at"] = record["created_at"].isoformat()
         return record
@@ -99,7 +101,7 @@ class AuditStore:
             "comment": comment,
             "created_at": datetime.utcnow(),
         }
-        df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
+        df = concat_rows(df, pd.DataFrame([record]))
         self._save_feedback(df)
         record["created_at"] = record["created_at"].isoformat()
         return record

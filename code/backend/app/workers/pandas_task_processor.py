@@ -44,8 +44,9 @@ TZ_TAIPEI = timezone(timedelta(hours=8))
 MODEL_PRICING_PER_1M: Dict[str, Tuple[float, float]] = {
     "gpt-5-mini": (0.25, 2.00),
     "gpt-5": (1.25, 10.00),
-    # CGU_MODEL 預設型號（OpenAI 公告價；CGU 閘道實際扣款以 /v1/me/usage 為準）
-    "gpt-5.4-mini": (0.75, 4.50),
+    # CGU_MODEL 預設型號：CGU 閘道實際計價（OpenAI 公告價 0.75／4.50 的 2 倍；DEF-06，2026-09-16 PF-5 以
+    # /me/usage 核對，2026-09-23 批次 embedding 實扣也是牌價的 2 倍）
+    "gpt-5.4-mini": (1.50, 9.00),
 }
 
 # ai_service 附在分析結果上的呼叫資訊（只供 log，不寫進知識庫／回應）

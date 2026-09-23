@@ -95,3 +95,27 @@ def test_concurrent_task_updates_do_not_lose_writes_or_break_reads(tmp_path):
 
     assert errors == []
     assert all(store.get_task(i)["status"] == "completed" for i in ids)
+
+
+# ── DEF-07：附加新列時對齊全為空值的欄位型別，不再出現 concat 的 FutureWarning ──
+def test_concat_rows_keeps_types_and_raises_no_future_warning():
+    import warnings
+
+    from app.utils.parquet_io import concat_rows
+
+    existing = pd.DataFrame({"score": [None], "tier": [2.0], "flag": [True], "note": ["a"]})
+    new = pd.DataFrame({"score": [0.9], "tier": [None], "flag": [False], "note": [None]})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        out = concat_rows(existing, new)
+    assert str(out["score"].dtype) == "float64" and out["score"].tolist()[1] == 0.9
+    assert str(out["tier"].dtype) == "float64" and pd.isna(out["tier"].tolist()[1])
+    assert out["flag"].tolist() == [True, False]
+    assert out["note"].tolist()[0] == "a" and pd.isna(out["note"].tolist()[1])
+
+
+def test_concat_rows_with_an_empty_frame_returns_the_new_rows():
+    from app.utils.parquet_io import concat_rows
+
+    out = concat_rows(pd.DataFrame(), pd.DataFrame({"a": [1]}, index=[5]))
+    assert out["a"].tolist() == [1] and list(out.index) == [0]

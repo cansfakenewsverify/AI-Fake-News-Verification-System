@@ -10,7 +10,7 @@ from typing import Dict, Any, Iterable, Optional, List, Tuple
 import uuid
 from datetime import datetime
 
-from app.utils.parquet_io import atomic_write_parquet, path_lock, read_parquet_retry
+from app.utils.parquet_io import atomic_write_parquet, concat_rows, path_lock, read_parquet_retry
 from app.utils.source_tier import TIER_LABELS, tier_of
 
 
@@ -262,7 +262,7 @@ class PandasStore:
             df = new_rows
         else:
             common_cols = df.columns.intersection(new_rows.columns)
-            df = pd.concat([df[common_cols], new_rows[common_cols]], ignore_index=True)
+            df = concat_rows(df[common_cols].copy(), new_rows[common_cols].copy())
         self._save_knowledge_base(df)
 
     def get_all_records(self) -> pd.DataFrame:

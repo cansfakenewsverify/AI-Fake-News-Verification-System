@@ -61,7 +61,8 @@
 
 ### 💰 額度與成本（最常踩雷）
 - 量級（2026-09-16 實測，測試計畫書 PF-5）：每次未命中快取的查證約 **USD 0.0064**、150 筆評測約 USD 0.94。
-  ⚠️ 後端 log 的 `usd` 欄低估約一半（DEF-06，第 8 節），對帳以 `/me/usage` 為準。
+  後端 log 的 `usd` 欄以 CGU 閘道實際計價估算（`MODEL_PRICING_PER_1M`，DEF-06 已於 2026-09-24 修正；閘道價為 OpenAI 牌價的 2 倍），
+  對帳仍以 `/me/usage` 為準。
 - `web_search` 工具讓每次呼叫**貴 3–7 倍**，由 `USE_WEB_SEARCH` 控制（`config.py` 與 `.env.example` 預設 true；**雲端設 false**；
   `evaluate.py` 固定不帶、`batch_verify_pending.py` 預設關）。CGU 閘道是否支援 `web_search` 尚未驗證（spec §12 R1）；
   帶了失敗時 `_run_analysis_chain` 會關掉 web_search 再試一次。
@@ -393,8 +394,9 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       DEF-04 部分已證實列的「主張」其實是查核機構文章標題卻被標為假訊息（待負責人逐筆人工確認）；
       DEF-05 128 筆已證實列中 11 筆向量維度是 768（5 筆）／3072（6 筆），實際可參與語意命中的是 **102 筆**（不是 113）
       → 用 `text-embedding-3-small` 重算，**已於 2026-09-19 完成**（`scripts/reembed_vectors.py --apply --target both`）；
-      DEF-06 `MODEL_PRICING_PER_1M["gpt-5.4-mini"]`（0.75／4.50）是 CGU 閘道實際計價（1.5／9）的一半，log 的 `usd` 欄低估約 50%；
-      DEF-07 寫入知識庫時 `pandas_store.py` 的 `pd.concat` 印「全 NA 欄 dtype」FutureWarning；
+      DEF-06 價目表低估一半 → **已於 2026-09-24 修正**（改為閘道計價 1.5／9）；
+      DEF-07 `pd.concat` 全 NA 欄 FutureWarning → **已於 2026-09-24 修正**（`parquet_io.concat_rows` 先對齊型別；
+      全套 pytest 以 `-W error::FutureWarning` 通過）；
       DEF-08 `backend_down` 橫幅與首頁 inline 驗證紅字用了判定色 token，與 spec §8.1「紅黃綠只用於判定」字面衝突（待 6.4 審查裁定）
 - [ ] 首頁圖片上傳 UI（票 S-13，P1）：後端端點已有檔頭檢查與 10 MB 上限；票 B-26 的圖片 bytes hash 快取與寫知識庫尚未做
 - [ ] `/bot` 機器人狀態頁（票 S-11）：目前是佔位頁（`src/pages/Bot.jsx`）；後端 `/api/threads/status`、`/replies` 已就緒

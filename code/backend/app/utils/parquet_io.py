@@ -8,6 +8,7 @@ Parquet 安全讀寫（單機、多執行緒）
   Windows 上若目標檔正被讀取，replace 會 PermissionError → 短暫重試。
 - read_parquet_retry：讀取失敗（檔案正被替換）時短暫重試。
 - path_lock：同一檔案的「讀 → 改 → 寫」在同一行程內序列化，避免兩個執行緒互蓋更新。
+- concat_rows：附加新列時對齊全為空值的欄位型別（pandas 2.x 的 concat FutureWarning，DEF-07）。
 """
 import os
 import threading
@@ -66,3 +67,31 @@ def atomic_write_parquet(df: pd.DataFrame, path: Path) -> None:
                 tmp.unlink()
             except OSError:
                 pass
+
+
+def _cast_all_na(frame: pd.DataFrame, col: str, dtype) -> None:
+    # 布林與整數欄放不下 NaN（NaN 轉布林會變 True），交給 pandas 決定
+    if pd.api.types.is_bool_dtype(dtype) or pd.api.types.is_integer_dtype(dtype):
+        return
+    try:
+        frame[col] = frame[col].astype(dtype)
+    except (TypeError, ValueError):
+        pass
+
+
+def concat_rows(existing: pd.DataFrame, new_rows: pd.DataFrame) -> pd.DataFrame:
+    """
+    附加新列。pandas 2.x 在 concat 決定欄位型別時會略過「全為空值」的欄位，這個行為已棄用
+    （每次寫入都印 FutureWarning，DEF-07），未來版本會改變結果型別。這裡先把一邊全為空值的欄位
+    轉成另一邊的型別再 concat：結果型別與現行行為相同，升級 pandas 後也不會改變。
+    會就地轉換兩個輸入中全為空值的欄位（呼叫端傳入的都是剛讀出或剛建立的暫時 DataFrame）。
+    """
+    if existing.empty:
+        return new_rows.reset_index(drop=True)
+    for col in existing.columns.intersection(new_rows.columns):
+        left_na, right_na = existing[col].isna().all(), new_rows[col].isna().all()
+        if left_na and not right_na:
+            _cast_all_na(existing, col, new_rows[col].dtype)
+        elif right_na and not left_na:
+            _cast_all_na(new_rows, col, existing[col].dtype)
+    return pd.concat([existing, new_rows], ignore_index=True)
