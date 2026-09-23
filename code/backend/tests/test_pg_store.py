@@ -440,6 +440,94 @@ def test_knowledge_api_reads_the_pg_store(kb, monkeypatch):
     assert client.get("/api/knowledge", params={"q": "(草稿)"}).json()["total"] == 0
 
 
+def test_knowledge_page_queries_match_local_store(kb, tmp_path):
+    """/api/knowledge 的篩選、計數、分頁在資料庫裡做（不載整張表），結果要與本機版一模一樣。"""
+    from app.services.pandas_store import PandasStore
+
+    local = PandasStore(data_dir=str(tmp_path))
+    rows = [
+        ("折扣100%免費領", "SCAM", [{"title": "165", "url": "https://165.npa.gov.tw/a"}]),
+        ("喝鹽水_治新冠", "MISINFO", [{"title": "MyGoPen", "url": "https://www.mygopen.com/a"}]),
+        ("健保卡停用請點連結", "SCAM", [{"title": "165", "url": "https://165.npa.gov.tw/b"}]),
+        ("未證實的草稿 100%", "SCAM", [{"title": "部落格", "url": "https://blog.example.com/p"}]),
+        ("颱風假全市停車免費", "MISINFO", [{"title": "TFC", "url": "https://tfc-taiwan.org.tw/x"}]),
+    ]
+    cloud_ids = []
+    for store in (kb, local):
+        for content, risk, sources in rows:
+            rec, _ = _save(store, content, ai_result=_ai(sources, risk))
+            if store is kb:
+                cloud_ids.append(rec["id"])
+
+    for store in (kb, local):
+        assert store.verified_counts() == ({"SCAM": 2, "MISINFO": 2}, 1)
+
+    def page(store, **kw):
+        total, df = store.list_verified(**kw)
+        return total, list(df["raw_content"])
+
+    for kw in ({}, {"limit": 2}, {"limit": 2, "offset": 2}, {"offset": 10}, {"q": "100%"}, {"q": "_"},
+               {"q": "鹽水"}, {"risk_type": "scam"}, {"q": "免費", "risk_type": "MISINFO"}):
+        assert page(kb, **kw) == page(local, **kw), kw
+    assert page(kb) == (4, ["颱風假全市停車免費", "健保卡停用請點連結", "喝鹽水_治新冠", "折扣100%免費領"])
+    assert page(kb, q="100%") == (1, ["折扣100%免費領"])        # % 是字面比對，不是萬用字元
+    assert page(kb, q="_") == (1, ["喝鹽水_治新冠"])
+
+    got = kb.get_verified_by_ids([cloud_ids[1], cloud_ids[3], "missing"])
+    assert list(got["raw_content"]) == ["喝鹽水_治新冠"]          # 未證實與不存在的 id 直接略過
+    assert kb.get_verified_by_ids([]).empty
+
+
+def test_save_records_matches_local_store(kb, tmp_path):
+    """批次寫入（scripts/ingest_factchecks.py）與本機版內容相同，向量可參與語意命中。"""
+    from app.services.pandas_store import PandasStore
+
+    src = [{"title": "Cofacts", "url": "https://cofacts.tw/article/abc", "tier": 1, "verdict": "RUMOR"}]
+    items = [
+        dict(data_type="TEXT", raw_content=f"批次謠言{i}", content_hash=CacheService.generate_hash(f"批次謠言{i}"),
+             content_vector=_vec(40 + i), ai_result=_ai(src, "MISINFO"), source_url=src[0]["url"],
+             label_source="rule", origin="factcheck_batch")
+        for i in range(3)
+    ]
+    local = PandasStore(data_dir=str(tmp_path))
+    assert kb.save_records(items, batch_size=2) == local.save_records(items) == 3
+    cloud, disk = kb.get_all_records(), local.get_all_records()
+    for col in ("raw_content", "data_hash", "risk_type", "label_source", "origin", "verified", "source_tier"):
+        assert list(cloud[col]) == list(disk[col]), col
+    assert list(cloud["verified"]) == [True, True, True]
+    assert cloud.iloc[0]["ai_analysis"]["sources"][0]["verdict"] == "RUMOR"
+    hit = kb.find_similar_by_vector(_vec(41), label_sources=["rule"])
+    assert hit is not None and hit["raw_content"] == "批次謠言1"
+    assert kb.save_records([]) == 0
+
+
+def test_nearest_verified_matches_local_store(kb, tmp_path):
+    """證據信心的近鄰查詢：由近到遠、只看已證實列、可限 label_source，不更新 hit_count，與本機版相同。"""
+    from app.services.pandas_store import PandasStore
+
+    base, other = _vec(60), _vec(61)
+    rule_src = [{"title": "MyGoPen", "url": "https://www.mygopen.com/a", "tier": 1}]
+    local = PandasStore(data_dir=str(tmp_path))
+    for store in (kb, local):
+        _save(store, "近 0.9", vector=_mix(base, other, 0.9), ai_result=_ai(rule_src, "MISINFO"), label_source="rule")
+        _save(store, "近 0.7（AI 列）", vector=_mix(base, _vec(62), 0.7), ai_result=_ai(rule_src, "SCAM"))
+        _save(store, "近 0.5", vector=_mix(base, _vec(63), 0.5), ai_result=_ai(rule_src, "MISINFO"), label_source="rule")
+        _save(store, "未證實 0.95", vector=_mix(base, _vec(64), 0.95),
+              ai_result=_ai([{"title": "部落格", "url": "https://blog.example.com/p"}]))
+
+    for store in (kb, local):
+        got = store.nearest_verified(base, k=5)
+        assert [n["raw_content"] for n in got] == ["近 0.9", "近 0.7（AI 列）", "近 0.5"]   # 未證實列不算
+        assert [round(n["similarity"], 3) for n in got] == [0.9, 0.7, 0.5]
+        assert set(got[0]) == {"id", "raw_content", "risk_type", "label_source", "source_url", "sources",
+                               "summary", "similarity"}
+        rule_only = store.nearest_verified(base, k=5, label_sources=["rule", "gold", "admin"])
+        assert [n["raw_content"] for n in rule_only] == ["近 0.9", "近 0.5"]
+        assert [n["raw_content"] for n in store.nearest_verified(base, k=1)] == ["近 0.9"]
+        assert store.nearest_verified([], k=5) == [] and store.nearest_verified(base, k=0) == []
+    assert list(kb.get_all_records()["hit_count"]) == [1, 1, 1, 1]          # 不算命中
+
+
 # ── 任務 ─────────────────────────────────────────────────────────
 def test_task_lifecycle_defaults_and_json_columns(tasks):
     tid = tasks.create_task("analyze_text", "測試輸入")

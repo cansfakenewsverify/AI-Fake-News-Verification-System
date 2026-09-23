@@ -9,7 +9,7 @@
 - 系統已上線：<https://fakenewsverify.vercel.app>。前端 Vercel、後端 Render
   （`https://fakenewsverify-api.onrender.com`）、資料 Supabase PostgreSQL 與 pgvector；
   AI 使用學校 CGU AIR 閘道的 `gpt-5.4-mini`。金鑰僅存在本機設定檔與 Render 後台，不進版本庫。
-- 測試：後端 729 項通過（另 26 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-22 對 Supabase 全數通過）、
+- 測試：後端 732 項通過（另 29 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-23 對 Supabase 全數通過）、
   前端 394 項通過。
 - 測試計畫書 `docs/test/TP-FNV-2026-01.md` 為 v1.5，第 6.5 節為 2026-09-19～20 的重測結果：
   P0 通過 27／30；PF-2 未通過，UI-6 未執行。PDF 在 `presentations/2026-09_進度報告/`。
@@ -53,6 +53,14 @@
     皆為同類詐騙話術。
   - 熱門頁新增「本站熱門查證」分頁（`/trending?tab=hot`）：最近 7 天被查證次數，以半衰期 3 小時的時間衰減排序，
     只列已證實內容。
+
+- **查核機構資料批次語料與證據信心研究**（2026-09-23）：
+  - `code/backend/scripts/ingest_factchecks.py` 抓取 MyGoPen 全站、台灣事實查核中心全部查核報告與 Cofacts 已有判定的訊息，
+    可入庫 18,587 筆；求證平台上沒有判定的訊息一律不收。向量已算好（CGU 扣 USD 0.24），**尚未寫入正式資料庫**。
+  - `code/backend/scripts/evidence_confidence_study.py` 的報告 `docs/test/results/evidence_confidence_2026-09-23.md`：
+    評測的 50 題安全訊息沒有一題會因入庫而被誤判；最近的已查核案例相似度越高，題目真的有風險的比例越高，
+    可作為「夾角信心」的依據。
+  - 知識庫頁改在資料庫裡分頁與計數（入庫後的必要條件）；修正【非謠言】被標成假訊息的標記規則錯誤。
 
 ## 審查意見（2026-09-21，陳仁暉教授）
 
@@ -101,3 +109,6 @@
     `docs/test/上線後準確率驗證計畫.md`：M1 不公開的 90 題新題庫（每次約 USD 0.6）、
     M2 每週 20 筆線上結果雙人獨立覆核並計算 Cohen's kappa、M3 以 `recheck_unverified.py` 做查核結論回溯比對、
     M4 使用者回饋只作抽樣導引不計入正確率。下一步是由姚睿出題（依票 O-11 的原則，AI 助理不代為產生題目）。
+14. **查核機構資料寫入正式資料庫**：先部署知識庫分頁，再執行 `ingest_factchecks.py apply --target cloud --apply`
+    （約 182 MB；可用 `rollback` 撤回）。須負責人核准。
+15. **證據信心（夾角）上線**：信心等級改依與已證實內容的相似度，結果頁顯示「知識庫中的相似查證」。

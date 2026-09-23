@@ -23,7 +23,7 @@ import threading
 import uuid
 import weakref
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -31,7 +31,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
 
 from app.services import task_store as _ts
-from app.services.pandas_store import KB_COLUMNS, compute_write_gate
+from app.services.pandas_store import KB_COLUMNS, NEIGHBOR_COLUMNS, build_kb_record
 
 VECTOR_DIM = 1536
 
@@ -461,6 +461,31 @@ class _PgStoreBase:
 
 
 # ── 知識庫（三層快取）─────────────────────────────────────────────────────
+def _like_literal(value: str) -> str:
+    """ILIKE 字面比對：跳脫 \\ % _（搭配 ESCAPE '\\'），使用者輸入的 % 不會變成萬用字元。"""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _kb_frame(rows: List[Dict[str, Any]], include_vectors: bool = False) -> pd.DataFrame:
+    """查詢結果 → 與本機版同形狀的 DataFrame（sources list、ai_analysis dict、時間 datetime64）。"""
+    if not rows:
+        return pd.DataFrame(columns=KB_COLUMNS)
+    df = pd.DataFrame(rows, columns=KB_COLUMNS)
+    df["sources"] = df["sources"].map(lambda v: v if isinstance(v, list) else [])
+    if include_vectors:
+        df["content_vector"] = df["content_vector"].map(
+            lambda v: np.asarray(json.loads(v), dtype=np.float32) if isinstance(v, str) else None
+        )
+    for col in ("created_at", "last_accessed_at"):
+        df[col] = pd.to_datetime(df[col], errors="coerce")
+    df["is_risk"] = df["is_risk"].fillna(False).astype(bool)
+    df["verified"] = df["verified"].fillna(False).astype(bool)
+    df["hit_count"] = pd.to_numeric(df["hit_count"], errors="coerce").fillna(0).astype("int64")
+    df["confidence_score"] = pd.to_numeric(df["confidence_score"], errors="coerce")
+    df["source_tier"] = pd.to_numeric(df["source_tier"], errors="coerce")
+    return df
+
+
 def _kb_row(mapping: Any) -> Dict[str, Any]:
     row = dict(mapping)
     row.pop("similarity", None)
@@ -545,6 +570,41 @@ class PgKnowledgeStore(_PgStoreBase):
             row = conn.execute(statement, params).mappings().first()
         return _kb_row(row) if row is not None else None
 
+    def nearest_verified(
+        self,
+        query_vector: List[float],
+        k: int = 5,
+        label_sources: Optional[Iterable[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """最接近的 k 筆已證實列（證據信心用；不設門檻、不更新 hit_count），與本機版相同。"""
+        if query_vector is None or len(query_vector) == 0 or int(k) <= 0:
+            return []
+        literal = vector_literal(query_vector)
+        if literal is None or not np.any(np.asarray(query_vector, dtype=np.float32)):
+            return []
+        label_filter = "" if label_sources is None else " AND label_source = ANY(:labels)"
+        statement = text(
+            f"SELECT {', '.join(NEIGHBOR_COLUMNS)}, 1 - (content_vector <=> CAST(:q AS vector)) AS similarity"
+            " FROM knowledge_base WHERE verified AND content_vector IS NOT NULL"
+            f"{label_filter}"
+            " ORDER BY content_vector <=> CAST(:q AS vector), seq LIMIT :k"
+        )
+        params: Dict[str, Any] = {"q": literal, "k": int(k)}
+        if label_sources is not None:
+            params["labels"] = [str(label) for label in label_sources]
+        with self._connect() as conn:
+            rows = conn.execute(statement, params).mappings().all()
+        neighbours = []
+        for row in rows:
+            similarity = row["similarity"]
+            if similarity is None or math.isnan(float(similarity)):   # 零向量列的 cosine distance 是 NaN
+                continue
+            item = {col: row[col] for col in NEIGHBOR_COLUMNS}
+            item["sources"] = item["sources"] or []
+            item["similarity"] = float(similarity)
+            neighbours.append(item)
+        return neighbours
+
     def save_record(
         self,
         data_type: str,
@@ -559,48 +619,33 @@ class PgKnowledgeStore(_PgStoreBase):
         last_result_id: Optional[str] = None,
         related_discussions: Any = None,
     ) -> Dict[str, Any]:
-        sources, source_tier, is_verified = compute_write_gate(
-            ai_result.get("sources", []) if ai_result else [],
-            source_url, raw_content, label_source=label_source, verified=verified,
+        record = build_kb_record(
+            data_type=data_type, raw_content=raw_content, content_hash=content_hash,
+            content_vector=content_vector, ai_result=ai_result, source_url=source_url,
+            label_source=label_source, verified=verified, origin=origin,
+            last_result_id=last_result_id, related_discussions=related_discussions,
         )
-        # 快取命中讀的是 ai_analysis：同步寫入帶 tier 的來源（不改呼叫端的 dict）
-        ai_analysis = {**ai_result, "sources": sources} if ai_result else ai_result
-        if related_discussions is not None and not isinstance(related_discussions, str):
-            related_discussions = json.dumps(_jsonable(related_discussions), ensure_ascii=False)
-
-        has_vector = content_vector is not None and len(content_vector) > 0
-        now = datetime.now()
-        record = {
-            "id": str(uuid.uuid4()),
-            "data_type": data_type,
-            "source_url": source_url,
-            "raw_content": raw_content,
-            "data_hash": content_hash,
-            "content_vector": content_vector if has_vector else None,
-            "is_risk": ai_result.get("is_risk", False) if ai_result else False,
-            "risk_type": ai_result.get("risk_type") if ai_result else None,
-            "category": ai_result.get("category") if ai_result else None,
-            "confidence_score": ai_result.get("confidence_score") if ai_result else None,
-            "summary": ai_result.get("summary", "") if ai_result else "",
-            "explanation": ai_result.get("explanation", "") if ai_result else "",
-            "sources": sources,
-            "ai_analysis": ai_analysis,
-            "created_at": now,
-            "last_accessed_at": now,
-            "hit_count": 1,
-            "label_source": label_source,
-            "origin": origin,
-            "last_result_id": last_result_id,
-            "source_tier": source_tier,
-            "verified": is_verified,
-            "related_discussions": related_discussions,
-        }
-        params = kb_row_params(record)
+        params = self._row_params(record)
         with self._connect() as conn:
             conn.execute(insert_statement("knowledge_base"), params)
         if params["content_vector"] is None:
             record["content_vector"] = None   # 維度不是 1536：實際存的是 NULL
         return record
+
+    def save_records(self, items: Iterable[Dict[str, Any]], batch_size: int = 200) -> int:
+        """批次寫入（scripts/ingest_factchecks.py 用）：與 save_record 同一套內容，每批一次 executemany。"""
+        params = [self._row_params(build_kb_record(**item)) for item in items]
+        with self._connect() as conn:
+            for start in range(0, len(params), batch_size):
+                conn.execute(insert_statement("knowledge_base"), params[start:start + batch_size])
+        return len(params)
+
+    @staticmethod
+    def _row_params(record: Dict[str, Any]) -> Dict[str, Any]:
+        rd = record.get("related_discussions")
+        if rd is not None and not isinstance(rd, str):
+            record["related_discussions"] = json.dumps(_jsonable(rd), ensure_ascii=False)
+        return kb_row_params(record)
 
     def get_all_records(self, include_vectors: bool = False) -> pd.DataFrame:
         """
@@ -613,23 +658,57 @@ class PgKnowledgeStore(_PgStoreBase):
         statement = text(f"SELECT {_KB_READ_SQL}, {vector_sql} FROM knowledge_base ORDER BY seq")
         with self._connect() as conn:
             rows = [dict(r) for r in conn.execute(statement).mappings().all()]
-        if not rows:
-            return pd.DataFrame(columns=KB_COLUMNS)
+        return _kb_frame(rows, include_vectors)
 
-        df = pd.DataFrame(rows, columns=KB_COLUMNS)
-        df["sources"] = df["sources"].map(lambda v: v if isinstance(v, list) else [])
-        if include_vectors:
-            df["content_vector"] = df["content_vector"].map(
-                lambda v: np.asarray(json.loads(v), dtype=np.float32) if isinstance(v, str) else None
-            )
-        for col in ("created_at", "last_accessed_at"):
-            df[col] = pd.to_datetime(df[col], errors="coerce")
-        df["is_risk"] = df["is_risk"].fillna(False).astype(bool)
-        df["verified"] = df["verified"].fillna(False).astype(bool)
-        df["hit_count"] = pd.to_numeric(df["hit_count"], errors="coerce").fillna(0).astype("int64")
-        df["confidence_score"] = pd.to_numeric(df["confidence_score"], errors="coerce")
-        df["source_tier"] = pd.to_numeric(df["source_tier"], errors="coerce")
-        return df
+    # 知識庫頁查詢（/api/knowledge）：在資料庫裡篩選、計數與分頁，不把整張表載進記憶體
+    # （2026-09 批次寫入查核機構資料後約 1.9 萬列；Render 免費主機只有 512 MB）。行為與本機版相同。
+    def verified_counts(self) -> Tuple[Dict[str, int], int]:
+        statement = text(
+            "SELECT verified, COALESCE(NULLIF(risk_type, ''), 'UNKNOWN') AS risk, count(*) AS n"
+            " FROM knowledge_base GROUP BY 1, 2"
+        )
+        by_risk: Dict[str, int] = {}
+        unverified = 0
+        with self._connect() as conn:
+            for row in conn.execute(statement).mappings():
+                if row["verified"]:
+                    by_risk[row["risk"]] = by_risk.get(row["risk"], 0) + int(row["n"])
+                else:
+                    unverified += int(row["n"])
+        return by_risk, unverified
+
+    def list_verified(
+        self, q: str = "", risk_type: str = "", limit: int = 30, offset: int = 0,
+    ) -> Tuple[int, pd.DataFrame]:
+        where, params = ["verified"], {}
+        if q.strip():
+            where.append("(raw_content ILIKE :q ESCAPE '\\' OR summary ILIKE :q ESCAPE '\\')")
+            params["q"] = f"%{_like_literal(q.strip())}%"
+        if risk_type.strip():
+            where.append("upper(risk_type) = :risk")
+            params["risk"] = risk_type.strip().upper()
+        clause = " AND ".join(where)
+        page_sql = text(
+            f"SELECT {_KB_READ_SQL}, NULL AS content_vector FROM knowledge_base WHERE {clause}"
+            " ORDER BY created_at DESC NULLS LAST, id ASC LIMIT :limit OFFSET :offset"
+        )
+        with self._connect() as conn:
+            total = conn.execute(text(f"SELECT count(*) FROM knowledge_base WHERE {clause}"), params).scalar()
+            rows = [dict(r) for r in conn.execute(
+                page_sql, {**params, "limit": int(limit), "offset": int(offset)}).mappings().all()]
+        return int(total or 0), _kb_frame(rows)
+
+    def get_verified_by_ids(self, ids: Iterable[str]) -> pd.DataFrame:
+        wanted = sorted({str(i) for i in ids if i})
+        if not wanted:
+            return pd.DataFrame(columns=KB_COLUMNS)
+        statement = text(
+            f"SELECT {_KB_READ_SQL}, NULL AS content_vector FROM knowledge_base"
+            " WHERE verified AND id = ANY(:ids) ORDER BY seq"
+        )
+        with self._connect() as conn:
+            rows = [dict(r) for r in conn.execute(statement, {"ids": wanted}).mappings().all()]
+        return _kb_frame(rows)
 
     def apply_admin_override(self, kb_id: str, verdict: Dict[str, Any]) -> bool:
         """

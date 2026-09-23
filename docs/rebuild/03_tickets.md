@@ -2546,7 +2546,7 @@ flowchart LR
 
 ## 11. 報告後新增票（2026-09-22）
 
-負責人於第三次進度報告後提出兩項需求：①查核機構之後才發布的結論，要能接回資料庫中「尚無查核機構證實」的舊資料；②熱門搜尋獨立成一個功能，先做成網站上的熱門查證牆，之後再延伸為提供查核機構的熱搜名單。對應 spec v1.4 的 FR-20、FR-21。以下 5 張票不在第 1 節總覽表、依賴圖與工時表內。
+負責人於第三次進度報告後提出兩項需求：①查核機構之後才發布的結論，要能接回資料庫中「尚無查核機構證實」的舊資料；②熱門搜尋獨立成一個功能，先做成網站上的熱門查證牆，之後再延伸為提供查核機構的熱搜名單。對應 spec v1.4 的 FR-20、FR-21。以下各票（2026-09-22 的 5 張，與 2026-09-23 追加的 S-16、D-07、B-30、B-31、D-08）不在第 1 節總覽表、依賴圖與工時表內。
 
 ### D-06 撰寫未證實資料的唯讀盤點腳本 recheck_unverified.py
 - 優先級：P1
@@ -2614,3 +2614,61 @@ flowchart LR
 - 預估：2h
 - 排程：報告後
 - 狀態：已完成（2026-09-22）
+
+### S-16 後端休眠喚醒後，熱門與知識庫列表自動重抓
+- 優先級：P1
+- 依賴：P-14、S-09、S-10、S-15
+- 對應：spec 8.3 S1「後端不可用」
+- 範圍：`code/frontend/src/components/shell/useBackendStatus.js`（`retryOnBackendUp`、`useRetryWhenBackendUp`）、`src/pages/Trending.jsx`、`src/pages/trending/HotList.jsx`、`src/pages/knowledge/useKnowledgeList.js`、`useBackendStatus.test.js`
+- 做什麼：列表因連不上後端而載入失敗（網路、逾時、5xx）時，收到 `fcc:backend-up` 就自動重抓；兩次自動重抓至少間隔 10 秒。
+- 驗收：`npm run test:unit`（+4）；以模擬後端實測：後端恢復後 10 秒內列表出現，列表持續失敗時重送間隔 10 秒。
+- 預估：1h
+- 排程：報告後
+- 狀態：已完成（2026-09-23，commit `dd3cbaa`）
+
+### D-07 查核機構已證實資料的批次語料與入庫腳本 ingest_factchecks.py
+- 優先級：P1
+- 依賴：B-12、B-27
+- 對應：FR-17、FR-20、共識 §9
+- 範圍：`code/backend/scripts/ingest_factchecks.py`（新增）、`.gitignore`（`factcheck_raw/`、`factcheck_corpus*`）
+- 做什麼：
+  1. `fetch`：MyGoPen 全站（Blogger feed）、台灣事實查核中心全部查核報告（WordPress REST 的查核結果分類，錯誤／部分錯誤 → MISINFO，正確 → SAFE，事實釐清與證據不足不收；文字優先用同標題的謠言原文）、Cofacts 文字訊息（RUMOR 回覆正面評價多於負面、至少 3 人回報、沒有 NOT_RUMOR 回覆）。沒有判定的求證平台訊息一律不收。
+  2. SAFE 列只供分析（`use=analysis`），永不寫入知識庫。
+  3. `embed`（CGU embedding，只補缺的）、`apply`（預設 dry-run；`label_source=rule`、`origin=factcheck_batch`；已存在的已證實文字略過）、`rollback`。
+- 驗收：fetch 產出 20,409 筆（可入庫 18,587）；embed 全數完成；`apply --target local` dry-run 數量正確。
+- 預估：3h
+- 排程：報告後
+- 狀態：語料與向量已完成（2026-09-23）；寫入正式資料庫待負責人核准（依賴 B-30 先部署）
+
+### B-30 知識庫頁在資料庫裡篩選、計數與分頁；批次寫入與近鄰查詢
+- 優先級：P1
+- 依賴：B-21、D-07
+- 對應：FR-07、FR-17、FR-02（`similar_news` 的資料來源）
+- 範圍：`code/backend/app/services/pandas_store.py`、`pg_store.py`（`verified_counts`、`list_verified`、`get_verified_by_ids`、`save_records`、`nearest_verified`、共用的 `build_kb_record`）、`app/api/knowledge.py`、`tests/test_kb_write_gate.py`、`tests/test_pg_store.py`
+- 做什麼：`/api/knowledge`、`/stats`、`/hot` 不再整表載入；批次寫入與逐筆寫入共用同一套內容與寫入門檻；近鄰查詢回傳最接近的 k 筆已證實列與相似度（不更新 hit_count）。
+- 驗收：`pytest tests -q`（732）；`RUN_PG_TESTS=1` 的 `test_pg_store.py`（29）含三項新增的本機／雲端一致性測試。
+- 預估：3h
+- 排程：報告後
+- 狀態：已完成（2026-09-23），待部署
+
+### B-31 否定的查核標籤不算不實
+- 優先級：P0（標記規則錯誤）
+- 依賴：—
+- 對應：CLAUDE.md 第 9 節、FR-06
+- 範圍：`code/backend/app/services/news_fetcher.py`（`_NEGATED_VERDICT_RE`）、`tests/test_marking_rules.py`
+- 做什麼：【非謠言】【非詐騙】【不是謠言】與標題中的「並非謠言」不再被 `_title_says_false`／`_title_indicates_debunk` 判為不實。
+- 驗收：`pytest tests/test_marking_rules.py -q`；批次語料中 MyGoPen 的 7 篇【非謠言】、4 篇【非詐騙】改標 SAFE（只供分析）。
+- 預估：0.5h
+- 排程：報告後
+- 狀態：已完成（2026-09-23）
+
+### D-08 證據信心研究 evidence_confidence_study.py
+- 優先級：P1
+- 依賴：D-07
+- 對應：陳仁暉教授 2026-09-21 審查意見（檢驗方法）、`docs/test/上線後準確率驗證計畫.md` 第 4 節
+- 範圍：`code/backend/scripts/evidence_confidence_study.py`（新增）、`code/backend/data/claim_prototypes.npz`、`docs/test/results/evidence_confidence_2026-09-23.md`
+- 做什麼：評測 150 題對可入庫列的最近相似度（誤命中檢查）、PF-2 改寫句的相似度分布、夾角分段校準、話術原型（KMeans 40 群＋正常訊息 12 群）的判斷力。
+- 驗收：報告產出；評測的 50 題安全訊息沒有一題的最近鄰 ≥ 0.75。
+- 預估：2h
+- 排程：報告後
+- 狀態：已完成（2026-09-23）

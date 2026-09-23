@@ -16,6 +16,15 @@ def test_title_says_false_with_tag():
     assert not _title_says_false("【活動】全民查核小考題")        # 標籤非不實判定
 
 
+def test_negated_tag_is_not_false():
+    # 【非謠言】的結論是「不是謠言」：含「謠言」二字不能就標不實（2026-09-23 全站批次抓取時發現）
+    assert not _title_says_false("【非謠言】網傳郵局推出免費換新卡活動？確有此事")
+    assert not _title_says_false("【不是謠言】網傳這個活動是真的")
+    assert _title_says_false("【謠言】網傳郵局推出免費換新卡活動？")
+    assert _title_says_false("【假非洲豬瘟疫苗】網傳可以施打？")   # 「非洲」不是否定詞
+    assert not _title_indicates_debunk("網傳郵局推出換新卡活動 官方澄清：並非謠言")
+
+
 def test_extract_claim_from_title():
     assert _extract_claim_from_title("【錯誤】網傳紅豆營養比牛肉高？專家詳解") == "紅豆營養比牛肉高"
     assert _extract_claim_from_title("網傳「出國換SIM卡會被過戶」！查核") == "「出國換SIM卡會被過戶」"

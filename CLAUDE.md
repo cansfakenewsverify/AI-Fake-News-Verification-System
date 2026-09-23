@@ -129,6 +129,16 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   （Cofacts 的 RUMOR 文章常是對話片段，寫進知識庫前要另外審閱）。抓取時擋下徵才、闢謠 TOP10、小考題等非查核文章；
   `_cleanup_legacy_strings` 不再把 Cofacts 已查核的謠言退回未查證（它的判定來自回覆、標題沒有【錯誤】標籤）。
   盤點用 `scripts/recheck_unverified.py [--cloud]`（唯讀）：2026-09-22 正式資料 86 筆可比對、0 筆達 0.75。
+- **查核機構資料批次入庫（2026-09-23，`scripts/ingest_factchecks.py`）**：MyGoPen 全站（Blogger feed）、台灣事實查核中心
+  全部查核報告（WordPress REST 的「查核結果」分類＋「謠言原文」）、Cofacts 文字訊息（RUMOR 回覆獲正面評價、至少 3 人回報、
+  沒有 NOT_RUMOR 回覆）→ 可入庫 18,587 筆（MISINFO／SCAM，`label_source=rule`、`origin=factcheck_batch`），
+  另 1,822 筆「查核結果為真」只供分析、**永不寫入**（仿冒官方通知的詐騙若命中 SAFE 列會拿到綠燈）。
+  步驟 fetch → embed（2026-09-23 實測 609 萬 tokens、CGU 扣 USD 0.24）→ apply（預設 dry-run；`--target cloud --apply`
+  要負責人核准）→ 需要時 `rollback`。**截至 2026-09-23 尚未寫入正式資料庫**。
+- **證據信心研究（`scripts/evidence_confidence_study.py`，報告 `docs/test/results/evidence_confidence_2026-09-23.md`）**：
+  評測 50 題安全訊息對 18,587 筆可入庫列的最近相似度最高 0.70（沒有一題會被語意快取誤判）；最近鄰相似度越高、
+  題目真的有風險的比例越高（≥0.75：3／3、0.70～0.75：93%、0.65～0.70：86%、<0.55：36%）。話術原型（KMeans 40 群，
+  中心向量存 `data/claim_prototypes.npz`）單獨判斷會把 28／50 題安全訊息當成可疑，只能當輔助（差距 ≥0.10 時 23／24 題有風險）。
 
 ---
 
@@ -183,20 +193,24 @@ code/backend/
 │   ├── migrate_to_supabase.py  本機 Parquet／SQLite → Supabase（預設 dry-run；--apply、--insert-only）
 │   ├── clean_sources_2026_09.py  FR-18 資料清洗（預設 dry-run、冪等、--apply 前自動備份；2026-09-16 已套用）
 │   ├── recheck_unverified.py   FR-20 唯讀盤點：未證實列 vs 已證實列／最新查核文章／Cofacts 新回覆（輸出含原文，gitignored）
+│   ├── ingest_factchecks.py    查核機構已證實資料批次入庫：fetch／embed／stats／apply／rollback（apply 預設 dry-run）
+│   ├── evidence_confidence_study.py  證據信心研究（夾角 vs 判定、誤命中檢查、話術原型）→ docs/test/results/evidence_confidence_*.md
 │   ├── llm_second_opinion.py / fix_factcheck_labels.py   清洗審閱輔助（CGU 本地模型）／2026-07 一次性標籤修復
 │   ├── ensure_admin_token.py   啟動腳本每次呼叫：.env 的 ADMIN_TOKEN 空就補亂數（不印出）
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **729 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **26 個** Postgres
+├── tests/                      ★pytest **732 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **29 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
 │   ├── knowledge_base.parquet  ★已提交的種子（清洗後 218 筆、verified 128）。平常執行的變動不用 commit；**例外**：FR-18
 │   │                            清洗後的版本提交過一次作新種子（commit db8c62d），以後重做清洗／重建種子才再提交
 │   ├── eval_set.csv、eval_*.csv、eval_archive_gpt5mini_2026-06/   評測題庫、最新結果、前一版結果封存
+│   ├── claim_prototypes.npz     話術原型（40 群）與正常訊息原型（12 群）的中心向量（evidence_confidence_study.py 產生）
 │   ├── SCHEMA.md               資料結構說明
-│   └── （runtime，已 gitignore）factcheck.db、tasks.parquet、回饋／覆寫 Parquet、threads_*、uploads/、*.bak-*、clean_sources_*
+│   └── （runtime，已 gitignore）factcheck.db、tasks.parquet、回饋／覆寫 Parquet、threads_*、uploads/、*.bak-*、clean_sources_*、
+│                                factcheck_raw/（抓取快取）、factcheck_corpus.parquet（語料＋向量，約 20 MB）、evidence_study_*
 ├── .env                        ★真實金鑰，已 gitignore；AI 助理不讀、不印、不提交。範本是 .env.example
 ├── requirements.txt / requirements-prod.txt   本機＋CI／雲端（Render）；app/ 新增 import 時兩個檔都要加
 ├── _run_backend.bat、Dockerfile、docker-compose.yml   本機啟動檔／2026-07 留下的容器設定（雲端不用，Render 走 render.yaml）
@@ -262,7 +276,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 729 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 732 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -271,6 +285,10 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 .\venv\Scripts\python scripts\evaluate.py --delay 0                   # 重跑 150 筆評測（約 USD 1）；加 --seed-db 會把判對的寫進知識庫
 .\venv\Scripts\python scripts\clean_sources_2026_09.py                # 資料清洗 dry-run（預設）；--apply 要負責人核准
 .\venv\Scripts\python scripts\recheck_unverified.py                   # 未證實資料能否由查核結果回補（唯讀；--cloud 讀正式資料）
+.\venv\Scripts\python scripts\ingest_factchecks.py fetch               # 抓查核機構資料（快取在 data/factcheck_raw/；--refresh 重抓）
+.\venv\Scripts\python scripts\ingest_factchecks.py embed               # 算向量（只補缺的；全量約 USD 0.24）
+.\venv\Scripts\python scripts\ingest_factchecks.py apply --target cloud # dry-run；加 --apply 才寫正式資料庫（要負責人核准）
+.\venv\Scripts\python scripts\evidence_confidence_study.py            # 證據信心研究報告（只為題目本身算 embedding）
 
 # Threads 機器人（模式說明見第 11 節）
 .\venv\Scripts\python scripts\test_threads_bot.py                # 乾跑：檢查設定＋產生範例回覆（免 token、零點數）
@@ -379,6 +397,11 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 - [ ] 查核結論每日進庫（FR-20）：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false`，
       需負責人把 `ADMIN_TOKEN` 加入 repository secret；在那之前是手動觸發。不呼叫判讀模型，只耗 embedding
+- [ ] 查核機構資料寫入正式資料庫：`ingest_factchecks.py apply --target cloud --apply`（18,587 筆、約 182 MB，免費上限 500 MB）。
+      **要先部署知識庫頁的資料庫分頁**（`list_verified` 等；舊版每次把整個知識庫載入記憶體，1.9 萬列會撐爆 Render 512 MB）。
+      已知限制：Cofacts 的 RUMOR 一律標 MISINFO，其中的詐騙訊息（釣魚、假中獎）命中時燈號是紅色「假訊息」而不是「詐騙警告」
+- [ ] 證據信心（夾角）上線：信心等級改依「與已證實內容的相似度」、結果頁顯示「知識庫中的相似查證」（spec FR-02 `similar_news`，
+      原為 P1）；門檻依 `docs/test/results/evidence_confidence_2026-09-23.md`（0.65／0.75、話術差距 0.10）
 - [ ] 提供查核機構的熱搜名單（FR-21 延伸）：`hot_claims.rank()` 已可用於未證實內容；還缺管理端點、電話／帳號／人名遮蔽、
       隱私政策增列「提供查核機構」用途（現行政策只寫「供後續相同或相似內容快速比對」）
 - [ ] 熱門牆標記規則的缺口（第 9 節範圍，改規則需負責人決定）：MyGoPen 的【詐騙】標籤不算確定判定，詐騙警示文章不會寫進知識庫；
@@ -488,6 +511,9 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
   ③ 既有資料修復：`scripts/fix_factcheck_labels.py`（冪等、支援 --dry-run，
   同時清 RSS 殘留的 &nbsp; 等 HTML entities；`_strip_html` 已改為會解 entities）。
 - `_is_real_claim()`：純網址 / 無中文 / 標籤雲 / 太短 → 不索引進 knowledge_base。
+- **否定的判定不算不實**（2026-09-23）：【非謠言】【非詐騙】【不是謠言】與標題中的「並非謠言」結論是「不是假的」，
+  `_NEGATED_VERDICT_RE` 讓 `_title_says_false`／`_title_indicates_debunk` 不因含「謠言」二字就標 MISINFO
+  （批次抓 MyGoPen 全站時發現 7 篇【非謠言】被標成假訊息）。
 - **來源分級三條規則**（共識 §9、FR-16／FR-17；負責人明確要求：還沒被查證的東西不能當來源，那是髒資料）：
   ① **Tier 定義**（`app/utils/source_tier.py`）：Tier 1「查核機構」= TFC、MyGoPen、`*.gov.tw`、WHO、CDC，以及**有 RUMOR／NOT_RUMOR
   回覆**的 Cofacts 文章；Tier 2「媒體查核報導」= 其他網域但標題命中 `_title_indicates_debunk`；Tier 3「相關討論（未查證）」= 其餘
@@ -573,6 +599,9 @@ GitHub Actions keepalive（每 10 分鐘）→ Render /health + /api/knowledge/s
 - **雲端刻意關閉**：`ENABLE_SCHEDULER=false`、`USE_WEB_SEARCH=false`、`THREADS_MODE=off`
   （Threads 機器人的狀態檔還是本機檔案，雲端重啟會忘記回過誰 → 只在本機跑）。
 - 只有 `code/backend` 底下的變更會觸發 Render 自動部署（`rootDir`）。
+- **知識庫規模**：`/api/knowledge`、`/stats`、`/hot` 由 store 在資料庫裡篩選、計數與分頁（`list_verified`、`verified_counts`、
+  `get_verified_by_ids`），不要改回 `get_all_records()` 整表載入。語意比對沒有向量索引：2026-09-23 以 1.9 萬筆隨機向量在拋棄式
+  schema 實測，最近鄰查詢 0.2～0.5 秒；HNSW 索引約再多 150 MB，且在免費方案建立時逾時，所以不建。
 - Render 出問題時的退路：負責人電腦 + cloudflared tunnel，見 `docs/rebuild/runbook_tunnel.md` 與雲端 runbook 的 C2。
 
 ---

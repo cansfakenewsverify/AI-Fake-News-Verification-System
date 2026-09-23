@@ -29,6 +29,10 @@
 | `created_at` | datetime | 建立時間 |
 | `last_accessed_at` | datetime | 最後一次命中快取的時間 |
 | `hit_count` | int | 累計命中次數（不分時間；熱門頁「本站熱門查證」改用查證紀錄 `tasks.kb_id` 的時間衰減分數，見 `app/services/hot_claims.py`） |
+| `label_source` | string | 判定來源：`ai`（AI 判讀）／`rule`（查核機構文章的確定性標記）／`gold`（評測題庫）／`admin`（管理者覆寫） |
+| `origin` | string | 寫入途徑：`web`、`threads` 等查證來源；`factcheck_batch` = `scripts/ingest_factchecks.py` 批次入庫（`rollback` 以此撤回） |
+| `verified` | bool | 已證實（有 Tier 1／2 來源或確定性標記）；只有 `true` 的列參與語意命中、出現在知識庫頁 |
+| `source_tier` | int \| None | 來源中的最高等級（1 查核機構、2 媒體查核報導；只有 Tier 3 或沒有來源時為空） |
 
 ### 三層快取流程（文字輸入以使用者原文比對、不爬取；2026-09-22 加查核結果回補）
 

@@ -5,6 +5,8 @@
 - 只回 verified == True 的列（FR-17）；verified=false 列仍在 Parquet 供稽核，但不出現、不計數。
 - 關鍵字比對一律字面比對（regex=False）：q 含 ( [ * 等字元不得 500（FR-07 驗收 1）。
 - offset 分頁：排序 created_at desc、id asc，同一時間寫入的列順序也固定，分頁不重複不遺漏。
+- 篩選、計數與分頁由 store 做（verified_counts／list_verified／get_verified_by_ids）：Postgres 版在資料庫裡算，
+  不把整張知識庫載進記憶體（2026-09 批次寫入查核機構資料後約 1.9 萬列）。
 - sources 只留 Tier 1／2（FR-16），raw_content 只回前 500 字（spec §9 隱私）。
 - /hot：最近 7 天的熱門查證（查證紀錄 × 時間衰減），同樣只回 verified 列。
 """
@@ -26,7 +28,7 @@ from app.utils.source_tier import (
 )
 
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
-# 本機 PandasStore 或 Supabase 的 PgKnowledgeStore（store_factory）；兩者 get_all_records() 回傳同形狀的
+# 本機 PandasStore 或 Supabase 的 PgKnowledgeStore（store_factory）；兩者的查詢方法回傳同形狀的
 # DataFrame。端點是同步 def（FastAPI 丟 threadpool），阻塞讀取不卡 event loop。
 _store = get_knowledge_store()
 # 熱門查證讀查證紀錄（本機 TaskStore 或 PgTaskStore）；測試以 monkeypatch 換掉
@@ -107,29 +109,6 @@ def _public_sources(v) -> List[Dict[str, Any]]:
     return out
 
 
-def _verified_only(df: pd.DataFrame) -> pd.DataFrame:
-    if df.empty or "verified" not in df.columns:
-        return df.iloc[0:0]
-    return df[df["verified"].fillna(False).astype(bool)]
-
-
-def _newest_first(df: pd.DataFrame) -> pd.DataFrame:
-    """created_at desc、id asc（多欄排序為穩定排序；缺時間排最後）。"""
-    if df.empty:
-        return df
-    created = df["created_at"] if "created_at" in df.columns else pd.Series(pd.NaT, index=df.index)
-    try:
-        ts = pd.to_datetime(created, errors="coerce")
-    except (TypeError, ValueError):
-        ts = created.astype(str)
-    ids = df["id"].fillna("").astype(str) if "id" in df.columns else pd.Series("", index=df.index)
-    keyed = df.assign(_sort_ts=ts, _sort_id=ids)
-    keyed = keyed.sort_values(
-        ["_sort_ts", "_sort_id"], ascending=[False, True], na_position="last", kind="mergesort",
-    )
-    return keyed.drop(columns=["_sort_ts", "_sort_id"])
-
-
 def _count_key(risk_type: Any) -> str:
     return _COUNT_KEYS.get(_s(risk_type).strip().upper(), "unverifiable")
 
@@ -137,20 +116,15 @@ def _count_key(risk_type: Any) -> str:
 @router.get("/stats")
 def knowledge_stats():
     """知識庫摘要：只計 verified=true 列；counts 四格加總 = total；unverified_count 供稽核（S4 不顯示）。"""
-    df = _store.get_all_records()
-    verified = _verified_only(df)
+    by_risk, unverified = _store.verified_counts()
     counts = {"scam": 0, "misinfo": 0, "safe": 0, "unverifiable": 0}
-    by_risk: Dict[str, int] = {}
-    if not verified.empty:
-        risk = verified["risk_type"] if "risk_type" in verified.columns else pd.Series(None, index=verified.index)
-        by_risk = {str(k): int(v) for k, v in risk.fillna("UNKNOWN").value_counts().to_dict().items()}
-        for value in risk:
-            counts[_count_key(value)] += 1
+    for risk, n in by_risk.items():
+        counts[_count_key(risk)] += n
     return {
-        "total": int(len(verified)),
+        "total": int(sum(by_risk.values())),
         "by_risk": by_risk,
         "counts": counts,
-        "unverified_count": int(len(df) - len(verified)),
+        "unverified_count": int(unverified),
     }
 
 
@@ -162,22 +136,7 @@ def list_knowledge(
     offset: int = Query(default=0, ge=0),
 ):
     """列出 / 搜尋已證實的知識庫內容（offset 分頁；total 為篩選後、分頁前的筆數）。"""
-    df = _verified_only(_store.get_all_records())
-    if df.empty:
-        return {"total": 0, "records": []}
-
-    if q.strip():
-        ql = q.strip()
-        mask = pd.Series(False, index=df.index)
-        for col in ("raw_content", "summary"):
-            if col in df.columns:
-                mask |= df[col].fillna("").astype(str).str.contains(ql, case=False, regex=False, na=False)
-        df = df[mask]
-    if risk_type.strip():
-        df = df[df["risk_type"].astype(str).str.upper() == risk_type.strip().upper()]
-
-    total = int(len(df))
-    page = _newest_first(df).iloc[offset:offset + limit]
+    total, page = _store.list_verified(q=q, risk_type=risk_type, limit=limit, offset=offset)
     return {"total": total, "records": [_public_record(r) for _, r in page.iterrows()]}
 
 
@@ -202,11 +161,8 @@ def hot_knowledge(limit: int = Query(default=10, ge=1, le=50)):
     if not ranked:
         return body
 
-    df = _verified_only(_store.get_all_records())
-    if df.empty or "id" not in df.columns:
-        return body
-    ids = {item["kb_id"] for item in ranked}
-    rows = {_s(r.get("id")): r for _, r in df[df["id"].astype(str).isin(ids)].iterrows()}
+    df = _store.get_verified_by_ids(item["kb_id"] for item in ranked)
+    rows = {_s(r.get("id")): r for _, r in df.iterrows()}
 
     records = []
     for item in ranked:

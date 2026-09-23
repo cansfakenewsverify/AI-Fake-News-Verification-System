@@ -472,3 +472,47 @@ def test_verification_log_usd_and_actual_provider(tmp_path, monkeypatch, caplog)
         assert key not in result
     ai_analysis = PandasStore(data_dir=str(tmp_path)).get_all_records().iloc[0]["ai_analysis"]
     assert not any(ai_analysis.get(k) for k in ("usage", "provider", "model"))
+
+
+# ── 批次寫入（scripts/ingest_factchecks.py）：與逐筆 save_record 同一套內容與寫入門檻 ──
+_COMPARED = ["data_type", "source_url", "raw_content", "data_hash", "is_risk", "risk_type", "category",
+             "confidence_score", "summary", "explanation", "label_source", "origin", "source_tier", "verified",
+             "related_discussions"]
+
+
+def _items():
+    rule_src = [{"title": "MyGoPen", "url": "https://www.mygopen.com/2026/09/a.html", "tier": 1}]
+    return [
+        dict(data_type="TEXT", raw_content="喝鹽水可以治新冠", content_hash=CacheService.generate_hash("喝鹽水可以治新冠"),
+             content_vector=_vec(1), ai_result=_ai(rule_src, "MISINFO"), source_url=rule_src[0]["url"],
+             label_source="rule", origin="factcheck_batch"),
+        dict(data_type="TEXT", raw_content="網路上看到的說法", content_hash=CacheService.generate_hash("網路上看到的說法"),
+             content_vector=None, ai_result=_ai([{"title": "部落格", "url": "https://blog.example.com/p"}]),
+             related_discussions=[{"url": "https://www.ptt.cc/x", "tier": 3}]),
+    ]
+
+
+def test_save_records_matches_save_record(tmp_path):
+    one = PandasStore(data_dir=str(tmp_path / "one"))
+    bulk = PandasStore(data_dir=str(tmp_path / "bulk"))
+    for item in _items():
+        one.save_record(**item)
+    assert bulk.save_records(_items()) == 2
+    a, b = one.get_all_records(), bulk.get_all_records()
+    assert len(a) == len(b) == 2
+    for col in _COMPARED:
+        assert list(a[col].fillna("<na>")) == list(b[col].fillna("<na>")), col
+    assert list(b["verified"]) == [True, False]               # rule 列寫入即證實；Tier 3 來源不算
+    assert b.iloc[0]["ai_analysis"]["sources"][0]["tier"] == 1
+    assert isinstance(b.iloc[1]["related_discussions"], str)
+    assert bulk.save_records([]) == 0 and len(bulk.get_all_records()) == 2
+
+
+def test_save_records_uses_given_created_at(tmp_path):
+    from datetime import datetime
+
+    store = PandasStore(data_dir=str(tmp_path))
+    at = datetime(2026, 9, 23, 13, 0, 0)
+    store.save_records([{**_items()[0], "now": at}])
+    row = store.get_all_records().iloc[0]
+    assert row["created_at"] == at and row["last_accessed_at"] == at

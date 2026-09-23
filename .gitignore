@@ -53,6 +53,10 @@ code/backend/data/fix_labels_report.txt
 code/backend/data/llm_second_opinion.csv
 # scripts/recheck_unverified.py：內含使用者送出、尚未證實的原文，不公開
 code/backend/data/recheck_unverified_*
+# scripts/ingest_factchecks.py：查核機構資料的抓取快取與語料（含向量，檔案大；可隨時重抓）
+code/backend/data/factcheck_raw/
+code/backend/data/factcheck_corpus*
+code/backend/data/evidence_study_*
 docs/test/op7_legacy/
 # Fallback: stores use Path("data") relative to CWD; running the backend or a
 # script from the repo root would create <root>/data/*.parquet / *.db.

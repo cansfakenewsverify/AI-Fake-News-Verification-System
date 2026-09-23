@@ -99,6 +99,9 @@ def _extract_claim_from_title(title: str) -> str:
 _CJK_RE = re.compile(r"[一-鿿]")
 # MyGoPen / TFC 標題若帶這些查核標籤，代表已判定為不實
 _FALSE_TAG_RE = re.compile(r"^【[^】]*(錯誤|誤導|謠言|不實|易誤解|假)[^】]*】")
+# 否定的判定（【非謠言】【非詐騙】、內文「官方澄清：並非謠言」）結論是「不是假的」，不能因為含「謠言」二字就標不實
+# （2026-09-23 批次抓 MyGoPen 全站時發現 7 篇【非謠言】被標成假訊息）
+_NEGATED_VERDICT_RE = re.compile(r"(非|不是|並非)(謠言|詐騙|假的|假|錯誤|不實)")
 
 # 主流媒體「轉載查核結果」的標題判定（ETtoday/華視/三立…報導 TFC/警方查核）。
 # 需同時命中「查核語境」與「不實判定詞」才算，避免把一般報導誤標
@@ -110,7 +113,7 @@ _DEBUNK_VERDICT_RE = re.compile(r"(不實|誤導|謠言|假的|假消息|假訊�
 
 def _title_indicates_debunk(title: str) -> bool:
     """標題明示「這是查核報導且結論為不實」→ 可確定性標 MISINFO（判定對象是被查核的主張）。"""
-    t = (title or "").strip()
+    t = _NEGATED_VERDICT_RE.sub("", (title or "").strip())
     return bool(_DEBUNK_CONTEXT_RE.search(t) and _DEBUNK_VERDICT_RE.search(t))
 
 
@@ -138,8 +141,9 @@ def _is_real_claim(claim: str) -> bool:
 
 
 def _title_says_false(title: str) -> bool:
-    """標題帶【錯誤/誤導/假…】等查核標籤 → 已判定不實。"""
-    return bool(_FALSE_TAG_RE.match((title or "").strip()))
+    """標題帶【錯誤/誤導/假…】等查核標籤 → 已判定不實；【非謠言】這類否定標籤不算。"""
+    tag = _FALSE_TAG_RE.match((title or "").strip())
+    return bool(tag) and not _NEGATED_VERDICT_RE.search(tag.group(0))
 
 
 def _is_confirmed_false(item: dict, title: str) -> bool:

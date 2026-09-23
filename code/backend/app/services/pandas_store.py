@@ -174,44 +174,10 @@ class PandasStore:
             from app.config import settings
             threshold = settings.SIMILARITY_THRESHOLD
         df = self._load_knowledge_base()
-        if df.empty or "content_vector" not in df.columns:
+        scored = _verified_scores(df, query_vector, label_sources)
+        if scored is None:
             return None
-
-        # FR-17：只有 verified 列參與向量命中（hash / url 層不過濾）
-        verified_mask = (
-            df["verified"].fillna(False).astype(bool) if "verified" in df.columns
-            else pd.Series(False, index=df.index)
-        )
-        if label_sources is not None:
-            labels = df["label_source"] if "label_source" in df.columns else pd.Series("ai", index=df.index)
-            verified_mask &= labels.fillna("ai").isin(list(label_sources))
-        df_vec = df[df["content_vector"].notna() & verified_mask]
-        if df_vec.empty:
-            return None
-
-        q = np.asarray(query_vector, dtype=np.float32)
-        q_norm = np.linalg.norm(q)
-        if q.size == 0 or q_norm == 0:
-            return None
-
-        # 只收維度與查詢向量一致的列（防舊資料混入不同維度的向量）
-        indices, rows = [], []
-        for idx, v in df_vec["content_vector"].items():
-            try:
-                a = np.asarray(v, dtype=np.float32)
-            except Exception:
-                continue
-            if a.shape == q.shape:
-                indices.append(idx)
-                rows.append(a)
-        if not rows:
-            return None
-
-        matrix = np.stack(rows)                      # (N, dim)
-        norms = np.linalg.norm(matrix, axis=1)       # (N,)
-        scores = np.full(len(rows), -1.0, dtype=np.float32)
-        valid = norms > 0
-        scores[valid] = (matrix[valid] @ q) / (norms[valid] * q_norm)
+        indices, scores = scored
 
         best = int(np.argmax(scores))
         if float(scores[best]) >= threshold:
@@ -222,6 +188,30 @@ class PandasStore:
             return df.loc[best_idx].to_dict()
 
         return None
+
+    def nearest_verified(
+        self,
+        query_vector: List[float],
+        k: int = 5,
+        label_sources: Optional[Iterable[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        最接近的 k 筆已證實列（證據信心用）：不設門檻、不更新 hit_count。每筆只帶 NEIGHBOR_COLUMNS 與
+        similarity（cosine），由近到遠；相似度相同時先寫入者在前（與 Postgres 版的 seq 排序一致）。
+        """
+        df = self._load_knowledge_base()
+        scored = _verified_scores(df, query_vector, label_sources)
+        if scored is None:
+            return []
+        indices, scores = scored
+        order = np.argsort(-scores, kind="stable")[:max(int(k), 0)]
+        neighbours = []
+        for i in order:
+            row = df.loc[indices[i]]
+            item = {col: row.get(col) for col in NEIGHBOR_COLUMNS}
+            item["similarity"] = float(scores[i])
+            neighbours.append(item)
+        return neighbours
 
     # ──────────────────────────────────────────
     # 寫入快取
@@ -241,52 +231,200 @@ class PandasStore:
         last_result_id: Optional[str] = None,
         related_discussions: Any = None,
     ) -> Dict[str, Any]:
-        df = self._load_knowledge_base()
-
-        sources, source_tier, is_verified = compute_write_gate(
-            ai_result.get("sources", []) if ai_result else [],
-            source_url, raw_content, label_source=label_source, verified=verified,
+        record = build_kb_record(
+            data_type=data_type, raw_content=raw_content, content_hash=content_hash,
+            content_vector=content_vector, ai_result=ai_result, source_url=source_url,
+            label_source=label_source, verified=verified, origin=origin,
+            last_result_id=last_result_id, related_discussions=related_discussions,
         )
-        # 快取命中讀的是 ai_analysis：同步寫入帶 tier 的來源（不改呼叫端的 dict）
-        ai_analysis = {**ai_result, "sources": sources} if ai_result else ai_result
-        if related_discussions is not None and not isinstance(related_discussions, str):
-            related_discussions = json.dumps(related_discussions, ensure_ascii=False)
-
-        record = {
-            "id": str(uuid.uuid4()),
-            "data_type": data_type,
-            "source_url": source_url,
-            "raw_content": raw_content,
-            "data_hash": content_hash,
-            "content_vector": content_vector if content_vector else None,
-            "is_risk": ai_result.get("is_risk", False) if ai_result else False,
-            "risk_type": ai_result.get("risk_type") if ai_result else None,
-            "category": ai_result.get("category") if ai_result else None,
-            "confidence_score": ai_result.get("confidence_score") if ai_result else None,
-            "summary": ai_result.get("summary", "") if ai_result else "",
-            "explanation": ai_result.get("explanation", "") if ai_result else "",
-            "sources": sources,
-            "ai_analysis": ai_analysis,
-            "created_at": datetime.now(),
-            "last_accessed_at": datetime.now(),
-            "hit_count": 1,
-            "label_source": label_source,
-            "origin": origin,
-            "last_result_id": last_result_id,
-            "source_tier": source_tier,
-            "verified": is_verified,
-            "related_discussions": related_discussions,
-        }
-
-        new_row = pd.DataFrame([record])
-        if df.empty:
-            df = new_row
-        else:
-            common_cols = df.columns.intersection(new_row.columns)
-            df = pd.concat([df[common_cols], new_row[common_cols]], ignore_index=True)
-
-        self._save_knowledge_base(df)
+        self._append_records([record])
         return record
+
+    @_locked
+    def save_records(self, items: Iterable[Dict[str, Any]]) -> int:
+        """
+        批次寫入（scripts/ingest_factchecks.py 用）：items 每筆是 save_record 的關鍵字參數，可另帶 now
+        （created_at）。一次讀寫 Parquet，不逐筆重寫整個檔案。回傳寫入筆數。
+        """
+        records = [build_kb_record(**item) for item in items]
+        if records:
+            self._append_records(records)
+        return len(records)
+
+    def _append_records(self, records: List[Dict[str, Any]]) -> None:
+        df = self._load_knowledge_base()
+        for record in records:
+            rd = record.get("related_discussions")
+            if rd is not None and not isinstance(rd, str):
+                record["related_discussions"] = json.dumps(rd, ensure_ascii=False)
+        new_rows = pd.DataFrame(records)
+        if df.empty:
+            df = new_rows
+        else:
+            common_cols = df.columns.intersection(new_rows.columns)
+            df = pd.concat([df[common_cols], new_rows[common_cols]], ignore_index=True)
+        self._save_knowledge_base(df)
 
     def get_all_records(self) -> pd.DataFrame:
         return self._load_knowledge_base()
+
+    # ──────────────────────────────────────────
+    # 知識庫頁查詢（/api/knowledge；只看 verified 列）。Postgres 版在資料庫裡篩選與分頁，行為相同
+    # ──────────────────────────────────────────
+    def verified_counts(self) -> Tuple[Dict[str, int], int]:
+        """（已證實列依 risk_type 的筆數，缺值或空字串記 UNKNOWN；未證實列數）。"""
+        df = self._load_knowledge_base()
+        if df.empty:
+            return {}, 0
+        verified = df[df["verified"]]
+        risk = verified["risk_type"].map(lambda v: v if isinstance(v, str) and v else "UNKNOWN")
+        return {str(k): int(v) for k, v in risk.value_counts().items()}, int(len(df) - len(verified))
+
+    def list_verified(
+        self, q: str = "", risk_type: str = "", limit: int = 30, offset: int = 0,
+    ) -> Tuple[int, pd.DataFrame]:
+        """
+        已證實列：q 以字面比對 raw_content／summary（不分大小寫；( [ * 等字元不當 regex），
+        risk_type 不分大小寫篩選；created_at 新到舊、id 小到大排序後取 offset:offset+limit。
+        回傳（篩選後、分頁前的筆數, 該頁 DataFrame）。
+        """
+        df = self._load_knowledge_base()
+        df = df[df["verified"]] if not df.empty else df
+        if df.empty:
+            return 0, pd.DataFrame(columns=KB_COLUMNS)
+        if q.strip():
+            needle = q.strip()
+            mask = pd.Series(False, index=df.index)
+            for col in ("raw_content", "summary"):
+                mask |= df[col].fillna("").astype(str).str.contains(needle, case=False, regex=False, na=False)
+            df = df[mask]
+        if risk_type.strip():
+            df = df[df["risk_type"].astype(str).str.upper() == risk_type.strip().upper()]
+        return int(len(df)), newest_first(df).iloc[offset:offset + limit]
+
+    def get_verified_by_ids(self, ids: Iterable[str]) -> pd.DataFrame:
+        """指定 id 中已證實的列（/api/knowledge/hot 用）；不存在或未證實的 id 直接略過。"""
+        wanted = {str(i) for i in ids if i}
+        df = self._load_knowledge_base()
+        if df.empty or not wanted:
+            return pd.DataFrame(columns=KB_COLUMNS)
+        return df[df["verified"] & df["id"].astype(str).isin(wanted)]
+
+
+# 證據信心（nearest_verified）回傳的欄位
+NEIGHBOR_COLUMNS = ["id", "raw_content", "risk_type", "label_source", "source_url", "sources", "summary"]
+
+
+def _verified_scores(
+    df: pd.DataFrame, query_vector: List[float], label_sources: Optional[Iterable[str]] = None,
+) -> Optional[Tuple[List[Any], np.ndarray]]:
+    """
+    （df 的 index, cosine 分數）：只算 verified、有向量、且維度與查詢相同的列（FR-17；防舊資料混入不同維度）。
+    label_sources：只比對這些 label_source 的列（None = 不限）。沒有可比對的列或查詢向量為空／零向量 → None。
+    """
+    if df.empty or "content_vector" not in df.columns:
+        return None
+    verified_mask = (
+        df["verified"].fillna(False).astype(bool) if "verified" in df.columns
+        else pd.Series(False, index=df.index)
+    )
+    if label_sources is not None:
+        labels = df["label_source"] if "label_source" in df.columns else pd.Series("ai", index=df.index)
+        verified_mask &= labels.fillna("ai").isin(list(label_sources))
+    df_vec = df[df["content_vector"].notna() & verified_mask]
+    if df_vec.empty:
+        return None
+
+    q = np.asarray(query_vector, dtype=np.float32)
+    q_norm = np.linalg.norm(q)
+    if q.size == 0 or q_norm == 0:
+        return None
+
+    indices, rows = [], []
+    for idx, v in df_vec["content_vector"].items():
+        try:
+            a = np.asarray(v, dtype=np.float32)
+        except Exception:
+            continue
+        if a.shape == q.shape:
+            indices.append(idx)
+            rows.append(a)
+    if not rows:
+        return None
+
+    matrix = np.stack(rows)                      # (N, dim)
+    norms = np.linalg.norm(matrix, axis=1)       # (N,)
+    scores = np.full(len(rows), -1.0, dtype=np.float32)
+    valid = norms > 0
+    scores[valid] = (matrix[valid] @ q) / (norms[valid] * q_norm)
+    return indices, scores
+
+
+def build_kb_record(
+    data_type: str,
+    raw_content: str,
+    content_hash: str,
+    content_vector: Optional[List[float]] = None,
+    ai_result: Optional[Dict[str, Any]] = None,
+    source_url: Optional[str] = None,
+    label_source: str = "ai",
+    verified: Optional[bool] = None,
+    origin: str = "web",
+    last_result_id: Optional[str] = None,
+    related_discussions: Any = None,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """
+    一筆知識庫列的內容（本機版與 Postgres 版的 save_record／save_records 共用）：套用寫入門檻
+    compute_write_gate，並把帶 tier 的來源同步寫進 ai_analysis（快取命中讀的是 ai_analysis）。
+    related_discussions 原樣保留，由各 store 轉成 JSON 字串。
+    """
+    sources, source_tier, is_verified = compute_write_gate(
+        ai_result.get("sources", []) if ai_result else [],
+        source_url, raw_content, label_source=label_source, verified=verified,
+    )
+    ai_analysis = {**ai_result, "sources": sources} if ai_result else ai_result
+    has_vector = content_vector is not None and len(content_vector) > 0
+    at = now or datetime.now()
+    return {
+        "id": str(uuid.uuid4()),
+        "data_type": data_type,
+        "source_url": source_url,
+        "raw_content": raw_content,
+        "data_hash": content_hash,
+        "content_vector": content_vector if has_vector else None,
+        "is_risk": ai_result.get("is_risk", False) if ai_result else False,
+        "risk_type": ai_result.get("risk_type") if ai_result else None,
+        "category": ai_result.get("category") if ai_result else None,
+        "confidence_score": ai_result.get("confidence_score") if ai_result else None,
+        "summary": ai_result.get("summary", "") if ai_result else "",
+        "explanation": ai_result.get("explanation", "") if ai_result else "",
+        "sources": sources,
+        "ai_analysis": ai_analysis,
+        "created_at": at,
+        "last_accessed_at": at,
+        "hit_count": 1,
+        "label_source": label_source,
+        "origin": origin,
+        "last_result_id": last_result_id,
+        "source_tier": source_tier,
+        "verified": is_verified,
+        "related_discussions": related_discussions,
+    }
+
+
+def newest_first(df: pd.DataFrame) -> pd.DataFrame:
+    """created_at 新到舊、id 小到大（多欄排序為穩定排序；缺時間排最後）。分頁不重複不遺漏。"""
+    if df.empty:
+        return df
+    created = df["created_at"] if "created_at" in df.columns else pd.Series(pd.NaT, index=df.index)
+    try:
+        ts = pd.to_datetime(created, errors="coerce")
+    except (TypeError, ValueError):
+        ts = created.astype(str)
+    ids = df["id"].fillna("").astype(str) if "id" in df.columns else pd.Series("", index=df.index)
+    keyed = df.assign(_sort_ts=ts, _sort_id=ids)
+    keyed = keyed.sort_values(
+        ["_sort_ts", "_sort_id"], ascending=[False, True], na_position="last", kind="mergesort",
+    )
+    return keyed.drop(columns=["_sort_ts", "_sort_id"])
