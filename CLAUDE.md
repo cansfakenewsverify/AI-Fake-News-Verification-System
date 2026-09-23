@@ -205,6 +205,7 @@ code/backend/
 │   ├── recheck_unverified.py   FR-20 唯讀盤點：未證實列 vs 已證實列／最新查核文章／Cofacts 新回覆（輸出含原文，gitignored）
 │   ├── ingest_factchecks.py    查核機構已證實資料批次入庫：fetch／embed／stats／apply／rollback（apply 預設 dry-run）
 │   ├── evidence_confidence_study.py  證據信心研究（夾角 vs 判定、誤命中檢查、話術原型）→ docs/test/results/evidence_confidence_*.md
+│   ├── audit_cofacts_sources.py  盤點以 Cofacts 當 Tier 1 來源的已證實列（有無判定、方向是否一致；預設只讀）
 │   ├── llm_second_opinion.py / fix_factcheck_labels.py   清洗審閱輔助（CGU 本地模型）／2026-07 一次性標籤修復
 │   ├── ensure_admin_token.py   啟動腳本每次呼叫：.env 的 ADMIN_TOKEN 空就補亂數（不印出）
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json

@@ -349,6 +349,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | `pf2_similarity.py` | PF-2 診斷：算出每一句改寫句與知識庫的實際相似度（唯讀，不呼叫判讀模型） |
 | `recheck_unverified.py` | 查核結果回補盤點：未證實列能否由已證實列、最新查核文章或 Cofacts 新回覆補上（唯讀；`--cloud` 讀正式資料；輸出含使用者原文，已 gitignore） |
 | `ingest_factchecks.py` | 查核機構已證實資料批次入庫：`fetch`（MyGoPen、台灣事實查核中心、Cofacts）→ `embed` → `apply`（預設 dry-run；`--target cloud --apply` 寫正式資料庫）；`rollback` 撤回 |
+| `audit_cofacts_sources.py` | 盤點以 Cofacts 文章當 Tier 1 來源的已證實列：文章現在有沒有判定、判定方向是否一致（預設只讀；`--apply` 只處理沒有判定者） |
 | `evidence_confidence_study.py` | 證據信心研究：夾角與判定的關係、入庫後的誤命中檢查、話術原型；輸出報告到 `docs/test/results/` |
 
 ---
