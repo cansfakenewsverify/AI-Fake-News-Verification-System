@@ -9,6 +9,7 @@ Threads 查核機器人 — 輪詢 mentions → 三層快取＋AI 分析 → 自
        HTTP 401／403／404 → unreadable；其他未列入的 4xx（400 等）→ failed；
        429／5xx／連線失敗 → transient（不標記，下輪重試；429 另設 backoff 並中止本輪）
      - 沒有 replied_to：用 mention 本文，≥8 字 → text，否則 too_short
+       （replied_to 讀取失敗、標了 replied_to_unknown 的提及：本文太短 → unreadable，見 threads_service）
      - text 去掉網址後 <8 字且含 http(s) → input_type="url"（走 FR-02）
      永不以 media_type == "TEXT" 判斷；絕不把「@bot 幫我查」這種請求句送進 AI。
   2. self → 只標記；media_only／unreadable／too_short → 回固定文案、標記、寫 jsonl；
@@ -286,6 +287,10 @@ async def resolve_target(
     if len(text) >= MIN_TEXT_LEN:
         input_type, data = _input_of(text)
         return KIND_TEXT, data, input_type, target
+    if m.get("replied_to_unknown"):
+        # 讀不到「被回覆的原貼文」是哪一則（Threads 開發模式的限制，見 threads_service.MENTION_NODE_FIELDS），
+        # 本文又太短：多半是在別人貼文底下 @機器人，回「讀不到原貼文」比「文字太短」準確
+        return KIND_UNREADABLE, None, "text", target
     return KIND_TOO_SHORT, None, "text", target
 
 

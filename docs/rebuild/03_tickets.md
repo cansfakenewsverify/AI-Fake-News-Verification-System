@@ -1899,7 +1899,7 @@ flowchart LR
   `last_error=reply_quota_near_limit`、`stopped="reply_quota"`、提及留待下輪；配額寫進 `state.reply_quota`；
   sim fixture 支援 `pages`。測試 +13（`test_threads_bot_sim.py` 6、`test_threads_publish.py` 7）；
   `/bot` 頁補上 `reply_quota_near_limit`、`mentions_failed`、`permission_denied` 的說明文字。
-  真 API 的分頁與配額回應形狀待 T-17 核對
+  真 API 的分頁與配額回應形狀待 T-17 核對（2026-10-01：配額回應 {usage 0, total 1000} 解析正常）
 
 ### T-15 取得 Threads 長效 token 並記錄 OP-4
 - 優先級：P0
@@ -2783,3 +2783,24 @@ flowchart LR
 - 預估：2h
 - 排程：立即
 - 狀態：已完成並上線（2026-09-30，commit `533aeaf`；正式站以新訊息實測判為 SCAM，不再出現 fallback）
+
+## 13. 2026-10-01 Threads 實機串接（進行中）
+
+### O-07／O-09／T-15／T-16／T-17 進度
+- O-07：已完成（Meta App「全民查證公社」、四個權限可供測試、三個回呼網址、隱私政策與資料刪除指示網址）
+- O-09：部分完成（`factcheck_tw_bot` 與負責人帳號已接受；組員帳號未邀請）
+- T-15：已完成（token 屬於 `@factcheck_tw_bot`，到期 2026-11-29；`docs/test/threads_live_log.md`）
+- T-17：已完成探測：提及列表要求 `replied_to`／`is_reply`／`root_post` 會 500；單一節點的 `replied_to` 不穩定、
+  `has_replies` 被拒（code 10）。程式改為列表只取基本欄位、逐則試讀 `replied_to`，讀不到時提及本文夠長就查本文、
+  太短就回「讀不到原貼文」（`threads_service.MENTION_FIELDS`、`_attach_replied_to`；測試 +7）
+- T-16：直接 @機器人的端到端已完成（回覆成功、結果頁 200、不重複回覆）；在別人貼文底下呼叫待 B-38
+
+### B-38 加 threads_read_replies 權限，支援在別人貼文底下呼叫機器人
+- 優先級：P1
+- 依賴：T-17
+- 對應：FR-09（負責人的預期用法：在別人貼文底下 @機器人，由機器人讀原貼文）
+- 做什麼：負責人在 Meta 後台加 `threads_read_replies`；`scripts/threads_auth.py` 的 SCOPES 加上它並重新授權；
+  以負責人帳號在別人的公開貼文底下回覆「@factcheck_tw_bot 這是真的嗎？」，先只讀探測 `replied_to` 與原貼文，
+  讀得到才讓機器人回覆。另外確認開發模式下能否讀取非測試人員的貼文。
+- 注意：規格原本不申請此權限（附錄 A7）；日後送 App Review 要多說明一個權限的用途。
+- 狀態：待負責人決定

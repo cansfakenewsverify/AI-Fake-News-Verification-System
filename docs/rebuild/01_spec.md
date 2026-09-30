@@ -542,6 +542,10 @@ since = max(state.last_since - 120, 1688540400)        # 重疊 2 分鐘，避�
 url = f"{user_id}/mentions?fields=id,text,username,permalink,media_type,replied_to,timestamp&since={since}"
 # root_post,is_reply 只在 retrieve-replies 頁定義，mentions 上是否可取為推論（verify_10 additional_findings 7）：
 # Day 2.5 --live 加上後回 200 才納入；程式對缺欄位一律容忍（.get），未知欄位若回 error 就退回上列七個
+# 【2026-10-01 live 實測（T-17）】mentions 帶 replied_to／is_reply／root_post 皆回 HTTP 500，實作改為
+#   fields=id,text,username,permalink,media_type,timestamp，再逐則 GET /{mention_id}?fields=id,replied_to；
+#   該欄位在四個權限下不穩定（常 500），讀不到時標 replied_to_unknown：本文 ≥8 字查本文，否則回 reply_cannot_read。
+#   在別人貼文底下呼叫需要 threads_read_replies（票 B-38）。紀錄見 docs/test/threads_live_log.md
 mentions = []
 loop ≤ 5 pages:                                          # limit/分頁參數在 mentions 頁未文件化（verify_10 refuted Claim 8）
   page = GET url ; mentions += page.data                 # 以 Threads Media 頁的 paging.next / paging.cursors.after 模式處理

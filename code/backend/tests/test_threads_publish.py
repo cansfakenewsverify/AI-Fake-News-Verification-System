@@ -334,6 +334,12 @@ def livebot(live, tmp_path, monkeypatch):
     return data, ai, poll
 
 
+def _nodes(*ids, replied_to=None):
+    """逐則補讀 replied_to 的假回應（GET /{mention_id}?fields=replied_to）；預設不是回覆。"""
+    body = {"replied_to": {"id": replied_to}} if replied_to else {}
+    return {("GET", mid): (200, {"id": mid, **body}) for mid in ids}
+
+
 def _mentions_page(*ids):
     return (200, {"data": [
         {"id": mid, "username": "tester_b", "text": f"@factcheck_tw_bot {RUMOR}", "media_type": "TEXT_POST",
@@ -347,6 +353,7 @@ def test_bot_live_publish_failure_is_republished_with_the_same_container(live, l
     data, ai, poll = livebot
     graph = live({
         ("GET", f"{USER_ID}/mentions"): _mentions_page("17900000000000001"),
+        **_nodes("17900000000000001"),
         ("POST", f"{USER_ID}/threads"): (200, {"id": "c-1"}),
         ("GET", "c-1"): _status("FINISHED"),
         ("POST", f"{USER_ID}/threads_publish"): [(500, {"error": {"message": "temporarily unavailable"}}),
@@ -378,6 +385,7 @@ def test_bot_live_container_error_is_not_published_and_retried_once(live, livebo
     data, ai, poll = livebot
     graph = live({
         ("GET", f"{USER_ID}/mentions"): _mentions_page("17900000000000002"),
+        **_nodes("17900000000000002"),
         ("POST", f"{USER_ID}/threads"): [(200, {"id": "c-1"}), (200, {"id": "c-2"})],
         ("GET", "c-1"): _status("ERROR", error_message="FAILED_PROCESSING"),
         ("GET", "c-2"): _status("ERROR", error_message="FAILED_PROCESSING"),
@@ -408,6 +416,7 @@ def test_bot_live_unknown_4xx_on_container_creation_marks_failed_without_reply(l
     data, ai, poll = livebot
     graph = live({
         ("GET", f"{USER_ID}/mentions"): _mentions_page("17900000000000003"),
+        **_nodes("17900000000000003"),
         ("POST", f"{USER_ID}/threads"): (400, {"error": {"message": "Invalid parameter", "code": 100}}),
     })
     out = poll()
@@ -431,18 +440,25 @@ def _page(i, more=True, cursor=True):
 
 
 def test_get_mentions_follows_paging_cursor(live):
-    graph = live({("GET", f"{USER_ID}/mentions"): [_page(1), _page(2), _page(3, more=False)]})
+    graph = live({("GET", f"{USER_ID}/mentions"): [_page(1), _page(2), _page(3, more=False)],
+                  **_nodes("m1", "m2", "m3")})
 
     got = ThreadsService().get_mentions(since=1700000000)
 
     assert [m["id"] for m in got] == ["m1", "m2", "m3"]
     calls = [params for method, path, params in graph.calls if path == f"{USER_ID}/mentions"]
     assert [c.get("after") for c in calls] == [None, "c1", "c2"]
-    assert all(c["since"] == 1700000000 and "replied_to" in c["fields"] for c in calls)
+    # 列表不要求 replied_to（live 實測會 500），逐則補讀
+    assert all(c["since"] == 1700000000 and c["fields"] == ts.MENTION_FIELDS for c in calls)
+    assert "replied_to" not in ts.MENTION_FIELDS
+    node_calls = [(path, params["fields"]) for method, path, params in graph.calls if path in ("m1", "m2", "m3")]
+    assert node_calls == [("m1", ts.MENTION_NODE_FIELDS), ("m2", ts.MENTION_NODE_FIELDS), ("m3", ts.MENTION_NODE_FIELDS)]
+    assert "replied_to" in ts.MENTION_NODE_FIELDS
 
 
 def test_get_mentions_reads_at_most_five_pages(live):
-    graph = live({("GET", f"{USER_ID}/mentions"): [_page(i) for i in range(1, 9)]})
+    graph = live({("GET", f"{USER_ID}/mentions"): [_page(i) for i in range(1, 9)],
+                  **_nodes(*[f"m{i}" for i in range(1, 9)])})
 
     got = ThreadsService().get_mentions()
 
@@ -457,7 +473,7 @@ def test_get_mentions_reads_at_most_five_pages(live):
     (200, {"paging": {"cursors": {"after": "c1"}, "next": "https://x"}, "data": [{"id": "m1"}, "bad"]}),
 ])
 def test_get_mentions_tolerates_missing_paging(live, last_page):
-    routes = {("GET", f"{USER_ID}/mentions"): [last_page, (200, {"data": []})]}
+    routes = {("GET", f"{USER_ID}/mentions"): [last_page, (200, {"data": []})], **_nodes("m1")}
     graph = live(routes)
     got = ThreadsService().get_mentions()
     assert [m["id"] for m in got] == ["m1"]
@@ -468,3 +484,48 @@ def test_get_mentions_fails_whole_read_when_a_later_page_fails(live):
     live({("GET", f"{USER_ID}/mentions"): [_page(1), (500, {"error": {"message": "boom"}})]})
     with pytest.raises(ThreadsTransientError):
         ThreadsService().get_mentions()
+
+
+# ══════════════════════════════════════════════════════════════════
+# T-17（2026-10-01 live 實測）：replied_to 逐則補讀
+# ══════════════════════════════════════════════════════════════════
+def test_get_mentions_attaches_replied_to_from_the_media_node(live):
+    live({("GET", f"{USER_ID}/mentions"): _mentions_page("m-reply", "m-direct"),
+          **_nodes("m-reply", replied_to="original-post-1"), **_nodes("m-direct")})
+
+    got = {m["id"]: m for m in ThreadsService().get_mentions()}
+
+    assert got["m-reply"]["replied_to"] == {"id": "original-post-1"}
+    assert "replied_to" not in got["m-direct"]
+
+
+def test_replied_to_lookup_rate_limit_fails_the_whole_read(live):
+    live({("GET", f"{USER_ID}/mentions"): _mentions_page("m1"),
+          ("GET", "m1"): (429, {"error": {"message": "rate limit"}})})
+    with pytest.raises(ThreadsApiError) as ei:
+        ThreadsService().get_mentions()
+    assert ei.value.status == 429
+
+
+def test_replied_to_lookup_server_error_is_retried_once_then_marked_unknown(live, sleeps):
+    # 開發模式實測：這個欄位常固定回 500。丟錯的話機器人會永遠卡在同一則提及
+    graph = live({("GET", f"{USER_ID}/mentions"): _mentions_page("m1"),
+                  ("GET", "m1"): (500, {"error": {"code": 1, "message": "An unknown error occurred"}})})
+    [mention] = ThreadsService().get_mentions()
+    assert mention["replied_to_unknown"] is True and "replied_to" not in mention
+    assert graph.count("GET", "m1") == 2 and sleeps == [ts.REPLIED_TO_RETRY_SECONDS]
+
+
+def test_replied_to_lookup_server_error_then_success(live, sleeps):
+    live({("GET", f"{USER_ID}/mentions"): _mentions_page("m1"),
+          ("GET", "m1"): [(500, {"error": {"code": 1}}), (200, {"id": "m1", "replied_to": {"id": "p9"}})]})
+    [mention] = ThreadsService().get_mentions()
+    assert mention["replied_to"] == {"id": "p9"} and "replied_to_unknown" not in mention
+
+
+def test_replied_to_lookup_client_error_marks_unknown_without_retry(live, sleeps):
+    graph = live({("GET", f"{USER_ID}/mentions"): _mentions_page("m1"),
+                  ("GET", "m1"): (404, {"error": {"message": "not found"}})})
+    [mention] = ThreadsService().get_mentions()
+    assert mention["replied_to_unknown"] is True and "replied_to" not in mention
+    assert graph.count("GET", "m1") == 1 and sleeps == []

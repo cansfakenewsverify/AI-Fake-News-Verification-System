@@ -10,7 +10,7 @@
   （`https://fakenewsverify-api.onrender.com`）、資料 Supabase PostgreSQL 與 pgvector；
   AI 使用學校 CGU AIR 閘道的 `gpt-5.6-luna`（2026-09-30 閘道下架 `gpt-5.4-mini` 後改用，備援 `gpt-6-luna`）。
   金鑰僅存在本機設定檔與 Render 後台，不進版本庫（`ADMIN_TOKEN` 另需存為 GitHub repository secret，見待辦第 11 項）。
-- 測試：後端 823 項通過（另 31 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-30 對 Supabase 全數通過）、
+- 測試：後端 830 項通過（另 31 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-30 對 Supabase 全數通過）、
   前端 409 項通過。
 - 測試計畫書 `docs/test/TP-FNV-2026-01.md` 為 v1.7：第 6.5 節為 2026-09-19～20 的重測結果（P0 通過 27／30；
   PF-2 未通過，UI-6 未執行），第 6.7 節為 2026-09-30 換模型後的重測。PDF 在 `presentations/2026-09_進度報告/`。
@@ -115,9 +115,9 @@
 9. **熱門牆資料更新**：雲端排程關閉，目前為手動更新。2026-09-22 以「只抓不判」更新一次（MyGoPen 與台灣事實查核中心 31 篇；
    其中 23 則查核結論寫入知識庫，知識庫確定性標記由 0 筆增為 23 筆；既有 24 筆熱門牆資料未被改動）。
    之後改由第 11 項的同步排程處理（每次同步完順便更新熱門牆）。
-10. **Threads 實機串接**：不需要帳號的程式已全部完成（含 2026-09-30 的提及分頁與回覆配額護欄）；
-    其餘 6 步要用負責人的 Meta／Threads 帳號，約 2 小時、大部分要在負責人電腦上做，步驟見
-    `docs/rebuild/threads_live_checklist.md`。開放給一般使用者另需 Meta App Review 與企業驗證（`CLAUDE.md` 第 11 節）。
+10. **Threads 實機串接**：2026-10-01 完成 Meta App、測試帳號、token，並以負責人帳號直接 @機器人實測成功
+    （回覆、結果頁、不重複回覆；`docs/test/threads_live_log.md`）。剩下：在別人貼文底下呼叫需要 `threads_read_replies`
+    權限（票 B-38，待負責人決定）、組員加入測試人員、延遲量測與截圖。步驟見 `docs/rebuild/threads_live_checklist.md`。開放給一般使用者另需 Meta App Review 與企業驗證（`CLAUDE.md` 第 11 節）。
 11. **查核結論同步與每週評測**：`ADMIN_TOKEN` 已於 2026-09-30 加入 GitHub secret，第一次同步已完成。
     之後每天 08:07、20:07 自動同步；第一次每週評測在 10-04（週日）21:17，報告會出現在 `docs/test/results/weekly/`。
     workflow 失敗時 GitHub 會寄信給負責人。

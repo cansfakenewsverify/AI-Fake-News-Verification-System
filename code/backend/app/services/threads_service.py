@@ -121,6 +121,14 @@ class ThreadsTransientError(ThreadsAPIError):
 
 
 MENTIONS_MAX_PAGES = 5          # spec §7.4：mentions 有 paging.next 就跟，最多 5 頁（T-14）
+# 2026-10-01 live 實測（T-17，開發模式、權限 threads_basic／content_publish／manage_replies／manage_mentions）：
+# 提及列表（/{user_id}/mentions）只要要求 replied_to、is_reply 或 root_post 就回 HTTP 500「An unknown error occurred」；
+# 單一貼文節點（GET /{media_id}）的 replied_to 第一次讀得到、之後同樣的呼叫也回 500；加上 has_replies 則回
+# code 10「Application does not have permission」。推測這些回覆相關欄位需要 threads_read_replies 權限。
+# 所以列表只取基本欄位，再逐則「試著」補讀 replied_to；讀不到時不擋，交給 threads_bot 以提及本文處理。
+MENTION_FIELDS = "id,text,username,permalink,media_type,timestamp"
+MENTION_NODE_FIELDS = "id,replied_to"
+REPLIED_TO_RETRY_SECONDS = 2.0
 REPLY_QUOTA_MARGIN = 10         # 剩不到 10 則回覆配額就停止本輪回覆（spec §7.10「回覆配額 1,000/24h」；T-14）
 
 
@@ -423,9 +431,10 @@ class ThreadsService(TwoStepPublishing):
         since：unix 秒數（spec 7.4）；after_cursor：從這個分頁游標開始讀。
         分頁（T-14）：回應有 paging.next 且有 paging.cursors.after 就讀下一頁，最多 MENTIONS_MAX_PAGES 頁；
         缺 paging、缺欄位一律容忍（只讀到哪算到哪）。任何一頁失敗就整次丟錯——只回部分結果的話，
-        輪詢會把游標推過還沒讀到的較舊提及、之後永遠讀不到。"""
+        輪詢會把游標推過還沒讀到的較舊提及、之後永遠讀不到。
+        replied_to（被回覆的原貼文）列表拿不到，逐則補讀（_attach_replied_to）。"""
         base_params: Dict[str, Any] = {
-            "fields": "id,text,username,permalink,media_type,replied_to,timestamp",
+            "fields": MENTION_FIELDS,
             "limit": limit,
         }
         if since is not None:
@@ -444,7 +453,39 @@ class ThreadsService(TwoStepPublishing):
             if not paging.get("next") or not next_cursor or next_cursor == cursor:
                 break
             cursor = next_cursor
+        for mention in out:
+            self._attach_replied_to(mention)
         return out
+
+    def _attach_replied_to(self, mention: Dict[str, Any]) -> None:
+        """
+        從單一貼文節點補上 replied_to（{"id": 原貼文 id}）；不是回覆的貼文沒有這個欄位。
+        - 429 往外丟：整次讀取失敗、進入 backoff。
+        - 其他錯誤（含 5xx，暫時性的先重試一次）：標 replied_to_unknown=True 後照常處理——
+          live 實測這個欄位在開發模式常常固定回 500（見 MENTION_NODE_FIELDS 上方說明），若往外丟，
+          機器人會永遠卡在同一則提及。threads_bot 對這種提及：本文夠長就直接查本文，太短（像「這是真的嗎？」，
+          多半是回覆別人的貼文）就回「讀不到原貼文」的固定文案。
+        """
+        mention_id = str(mention.get("id") or "")
+        if not mention_id or isinstance(mention.get("replied_to"), dict):
+            return
+        node: Dict[str, Any] = {}
+        for attempt in range(2):
+            try:
+                node = self._get(mention_id, fields=MENTION_NODE_FIELDS)
+                break
+            except ThreadsApiError as e:
+                if e.status == 429:
+                    raise
+                if attempt == 0 and isinstance(e, ThreadsTransientError):
+                    time.sleep(REPLIED_TO_RETRY_SECONDS)
+                    continue
+                logger.warning("threads mention %s replied_to lookup failed: status=%s",
+                               _log_repr(mention_id), e.status)
+                mention["replied_to_unknown"] = True
+                return
+        if isinstance(node.get("replied_to"), dict):
+            mention["replied_to"] = node["replied_to"]
 
     def get_post(self, media_id: str) -> Dict[str, Any]:
         """抓單則貼文內容（用來取得「被查核的原貼文」文字）。"""

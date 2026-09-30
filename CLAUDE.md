@@ -237,7 +237,7 @@ code/backend/
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **823 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **31 個** Postgres
+├── tests/                      ★pytest **830 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **31 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -317,7 +317,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 823 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 830 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -424,8 +424,9 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
-- [ ] Threads 真帳號串接（**進度報告後**；票 O-07、O-09、T-15～T-17、O-27；步驟與時間見 `docs/rebuild/threads_live_checklist.md`，
-      約 2 小時、大部分要在負責人電腦上做）：Meta App + Threads Tester + 60 天 token；
+- [ ] Threads 真帳號串接：**2026-10-01 直接 @機器人的端到端已完成**（`docs/test/threads_live_log.md`）；
+      剩「在別人貼文底下呼叫」（加 `threads_read_replies`，票 B-38）、組員加入測試人員、延遲量測與截圖（票 T-16、O-27）；
+      步驟見 `docs/rebuild/threads_live_checklist.md`。原本的說明：
       要公開給陌生人用必須通過 Meta App Review（＋企業驗證）。FN-4 的三項行為（HTTP 429 → `backoff_until`、未知 4xx →
       標 failed 不回覆、container `FINISHED` 才 publish／`ERROR` 重建一次）已於 2026-09-20 實作並以模擬與 mock 測過（T-12／T-13）；
       提及分頁（最多 5 頁）與回覆配額護欄（剩不到 10 則本輪不回）已於 2026-09-30 實作（T-14）；
@@ -616,7 +617,12 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
   （格式範例 `scripts/threads_sim_mentions.example.json`）、回覆寫到 `data/threads_sim/replies.jsonl`。
   `test_threads_bot.py --reset-sim` 會清模擬紀錄，並用 `scripts/threads_sim_seed.json` 以 `label_source="gold"` 預熱知識庫，
   poll 時 L1 hash 命中、不呼叫 AI、斷網也能回覆。
-- `live`：真的讀 mentions 並回覆，**排在進度報告之後**（第 8 節）。需要 Meta App（Threads use case）的四個權限：
+- `live`：真的讀 mentions 並回覆。**2026-10-01 已串接並實測**：Meta App「全民查證公社」、token 屬於 `@factcheck_tw_bot`
+  （到期 2026-11-29）；負責人帳號直接 @機器人 → 回覆成功、結果頁在正式站打得開、不重複回覆（`docs/test/threads_live_log.md`）。
+  **在負責人電腦上以 live 執行時要同時設 `STORAGE_BACKEND=supabase`**，查證結果才會寫進正式資料庫、回覆裡的 `/r/{id}` 才打得開：
+  `$env:THREADS_MODE='live'; $env:STORAGE_BACKEND='supabase'; .\venv\Scripts\python -m uvicorn app.main:app --port 8000`。
+  已知限制：提及列表要求 `replied_to` 會回 500，回覆相關欄位在目前四個權限下讀不到，所以「在別人貼文底下 @機器人」
+  還不能讀原貼文（本文太短時回「讀不到原貼文」）；要加 `threads_read_replies` 再測（票 B-38）。需要 Meta App（Threads use case）的四個權限：
   `threads_basic`、`threads_content_publish`、`threads_manage_replies`、`threads_manage_mentions`。
   通過 **Meta App Review（＋企業驗證）** 之前是開發模式：只收得到被加為 Threads Tester 的帳號的提及，不能公開給陌生人用。
   token：`scripts/threads_auth.py`（需 `THREADS_APP_ID`／`THREADS_APP_SECRET`／`PUBLIC_BASE_URL`；授權後導回網站的 `/oauth/callback` 顯示 code）

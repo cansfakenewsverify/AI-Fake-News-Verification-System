@@ -2047,3 +2047,19 @@ def test_fake_reads_fixture_pages_in_order_up_to_five(tmp_path):
     assert got == [m["id"] for page in pages[:ts.MENTIONS_MAX_PAGES] for m in page]
     since = int(datetime(2026, 9, 14, 9, 3, 0, tzinfo=timezone.utc).timestamp())
     assert [m["id"] for m in fake.get_mentions(since)] == ["pg3b", "pg4a", "pg4b"]
+
+
+def test_bot_unknown_parent_with_short_text_replies_cannot_read(bot):
+    # live 的 replied_to 讀不到時（threads_service 標 replied_to_unknown）：「@機器人 這是真的嗎？」回「讀不到原貼文」
+    _set_mentions(bot, [_mention("mu1", text="@factcheck_tw_bot 這是真的嗎？", replied_to_unknown=True)])
+    out = _poll(bot)
+    assert out["replied"] == 1 and bot.ai.calls == []
+    [line] = _sim_replies(bot)
+    assert line["text"] == reply_cannot_read()
+
+
+def test_bot_unknown_parent_with_long_text_checks_the_mention_itself(bot):
+    _set_mentions(bot, [_mention("mu2", text=f"@factcheck_tw_bot {P100_TEXT}", replied_to_unknown=True)])
+    out = _poll(bot)
+    assert out["replied"] == 1
+    assert [c["input_data"] for c in bot.ai.calls] == [P100_TEXT]
