@@ -1967,3 +1967,83 @@ def test_fake_container_error_injection_points_and_text_condition(fake):
         fake.create_reply_container("m4", "判定\n查核來源：https://example.org/a")
     assert ei.value.status == 400 and ts.is_link_limit_error(ei.value)
     assert fake.create_reply_container("m4", "判定（沒有來源行）").startswith("sim_container_")
+
+
+# ══════════════════════════════════════════════════════════════════
+# T-14：mentions 分頁與 Threads 回覆配額
+# ══════════════════════════════════════════════════════════════════
+def _set_quota(bot, usage, total=1000):
+    data = json.loads(bot.mentions_path.read_text(encoding="utf-8"))
+    data["publishing_limit"] = {"reply_quota_usage": usage, "reply_config": {"quota_total": total}}
+    bot.mentions_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+def test_parse_reply_quota_shapes():
+    assert ts.parse_reply_quota({"reply_quota_usage": 3, "reply_config": {"quota_total": 1000}}) == {
+        "usage": 3, "total": 1000}
+    assert ts.parse_reply_quota({"reply_quota_usage": "7", "reply_config": {"quota_total": "250"}}) == {
+        "usage": 7, "total": 250}
+    for raw in ({}, None, [], {"reply_quota_usage": 3}, {"reply_config": {"quota_total": 1000}},
+                {"reply_quota_usage": "x", "reply_config": {"quota_total": 1000}},
+                {"reply_quota_usage": 3, "reply_config": {"quota_total": 0}}):
+        assert ts.parse_reply_quota(raw) is None
+
+
+def test_bot_records_reply_quota_in_state(bot):
+    _set_mentions(bot, ["m1"])
+    assert _poll(bot)["replied"] == 1
+    assert _state(bot)["reply_quota"] == {"usage": 3, "total": 1000}
+
+
+def test_bot_stops_replying_when_reply_quota_is_nearly_used(bot):
+    _set_mentions(bot, ["m1"])
+    _set_quota(bot, 991)                       # 剩 9 則 < 10
+
+    out = _poll(bot)
+
+    assert out["started"] is True and out["stopped"] == "reply_quota"
+    assert (out["checked"], out["replied"]) == (0, 0)
+    assert bot.ai.calls == [] and _sim_replies(bot) == []
+    st = _state(bot)
+    assert st["last_error"] == "reply_quota_near_limit"
+    assert st["reply_quota"] == {"usage": 991, "total": 1000}
+    assert st["replied_ids"] == []
+
+    # 配額恢復後，同一則提及在下一輪補回（游標沒有跳過它）
+    _set_quota(bot, 40)
+    again = _poll(bot)
+    assert again["replied"] == 1 and again["stopped"] is None
+    assert _state(bot)["last_error"] is None
+
+
+def test_bot_replies_normally_when_quota_lookup_fails(bot, monkeypatch):
+    _set_mentions(bot, ["m1"])
+
+    def broken():
+        raise ThreadsApiError(500, {"error": {"message": "internal"}})
+
+    monkeypatch.setattr(bot.client, "get_publishing_limit", broken)
+    out = _poll(bot)
+    assert out["replied"] == 1 and out["stopped"] is None
+    assert "reply_quota" not in _state(bot)
+
+
+def test_bot_skips_quota_lookup_when_nothing_to_handle(bot, monkeypatch):
+    _set_mentions(bot, [])
+    calls = []
+    monkeypatch.setattr(bot.client, "get_publishing_limit", lambda: calls.append(1) or {})
+    assert _poll(bot)["checked"] == 0
+    assert calls == []
+
+
+def test_fake_reads_fixture_pages_in_order_up_to_five(tmp_path):
+    pages = [[_mention(f"pg{i}a", ts=f"2026-09-14T09:{i:02d}:00+0000"),
+              _mention(f"pg{i}b", ts=f"2026-09-14T09:{i:02d}:30+0000")] for i in range(7)]
+    path = tmp_path / "mentions.json"
+    path.write_text(json.dumps({"bot": {"id": "bot001", "username": "factcheck_tw_bot"}, "pages": pages,
+                                "posts": {}}, ensure_ascii=False), encoding="utf-8")
+    fake = FakeThreadsService(mentions_path=path)
+    got = [m["id"] for m in fake.get_mentions(None)]
+    assert got == [m["id"] for page in pages[:ts.MENTIONS_MAX_PAGES] for m in page]
+    since = int(datetime(2026, 9, 14, 9, 3, 0, tzinfo=timezone.utc).timestamp())
+    assert [m["id"] for m in fake.get_mentions(since)] == ["pg3b", "pg4a", "pg4b"]

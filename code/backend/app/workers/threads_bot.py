@@ -43,6 +43,10 @@ state.pending_publish[mention_id] → wait_container（每 5 秒、最多 60 秒
   - since = max(last_since − 120, 1688540400)；mentions 依 timestamp 升冪逐則處理
   - 本地上限：本輪「經 AI 的判定回覆」≥ THREADS_MAX_REPLIES_PER_POLL，或當日判定回覆
     ≥ THREADS_MAX_REPLIES_PER_DAY → 停止本輪（固定文案回覆不經 AI，不計入，同 §7.5 只在判定路徑累加 daily）
+  - Threads 回覆配額（spec §7.10「1,000 則／24 小時」；T-14）：有提及要處理時先讀 threads_publishing_limit，
+    {usage,total} 寫進 state.reply_quota（/api/threads/status 的 reply_quota）；剩不到 REPLY_QUOTA_MARGIN（10）則 →
+    last_error=reply_quota_near_limit、本輪一則都不回（提及留待下輪）；讀不到配額（任何錯誤）不擋回覆
+  - mentions 分頁：ThreadsService.get_mentions 跟 paging.next 最多 5 頁（T-14）
   - 游標：全部處理完 → last_since = max(timestamp)（無 mention → now）；有 mention 留待下輪
     （AI 不可用、暫時錯誤、上限截斷）→ 停在最早那則之前，否則下輪的 since 會把它永久跳過
 
@@ -74,6 +78,8 @@ from app.services.threads_reply import (
     reply_too_short,
 )
 from app.services.threads_service import (
+    REPLY_QUOTA_MARGIN,
+    parse_reply_quota,
     CONTAINER_ERROR,
     CONTAINER_EXPIRED,
     CONTAINER_FINISHED,
@@ -124,6 +130,7 @@ ERR_RATE_LIMITED = "rate_limited"     # 429 → backoff、本輪中止
 ERR_TOKEN_INVALID = "token_invalid"   # 401（mentions／發佈端點）→ backoff 60 分、本輪中止
 ERR_CLIENT = "client_error"           # 其他未列入的 4xx → 該 mention 標 failed（保守路徑）
 ERR_TRANSIENT = "transient"           # 5xx／逾時／連線失敗／拿不到狀態碼 → 不標記，下輪重試
+ERR_REPLY_QUOTA = "reply_quota_near_limit"   # Threads 回覆配額剩不到 REPLY_QUOTA_MARGIN → 本輪不回覆（T-14）
 
 # 讀原貼文時視為「讀不到」的狀態碼（§7.5：非 Tester、私人帳號、權限）→ reply_cannot_read
 UNREADABLE_STATUSES = (401, 403, 404)
@@ -920,6 +927,18 @@ def _record_client_error(data_dir: Optional[PathLike], error: str) -> None:
         threads_state.save_state(state, data_dir)
 
 
+def _read_reply_quota(client: Any) -> Optional[Dict[str, int]]:
+    """回覆配額 {usage,total}（spec §7.10；T-14）。端點失敗或回應格式不對 → None：配額只是護欄，讀不到不擋回覆。"""
+    getter = getattr(client, "get_publishing_limit", None)
+    if not callable(getter):
+        return None
+    try:
+        return parse_reply_quota(getter())
+    except Exception as e:
+        logger.warning("threads publishing limit lookup failed: %s", _esc(e))
+        return None
+
+
 def _next_since(mentions: list, ctx: PollContext, prev_since: int, now: int) -> int:
     """全部處理完 → max(timestamp)（不倒退；無 mention → now）。
     還有 mention 留待下輪（未標記、非機器人自己發的）→ 停在最早那則之前 1 秒，
@@ -1119,7 +1138,17 @@ async def _poll_once(client: Any, mode: str, data_dir: Optional[PathLike]) -> di
     seen: Set[str] = set()
     pending = ctx._bucket("pending_publish")
 
-    for m in mentions:
+    if any(str(m.get("id") or "") and not ctx.is_done(str(m.get("id"))) for m in mentions):
+        quota = await asyncio.to_thread(_read_reply_quota, client)
+        if quota is not None:
+            state["reply_quota"] = quota
+            if quota["usage"] >= quota["total"] - REPLY_QUOTA_MARGIN:
+                ctx.last_error = ERR_REPLY_QUOTA
+                stopped = "reply_quota"
+                logger.warning("threads reply quota nearly used up (%s/%s): no replies this poll",
+                               quota["usage"], quota["total"])
+
+    for m in ([] if stopped else mentions):
         mention_id = str(m.get("id") or "")
         if not mention_id or ctx.is_done(mention_id) or mention_id in seen:
             continue   # 已處理過（已回覆或已標 failed），或同一輪清單內重複出現（分頁重疊）
@@ -1157,7 +1186,7 @@ async def run_threads_poll(client: Any = None, data_dir: Optional[PathLike] = No
 
     回傳 {"started": False, "reason": ...}、{"started": False, "skipped": "backoff", backoff_until, last_error}
     或 {"started": True, checked, replied, skipped, errors, stopped}；另一輪進行中 → 丟 PollInProgress。
-    stopped：None｜"per_poll_cap"｜"daily_cap"｜"rate_limited"（429）｜"token_invalid"（401）。
+    stopped：None｜"per_poll_cap"｜"daily_cap"｜"reply_quota"（Threads 回覆配額將滿）｜"rate_limited"（429）｜"token_invalid"（401）。
     """
     mode = settings.threads_mode_effective
     if mode not in ("live", "sim"):

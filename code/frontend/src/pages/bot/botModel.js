@@ -16,6 +16,9 @@ export const KNOWN_ERRORS = [
   "rate_limited",
   "transient_error",
   "mention_failed",
+  "mentions_failed",
+  "permission_denied",
+  "reply_quota_near_limit",
   "ai_unavailable",
   "threads_not_configured",
 ];

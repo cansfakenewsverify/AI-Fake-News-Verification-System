@@ -416,3 +416,55 @@ def test_bot_live_unknown_4xx_on_container_creation_marks_failed_without_reply(l
     assert st["failed"]["17900000000000003"]["final"] is True and st["failed"]["17900000000000003"]["status"] == 400
     assert st["replied_ids"] == [] and st["backoff_until"] is None
     assert poll()["checked"] == 0 and graph.count("POST", f"{USER_ID}/threads") == 1 and len(ai.calls) == 1
+
+
+# ══════════════════════════════════════════════════════════════════
+# T-14：mentions 分頁（spec §7.4：跟 paging.next，最多 5 頁）
+# ══════════════════════════════════════════════════════════════════
+def _page(i, more=True, cursor=True):
+    paging = {}
+    if cursor:
+        paging["cursors"] = {"before": f"b{i}", "after": f"c{i}"}
+    if more:
+        paging["next"] = f"{BASE_URL}/{USER_ID}/mentions?after=c{i}"
+    return (200, {"data": [{"id": f"m{i}", "text": f"第 {i} 頁"}], "paging": paging})
+
+
+def test_get_mentions_follows_paging_cursor(live):
+    graph = live({("GET", f"{USER_ID}/mentions"): [_page(1), _page(2), _page(3, more=False)]})
+
+    got = ThreadsService().get_mentions(since=1700000000)
+
+    assert [m["id"] for m in got] == ["m1", "m2", "m3"]
+    calls = [params for method, path, params in graph.calls if path == f"{USER_ID}/mentions"]
+    assert [c.get("after") for c in calls] == [None, "c1", "c2"]
+    assert all(c["since"] == 1700000000 and "replied_to" in c["fields"] for c in calls)
+
+
+def test_get_mentions_reads_at_most_five_pages(live):
+    graph = live({("GET", f"{USER_ID}/mentions"): [_page(i) for i in range(1, 9)]})
+
+    got = ThreadsService().get_mentions()
+
+    assert len(got) == ts.MENTIONS_MAX_PAGES == 5
+    assert graph.count("GET", f"{USER_ID}/mentions") == 5
+
+
+@pytest.mark.parametrize("last_page", [
+    (200, {"data": [{"id": "m1"}]}),                                       # 沒有 paging
+    (200, {"data": [{"id": "m1"}], "paging": {"cursors": {"after": "c1"}}}),   # 有游標但沒有 next
+    (200, {"data": [{"id": "m1"}], "paging": {"next": "https://x"}}),          # 有 next 但沒有游標
+    (200, {"paging": {"cursors": {"after": "c1"}, "next": "https://x"}, "data": [{"id": "m1"}, "bad"]}),
+])
+def test_get_mentions_tolerates_missing_paging(live, last_page):
+    routes = {("GET", f"{USER_ID}/mentions"): [last_page, (200, {"data": []})]}
+    graph = live(routes)
+    got = ThreadsService().get_mentions()
+    assert [m["id"] for m in got] == ["m1"]
+    assert graph.count("GET", f"{USER_ID}/mentions") in (1, 2)
+
+
+def test_get_mentions_fails_whole_read_when_a_later_page_fails(live):
+    live({("GET", f"{USER_ID}/mentions"): [_page(1), (500, {"error": {"message": "boom"}})]})
+    with pytest.raises(ThreadsTransientError):
+        ThreadsService().get_mentions()

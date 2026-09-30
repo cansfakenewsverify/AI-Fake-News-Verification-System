@@ -235,7 +235,7 @@ code/backend/
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **810 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **31 個** Postgres
+├── tests/                      ★pytest **823 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **31 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -315,7 +315,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 810 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 823 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -422,9 +422,11 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
-- [ ] Threads 真帳號串接（**進度報告後**；票 O-07、O-09、T-12～T-16、O-27）：Meta App + Threads Tester + 60 天 token；
+- [ ] Threads 真帳號串接（**進度報告後**；票 O-07、O-09、T-15～T-17、O-27；步驟與時間見 `docs/rebuild/threads_live_checklist.md`，
+      約 2 小時、大部分要在負責人電腦上做）：Meta App + Threads Tester + 60 天 token；
       要公開給陌生人用必須通過 Meta App Review（＋企業驗證）。FN-4 的三項行為（HTTP 429 → `backoff_until`、未知 4xx →
       標 failed 不回覆、container `FINISHED` 才 publish／`ERROR` 重建一次）已於 2026-09-20 實作並以模擬與 mock 測過（T-12／T-13）；
+      提及分頁（最多 5 頁）與回覆配額護欄（剩不到 10 則本輪不回）已於 2026-09-30 實作（T-14）；
       回應格式尚未對真的 Threads API 驗證（票 T-17）。state 檔新增 `backoff_until`／`backoff_n`／`transient_n`、`failed`、`pending_publish`
 - [ ] PF-2 向量快取命中率 **65%（13／20）< 準則 70%**：以組員（姚睿）審定的改寫句題組重測（票 O-11）。DEF-05 已於 2026-09-19 修正
       （`scripts/reembed_vectors.py`，13 筆重算、本機與 Supabase 同步），但離線複查顯示那 20 句的原文向量本來就正常，未命中是相似度真的不夠；
@@ -624,7 +626,7 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 
 **端點**：`GET /api/threads/status`、`GET /api/threads/replies`（公開唯讀、不含 token）；`POST /api/threads/poll`（需 `X-Admin-Token`；
 202 背景執行，已有一輪在跑回 409）。排程間隔 `THREADS_POLL_MINUTES`（預設 5）；上限 `THREADS_MAX_REPLIES_PER_POLL=5`、
-`THREADS_MAX_REPLIES_PER_DAY=50`。
+`THREADS_MAX_REPLIES_PER_DAY=50`；Threads 的 24 小時回覆配額剩不到 10 則時本輪不回覆（`last_error=reply_quota_near_limit`，T-14）。
 
 **防呆設計（改 code 前先看 `app/workers/threads_bot.py` 檔頭的 docstring）**：回覆成功後先原子寫 state 再寫 jsonl，不重複回；
 不回機器人自己的貼文；只有圖片／影片、讀不到、太短 → 回固定文案、不經 AI；**AI 不可用（fallback）時不回覆、不標記**，下輪自動補回；

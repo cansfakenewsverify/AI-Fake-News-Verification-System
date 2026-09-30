@@ -120,6 +120,25 @@ class ThreadsTransientError(ThreadsAPIError):
     呼叫端不標記該 mention、下輪重試；status 為 5xx 或 None。"""
 
 
+MENTIONS_MAX_PAGES = 5          # spec §7.4：mentions 有 paging.next 就跟，最多 5 頁（T-14）
+REPLY_QUOTA_MARGIN = 10         # 剩不到 10 則回覆配額就停止本輪回覆（spec §7.10「回覆配額 1,000/24h」；T-14）
+
+
+def parse_reply_quota(raw: Any) -> Optional[Dict[str, int]]:
+    """threads_publishing_limit 的一列 → {"usage", "total"}；欄位缺漏或格式不對 → None（不擋回覆）。
+    形狀：{"reply_quota_usage": 3, "reply_config": {"quota_total": 1000, "quota_duration": 86400}}。"""
+    if not isinstance(raw, dict):
+        return None
+    config = raw.get("reply_config") if isinstance(raw.get("reply_config"), dict) else {}
+    try:
+        usage, total = int(raw.get("reply_quota_usage")), int(config.get("quota_total"))
+    except (TypeError, ValueError):
+        return None
+    if total <= 0 or usage < 0:
+        return None
+    return {"usage": usage, "total": total}
+
+
 def is_link_limit_error(exc: BaseException) -> bool:
     """回應 body 是否含 THREADS_API__LINK_LIMIT_EXCEEDED（spec §7.10「連結超限」）。"""
     body = getattr(exc, "body", None)
@@ -401,17 +420,31 @@ class ThreadsService(TwoStepPublishing):
         limit: int = 25,
     ) -> List[Dict[str, Any]]:
         """抓最近被 @ 提及的貼文（別人 tag 機器人請求查核）。
-        since：unix 秒數（spec 7.4）；after_cursor：分頁游標（分頁容忍見 T-14）。"""
-        params: Dict[str, Any] = {
+        since：unix 秒數（spec 7.4）；after_cursor：從這個分頁游標開始讀。
+        分頁（T-14）：回應有 paging.next 且有 paging.cursors.after 就讀下一頁，最多 MENTIONS_MAX_PAGES 頁；
+        缺 paging、缺欄位一律容忍（只讀到哪算到哪）。任何一頁失敗就整次丟錯——只回部分結果的話，
+        輪詢會把游標推過還沒讀到的較舊提及、之後永遠讀不到。"""
+        base_params: Dict[str, Any] = {
             "fields": "id,text,username,permalink,media_type,replied_to,timestamp",
             "limit": limit,
         }
         if since is not None:
-            params["since"] = since
-        if after_cursor:
-            params["after"] = after_cursor
-        data = self._get(f"{self.user_id}/mentions", **params)
-        return data.get("data", []) or []
+            base_params["since"] = since
+        out: List[Dict[str, Any]] = []
+        cursor = after_cursor
+        for _ in range(MENTIONS_MAX_PAGES):
+            params = dict(base_params)
+            if cursor:
+                params["after"] = cursor
+            data = self._get(f"{self.user_id}/mentions", **params)
+            out.extend(m for m in (data.get("data") or []) if isinstance(m, dict))
+            paging = data.get("paging") if isinstance(data.get("paging"), dict) else {}
+            cursors = paging.get("cursors") if isinstance(paging.get("cursors"), dict) else {}
+            next_cursor = cursors.get("after")
+            if not paging.get("next") or not next_cursor or next_cursor == cursor:
+                break
+            cursor = next_cursor
+        return out
 
     def get_post(self, media_id: str) -> Dict[str, Any]:
         """抓單則貼文內容（用來取得「被查核的原貼文」文字）。"""

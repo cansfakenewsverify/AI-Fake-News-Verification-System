@@ -1894,6 +1894,12 @@ flowchart LR
   - `pytest tests -q` 全綠，整體執行 <60 秒。
 - 預估：1.5h
 - 排程：Day 6 上午（sim 測試過即可，不擋 T-16）
+- 狀態：已完成（2026-09-30）：`ThreadsService.get_mentions` 以 `paging.cursors.after` 跟 `paging.next` 最多 5 頁，
+  任何一頁失敗整次丟錯（避免游標跳過較舊的提及）；`parse_reply_quota`；有提及要處理時才讀配額，剩不到 10 則 →
+  `last_error=reply_quota_near_limit`、`stopped="reply_quota"`、提及留待下輪；配額寫進 `state.reply_quota`；
+  sim fixture 支援 `pages`。測試 +13（`test_threads_bot_sim.py` 6、`test_threads_publish.py` 7）；
+  `/bot` 頁補上 `reply_quota_near_limit`、`mentions_failed`、`permission_denied` 的說明文字。
+  真 API 的分頁與配額回應形狀待 T-17 核對
 
 ### T-15 取得 Threads 長效 token 並記錄 OP-4
 - 優先級：P0

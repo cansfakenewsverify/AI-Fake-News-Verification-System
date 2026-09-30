@@ -44,6 +44,7 @@ from app.services.threads_service import (
     CONTAINER_ERROR,
     CONTAINER_FINISHED,
     CONTAINER_PUBLISHED,
+    MENTIONS_MAX_PAGES,
     ThreadsApiError,
     TwoStepPublishing,
 )
@@ -153,9 +154,19 @@ class FakeThreadsService(TwoStepPublishing):
             body = err.get("body") or {"error": {"message": f"sim injected HTTP {status} on {on}"}}
             raise ThreadsApiError(status, body)
 
+    @staticmethod
+    def _mention_list(data: Dict[str, Any], max_pages: Optional[int] = None) -> List[Dict[str, Any]]:
+        """fixture 的 mentions；有 "pages": [[...], [...]] 時依序攤平（模擬 Graph API 分頁，T-14），
+        max_pages 與 live 版的 MENTIONS_MAX_PAGES 相同上限。"""
+        pages = data.get("pages")
+        if isinstance(pages, list):
+            chosen = pages if max_pages is None else pages[:max_pages]
+            return [m for page in chosen if isinstance(page, list) for m in page if isinstance(m, dict)]
+        return [m for m in data.get("mentions") or [] if isinstance(m, dict)]
+
     def _mention(self, mention_id: Any) -> Optional[Dict[str, Any]]:
         mid = str(mention_id)
-        for m in self._load().get("mentions") or []:
+        for m in self._mention_list(self._load()):
             if isinstance(m, dict) and str(m.get("id")) == mid:
                 return m
         return None
@@ -269,12 +280,11 @@ class FakeThreadsService(TwoStepPublishing):
         return dict(bot)
 
     def get_mentions(self, since: Any = None, after_cursor: Optional[str] = None) -> List[Dict[str, Any]]:
-        """讀 mentions.json，只回 timestamp > since 的 mention（sim 無分頁，after_cursor 忽略）。"""
+        """讀 mentions.json，只回 timestamp > since 的 mention（after_cursor 忽略）。
+        fixture 用 "pages" 時依序讀，最多 MENTIONS_MAX_PAGES 頁（與 live 版相同）。"""
         since_ts = _to_epoch(since)
         out: List[Dict[str, Any]] = []
-        for m in self._load().get("mentions") or []:
-            if not isinstance(m, dict):
-                continue
+        for m in self._mention_list(self._load(), MENTIONS_MAX_PAGES):
             ts = _to_epoch(m.get("timestamp"))
             if since_ts is not None and (ts is None or ts <= since_ts):
                 continue
@@ -291,8 +301,8 @@ class FakeThreadsService(TwoStepPublishing):
         if isinstance(post, dict):
             self._raise_if(post, "get_post")
         # mention 層級注入（spec 7.9 形狀）：以貼文為單位生效，見模組 docstring
-        for m in data.get("mentions") or []:
-            if isinstance(m, dict) and mid in (_replied_to_id(m), str(m.get("id"))):
+        for m in self._mention_list(data):
+            if mid in (_replied_to_id(m), str(m.get("id"))):
                 self._raise_if(m, "get_post")
         if not isinstance(post, dict):
             raise ThreadsApiError(404, {"error": {"message": f"sim post {mid} not found"}})
