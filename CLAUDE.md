@@ -424,8 +424,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
-- [ ] Threads 真帳號串接：**2026-10-01 直接 @機器人的端到端已完成**（`docs/test/threads_live_log.md`）；
-      剩「在別人貼文底下呼叫」（加 `threads_read_replies`，票 B-38）、組員加入測試人員、延遲量測與截圖（票 T-16、O-27）；
+- [ ] Threads 真帳號串接：**2026-10-01 直接 @機器人、在貼文底下回覆 @機器人都已實測成功**（`docs/test/threads_live_log.md`）；
+      剩私人帳號確認、非測試人員貼文、組員加入測試人員、延遲量測與截圖（票 T-16、O-27）；機器人要一直開著才會自動回覆；
       步驟見 `docs/rebuild/threads_live_checklist.md`。原本的說明：
       要公開給陌生人用必須通過 Meta App Review（＋企業驗證）。FN-4 的三項行為（HTTP 429 → `backoff_until`、未知 4xx →
       標 failed 不回覆、container `FINISHED` 才 publish／`ERROR` 重建一次）已於 2026-09-20 實作並以模擬與 mock 測過（T-12／T-13）；
@@ -621,9 +621,10 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
   （到期 2026-11-29）；負責人帳號直接 @機器人 → 回覆成功、結果頁在正式站打得開、不重複回覆（`docs/test/threads_live_log.md`）。
   **在負責人電腦上以 live 執行時要同時設 `STORAGE_BACKEND=supabase`**，查證結果才會寫進正式資料庫、回覆裡的 `/r/{id}` 才打得開：
   `$env:THREADS_MODE='live'; $env:STORAGE_BACKEND='supabase'; .\venv\Scripts\python -m uvicorn app.main:app --port 8000`。
-  已知限制：提及列表要求 `replied_to` 會回 500，回覆相關欄位在目前四個權限下讀不到，所以「在別人貼文底下 @機器人」
-  還不能讀原貼文（本文太短時回「讀不到原貼文」）；要加 `threads_read_replies` 再測（票 B-38）。需要 Meta App（Threads use case）的四個權限：
-  `threads_basic`、`threads_content_publish`、`threads_manage_replies`、`threads_manage_mentions`。
+  「在貼文底下回覆 @機器人」也已實測成功（機器人讀原貼文判讀）。這需要第五個權限 `threads_read_replies`：沒有它，提及列表要求
+  `replied_to` 會回 500（程式仍保留退路：讀不到原貼文時，本文夠長就查本文、太短就回「讀不到原貼文」）。
+  私人帳號的回覆目前收不到（待確認）。需要 Meta App（Threads use case）的五個權限：
+  `threads_basic`、`threads_content_publish`、`threads_manage_replies`、`threads_manage_mentions`、`threads_read_replies`。
   通過 **Meta App Review（＋企業驗證）** 之前是開發模式：只收得到被加為 Threads Tester 的帳號的提及，不能公開給陌生人用。
   token：`scripts/threads_auth.py`（需 `THREADS_APP_ID`／`THREADS_APP_SECRET`／`PUBLIC_BASE_URL`；授權後導回網站的 `/oauth/callback` 顯示 code）
   → 寫出 `data/threads_token.json`（60 天，`--refresh` 續期；存在時優先於 `.env` 的 `THREADS_ACCESS_TOKEN`／`THREADS_USER_ID`）。

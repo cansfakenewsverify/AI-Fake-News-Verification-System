@@ -58,7 +58,8 @@ def test_authorize_url_has_scopes_and_redirect(cfg):
     assert "client_id=APPID123" in url
     assert "redirect_uri=https://demo.example.app/oauth/callback" in url
     assert (
-        "scope=threads_basic,threads_content_publish,threads_manage_replies,threads_manage_mentions" in url
+        "scope=threads_basic,threads_content_publish,threads_manage_replies,threads_manage_mentions,"
+        "threads_read_replies" in url
     )
     assert "response_type=code" in url
 

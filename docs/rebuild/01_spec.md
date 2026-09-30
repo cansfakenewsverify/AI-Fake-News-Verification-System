@@ -518,7 +518,8 @@
 全部依 threads_gap_analysis（官方文件核對）與 threads_verify_10（更正）為準；程式基底 `threads_service.py`／`threads_bot.py`／`api/threads.py`。
 
 ### 7.1 權限清單與模式
-- App 用途 Threads API；權限：`threads_basic`（不可移除）、`threads_content_publish`、`threads_manage_replies`、**`threads_manage_mentions`**（共識 §3 補列；threads_service.py:5-6、`.env.example:48-49`、CLAUDE.md §11 的清單要改）。`threads_read_replies` **不需要**（只有讀回覆樹才用）。開發模式下這四個權限對 App 角色使用者（Administrator／Threads Tester）直接可用，不送審、不需企業驗證（threads_verify_10 confirmed Claim 20；additional_findings 第 4 條）。
+- App 用途 Threads API；權限：`threads_basic`（不可移除）、`threads_content_publish`、`threads_manage_replies`、**`threads_manage_mentions`**（共識 §3 補列；threads_service.py:5-6、`.env.example:48-49`、CLAUDE.md §11 的清單要改）。`threads_read_replies` **不需要**（只有讀回覆樹才用）。**（2026-10-01 更正：live 實測沒有它讀不到提及的 `replied_to`，
+在貼文底下 @機器人時無法得知原貼文，已加入，共五個權限；票 B-38）**開發模式下這四個權限對 App 角色使用者（Administrator／Threads Tester）直接可用，不送審、不需企業驗證（threads_verify_10 confirmed Claim 20；additional_findings 第 4 條）。
 - 模式：`THREADS_MODE=off|live|sim`（預設 `off`；取代 `ENABLE_THREADS_BOT`，舊鍵 `true` 視為 `live`）。`DEMO_MODE` 不再影響 Threads（單一由 `THREADS_MODE` 控制）。
 
 ### 7.2 帳號與角色
@@ -545,7 +546,7 @@ url = f"{user_id}/mentions?fields=id,text,username,permalink,media_type,replied_
 # 【2026-10-01 live 實測（T-17）】mentions 帶 replied_to／is_reply／root_post 皆回 HTTP 500，實作改為
 #   fields=id,text,username,permalink,media_type,timestamp，再逐則 GET /{mention_id}?fields=id,replied_to；
 #   該欄位在四個權限下不穩定（常 500），讀不到時標 replied_to_unknown：本文 ≥8 字查本文，否則回 reply_cannot_read。
-#   在別人貼文底下呼叫需要 threads_read_replies（票 B-38）。紀錄見 docs/test/threads_live_log.md
+#   加上 threads_read_replies 並重新授權後，mentions 帶 replied_to 回 200（票 B-38）。紀錄見 docs/test/threads_live_log.md
 mentions = []
 loop ≤ 5 pages:                                          # limit/分頁參數在 mentions 頁未文件化（verify_10 refuted Claim 8）
   page = GET url ; mentions += page.data                 # 以 Threads Media 頁的 paging.next / paging.cursors.after 模式處理
@@ -1166,7 +1167,7 @@ Threads 回覆與分享專用文案見 7.7。
 | A4 | 新增 `/bot` 狀態頁、`/history` 頁、`GET /api/threads/replies`、`data/threads_replies.jsonl` | `/bot` 縮為**只讀最小版 P0**；`/history` 降 P2；replies 端點與 jsonl 維持（`/bot` 與 demo 證據需要） | ☐（D-14） |
 | A5 | 新增 `grey` 第四種 `frame_type` 僅用於 AI 不可用；`ai_unavailable` 布林為新客戶端的判斷依據 | 維持 | ☐ |
 | A6 | 管理端點以 `X-Admin-Token` 單一共享金鑰保護；速率限制與每日額度 | admin token 維持（`start.bat` 自動產生）；**速率限制降 P2、每日額度 FR-14 降 P1** | ☐（D-14） |
-| A7 | 不加低信心紅燈閘門（D-6）；`threads_read_replies` 不申請 | 維持 | ☐ |
+| A7 | 不加低信心紅燈閘門（D-6）；`threads_read_replies` 不申請 | 維持；**2026-10-01 改為申請 `threads_read_replies`**（live 實測需要，票 B-38） | ☐ |
 | A8 | 新增唯一前端依賴 `react-router-dom`；`/terms` 不獨立成頁 | 維持，列 D-13 確認 | ☐（D-13） |
 | A9 | AI provider timeout 150 s → 60 s；`THREADS_MODE` 取代 `ENABLE_THREADS_BOT`；模擬模式命名 `sim` | 維持 | ☐ |
 | A10 | 每日 AI 呼叫上限 300、速率 10 次/分/IP；Threads 每輪 5、每日 50 則 | 每日上限 P1、速率 P2；Threads 每輪 **demo 週 2**、每日 50 | ☐（D-14） |

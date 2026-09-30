@@ -38,7 +38,9 @@ AUTHORIZE_URL = "https://threads.com/oauth/authorize"
 SHORT_TOKEN_URL = "https://graph.threads.com/oauth/access_token"
 LONG_TOKEN_URL = "https://graph.threads.net/access_token"
 REFRESH_URL = "https://graph.threads.net/refresh_access_token"
-SCOPES = "threads_basic,threads_content_publish,threads_manage_replies,threads_manage_mentions"
+# threads_read_replies：2026-10-01 live 實測，沒有它讀不到提及的 replied_to（在別人貼文底下 @機器人時的原貼文；票 B-38）
+SCOPES = ("threads_basic,threads_content_publish,threads_manage_replies,threads_manage_mentions,"
+          "threads_read_replies")
 DEFAULT_TOKEN_PATH = BACKEND_DIR / "data" / "threads_token.json"
 MIN_REFRESH_AGE = timedelta(hours=24)
 DEFAULT_EXPIRES_IN = 60 * 86400  # 回應缺 expires_in 時以長效 token 的 60 天計（避免 expires_at=now 使 bot 誤判失效）
