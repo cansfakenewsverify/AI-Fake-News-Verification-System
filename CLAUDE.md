@@ -427,7 +427,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
 - [ ] Threads：**2026-10-01 已串接並搬上雲端**（票 B-38、B-39；`docs/test/threads_live_log.md`）。剩非測試人員貼文、
-      延遲量測與截圖（票 T-16、O-27）、授權約 2026-12-29 到期要重新授權、送 Meta App Review（先問老師企業驗證）；
+      延遲量測與截圖（票 T-16、O-27）、授權約 2026-12-29 到期要重新授權、送 Meta App Review（先問老師企業驗證；
+      準備清單與表單草稿在 `docs/rebuild/meta_app_review.md`）；
       步驟見 `docs/rebuild/threads_live_checklist.md`。原本的說明：
       要公開給陌生人用必須通過 Meta App Review（＋企業驗證）。FN-4 的三項行為（HTTP 429 → `backoff_until`、未知 4xx →
       標 failed 不回覆、container `FINISHED` 才 publish／`ERROR` 重建一次）已於 2026-09-20 實作並以模擬與 mock 測過（T-12／T-13）；

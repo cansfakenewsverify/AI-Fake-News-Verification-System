@@ -119,7 +119,8 @@
     Supabase pg_cron 每 5 分鐘叫醒 Render），負責人電腦不必開著。直接 @機器人、在貼文底下回覆 @機器人都實測成功
     （`docs/test/threads_live_log.md`）。開發模式下，試用者要先加為測試人員並接受邀請，帳號也要設公開（私人帳號收不到）。
     token 到期前 10 天自動續期；**授權約 2026-12-29 到期**，要重跑 `scripts/threads_auth.py` 再
-    `threads_cloud_setup.py --token-only --apply`。開放給所有人要送 Meta App Review（先問老師企業驗證要用誰的名義）。開放給一般使用者另需 Meta App Review 與企業驗證（`CLAUDE.md` 第 11 節）。
+    `threads_cloud_setup.py --token-only --apply`。開放給所有人要送 Meta App Review（先問老師企業驗證要用誰的名義）；
+    要交的東西、權限說明與錄影腳本的草稿在 `docs/rebuild/meta_app_review.md`。開放給一般使用者另需 Meta App Review 與企業驗證（`CLAUDE.md` 第 11 節）。
 11. **查核結論同步與每週評測**：`ADMIN_TOKEN` 已於 2026-09-30 加入 GitHub secret，第一次同步已完成。
     之後每天 08:07、20:07 自動同步；第一次每週評測在 10-04（週日）21:17，報告會出現在 `docs/test/results/weekly/`。
     workflow 失敗時 GitHub 會寄信給負責人。
