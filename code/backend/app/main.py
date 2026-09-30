@@ -117,13 +117,18 @@ async def lifespan(app: FastAPI):
             if want_threads:
                 # 與 POST /api/threads/poll 同一入口、共用輪詢鎖；撞到進行中的一輪
                 # （PollInProgress）只留 threads_bot 的一行 warning，不讓 APScheduler 印 traceback
+                poll_seconds = int(settings.THREADS_POLL_SECONDS or 0)
+                interval = ({"seconds": poll_seconds} if poll_seconds > 0
+                            else {"minutes": settings.THREADS_POLL_MINUTES})
+                # 上一輪還沒跑完（AI 判讀要十幾秒）就到下一次：APScheduler 預設 max_instances=1，直接略過這一次
                 scheduler.add_job(
                     threads_api.run_poll_quietly, "interval",
-                    minutes=settings.THREADS_POLL_MINUTES,
+                    **interval,
                     kwargs={"trigger": "scheduler"},
                     id="threads_poll", replace_existing=True,
                 )
-                logger.info("  - Threads bot   : poll mentions every %dmin", settings.THREADS_POLL_MINUTES)
+                logger.info("  - Threads bot   : poll mentions every %s",
+                            f"{poll_seconds}s" if poll_seconds > 0 else f"{settings.THREADS_POLL_MINUTES}min")
 
             scheduler.start()
             app.state.scheduler = scheduler

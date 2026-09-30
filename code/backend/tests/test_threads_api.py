@@ -530,6 +530,21 @@ def test_scheduler_registers_quiet_poll_job(env, monkeypatch):
     del app.state.scheduler
 
 
+def test_scheduler_can_poll_in_seconds(env, monkeypatch):
+    monkeypatch.setattr(main_module, "init_sql_db", lambda: None)
+    monkeypatch.setattr(share_mod, "warn_if_public_base_url_missing", lambda *a, **k: None)
+    monkeypatch.setattr(settings, "ENABLE_SCHEDULER", False)
+    monkeypatch.setattr(settings, "THREADS_POLL_MINUTES", 7)
+    monkeypatch.setattr(settings, "THREADS_POLL_SECONDS", 15)
+
+    async def scenario():
+        async with main_module.lifespan(app):
+            return app.state.scheduler.get_job("threads_poll").trigger.interval
+
+    assert asyncio.run(scenario()) == timedelta(seconds=15)
+    del app.state.scheduler
+
+
 def test_scheduler_job_poll_in_progress_one_log_line_no_traceback(env, caplog):
     _copy_example_mentions(env)
     lock = _fresh_lock(env)

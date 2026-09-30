@@ -122,6 +122,9 @@ class Settings(BaseSettings):
     THREADS_ACCESS_TOKEN: str = ""      # Meta 開發者後台的長效 access token（60 天）
     THREADS_USER_ID: str = ""           # 機器人帳號的 Threads user id
     THREADS_POLL_MINUTES: int = 5       # 輪詢 mentions 的間隔（分鐘）
+    # >0 時改以秒為單位輪詢、取代 THREADS_POLL_MINUTES（親友試用時想更快回覆）。每輪至少 1 次 Threads API 呼叫，
+    # 太短容易被限流（429 → 自動暫停 5～60 分鐘，反而更慢）；開發模式收不到 webhook，這是最接近即時的做法
+    THREADS_POLL_SECONDS: int = 0
     THREADS_BASE_URL: str = "https://graph.threads.net/v1.0"
     THREADS_MAX_REPLIES_PER_POLL: int = 5   # 單輪最多回覆則數
     THREADS_MAX_REPLIES_PER_DAY: int = 50   # 每日最多回覆則數
