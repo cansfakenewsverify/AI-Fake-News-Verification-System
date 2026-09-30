@@ -71,3 +71,15 @@ Threads 測試人員：`factcheck_tw_bot` 與負責人帳號已接受邀請；�
 改成公開後再測一次，才能確定是「私人帳號收不到」還是「邀請還沒生效」。
 
 尚未完成：私人帳號的確認、非測試人員貼文的讀取、PF-3a／PF-3b 延遲量測、截圖存檔。
+
+## 雲端執行（2026-10-01 起）
+
+| 項目 | 內容 |
+|------|------|
+| 搬遷 | 03:36 負責人停掉本機機器人後，`scripts/threads_cloud_setup.py --apply` 把狀態（已回覆 3 則、since 游標）、3 筆回覆紀錄與 token 寫進 Supabase（`threads_kv`、`threads_replies`） |
+| 部署 | 03:36 推送 `3935b67`（`THREADS_MODE=live`、`THREADS_POLL_SECONDS=30`），約 4 分鐘後正式站 `/api/threads/status` 為 `mode=live`、`configured=true` |
+| 第一次雲端輪詢 | 03:41：checked 0（舊的 3 則沒有重複回覆） |
+| 不休眠 | Supabase pg_cron＋pg_net 每 5 分鐘呼叫 Render `/health`（`scripts/supabase_keepalive.py`）；03:40 第一次執行 succeeded、HTTP 200 |
+| 端到端 | 04:17 負責人 @機器人，雲端機器人在下一輪回覆（checked 1、replied 1）；`/bot` 頁顯示這筆回覆 |
+
+之後負責人電腦不需要開著。要在本機跑 live 必須設 `STORAGE_BACKEND=supabase`（與雲端共用狀態與鎖），不能用本機檔案狀態。

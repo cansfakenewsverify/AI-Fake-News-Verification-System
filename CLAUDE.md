@@ -9,6 +9,8 @@
   `https://fakenewsverify-api.onrender.com`（FastAPI），資料在 Supabase Postgres + pgvector。架構與操作見第 12 節。
 - AI 只用學校 **CGU AIR 閘道**：分析 `gpt-5.6-luna`（2026-09-30 閘道下架 `gpt-5.4-mini` 後改用；主模型被下架時自動改用
   備援 `gpt-6-luna`）、embedding `text-embedding-3-small`；myai168 已停用（第 2 節）。
+- **Threads 機器人 `@factcheck_tw_bot` 在雲端執行**（2026-10-01；Render 每 30 秒檢查提及，狀態存在 Supabase，
+  Supabase pg_cron 每 5 分鐘叫醒 Render；開發模式只收測試人員的提及，第 11 節）。
 - 知識庫由 GitHub Actions **`factcheck-sync`** 每天兩次同步查核機構的新結論（第一次會自動回填約 1.85 萬筆）；**`weekly-eval`**
   每週日用 CGU 每週剩下的額度做準確率測驗、報告自動存進 `docs/test/results/weekly/`（第 3、6 節）。
   兩者都用 GitHub repository secret **`ADMIN_TOKEN`**（與 Render 相同值，2026-09-30 已設定）。第一次同步 2026-09-30 完成：
@@ -237,7 +239,7 @@ code/backend/
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **830 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **31 個** Postgres
+├── tests/                      ★pytest **842 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -317,7 +319,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 830 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 842 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -424,8 +426,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
-- [ ] Threads 真帳號串接：**2026-10-01 直接 @機器人、在貼文底下回覆 @機器人都已實測成功**（`docs/test/threads_live_log.md`）；
-      剩私人帳號確認、非測試人員貼文、組員加入測試人員、延遲量測與截圖（票 T-16、O-27）；機器人要一直開著才會自動回覆；
+- [ ] Threads：**2026-10-01 已串接並搬上雲端**（票 B-38、B-39；`docs/test/threads_live_log.md`）。剩非測試人員貼文、
+      延遲量測與截圖（票 T-16、O-27）、授權約 2026-12-29 到期要重新授權、送 Meta App Review（先問老師企業驗證）；
       步驟見 `docs/rebuild/threads_live_checklist.md`。原本的說明：
       要公開給陌生人用必須通過 Meta App Review（＋企業驗證）。FN-4 的三項行為（HTTP 429 → `backoff_until`、未知 4xx →
       標 failed 不回覆、container `FINISHED` 才 publish／`ERROR` 重建一次）已於 2026-09-20 實作並以模擬與 mock 測過（T-12／T-13）；
@@ -623,7 +625,7 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
   `$env:THREADS_MODE='live'; $env:STORAGE_BACKEND='supabase'; .\venv\Scripts\python -m uvicorn app.main:app --port 8000`。
   「在貼文底下回覆 @機器人」也已實測成功（機器人讀原貼文判讀）。這需要第五個權限 `threads_read_replies`：沒有它，提及列表要求
   `replied_to` 會回 500（程式仍保留退路：讀不到原貼文時，本文夠長就查本文、太短就回「讀不到原貼文」）。
-  私人帳號的回覆目前收不到（待確認）。需要 Meta App（Threads use case）的五個權限：
+  私人帳號的回覆收不到（實測：朋友改公開後才收到；Meta 官方文件也寫只通知公開貼文）。需要 Meta App（Threads use case）的五個權限：
   `threads_basic`、`threads_content_publish`、`threads_manage_replies`、`threads_manage_mentions`、`threads_read_replies`。
   通過 **Meta App Review（＋企業驗證）** 之前是開發模式：只收得到被加為 Threads Tester 的帳號的提及，不能公開給陌生人用。
   token：`scripts/threads_auth.py`（需 `THREADS_APP_ID`／`THREADS_APP_SECRET`／`PUBLIC_BASE_URL`；授權後導回網站的 `/oauth/callback` 顯示 code）

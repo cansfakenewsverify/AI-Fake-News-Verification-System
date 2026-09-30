@@ -2806,3 +2806,14 @@ flowchart LR
 - 狀態：已完成（2026-10-01）：負責人同意加入；`threads_auth.py` 的 SCOPES 加上它、重新授權後提及列表可帶 `replied_to`。
   負責人在自己的貼文底下回覆「@factcheck_tw_bot」→ 機器人讀原貼文、回覆成功、結果頁 200。
   朋友的私人帳號回覆收不到（是否已接受邀請待確認）；非測試人員的貼文尚未測
+
+### B-39 Threads 機器人搬上雲端（狀態存 Supabase）
+- 優先級：P1
+- 依賴：T-15、B-38
+- 對應：CLAUDE.md 第 11、12 節；負責人要求「搬上雲端、用 Supabase 排程叫醒」
+- 範圍：`code/backend/app/services/threads_pg.py`（新增）、`threads_state.py`（`use_db`、`state_initialized`）、
+  `threads_service.py`（token 從資料庫讀、`refresh_if_due` 自動續期）、`app/workers/threads_bot.py`（資料庫輪詢鎖、
+  狀態未初始化不輪詢）、`app/services/pg_store.py`（兩張表）、`scripts/threads_cloud_setup.py`、`scripts/supabase_keepalive.py`、
+  `render.yaml`（`THREADS_MODE=live`、`THREADS_POLL_SECONDS=30`）、`tests/test_threads_cloud.py`（11）、`tests/test_pg_store.py`（+3）
+- 驗收：pytest 842、Postgres 契約 34；搬遷後雲端第一輪不重複回覆舊提及；pg_cron 每 5 分鐘 HTTP 200；負責人 @機器人 → 雲端回覆
+- 狀態：已完成（2026-10-01，commit `3935b67`；實測紀錄 `docs/test/threads_live_log.md`）
