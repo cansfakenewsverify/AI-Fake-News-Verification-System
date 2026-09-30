@@ -2770,7 +2770,8 @@ flowchart LR
 - 驗收：YAML 可解析；負責人加入 secret 後以 workflow_dispatch 各手動觸發一次（weekly-eval 可先勾 plan_only）。
 - 預估：1.5h
 - 排程：報告後
-- 狀態：檔案已完成（2026-09-30）；**待負責人把 `ADMIN_TOKEN` 加入 repository secret**
+- 狀態：已完成（2026-09-30）：負責人加入 `ADMIN_TOKEN` 後手動執行 factcheck-sync（run 36739414993）：
+  recent 自動改跑 full，寫入 18,453 筆、27 分鐘、來源與模型檢查皆無錯誤，之後熱門牆更新（http 200）。weekly-eval 待 10-04 首次排程
 
 ### B-37 AI 模型改為 gpt-5.6-luna，下架時自動改用備援模型
 - 優先級：P0（正式站新內容的 AI 判讀全數失敗）

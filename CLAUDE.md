@@ -11,7 +11,9 @@
   備援 `gpt-6-luna`）、embedding `text-embedding-3-small`；myai168 已停用（第 2 節）。
 - 知識庫由 GitHub Actions **`factcheck-sync`** 每天兩次同步查核機構的新結論（第一次會自動回填約 1.85 萬筆）；**`weekly-eval`**
   每週日用 CGU 每週剩下的額度做準確率測驗、報告自動存進 `docs/test/results/weekly/`（第 3、6 節）。
-  兩者都要 GitHub repository secret **`ADMIN_TOKEN`**（與 Render 相同值）；**截至 2026-09-30 尚未設定，所以還沒開始跑**。
+  兩者都用 GitHub repository secret **`ADMIN_TOKEN`**（與 Render 相同值，2026-09-30 已設定）。第一次同步 2026-09-30 完成：
+  寫入 18,453 筆（MyGoPen 4,175、TFC 7,172、Cofacts 7,106；27 分鐘、embedding 543 萬 tokens 約 USD 0.22），
+  正式知識庫已證實列 **18,604 筆**。
 - 進度報告資料都在 `presentations/2026-09_進度報告/`（簡報影片網址、投影片、報告內容說明、測試計畫書 PDF、分工表；
   先看該資料夾的 README）。**報告當天播的是 5 分鐘簡報影片**（老師 2026-09-20 的新規定）：
   <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>（4 分 38 秒；v1.1 起旁白為女聲 `zh-TW-HsiaoChenNeural`；原始碼 `video/hf-presentation/`，
@@ -446,10 +448,9 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       再開始每週 20 筆的線上抽樣雙人獨立覆核（M2）。現有 150 筆已飽和且公開，不能用來宣稱上線準確率（第 6 節）
 - [ ] （選）信心分數校準：可靠度圖、ECE、Brier，並檢驗 `GREEN_MIN_CONFIDENCE=0.7` 實際擋掉多少錯誤（同上計畫第 4 節）
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
-- [ ] **查核結論同步與每週評測開始運作（FR-23／FR-24）**：程式與 workflow 已完成；**要負責人把 `ADMIN_TOKEN` 加入 GitHub
-      repository secret**（值從 Render 後台 Environment 頁複製）。設好後第一次 `factcheck-sync` 會自動回填約 1.85 萬筆查核機構資料
-      （約 180 MB，免費上限 500 MB），證據信心（FR-22）也要等這一步才有足夠的近鄰。
-      已知限制：Cofacts 的 RUMOR 一律標 MISINFO，其中的詐騙訊息（釣魚、假中獎）命中時燈號是紅色「假訊息」而不是「詐騙警告」
+- [ ] 第一次 `weekly-eval`（2026-10-04 週日 21:17）跑完後檢查報告：`docs/test/results/weekly/` 應出現當天的 .md／.csv；
+      偽陰性逐筆看查核網址（`docs/test/上線後準確率驗證計畫.md` M5）
+- [ ] 已知限制：Cofacts 的 RUMOR 一律標 MISINFO，其中的詐騙訊息（釣魚、假中獎）命中時燈號是紅色「假訊息」而不是「詐騙警告」
 - [ ] 確認 CGU 每週額度的重置日：`weekly-eval` 排在週日 21:17，若重置不是週一 00:00，把排程移到重置前一晚（用剩的才不浪費）
 - [ ] 提供查核機構的熱搜名單（FR-21 延伸）：`hot_claims.rank()` 已可用於未證實內容；還缺管理端點、電話／帳號／人名遮蔽、
       隱私政策增列「提供查核機構」用途（現行政策只寫「供後續相同或相似內容快速比對」）
@@ -460,7 +461,9 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [x] AI 模型改為 `gpt-5.6-luna`＋備援 `gpt-6-luna`（2026-09-30，票 B-37）：閘道已下架 `gpt-5.4-mini`，正式站新內容的判讀全數是
       fallback。以 150 題與本週 41 則新查核比較兩個候選模型後選定；遇到 404 `model_not_found` 自動改用備援；同步時檢查模型清單。
       舊評測結果封存在 `data/eval_archive_gpt54mini_2026-09/`
-- [x] 查核結論同步（FR-23，票 B-35）與每週新查核自動評測（FR-24，票 B-36）＋兩個 workflow（票 O-30，取代 factcheck-daily）
+- [x] 查核結論同步（FR-23，票 B-35）與每週新查核自動評測（FR-24，票 B-36）＋兩個 workflow（票 O-30，取代 factcheck-daily）；
+      2026-09-30 設好 `ADMIN_TOKEN` 後第一次同步完成（18,453 筆，正式知識庫已證實 18,604 筆；知識庫頁列表 0.5 秒、搜尋 2.2 秒）。
+      實測改寫過的謠言與查核報告相似度 0.738（未達 0.75 快取門檻），AI 判讀後結果頁列出該報告、信心「中」（similar_case）
 - [x] 證據信心（FR-22）上線（2026-09-24 推送；正式站快取命中查核機構列時顯示「信心 高」）
 - [x] 查核結果回補與本站熱門查證（2026-09-22，spec v1.4 FR-20／FR-21，票 D-06、B-27～B-29、S-15）：
       URL／hash 命中未證實列時只讓 rule／gold／admin 列取代；`/api/trending/refresh?analyze=false`；

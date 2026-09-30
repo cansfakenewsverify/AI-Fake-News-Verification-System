@@ -69,7 +69,7 @@
     做完再更新熱門牆；第一次執行自動完整回填約 1.85 萬筆。GitHub Actions `factcheck-sync` 觸發。
   - 每週日用 CGU 每週剩下的額度（上限 USD 6、保留 USD 3 給使用者）量 AI 判讀準確率：本週新發布的查核結論為主要數字，
     知識庫歷史資料每週輪替 2,000 題為參考；報告自動存進 `docs/test/results/weekly/`。GitHub Actions `weekly-eval` 觸發。
-  - 兩者都要 GitHub repository secret `ADMIN_TOKEN`，**尚未設定**（待辦第 11 項）。
+  - 2026-09-30 負責人設好 GitHub repository secret `ADMIN_TOKEN`；第一次同步寫入 18,453 筆，正式知識庫已證實 18,604 筆。
 - **AI 模型下架與更換**（2026-09-30，票 B-37，測試計畫書 DEF-10）：試跑每週評測時發現閘道已下架 `gpt-5.4-mini`，
   正式站沒命中快取的查證全部回「AI 分析暫時無法使用」。比較兩個候選模型後改用 `gpt-5.6-luna`（本週新查核漏判 5 則，
   另一個 10 則；每次判讀約 USD 0.0014，舊模型的 22%），主模型被下架時自動改用 `gpt-6-luna`，同步時檢查模型清單、
@@ -118,9 +118,9 @@
 10. **Threads 實機串接**：不需要帳號的程式已全部完成（含 2026-09-30 的提及分頁與回覆配額護欄）；
     其餘 6 步要用負責人的 Meta／Threads 帳號，約 2 小時、大部分要在負責人電腦上做，步驟見
     `docs/rebuild/threads_live_checklist.md`。開放給一般使用者另需 Meta App Review 與企業驗證（`CLAUDE.md` 第 11 節）。
-11. **把 `ADMIN_TOKEN` 加入 GitHub repository secret**：查核結論同步（每天兩次）與每週評測（週日）都靠它；
-    值從 Render 後台 Environment 頁複製（不要貼到聊天或檔案）。加好後可在 GitHub Actions 頁手動執行一次 `factcheck-sync`，
-    第一次會自動完整回填約 1.85 萬筆（30～40 分鐘）。
+11. **查核結論同步與每週評測**：`ADMIN_TOKEN` 已於 2026-09-30 加入 GitHub secret，第一次同步已完成。
+    之後每天 08:07、20:07 自動同步；第一次每週評測在 10-04（週日）21:17，報告會出現在 `docs/test/results/weekly/`。
+    workflow 失敗時 GitHub 會寄信給負責人。
 12. **提供查核機構的熱搜名單**：排序已完成（`app/services/hot_claims.py`），尚缺管理端點、個資遮蔽，
     以及隱私政策增列「提供查核機構」的用途；公開頁維持只列已證實內容。
 13. **上線後準確率量測**：報告前的 150 筆評測題庫已飽和（accuracy 100%）且自 2026-06 起就公開在版本庫，
@@ -129,8 +129,8 @@
     M2 每週 20 筆線上結果雙人獨立覆核並計算 Cohen's kappa、M3 以 `recheck_unverified.py` 做查核結論回溯比對、
     M4 使用者回饋只作抽樣導引不計入正確率，M5 每週新查核自動評測（第 11 項設好後自動執行，每週一份報告）。
     M1 的下一步是由姚睿出題（依票 O-11 的原則，AI 助理不代為產生題目）。
-14. **查核機構資料寫入正式資料庫**：改由第 11 項的第一次同步自動完成（約 180 MB，免費上限 500 MB；
-    必要時可用 `ingest_factchecks.py rollback --target cloud --apply` 撤回）。
+14. **查核機構資料寫入正式資料庫**：2026-09-30 由第一次同步完成（18,453 筆；必要時可用
+    `ingest_factchecks.py rollback --target cloud --apply` 撤回）。
 15. **證據信心（夾角）**：已於 2026-09-24 上線（規格 v1.5 FR-22）；第 14 項完成後才有足夠的已查核近鄰。
 16. **確認 CGU 每週額度的重置日**：每週評測排在週日 21:17，假設週一 00:00 重置；若不是，把排程移到重置前一晚，
     用剩的額度才不會浪費（改 `.github/workflows/weekly-eval.yml` 的 cron）。
