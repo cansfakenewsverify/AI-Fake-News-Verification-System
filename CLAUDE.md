@@ -605,14 +605,14 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - **沒有使用者帳號 / 登入系統**，也不做（共識 §2；過度設計、牽涉帳密安全）。「重整後還看得到自己查過什麼」已用 `localStorage` 解決；
   `/history` 全頁是 P2、未排（票 S-14）。只有要「跨裝置看個人歷史」才需要會員系統。
 
-## 11. Threads 查核機器人（延伸功能，預設關；目前 demo 用模擬模式）
+## 11. Threads 查核機器人（2026-10-01 起在雲端以 live 執行；開發模式，只收測試人員的提及）
 
 **功能**：使用者在 Threads 上「回覆一則可疑貼文並 @機器人」（或直接 @機器人貼可疑文字）→ 機器人讀原貼文 → 走與網站相同的
 三層快取＋AI 管線 → 回覆燈號＋摘要＋查核來源（只列 Tier 1／2，沒有就寫「尚無查核機構證實」）＋結果頁連結 `{PUBLIC_BASE_URL}/r/{id}`
 ＋「AI 自動判讀，請自行查證。」（≤500 字，模板在 `threads_reply.py`）。機器人帳號：`BOT_HANDLE=factcheck_tw_bot`。
 
 **三種模式**：`THREADS_MODE=off | live | sim`（程式一律讀 `settings.threads_mode_effective`；舊的布林開關鍵已被它取代）。
-- `off`（預設；**雲端固定 off**）：排程不啟動，`POST /api/threads/poll` 回 `threads_disabled`。
+- `off`（程式預設）：排程不啟動，`POST /api/threads/poll` 回 `threads_disabled`。**雲端（render.yaml）是 `live`**。
 - `sim`（**進度報告與 demo 影片用的就是這個**）：`FakeThreadsService` 不打 Threads API、不需要 token——讀 `data/threads_sim/mentions.json`
   （格式範例 `scripts/threads_sim_mentions.example.json`）、回覆寫到 `data/threads_sim/replies.jsonl`。
   `test_threads_bot.py --reset-sim` 會清模擬紀錄，並用 `scripts/threads_sim_seed.json` 以 `label_source="gold"` 預熱知識庫，
@@ -630,9 +630,17 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
   → 寫出 `data/threads_token.json`（60 天，`--refresh` 續期；存在時優先於 `.env` 的 `THREADS_ACCESS_TOKEN`／`THREADS_USER_ID`）。
   驗證：`test_threads_bot.py --live`（只驗憑證）→ `--poll`（會真的回覆貼文、花額度）。
 
-**只在負責人的電腦上跑，不上雲**：狀態都是本機檔案——`data/threads_state.json`（已回覆 id／游標／每日計數）、`data/threads_replies.jsonl`
-（回覆紀錄）、`data/threads_token.json`、`data/threads_sim/`、`data/threads_poll.lock`，全部 gitignored。雲端硬碟是暫時的，重啟就忘記
-回過誰；雲端和本機同時開 live 會重複回覆同一則貼文。
+**在雲端執行（2026-10-01）**：Render 上 `THREADS_MODE=live`、`THREADS_POLL_SECONDS=30`（每 30 秒檢查一次；開發模式收不到
+webhook，這是最接近即時的做法）。`STORAGE_BACKEND=supabase` 且 live 時（`threads_state.use_db()`），狀態、回覆紀錄、token、輪詢鎖都存在
+Supabase 的 `threads_kv`／`threads_replies`（`app/services/threads_pg.py`），雲端重啟不會忘記回過誰；本機若也要跑 live，一樣設
+`STORAGE_BACKEND=supabase`，就會和雲端共用狀態與鎖、不會重複回覆（**不要**用本機檔案狀態跑 live）。
+- 搬遷：`scripts/threads_cloud_setup.py`（預設 dry-run；`--apply` 把本機 `data/threads_state.json`、`threads_replies.jsonl`、
+  `threads_token.json` 寫進 Supabase；雲端已有狀態時不覆蓋）。資料庫還沒有狀態時機器人一律略過（`threads_state_not_initialized`），
+  避免全新的雲端機器人把所有舊提及當成新的回一遍。
+- token：剩不到 10 天自動續期並寫回資料庫（`ThreadsService.refresh_if_due`）；授權 90 天到期要重跑 `scripts/threads_auth.py`，
+  再 `threads_cloud_setup.py --token-only --apply`。
+- 不休眠：Supabase pg_cron＋pg_net 每 5 分鐘呼叫 Render `/health`（`scripts/supabase_keepalive.py`；`--remove` 刪除）。
+- 模擬模式（sim）與測試仍用 `data/` 下的檔案：`data/threads_sim/`、`data/threads_state.json` 等，全部 gitignored。
 
 **端點**：`GET /api/threads/status`、`GET /api/threads/replies`（公開唯讀、不含 token）；`POST /api/threads/poll`（需 `X-Admin-Token`；
 202 背景執行，已有一輪在跑回 409）。排程間隔 `THREADS_POLL_MINUTES`（預設 5）；上限 `THREADS_MAX_REPLIES_PER_POLL=5`、
@@ -668,8 +676,9 @@ GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ 
 - **上線護欄數值寫在 `render.yaml`**（後台手動改的值，下次 Blueprint 同步會被檔案蓋回去）：
   `DAILY_AI_CALL_CAP=300`、`RATE_LIMIT_PER_MINUTE=30`、`RATE_LIMIT_PER_HOUR=200`；用量看 `/health.daily_ai_calls`。
   AI 模型 `CGU_MODEL`／`CGU_FALLBACK_MODEL` 與每週評測的 `WEEKLY_EVAL_MAX_USD`／`WEEKLY_EVAL_RESERVE_USD` 也寫在 `render.yaml`。
-- **雲端刻意關閉**：`ENABLE_SCHEDULER=false`、`USE_WEB_SEARCH=false`、`THREADS_MODE=off`
-  （Threads 機器人的狀態檔還是本機檔案，雲端重啟會忘記回過誰 → 只在本機跑）。
+- **雲端刻意關閉**：`ENABLE_SCHEDULER=false`、`USE_WEB_SEARCH=false`。
+- **Threads 機器人在雲端執行**（`THREADS_MODE=live`、每 30 秒檢查；狀態在 Supabase，見第 11 節）。Render 免費主機靠
+  Supabase pg_cron 每 5 分鐘叫醒（`scripts/supabase_keepalive.py`），不再依賴 GitHub Actions keepalive 的時間。
 - 只有 `code/backend` 底下的變更會觸發 Render 自動部署（`rootDir`）。
 - **知識庫規模**：`/api/knowledge`、`/stats`、`/hot` 由 store 在資料庫裡篩選、計數與分頁（`list_verified`、`verified_counts`、
   `get_verified_by_ids`），不要改回 `get_all_records()` 整表載入。語意比對沒有向量索引：2026-09-23 以 1.9 萬筆隨機向量在拋棄式

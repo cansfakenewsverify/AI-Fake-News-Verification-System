@@ -17,6 +17,10 @@ failed：{mention_id: {count, final, reason, stage, status, at}}；final=true �
   不進 replied_ids）。舊格式的整數值（失敗次數）讀取時相容。
 
 所有函式都接受 data_dir，預設為模組層級 DATA_DIR（相對後端工作目錄，與其他 store 一致）。
+
+雲端執行（2026-10-01 起）：use_db() 為真時——settings.use_supabase、THREADS_MODE 生效為 live、呼叫端沒有指定
+data_dir——狀態與回覆紀錄改存 Supabase（app/services/threads_pg.py 的 threads_kv／threads_replies），
+函式介面不變。本機與雲端同時以 live 執行時共用同一份，不會重複回覆。模擬模式與測試（指定 data_dir）一律用檔案。
 """
 from __future__ import annotations
 
@@ -59,6 +63,31 @@ _DEFAULT_STATE = {
 }
 
 PathLike = Union[str, Path]
+
+
+def use_db(data_dir: Optional[PathLike] = None) -> bool:
+    """狀態是否存在資料庫（見模組說明）。指定 data_dir 一律用檔案。"""
+    if data_dir is not None:
+        return False
+    from app.config import settings
+
+    return bool(settings.use_supabase and settings.threads_mode_effective == "live")
+
+
+def _pg():
+    from app.services.threads_pg import get_threads_pg
+
+    return get_threads_pg()
+
+
+def state_initialized(data_dir: Optional[PathLike] = None) -> bool:
+    """
+    資料庫版要先由 scripts/threads_cloud_setup.py 建好狀態（含 since 游標與已回覆 id）才能輪詢：
+    否則全新的雲端機器人會把 Threads 上所有舊提及當成新的、全部回一遍。檔案版不需要（模擬與測試從空狀態開始）。
+    """
+    if use_db(data_dir):
+        return _pg().get("state") is not None
+    return True
 
 
 def default_state() -> dict:
@@ -113,13 +142,15 @@ def _normalize(raw: object) -> dict:
 
 
 def load_state(data_dir: Optional[PathLike] = None, now: Optional[datetime] = None) -> dict:
-    """讀 threads_state.json；檔案不存在或損毀時回預設值，缺鍵補預設。"""
-    path = state_path(data_dir)
+    """讀狀態（資料庫或 threads_state.json）；不存在或損毀時回預設值，缺鍵補預設。"""
     raw = None
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        raw = None
+    if use_db(data_dir):
+        raw = _pg().get("state")
+    else:
+        try:
+            raw = json.loads(state_path(data_dir).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raw = None
     state = _normalize(raw)
     _roll_daily(state, now)
     return state
@@ -127,12 +158,15 @@ def load_state(data_dir: Optional[PathLike] = None, now: Optional[datetime] = No
 
 def save_state(state: dict, data_dir: Optional[PathLike] = None,
                now: Optional[datetime] = None) -> None:
-    """原子寫入：同目錄 temp 檔 → os.replace。失敗時原檔保持不變。"""
+    """原子寫入：資料庫版一句 UPSERT；檔案版同目錄 temp 檔 → os.replace。失敗時原本的狀態保持不變。"""
     state["replied_ids"] = list(state.get("replied_ids") or [])[-REPLIED_IDS_MAX:]
     failed = state.get("failed")
     if isinstance(failed, dict) and len(failed) > FAILED_MAX:
         state["failed"] = dict(list(failed.items())[-FAILED_MAX:])
     _roll_daily(state, now)
+    if use_db(data_dir):
+        _pg().put("state", state)
+        return
 
     path = state_path(data_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -223,6 +257,9 @@ def append_reply_record(rec: dict, data_dir: Optional[PathLike] = None) -> dict:
     row = {field: rec.get(field) for field in REPLY_RECORD_FIELDS}
     if not row["replied_at"]:
         row["replied_at"] = datetime.now(timezone.utc).isoformat()
+    if use_db(data_dir):
+        _pg().append_reply(row)
+        return row
     path = replies_path(data_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8", newline="\n") as fh:
@@ -251,6 +288,8 @@ def _iter_records(data_dir: Optional[PathLike]):
 def read_reply_records(limit: Optional[int] = 10,
                        data_dir: Optional[PathLike] = None) -> list:
     """倒序（最新在前）讀回覆紀錄；壞行略過。limit=None 或 <=0 表示全部。"""
+    if use_db(data_dir):
+        return _pg().replies(limit if limit is not None and limit > 0 else None)
     records = list(_iter_records(data_dir))
     records.reverse()
     if limit is not None and limit > 0:
@@ -259,5 +298,7 @@ def read_reply_records(limit: Optional[int] = 10,
 
 
 def own_reply_ids(data_dir: Optional[PathLike] = None) -> set:
-    """jsonl 中所有機器人自己發出的 reply_id（7.5 第一道自我判斷）。"""
+    """所有機器人自己發出的 reply_id（7.5 第一道自我判斷）。"""
+    if use_db(data_dir):
+        return _pg().reply_ids()
     return {str(r["reply_id"]) for r in _iter_records(data_dir) if r.get("reply_id")}

@@ -34,7 +34,9 @@ pytestmark = pytest.mark.skipif(
 )
 
 ROOT = Path(__file__).resolve().parent.parent
-PG_TABLES = ("knowledge_base", "tasks", "admin_overrides", "user_feedback", "fact_check_records")
+PG_TABLES = ("knowledge_base", "tasks", "admin_overrides", "user_feedback", "fact_check_records",
+             "threads_kv", "threads_replies")
+MIGRATED_TABLES = PG_TABLES[:5]      # scripts/migrate_to_supabase.py 搬的表（Threads 兩張不在範圍內）
 
 AI_RESULT = {
     "is_risk": True, "risk_type": "SCAM", "category": "Investment",
@@ -575,6 +577,52 @@ def test_sample_verified_matches_local_store(kb, tmp_path):
         assert store.sample_verified("factcheck_batch", 3, seed="v1", offset=10) == []
 
 
+# ── Threads 機器人（雲端執行的狀態；app/services/threads_pg.py）──────────────
+@pytest.fixture
+def tpg(clean):
+    from app.services.threads_pg import ThreadsPgStore
+    return ThreadsPgStore(engine=clean["engine"])
+
+
+def test_threads_kv_roundtrip_and_token_cache(tpg):
+    assert tpg.get("state") is None
+    tpg.put("state", {"replied_ids": ["m1"], "last_since": 5, "daily": {"date": "2026-10-01", "replies": 1}})
+    assert tpg.get("state") == {"replied_ids": ["m1"], "last_since": 5, "daily": {"date": "2026-10-01", "replies": 1}}
+    tpg.put("state", {"replied_ids": ["m1", "m2"]})
+    assert tpg.get("state") == {"replied_ids": ["m1", "m2"]}
+    tpg.put("token", {"access_token": "A", "user_id": "1"})
+    assert tpg.get("token")["access_token"] == "A"
+    tpg.put("token", {"access_token": "B", "user_id": "1"})      # put 會清快取
+    assert tpg.get("token")["access_token"] == "B"
+
+
+def test_threads_replies_are_idempotent_and_newest_first(tpg):
+    for i in range(3):
+        assert tpg.append_reply({"mention_id": f"m{i}", "reply_id": f"r{i}", "reply_text": f"回覆 {i}",
+                                 "replied_at": f"2026-10-01T00:00:0{i}+00:00"}) is True
+    assert tpg.append_reply({"mention_id": "m1", "reply_id": "rX"}) is False
+    assert [r["mention_id"] for r in tpg.replies()] == ["m2", "m1", "m0"]
+    assert [r["mention_id"] for r in tpg.replies(2)] == ["m2", "m1"]
+    assert tpg.replies()[0]["reply_text"] == "回覆 2"
+    assert tpg.reply_ids() == {"r0", "r1", "r2"}
+
+
+def test_threads_poll_lock_is_exclusive_and_stale_locks_are_taken_over(tpg, clean):
+    assert tpg.lock_held(900) is False
+    assert tpg.acquire_lock("a", 900) is True
+    assert tpg.lock_held(900) is True
+    assert tpg.acquire_lock("b", 900) is False
+    assert tpg.release_lock("b") is False                 # 只能放自己的鎖
+    assert tpg.release_lock("a") is True
+    assert tpg.lock_held(900) is False
+    assert tpg.acquire_lock("b", 900) is True
+    with clean["engine"].begin() as conn:                  # 持有者 20 分鐘沒放（行程被砍）
+        conn.exec_driver_sql("UPDATE threads_kv SET updated_at = now() - interval '20 minutes' WHERE key = 'poll_lock'")
+    assert tpg.lock_held(900) is False
+    assert tpg.acquire_lock("c", 900) is True
+    assert tpg.release_lock("b") is False and tpg.release_lock("c") is True
+
+
 # ── 任務 ─────────────────────────────────────────────────────────
 def test_task_lifecycle_defaults_and_json_columns(tasks):
     tid = tasks.create_task("analyze_text", "測試輸入")
@@ -894,10 +942,10 @@ def test_migration_script_is_idempotent(clean, tmp_path, monkeypatch, capsys):
     args = ["--data-dir", str(data_dir), "--schema", clean["schema"]]
 
     def counts():
-        return {t: _scalar(clean, f"SELECT count(*) FROM {t}") for t in PG_TABLES}
+        return {t: _scalar(clean, f"SELECT count(*) FROM {t}") for t in MIGRATED_TABLES}
 
     assert migrate.main(args) == 0                                        # dry-run：不寫入
-    assert counts() == {t: 0 for t in PG_TABLES}
+    assert counts() == {t: 0 for t in MIGRATED_TABLES}
     dry = capsys.readouterr().out
     assert "DRY-RUN" in dry and "non-1536-dim stored as NULL=1" in dry and "dim768=1" in dry
 

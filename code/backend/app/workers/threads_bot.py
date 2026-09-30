@@ -63,6 +63,7 @@ import logging
 import os
 import re
 import secrets
+import socket
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -891,10 +892,36 @@ def _release_file_lock(path: Path, token: str) -> None:
     logger.error("poll lock could not be removed: %s", _esc(str(path)))
 
 
+def _acquire_poll_lock(data_dir: Optional[PathLike]) -> str:
+    """跨行程／跨機器的輪詢鎖：雲端版用資料庫（threads_kv 'poll_lock'），本機版用鎖檔。回傳釋放用的 token。"""
+    if threads_state.use_db(data_dir):
+        from app.services.threads_pg import get_threads_pg
+
+        token = f"{socket.gethostname()}-{os.getpid()}-{secrets.token_hex(8)}"
+        if not get_threads_pg().acquire_lock(token, LOCK_STALE_SECONDS):
+            raise PollInProgress("poll_in_progress")
+        return token
+    return _acquire_file_lock(lock_path(data_dir))
+
+
+def _release_poll_lock(data_dir: Optional[PathLike], token: str) -> None:
+    if threads_state.use_db(data_dir):
+        from app.services.threads_pg import get_threads_pg
+
+        if not get_threads_pg().release_lock(token):
+            logger.warning("poll lock not released (taken over by another poller)")
+        return
+    _release_file_lock(lock_path(data_dir), token)
+
+
 def poll_in_progress(data_dir: Optional[PathLike] = None) -> bool:
     """唯讀檢查是否有一輪正在跑（供 API 在排背景工作前回 409）。"""
     if _POLL_LOCK.locked():
         return True
+    if threads_state.use_db(data_dir):
+        from app.services.threads_pg import get_threads_pg
+
+        return get_threads_pg().lock_held(LOCK_STALE_SECONDS)
     path = lock_path(data_dir)
     if not path.exists():
         return False
@@ -923,6 +950,17 @@ def _mentions_error(status: Optional[int]) -> str:
     if status in (403, 404):
         return "permission_denied"
     return "mentions_failed"
+
+
+def _refresh_token_quietly(client: Any) -> None:
+    """雲端版 token 快到期時自動續期（ThreadsService.refresh_if_due）；失敗只記 log，舊 token 到期前照常可用。"""
+    refresh = getattr(client, "refresh_if_due", None)
+    if not callable(refresh):
+        return
+    try:
+        refresh()
+    except Exception as e:
+        logger.error("threads token refresh failed: %s", _esc(e))
 
 
 def _record_client_error(data_dir: Optional[PathLike], error: str) -> None:
@@ -1207,25 +1245,36 @@ async def run_threads_poll(client: Any = None, data_dir: Optional[PathLike] = No
         logger.warning("threads poll skipped: client unavailable mode=%s reason=%s", mode, reason)
         return {"started": False, "reason": reason or "client_unavailable"}
 
+    if not await asyncio.to_thread(threads_state.state_initialized, data_dir):
+        # 雲端第一次啟動：沒有 since 游標與已回覆 id 就不輪詢，否則會把所有舊提及當成新的回一遍
+        logger.warning("threads poll skipped: state is not initialized in the database "
+                       "(run scripts/threads_cloud_setup.py --apply)")
+        return {"started": False, "reason": "threads_state_not_initialized"}
+
     state = await asyncio.to_thread(threads_state.load_state, data_dir)
     skip = _backoff_skip(state)
     if skip is not None:
         return skip
+
+    await asyncio.to_thread(_refresh_token_quietly, client)
 
     # 檢查與取得之間沒有 await：同一 event loop 內不會有第二輪插進來
     if _POLL_LOCK.locked():
         logger.warning("poll_in_progress: another poll is running in this process")
         raise PollInProgress("poll_in_progress")
     async with _POLL_LOCK:
-        path = lock_path(data_dir)
         try:
-            # 刻意同步（本機小檔 O_EXCL 建立＋寫入）：若丟 to_thread 而本協程在等待時被取消，
-            # 執行緒仍會建好鎖檔卻沒人釋放，會擋住之後 15 分鐘的輪詢
-            token = _acquire_file_lock(path)
+            if threads_state.use_db(data_dir):
+                # 資料庫鎖是網路 IO：丟 to_thread。等待中被取消的話鎖可能沒人放，15 分鐘後會被接手
+                token = await asyncio.to_thread(_acquire_poll_lock, data_dir)
+            else:
+                # 刻意同步（本機小檔 O_EXCL 建立＋寫入）：若丟 to_thread 而本協程在等待時被取消，
+                # 執行緒仍會建好鎖檔卻沒人釋放，會擋住之後 15 分鐘的輪詢
+                token = _acquire_poll_lock(data_dir)
         except PollInProgress:
-            logger.warning("poll_in_progress: lock file held by another poller: %s", _esc(str(path)))
+            logger.warning("poll_in_progress: poll lock held by another poller")
             raise
         try:
             return await _poll_once(client, mode, data_dir)
         finally:
-            await asyncio.to_thread(_release_file_lock, path, token)
+            await asyncio.to_thread(_release_poll_lock, data_dir, token)

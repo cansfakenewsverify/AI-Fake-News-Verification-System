@@ -48,6 +48,8 @@ TOKEN_PATH = Path("data") / "threads_token.json"
 
 # 授權本身的有效期（與 60 天 token 分開計算，spec 7.3 第 5 點）
 AUTH_VALID_DAYS = 90
+TOKEN_REFRESH_DAYS = 10            # 雲端（token 在資料庫）剩不到 10 天自動續期
+MIN_REFRESH_AGE_SECONDS = 24 * 3600   # Threads 規定取得滿 24 小時才能續期
 
 logger = logging.getLogger("threads_service")
 
@@ -272,6 +274,26 @@ def get_threads_client() -> Optional["ThreadsClient"]:
     return None
 
 
+def load_token_db() -> Optional[Dict[str, Any]]:
+    """資料庫裡的 token（雲端執行時；threads_pg 的 threads_kv 'token'）；讀不到或沒有 access_token → None。"""
+    try:
+        from app.services.threads_pg import get_threads_pg
+
+        data = get_threads_pg().get("token")
+    except Exception as e:
+        logger.warning("threads token lookup in the database failed: %s", type(e).__name__)
+        return None
+    if not isinstance(data, dict) or not str(data.get("access_token") or "").strip():
+        return None
+    return data
+
+
+def save_token_db(data: Dict[str, Any]) -> None:
+    from app.services.threads_pg import get_threads_pg
+
+    get_threads_pg().put("token", data)
+
+
 def load_token_file(path: Union[str, Path, None] = None) -> Optional[Dict[str, Any]]:
     """讀 threads_token.json；不存在、損毀或沒有 access_token 時回 None。"""
     p = Path(path) if path is not None else TOKEN_PATH
@@ -316,16 +338,26 @@ class ThreadsService(TwoStepPublishing):
         self.token_source = "env" if self.token else None
         self.token_expires_at: Optional[datetime] = None
         self.authorized_at: Optional[datetime] = None
+        self.token_obtained_at: Optional[datetime] = None
 
-        data = load_token_file(token_path)
+        # 優先序：資料庫（雲端執行，threads_state.use_db）＞ token 檔 ＞ .env
+        data, source = load_token_file(token_path), "file"
+        if token_path is None:
+            from app.services import threads_state
+
+            if threads_state.use_db(None):
+                db_data = load_token_db()
+                if db_data:
+                    data, source = db_data, "db"
         if data:
             self.token = str(data["access_token"]).strip()
             file_uid = str(data.get("user_id") or "").strip()
             if file_uid:
                 self.user_id = file_uid
-            self.token_source = "file"
+            self.token_source = source
             self.token_expires_at = _parse_iso(data.get("expires_at"))
             self.authorized_at = _parse_iso(data.get("authorized_at"))
+            self.token_obtained_at = _parse_iso(data.get("obtained_at"))
 
     # ── token 期限 ───────────────────────────────────────────────
     @property
@@ -337,6 +369,33 @@ class ThreadsService(TwoStepPublishing):
         if self.authorized_at is None:
             return None
         return _days_left(self.authorized_at + timedelta(days=AUTH_VALID_DAYS))
+
+    def refresh_if_due(self, now: Optional[datetime] = None) -> bool:
+        """
+        雲端（token 存在資料庫）自動續期：剩不到 TOKEN_REFRESH_DAYS 天、且取得已滿 24 小時 → th_refresh_token
+        換成新的 60 天 token 並寫回資料庫；續期失敗丟 ThreadsAPIError（呼叫端記 log，舊 token 在到期前照常可用）。
+        本機檔案版照舊手動續期（scripts/threads_auth.py --refresh）。授權本身 90 天要重新同意，續期不會延長，
+        到時重跑 scripts/threads_auth.py，再用 scripts/threads_cloud_setup.py --token-only --apply 上傳。
+        """
+        if self.token_source != "db":
+            return False
+        days = self.token_days_left
+        if days is None or days > TOKEN_REFRESH_DAYS:
+            return False
+        now = now or datetime.now(timezone.utc)
+        if self.token_obtained_at and (now - self.token_obtained_at).total_seconds() < MIN_REFRESH_AGE_SECONDS:
+            return False
+        self.refresh_token()
+        save_token_db({
+            "access_token": self.token,
+            "obtained_at": now.isoformat(),
+            "expires_at": self.token_expires_at.isoformat() if self.token_expires_at else None,
+            "authorized_at": self.authorized_at.isoformat() if self.authorized_at else None,
+            "user_id": self.user_id,
+        })
+        self.token_obtained_at = now
+        logger.info("threads token refreshed; days left now %s", self.token_days_left)
+        return True
 
     @property
     def invalid_reason(self) -> Optional[str]:

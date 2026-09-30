@@ -35,8 +35,13 @@ services:
         value: "gpt-6-luna"
       - key: STORAGE_BACKEND
         value: "supabase"
+      # Threads 機器人在雲端執行（2026-10-01）：狀態、回覆紀錄、token、輪詢鎖存在 Supabase（app/services/threads_pg.py）。
+      # 第一次要先用 scripts/threads_cloud_setup.py --apply 搬好狀態；沒搬之前機器人只會略過（threads_state_not_initialized）。
+      # Render 免費主機靠 Supabase pg_cron 每 5 分鐘叫醒（scripts/supabase_keepalive.py）。
       - key: THREADS_MODE
-        value: "off"
+        value: "live"
+      - key: THREADS_POLL_SECONDS
+        value: "30"
       - key: ENABLE_SCHEDULER
         value: "false"
       - key: USE_WEB_SEARCH
