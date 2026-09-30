@@ -1,0 +1,30 @@
+{
+  "records": [
+    {
+      "mention_id": "sim-2",
+      "mode": "sim",
+      "result_id": "fx-red-misinfo",
+      "frame_type": "red",
+      "risk_type": "MISINFO",
+      "username": "tester_c",
+      "source_text_preview": "網傳吃香蕉配優格會中毒，腸胃不好的人千萬不要一起吃！快轉給家人",
+      "reply_text": "🔴 假訊息\n香蕉與優格一起吃並不會中毒，營養師與查核機構皆已澄清，這是多年流傳的舊謠言\n查核來源：https://www.mygopen.com/2026/09/banana-yogurt.html\n完整判讀：https://fakenewsverify.vercel.app/r/fx-red-misinfo\nAI 自動判讀，請自行查證。",
+      "reply_id": "sim-reply-2",
+      "permalink": "https://www.threads.com/@tester_c/post/sim2",
+      "replied_at": "2026-09-23T06:31:40+00:00"
+    },
+    {
+      "mention_id": "sim-1",
+      "mode": "sim",
+      "result_id": "fx-red-unverified-scam",
+      "frame_type": "red",
+      "risk_type": "SCAM",
+      "username": "tester_a",
+      "source_text_preview": "健保卡即日起停用！請點連結重新驗證，逾期停卡",
+      "reply_text": "🔴 詐騙警告\n健保署不會以簡訊通知停用健保卡，訊息中的連結是釣魚網站，切勿點擊或輸入個資，可撥 165 查證\n完整判讀：https://fakenewsverify.vercel.app/r/fx-red-unverified-scam\nAI 自動判讀，請自行查證。",
+      "reply_id": "sim-reply-1",
+      "permalink": "https://www.threads.com/@tester_a/post/sim1",
+      "replied_at": "2026-09-23T06:29:05+00:00"
+    }
+  ]
+}

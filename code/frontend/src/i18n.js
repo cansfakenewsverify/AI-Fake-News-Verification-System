@@ -229,6 +229,21 @@ export const EXTRA = {
   confidence_method: "信心依「和查核機構已證實內容的相似度」判斷，不是 AI 自評的分數。",
   // 知識庫中的相似查證（spec 8.3 S2 元件 5，FR-02 similar_news；標題用 8.7 的 section_similar）
   similar_sub: "查核機構已查證、內容相近的案例；相似度越高越接近。",
+  // /bot 機器人狀態頁（S-11；Bot.dc.html「輪詢狀態」「最近錯誤」「回覆全文」）
+  threads_poll_title: "輪詢狀態",
+  threads_last_error_title: "最近錯誤",
+  threads_no_error: "無",
+  threads_never_polled: "還沒有輪詢紀錄。",
+  threads_backoff: "輪詢暫停至 {time}，時間到會自動恢復。",
+  threads_reply_full: "回覆全文",
+  threads_sim_path: "模擬提及來源：{path}",
+  threads_error_token_invalid: "Threads 授權失效，請重新授權（scripts/threads_auth.py）。",
+  threads_error_rate_limited: "Threads 限制呼叫頻率，機器人已自動暫停，稍後再試。",
+  threads_error_transient_error: "暫時連不上 Threads，下一輪會自動重試。",
+  threads_error_mention_failed: "有提及讀取失敗，下一輪會重試。",
+  threads_error_ai_unavailable: "AI 服務暫時無法使用，這一輪沒有回覆，下一輪會補回。",
+  threads_error_threads_not_configured: "Threads 尚未設定完成（缺 access token 或 user id）。",
+  threads_error_other: "錯誤代碼：{code}",
 };
 
 const PLACEHOLDER = /\{([A-Za-z_][A-Za-z0-9_]*)(?:≤(\d+))?\}/g;

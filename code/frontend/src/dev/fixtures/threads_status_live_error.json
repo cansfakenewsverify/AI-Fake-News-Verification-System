@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "mode": "live",
+  "configured": true,
+  "poll_minutes": 5,
+  "replied_count": 2,
+  "last_poll_at": "2026-09-23T06:32:10+00:00",
+  "last_poll_stats": {
+    "checked": 4,
+    "replied": 1,
+    "skipped": 0,
+    "errors": 3
+  },
+  "last_error": "rate_limited",
+  "backoff_until": "2099-01-01T00:00:00+00:00",
+  "token_expires_at": null,
+  "token_days_left": 41,
+  "authorized_at": null,
+  "auth_days_left": null,
+  "reply_quota": null,
+  "daily_replies": 2,
+  "daily_cap": 50,
+  "dev_mode_notice": "目前為開發模式：只有被加入為測試人員的 Threads 帳號 @factcheck_tw_bot 才會收到回覆。公開服務需通過 Meta App Review 與企業驗證，為本專題論文所述之上線條件。",
+  "sim_mentions_path": null
+}

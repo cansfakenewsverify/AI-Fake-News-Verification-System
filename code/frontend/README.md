@@ -216,7 +216,7 @@ VITE_FIXTURES=1 npm run dev
 
 ```powershell
 cd code\frontend
-npm run test:unit   # 單元測試：Node 內建 test runner（node --test），403 個，離線
+npm run test:unit   # 單元測試：Node 內建 test runner（node --test），409 個，離線
 npm run lint        # ESLint 9（設定在 eslint.config.js）
 npm run build       # 產出 dist/
 npm run preview     # 在本機預覽 build 結果
