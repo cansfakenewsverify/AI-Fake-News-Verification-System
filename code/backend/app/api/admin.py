@@ -1,16 +1,22 @@
 """
-管理者相關 API（覆寫 AI 判定）。
+管理者相關 API（覆寫 AI 判定、查核結論同步）。
 
 整個 /api/admin/* 需要 X-Admin-Token（spec §5.6：缺或錯 401 unauthorized、未設定 ADMIN_TOKEN 403 admin_disabled）。
 覆寫＝人工確定性標記（spec §6.2 label_source="admin"、FR-17 (b)）：tasks 列與其知識庫列一起更新。
+查核結論同步（FR-23，app/services/factcheck_sync.py）：POST 背景執行（202；已有一輪在跑 409 sync_in_progress），
+GET 讀進度。GitHub Actions 的 factcheck-sync workflow 每天兩次呼叫 recent、每週一次 full。
+每週新查核自動評測（FR-24，app/services/weekly_eval.py）：POST 背景執行（202；409 eval_in_progress），GET 讀進度，
+做完後 GET report.md／results.csv 取報告。GitHub Actions 的 weekly-eval workflow 每週呼叫一次並把報告存進版本庫。
 """
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field, constr
 
+from app.services import factcheck_sync, weekly_eval
 from app.services.store_factory import get_audit_store, get_knowledge_store, get_task_store
 from app.utils.admin_auth import require_admin
 from app.utils.labels import category_label
@@ -26,6 +32,9 @@ kb_store = get_knowledge_store()
 logger = logging.getLogger(__name__)
 
 ADMIN_LABEL_SOURCE = "admin"
+MSG_SYNC_IN_PROGRESS = "查核結論同步正在進行中；進度請看 GET /api/admin/factcheck-sync。"
+MSG_EVAL_IN_PROGRESS = "每週評測正在進行中；進度請看 GET /api/admin/weekly-eval。"
+MSG_NO_EVAL_REPORT = "還沒有評測結果：先 POST /api/admin/weekly-eval。"
 # 覆寫後同步寫入知識庫列的判定欄位：快取命中讀 ai_analysis，知識庫頁與統計讀頂層欄位
 _VERDICT_FIELDS = ("risk_type", "category", "confidence_score", "is_risk")
 
@@ -170,3 +179,68 @@ def override_task_result(
     )
 
     return updated_result
+
+
+@router.post("/factcheck-sync", status_code=202)
+def trigger_factcheck_sync(
+    background_tasks: BackgroundTasks,
+    mode: Literal["recent", "full"] = Query(
+        default="recent", description="recent = 各來源最新一批（每天兩次）；full = 全部掃過（每週一次，第一次即完整回填）"
+    ),
+):
+    """把查核機構新發布的判定寫進知識庫（只呼叫 embedding，不呼叫判讀模型）。背景執行，立即回 202。"""
+    if not factcheck_sync.try_start(mode, background_tasks):
+        return JSONResponse(
+            status_code=409,
+            content={"detail": MSG_SYNC_IN_PROGRESS, "code": "sync_in_progress", "status": factcheck_sync.status()},
+        )
+    return {"started": True, "mode": mode}
+
+
+@router.get("/factcheck-sync")
+def get_factcheck_sync_status():
+    """同步進度：state = idle／queued／running／done／failed，另有候選、已存在、已寫入筆數與 embedding tokens。"""
+    return factcheck_sync.status()
+
+
+@router.post("/weekly-eval", status_code=202)
+def trigger_weekly_eval(
+    background_tasks: BackgroundTasks,
+    max_usd: Optional[float] = Query(default=None, gt=0, le=10, description="本次上限（不超過 WEEKLY_EVAL_MAX_USD）"),
+    plan_only: bool = Query(default=False, description="true = 只抓題目、算出會出幾題，不呼叫 AI（零成本）"),
+    days: int = Query(default=weekly_eval.FRESH_DAYS, ge=1, le=31, description="本週新查核的天數範圍"),
+):
+    """每週新查核自動評測：用 CGU 每週剩下的額度量 AI 準確率（保留 WEEKLY_EVAL_RESERVE_USD 給網站使用者）。"""
+    if not weekly_eval.try_start(max_usd=max_usd, plan_only=plan_only, days=days, background_tasks=background_tasks):
+        return JSONResponse(
+            status_code=409,
+            content={"detail": MSG_EVAL_IN_PROGRESS, "code": "eval_in_progress", "status": weekly_eval.status()},
+        )
+    return {"started": True, "plan_only": plan_only, "max_usd": weekly_eval.status()["max_usd"], "days": days}
+
+
+@router.get("/weekly-eval")
+def get_weekly_eval_status():
+    """評測進度：state = idle／queued／running／done／skipped（額度接近保留額）／failed；做完時附兩部分的統計。"""
+    return weekly_eval.status()
+
+
+def _eval_report_guard() -> Optional[JSONResponse]:
+    if weekly_eval.is_running():
+        return JSONResponse(status_code=409, content={"detail": MSG_EVAL_IN_PROGRESS, "code": "eval_in_progress"})
+    if not weekly_eval.has_report():
+        return JSONResponse(status_code=404, content={"detail": MSG_NO_EVAL_REPORT, "code": "no_eval_report"})
+    return None
+
+
+@router.get("/weekly-eval/report.md")
+def get_weekly_eval_report():
+    """最近一次評測的 Markdown 報告（不含訊息原文）。"""
+    return _eval_report_guard() or PlainTextResponse(weekly_eval.report_markdown(),
+                                                     media_type="text/markdown; charset=utf-8")
+
+
+@router.get("/weekly-eval/results.csv")
+def get_weekly_eval_results():
+    """最近一次評測的逐題結果（網址、雜湊、真值、AI 判定；不含訊息原文）。"""
+    return _eval_report_guard() or PlainTextResponse(weekly_eval.results_csv(), media_type="text/csv; charset=utf-8")

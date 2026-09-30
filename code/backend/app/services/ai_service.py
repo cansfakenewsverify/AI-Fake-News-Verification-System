@@ -135,6 +135,32 @@ def _classify_upstream_error(err_msg: str) -> Tuple[Optional[int], str]:
     return status, "error"
 
 
+def _is_model_missing(exc: requests.exceptions.HTTPError) -> bool:
+    """閘道回「模型不存在」：HTTP 404，或錯誤內容帶 model_not_found。"""
+    resp = getattr(exc, "response", None)
+    return getattr(resp, "status_code", None) == 404 or "model_not_found" in (getattr(resp, "text", "") or "")
+
+
+def gateway_models(timeout: float = 15.0) -> Optional[List[str]]:
+    """
+    CGU 閘道目前提供的模型 id（GET {CGU_BASE_URL}/models，不花額度）；沒有金鑰或讀不到回 None。
+    查核結論同步每次執行都用它確認 CGU_MODEL 還在（模型下架時 workflow 會失敗並寄信）。
+    """
+    key = (settings.CGU_API_KEY or "").strip()
+    base = (settings.CGU_BASE_URL or "").rstrip("/")
+    if not key or not base:
+        return None
+    try:
+        r = requests.get(f"{base}/models", headers={"Authorization": f"Bearer {key}"}, timeout=timeout)
+        r.raise_for_status()
+        data = r.json()
+        items = data.get("data") if isinstance(data, dict) else data
+        return sorted(str(m.get("id") if isinstance(m, dict) else m) for m in (items or []))
+    except Exception as exc:
+        logger.warning("CGU model list lookup failed: %s", type(exc).__name__)
+        return None
+
+
 def _default_fallback_result(err_msg: str) -> Dict[str, Any]:
     """API 失敗時回傳的結構化結果（不拋錯，方便前端顯示）。
 
@@ -169,7 +195,8 @@ class AIService:
         self.cgu_base = (settings.CGU_BASE_URL or "").rstrip("/")
         self.claude_model = settings.CLAUDE_MODEL or "claude-opus-4-8"
         self.openai_model = settings.OPENAI_MODEL or "gpt-5"
-        self.cgu_model = settings.CGU_MODEL or "gpt-5.4-mini"
+        self.cgu_model = settings.CGU_MODEL or "gpt-5.6-luna"
+        self.cgu_fallback_model = (settings.CGU_FALLBACK_MODEL or "").strip()
 
         self.provider_available = {
             "openai": bool(self.myai_key and self.openai_base),
@@ -349,16 +376,31 @@ class AIService:
 
     # ── CGU AIR Gateway 引擎（OpenAI 相容 Responses API）────────
     def _cgu_analyze(self, prompt_text: str, image: Optional[dict], use_web_search: bool) -> Dict[str, Any]:
-        return self._responses_analyze(
-            provider_name="CGU",
-            base_url=self.cgu_base,
-            api_key=self.cgu_key,
-            model=self.cgu_model,
-            reasoning_effort=settings.CGU_REASONING_EFFORT,
-            prompt_text=prompt_text,
-            image=image,
-            use_web_search=use_web_search,
-        )
+        """
+        主模型 CGU_MODEL；閘道回「模型不存在」（HTTP 404 model_not_found）時改用 CGU_FALLBACK_MODEL 再試一次。
+        閘道會不預告下架模型（2026-09-30 gpt-5.4-mini），沒有這一步整個網站的 AI 判讀都會變成 fallback。
+        其他錯誤（金鑰、額度、限流）換模型也沒用，照原樣往外丟。
+        """
+        def call(model: str) -> Dict[str, Any]:
+            return self._responses_analyze(
+                provider_name="CGU",
+                base_url=self.cgu_base,
+                api_key=self.cgu_key,
+                model=model,
+                reasoning_effort=settings.CGU_REASONING_EFFORT,
+                prompt_text=prompt_text,
+                image=image,
+                use_web_search=use_web_search,
+            )
+
+        try:
+            return call(self.cgu_model)
+        except requests.exceptions.HTTPError as exc:
+            fallback = self.cgu_fallback_model
+            if not fallback or fallback == self.cgu_model or not _is_model_missing(exc) or not self._budget_left():
+                raise
+            logger.warning("[AI] cgu model %s unavailable on the gateway, retrying with %s", self.cgu_model, fallback)
+            return call(fallback)
 
     @staticmethod
     def _openai_output_text(data: dict) -> str:

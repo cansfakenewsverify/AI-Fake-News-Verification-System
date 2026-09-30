@@ -282,6 +282,7 @@ Render 官方對免費方案的原話是「不要用在 production」。對專�
 | `/health` 正常，但 `/api/knowledge/stats` 回 500 | 連不上 Supabase（後端設計成資料庫連不上也照常啟動，log 有 `Supabase init failed`） | `SUPABASE_DB_URL` 貼錯或含 `[YOUR-PASSWORD]`；要用 Session pooler 的 URI（主機含 `pooler.supabase.com`、port 5432）。Direct connection 是 IPv6，雲端主機常連不到 |
 | `/health` 顯示 `"ai_available":false` | `CGU_API_KEY` 沒貼到或是空的 | **Environment** 補上 → **Save and deploy** |
 | 查證回「AI 分析暫時無法使用」 | 金鑰錯、CGU 額度用完，或閘道擋了 Render 的 IP | 看 **Logs** 的 `[AI] cgu HTTP <碼>`；401 = 金鑰錯 |
+| 查證回「AI 分析暫時無法使用」，Logs 是 `[AI] cgu HTTP 404` `model_not_found` | 閘道下架了 `CGU_MODEL`（2026-09-30 下架 `gpt-5.4-mini`）；備援 `CGU_FALLBACK_MODEL` 也不在時才會出現 | 查可用模型：本機 `code\backend` 執行 `.\venv\Scripts\python -c "from app.services.ai_service import gateway_models; print(gateway_models())"`；改 `render.yaml` 的 `CGU_MODEL`／`CGU_FALLBACK_MODEL` 後推送（Blueprint 同步），並重跑評測（CLAUDE.md 第 6 節）。GitHub Actions `factcheck-sync` 每次都會檢查，模型不見時 workflow 變紅並寄信 |
 | push 了但 Render 沒重新部署 | 改的檔案不在 `code/backend` 底下 | 這是設計（`rootDir`）。要強制部署：**Manual Deploy** → **Deploy latest commit** |
 | 改了 `render.yaml` 的金鑰項目沒反應 | `sync: false` 的項目只在第一次建立時生效 | 到 **Environment** 頁手動改 |
 | 前端 `/api/...` 回 502／504 | Render 正在喚醒或部署中 | 等 1 分鐘重試；持續發生就看 Render **Logs** |

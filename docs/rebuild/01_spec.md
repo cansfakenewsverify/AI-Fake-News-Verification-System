@@ -4,7 +4,7 @@
 
 | 項目 | 內容 |
 |------|------|
-| 文件版本 | v1.5（2026-09-23 增補 FR-22 證據信心，FR-02 `similar_news` 由 P1 改為已實作；v1.4 為 2026-09-22 增補 FR-20 查核結果回補、FR-21 本站熱門查證；v1.3 為 v1.2 審查修訂第二輪：21 條一致性／可行性意見全部採納，主要為 FR-16～19 內部一致性、Day 2.5 工時重排、`verified` 計算位置；變更紀錄見文末） |
+| 文件版本 | v1.6（2026-09-30 增補 FR-23 查核結論同步、FR-24 每週新查核自動評測，AI 模型改為 `gpt-5.6-luna`；v1.5 為 2026-09-23 增補 FR-22 證據信心，FR-02 `similar_news` 由 P1 改為已實作；v1.4 為 2026-09-22 增補 FR-20 查核結果回補、FR-21 本站熱門查證；v1.3 為 v1.2 審查修訂第二輪：21 條一致性／可行性意見全部採納，主要為 FR-16～19 內部一致性、Day 2.5 工時重排、`verified` 計算位置；變更紀錄見文末） |
 | 日期 | 2026-09-22（v1.0：2026-09-14；v1.1：2026-09-15 上午；v1.2：2026-09-15 下午；v1.3：2026-09-15） |
 | 上游依據 | `docs/rebuild/00_consensus.md`（2026-09-14 grill 結論 + 2026-09-15 §4「AI 額度已解決」、§9「來源品質與資料清潔」補充；§9 插入後原「掃描發現的既有事實」為 **§10**）。本文件每條決策皆可回溯至該檔章節，標示為「共識 §n」；本文件與共識衝突時以共識為準。**已知共識內部矛盾**：共識 §6「要買：OpenAI API 額度 USD 5–10」已被 §4（2026-09-15「不買 OpenAI 直連額度」）取代，本文件不採 §6 該行；建議下次更新共識時刪除（本次修訂不改共識檔） |
 | 事實來源 | 掃描結果 `ai_engine / backend_api / pipeline_store / crawler_news / frontend_react / offline_ops / tests_eval / docs_usecases / threads_code / threads_gap_analysis / threads_verify_10`（後者的 `refuted` 條目視為對前者的修正）；程式碼行號以掃描時 Read 輸出為準 |
@@ -70,7 +70,7 @@
 優先級：P0 = 沒有就無法 demo；P1 = 報告後補做才算完整（**不排進 Day 1–6**）；P2 = spec 寫、可不實作（共識 §2）。v1.1 依審查把 P1／P2 全部移出一週時程，P0 只留共識 §2「做」清單 + 支撐它們的最小工程項（第 11 節）。v1.2 依共識 §9 新增 FR-16～FR-19（來源分級／知識庫寫入門檻／既有資料清洗／web_search 網域限制）：前三者為 **P0**（demo 資料必須乾淨，負責人明確要求），為了不撐爆時程，`similar_news` 向量近鄰（FR-02 第二段、S2 元件 5）降為 **P1**（第 11 節「v1.2 範圍調整」）。
 
 ### FR-01 文字查證（P0）
-- **描述**：使用者貼上 1–20,000 字文字（`AnalyzeTextRequest` analyze.py:85-87），走「L1 hash → L2 向量（門檻 0.75，以使用者原文比對，**只比對 `verified=true` 列**，FR-17）→ L3 AI（provider `cgu`／`gpt-5.4-mini`；web_search 依 FR-19 限 Tier 1／2 網域）」。共識 §4：文字輸入**不再送 Google**——`pandas_task_processor.py` 的 `crawler.process_input(原文, "keyword")` 分支移除，`googlesearch-python` 自 `requirements.txt` 移除。
+- **描述**：使用者貼上 1–20,000 字文字（`AnalyzeTextRequest` analyze.py:85-87），走「L1 hash → L2 向量（門檻 0.75，以使用者原文比對，**只比對 `verified=true` 列**，FR-17）→ L3 AI（provider `cgu`／`CGU_MODEL`：2026-09-30 起為 `gpt-5.6-luna`，閘道回「模型不存在」時改用 `CGU_FALLBACK_MODEL`＝`gpt-6-luna`；原本的 `gpt-5.4-mini` 已被閘道下架；web_search 依 FR-19 限 Tier 1／2 網域）」。共識 §4：文字輸入**不再送 Google**——`pandas_task_processor.py` 的 `crawler.process_input(原文, "keyword")` 分支移除，`googlesearch-python` 自 `requirements.txt` 移除。
 - **輸入**：`POST /api/analyze/text` `{content}`。
 - **輸出**：`{task_id, result_id, status:"pending", message}`（`result_id` = `task_id`）；最終結果由 `GET /api/result/{id}` 取得（第 5 節）。
 - **驗收**：
@@ -287,6 +287,28 @@
 - **API**：結果多 `confidence_basis`（上列代碼）、`evidence`（`nearest_similarity`、`nearest_degrees`、`pattern_margin`），`confidence_note` 改為依據說明；`similar_news` 每筆為 `{title, url, source, risk_type, frame_type, frame_label, similarity, degrees, kb_id}`（5.3）。
 - **文案**（`i18n.js` EXTRA）：`confidence_basis_{factchecked|similar_case|pattern|cited_source|conflict|safe_source|unverifiable|ai_only|ai_unavailable}`、`confidence_evidence`「最接近的已查核案例：相似度 {similarity}（夾角約 {degrees}°）。」、`confidence_method`「信心依「和查核機構已證實內容的相似度」判斷，不是 AI 自評的分數。」、`similar_sub`「查核機構已查證、內容相近的案例；相似度越高越接近。」；8.7 的 `similar_item` 改為「相似度 {similarity}・夾角約 {degrees}°」。
 - **驗收**：`tests/test_evidence.py`（規則表、門檻含等號、只有風險列算佐證、相似查證最多 3 筆且 ≥0.60、機構名稱、話術差距與缺檔、處理器整合：AI 判讀帶證據並存進知識庫、快取命中沿用、安全判定遇近鄰給衝突、命中查核機構列為高、查詢失敗退回來源）；`tests/test_pg_store.py::test_nearest_verified_matches_local_store`；前端 `src/pages/result/similarNews.test.js`；fixture `result_fx-red-similar.json`（`/r/fx-red-similar`）。
+
+### FR-23 查核結論同步（P1；2026-09-30 新增）
+- **描述**：取代 FR-20 第 2 點的每日熱門牆抓取，成為知識庫的主要進庫管道。後端 `app/services/factcheck_sync.py` 以 `app/services/factcheck_corpus.py`（與批次入庫 `scripts/ingest_factchecks.py` 共用的收錄規則）抓 MyGoPen、台灣事實查核中心、Cofacts 已判定的內容，只把 MISINFO／SCAM 寫進知識庫（`label_source="rule"`、`origin="factcheck_batch"`；SAFE 永不寫入），只呼叫 embedding、不呼叫判讀模型。
+  - `recent`（每天兩次）：MyGoPen 最新 150 篇、台灣事實查核中心最新 100 篇報告與 300 則謠言原文、Cofacts 最近有新回覆的 300 則（至少 3 人回報）。
+  - `full`（每週一次）：三個來源全部，補上後來才達到 3 人回報門檻的 Cofacts 訊息。知識庫還沒有 `origin=factcheck_batch` 列時，`recent` 自動改跑 `full`（即完整回填，約 1.85 萬筆、embedding 約 USD 0.25）。
+  - 已有同一段文字的已證實列或 `factcheck_batch` 列就略過（`existing_hashes`；只有未證實列的文字照樣寫入，之後由 FR-20 回補），可重跑、中斷後從剩下的繼續；依發布日由舊到新寫入，每 256 筆一批。
+  - 一個來源抓取失敗不影響其他來源（記在 `source_errors`），三個都失敗才算整輪失敗。
+  - 每次執行先讀閘道模型清單（`GET {CGU_BASE_URL}/models`，不花額度）：`CGU_MODEL`、`CGU_FALLBACK_MODEL`、`EMBED_MODEL` 不在清單上時記在 `model_check.missing`（2026-09-30 閘道無預警下架 `gpt-5.4-mini` 的教訓）。
+- **API**（需 `X-Admin-Token`，5.6）：`POST /api/admin/factcheck-sync?mode=recent|full` → 202 `{started, mode}`；已有一輪在跑 → 409 `{detail, code: "sync_in_progress", status}`；`mode` 其他值 → 422。`GET /api/admin/factcheck-sync` → `{state: idle|queued|running|done|failed, mode, upgraded_from, phase, candidates, already_present, to_write, written, written_by_source, tokens, skipped, source_errors, model_check, error, started_at, finished_at}`。
+- **排程**：`.github/workflows/factcheck-sync.yml`（台灣 08:07、20:07 `recent`；週日 03:37 `full`）。每分鐘讀一次進度直到做完（兼作讓 Render 保持清醒），之後呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false` 更新熱門牆；同步失敗、來源抓取失敗或 `model_check.missing` 非空時 workflow 標為失敗（GitHub 寄信通知）。需 repository secret `ADMIN_TOKEN`（與 Render 相同），沒設時略過。
+- **驗收**：`tests/test_factcheck_sync.py`（只寫風險判定、重跑不重複、未證實同文字仍寫入、缺向量留待下次、依發布日寫入、recent／full 參數、第一次自動回填、單一來源失敗、全部失敗、同時只跑一輪、模型檢查、端點授權與 409／422）；`tests/test_pg_store.py::test_existing_hashes_matches_local_store`。
+
+### FR-24 每週新查核自動評測（P1；2026-09-30 新增）
+- **描述**：CGU 的 OpenAI 額度每週 USD 10、用不完不累積。`app/services/weekly_eval.py` 把每週用剩的額度拿來量 AI 判讀準確率（`docs/test/上線後準確率驗證計畫.md` 的 M5）；題目與真值都來自查核機構已發布的結論，不由 AI 助理或組員產生。
+  - **本週新查核**（主要數字）：最近 7 天（台灣時間）發布、已有判定的查核結論，含 SAFE 題（台灣事實查核中心「正確」、MyGoPen【真】、Cofacts 獲認可的 NOT_RUMOR；Cofacts 評測題不設回報人數門檻），一篇報告一題，三個來源輪流排。
+  - **歷史輪替**（參考）：風險題是知識庫 `factcheck_batch` 列依固定順序的第 N 段（每週 2,000 題，從 2026-09-28 那週起算，約 9～10 週輪完一遍），安全題是 Cofacts 獲認可的 NOT_RUMOR 訊息（每週抽樣），2:1；可能在模型訓練資料中，報告分開列。
+  - 直接呼叫 AIService：不經快取、不帶 web_search、不寫知識庫、不計入每日 AI 次數（FR-14）。
+  - **額度護欄**：可用額 = min(`WEEKLY_EVAL_MAX_USD`＝6, CGU 剩餘 − `WEEKLY_EVAL_RESERVE_USD`＝3)，保留額留給網站使用者；每 20 題以回應 usage 估算花費、每 100 題重讀一次 `/me/usage`；讀不到用量時只跑本週新查核且上限 USD 1；整批都是 fallback 就停；最多 150 分鐘。
+  - **統計**：風險判定一致率（主要數字，附 Wilson 95% 信賴區間）、三類一致率、偽陰性、偽陽性、無法查證，並依來源分列；報告與 CSV 不含訊息原文（Cofacts 訊息可能含個資），只有查核網址與雜湊。
+- **API**（需 `X-Admin-Token`）：`POST /api/admin/weekly-eval?max_usd=&plan_only=&days=` → 202 `{started, plan_only, max_usd, days}`；409 `eval_in_progress`；`max_usd` 超過 10 或 `days` 不在 1～31 → 422。`GET /api/admin/weekly-eval`（進度與兩部分統計）、`GET /api/admin/weekly-eval/report.md`、`GET /api/admin/weekly-eval/results.csv`（執行中 409、沒有結果 404）。`plan_only=true` 只抓題目、算出會出幾題，不呼叫 AI。
+- **排程**：`.github/workflows/weekly-eval.yml`（台灣週日 21:17）；做完後把報告與 CSV 存進 `docs/test/results/weekly/weekly_eval_YYYY-MM-DD.{md,csv}` 並 commit。評測失敗或整批 AI 失敗時 workflow 標為失敗。
+- **驗收**：`tests/test_weekly_eval.py`（題目範圍、一篇報告一題、來源輪流、歷史輪替與接回開頭、保留額、讀不到用量、整批失敗、實際花費達上限、只規劃不判讀、報告與 CSV 不含原文、Wilson 區間、端點授權／409／404／422）；`tests/test_pg_store.py::test_sample_verified_matches_local_store`。
 
 ---
 
@@ -894,7 +916,7 @@ Threads 回覆與分享專用文案見 7.7。
 | 類別 | 需求 | 量測 |
 |------|------|------|
 | 效能 | 文字 L1 命中 p50 <1.5 s；L2 命中 p50 <4 s（含一次 embedding）；快取命中（任一層）p95 ≤6 s；未命中 AI（web_search 關）p50 ≤15 s、p90 <20 s；（開）p90 <35 s；網址（含爬取）p95 ≤60 s；結果頁 API p50 <300 ms；前端首屏 LCP <2.5 s。**FR-16 Cofacts GraphQL 查詢時間（並行、總逾時 5 s、程序內 LRU）另計**，log 分開記 `tier_ms`，不計入上列 AI 數字 | 依共識 §7 由 `evaluate.py` 承擔（不新增 `bench.py`）：`evaluate.py --timing` 每筆輸出 `elapsed_ms`；快取層時間以後端每筆結構化 log 的 `elapsed_ms + cache_layer` 人工彙整（可觀測列）；結果頁 API 用 `curl` 迴圈 50 次；首屏用 Lighthouse 行動版預設節流（Slow 4G）LCP |
-| 成本 | 每次未命中查證 ≤ USD 0.02（CGU AIR `gpt-5.4-mini`、`OPENAI_REASONING_EFFORT=low`，web_search 由 `USE_WEB_SEARCH` 控制；參考：2026-07 三輪批次查證共 USD 0.127，CLAUDE.md §8）；demo 週護欄 = CGU `GET /me/usage` 每日查一次 + `USE_WEB_SEARCH`（FR-14 demo 週段；程式護欄為 P1）；demo 週總花費 ≤ USD 5（共識 §4：CGU OpenAI 成本額度 USD 10，**不買 OpenAI 直連額度**）；`gpt-5.4` 只作績效測試比較組（可選、≤ USD 2） | Day 0 `test_ai_provider.py --provider cgu` 前後 `/me/usage` 差為第一筆數據；每次評測前後 `/me/usage` 記入 `docs/test/cgu_usage.txt`；P1 後加 `data/ai_usage.jsonl` |
+| 成本 | 每次未命中查證 ≤ USD 0.02（2026-09-30 起 CGU AIR `gpt-5.6-luna`、`CGU_REASONING_EFFORT=medium`，實測每次約 USD 0.0014；之前為 `gpt-5.4-mini` 約 USD 0.0064。web_search 由 `USE_WEB_SEARCH` 控制；參考：2026-07 三輪批次查證共 USD 0.127，CLAUDE.md §8）；demo 週護欄 = CGU `GET /me/usage` 每日查一次 + `USE_WEB_SEARCH`（FR-14 demo 週段；程式護欄為 P1）；demo 週總花費 ≤ USD 5（共識 §4：CGU OpenAI 成本額度 USD 10，**不買 OpenAI 直連額度**）；`gpt-5.4` 只作績效測試比較組（可選、≤ USD 2） | Day 0 `test_ai_provider.py --provider cgu` 前後 `/me/usage` 差為第一筆數據；每次評測前後 `/me/usage` 記入 `docs/test/cgu_usage.txt`；P1 後加 `data/ai_usage.jsonl` |
 | 隱私 | 不存 IP；只存文字與判定；Threads 只存公開貼文的 `post_id`／`username`／`permalink`；fallback 不回傳上游錯誤原文；`/api/knowledge` 只回 `raw_content` 前 500 字；log 不含 token | code review + `grep` token 不出現在 log |
 | 安全：SSRF | `crawler.crawl_url` 與 `url_validator._is_url_alive` 統一走 `app/utils/safe_url.py`：僅 http/https；DNS 解析後所有 A/AAAA 皆非 loopback/private/link-local/multicast/reserved；port 僅 80/443；重導向 ≤3 次且每跳重檢；連線逾時 10 s、總逾時 `CRAWLER_TIMEOUT`（預設 30 s，與 FR-02 驗收 3 同一組）；回應 ≤2 MB | `tests/test_safe_url.py`（新增） |
 | 安全：授權 | 5.6；`ADMIN_TOKEN` ≥32 字亂數（`start.bat` 首次自動產生）；缺 → 401、空設定 → 403 | `tests/test_api.py` 加案例 |
@@ -1167,3 +1189,4 @@ Threads 回覆與分享專用文案見 7.7。
 | v1.3 | 2026-09-15 | v1.2 審查修訂第二輪（21 條，全部採納）：**共識引用**——5.2 poll／6.2 `label_source`／6.3 `platform`／7.8 四處掃描事實改引「共識 §10」（§9 插入後改號）；§0 加註共識 §6「要買 OpenAI 額度」已被 §4 取代、本文件不採。**FR-16／17 內部一致**——`verified`／`source_tier` 改由 `PandasStore.save_record` 內部以 `tier_of(..., offline=True)` 計算（processor／`_index_factcheck_claim` 只傳 `label_source`），`test_cache_and_store` 五檔斷言不動（fixture `165.npa.gov.tw` = Tier 1）；`tier_of` 輸出統一為 int + `TIER_LABELS` 查表；Cofacts GraphQL 端點改 `https://api.cofacts.tw/graphql`（以程式碼為準）、同請求並行 + 總逾時 5 s + 程序內 LRU、§9 效能列註明另計；6.1 `tasks.parquet` 舊列 `verified` 一律 False（不在啟動路徑發網路請求）。**狀態推導**——5.3 明訂 `verification_status` 順序（rule → verified → unverified）、`rule`／`verified` 保證 `sources` 非空（`source_url` 補進 `sources`，FR-17／FR-18 規則 1）、UNVERIFIABLE／`ai_unavailable` 不觸發 `no_verified_source_*` 橫幅（S2 狀態 10 例外）；7.7 替代行只以 `verification_status=="unverified"` 觸發；S2 元件 4 同步。**FR-18**——加 `--retry-cofacts` 旗標定義；規則 4 熱門牆 Cofacts 列同樣逐筆查 GraphQL；`--apply` 通過 OP-9 後提交清洗後 `knowledge_base.parquet` 一次作新種子（FR-15 `.gitignore`、6.2、10.6 4.1、QA-4 例外同步）；OP-1 加 `stats.total ≥150`；D-17 門檻 >120 改 **>86**（與 OP-9 `verified ≥150` 一致，R15 同步）。**FR-19**——`allowed_domains` 固定 P1、OP-2 只記錄不升 P0（FR-19、OP-2、D-16、A20 統一）；預設清單 = `TIER1_DOMAINS`（≤20、無萬用字元、`gov.tw` 子網域涵蓋於 OP-2 驗證）；OP-2 拆「P0 條件（關 web_search 一次）」與「記錄項」，避免 400 觸發 4.3 中止。**時程**——Day 2.5 工時重排：後端契約 B 四項 + FN-2a／8／9 前移 Day 2 尾段，Day 2.5 只留 FR-18 全流程 + ALTER 回填 + FN-14，OP-5 由組員 A 主跑（§11「v1.2 範圍調整」⑤）。**其他**——FN-5 六種→七種並加「尚無查核機構證實 + 替代行」長度案例；FN-12 加 offline 案例與端點；S6 P1 加「知識庫未證實筆數」（5.1 `unverified_count` 用途對齊）；7.2 機器人帳號改「已建立 `@factcheck_tw_bot`」、§13 引言去掉「Day 1 建帳號／handle 綁死」；§0 狀態列補 Day 1 答 D-13／D-16／D-18。 |
 | v1.4 | 2026-09-22 | 負責人於報告後提出兩項需求（查核機構之後更新的結論要能接回舊資料；熱門搜尋獨立成可與查核機構合作的功能）：新增 **FR-20 查核結果回補**（URL／hash 命中未證實列時只以確定性標記取代、`/api/trending/refresh?analyze=false` 只抓查核文章不呼叫判讀模型、`recheck_unverified.py` 唯讀盤點）與 **FR-21 本站熱門查證**（`GET /api/knowledge/hot`、半衰期 3 小時的時間衰減排序、熱門頁分頁；公開頁只列已證實內容，給查核機構的名單待隱私政策與去識別化後另做）；5.2、5.3 同步。 |
 | v1.5 | 2026-09-23 | 陳仁暉教授審查意見（檢驗方法）與指導教授「以夾角看信心」的建議：新增 **FR-22 證據信心**——信心等級改依與查核機構已證實內容的相似度（夾角）與來源決定，不用 AI 自評分數（規則表 9 列、門檻 0.65／話術差距 0.10 依 `evidence_confidence_2026-09-24.md` 實測）；**FR-02 `similar_news` 實作**（v1.2 降 P1 的知識庫向量近鄰，連到查核機構原文）；5.3 回應加 `confidence_basis`、`evidence`，`similar_news` 欄位改為 `{title, url, source, risk_type, frame_type, frame_label, similarity, degrees, kb_id}`；8.3 S2 元件 1、5 與 8.7 `similar_item`、`confidence_note` 同步；FN-2c 改為可驗收。資料面：查核機構已證實資料批次入庫腳本 `ingest_factchecks.py`（18,469 筆；只收看得出被查核主張的文章）。 |
+| v1.6 | 2026-09-30 | 負責人要求「每天或每半天把新內容更新進資料庫，每週額度不要浪費」：新增 **FR-23 查核結論同步**（後端背景工作＋管理端點，每天兩次 recent、每週一次 full，第一次自動完整回填；取代 FR-20 第 2 點的每日熱門牆排程，熱門牆改在同步後更新）與 **FR-24 每週新查核自動評測**（用每週剩下的 CGU 額度量 AI 準確率，保留 USD 3 給使用者，報告自動存進版本庫）。同日發現 CGU 閘道已下架 `gpt-5.4-mini`（HTTP 404 `model_not_found`，網站新內容的判讀全數變成 fallback）：以 150 題與本週 41 則新查核比較後改用 `gpt-5.6-luna`、備援 `gpt-6-luna`（`docs/test/results/model_switch_2026-09-30.md`）；`_cgu_analyze` 遇到模型不存在自動改用備援模型；FR-23 的同步每次檢查模型清單。FR-01、§9 成本列同步。 |

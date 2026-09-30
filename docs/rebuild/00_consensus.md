@@ -42,7 +42,7 @@
 
 - **保留**：FastAPI；三層快取（hash → 向量 0.75 → AI）；AI 多 provider（cgu／openai／claude）；trafilatura 網址爬取；MyGoPen／TFC／Cofacts 三來源；標記規則（第 9 節三道防線）；pytest + GitHub Actions CI；SQLite（熱門）+ Parquet（快取）。
 - **改**：文字輸入只走「快取 → AI（可開 provider web_search）」，不再把使用者原文送 Google；新增 `GET /api/result/{id}`；回應保留 `cached`／`cache_layer`；死碼移除（Serper、TRENDING_KEYWORDS、Playwright／yt-dlp 管線）；`news_fetcher` 阻塞呼叫改 `to_thread`；程式碼順手梳理。
-- **AI 額度（已解決，2026-09-15 02:00）**：2026-09-14 實測三個 provider 全死（CGU 401、myai168 openai 400 no_pricing_info、myai168 claude 402）。負責人取得**新學期 CGU AIR 金鑰**（OpenAI 成本額度 USD 10 + 本地模型 1,000 萬 tokens），填入 `.env` 後實測 `gpt-5.4-mini` 判定正常、embedding 1536 維正常。**不買 OpenAI 直連額度。** `.env` 已刪除 myai168／Gemini 相關 6 個 key，provider 鏈現為 `['cgu']`（`_run_analysis` 只加入有設定 key 的 provider）。模型定案：分析 `gpt-5.4-mini`（config 預設）、embedding `text-embedding-3-small`（0.75 門檻依此校準，不換）；`gpt-5.4` 只作為績效測試的比較組（可選）。CGU 閘道可用模型清單另含 gpt-4.1／gpt-5 全系列、o3／o4-mini、whisper-1、本地 bge-m3／gpt-oss:20b 等。
+- **AI 額度（已解決，2026-09-15 02:00）**：2026-09-14 實測三個 provider 全死（CGU 401、myai168 openai 400 no_pricing_info、myai168 claude 402）。負責人取得**新學期 CGU AIR 金鑰**（OpenAI 成本額度 USD 10 + 本地模型 1,000 萬 tokens），填入 `.env` 後實測 `gpt-5.4-mini` 判定正常、embedding 1536 維正常。**不買 OpenAI 直連額度。** `.env` 已刪除 myai168／Gemini 相關 6 個 key，provider 鏈現為 `['cgu']`（`_run_analysis` 只加入有設定 key 的 provider）。模型定案：分析 `gpt-5.4-mini`（config 預設）、embedding `text-embedding-3-small`（0.75 門檻依此校準，不換）；`gpt-5.4` 只作為績效測試的比較組（可選）。CGU 閘道可用模型清單另含 gpt-4.1／gpt-5 全系列、o3／o4-mini、whisper-1、本地 bge-m3／gpt-oss:20b 等。**（2026-09-30 更新：閘道已下架 `gpt-5.4-mini`，分析模型改為 `gpt-5.6-luna`、備援 `gpt-6-luna`；embedding 不變。理由與比較見規格 v1.6 與 `docs/test/results/model_switch_2026-09-30.md`。）**
 
 ## 5. 前端決策
 

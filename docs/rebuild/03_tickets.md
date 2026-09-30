@@ -1052,6 +1052,8 @@ flowchart LR
   - 截圖檢核（淺色，對照 `Bot.dc.html`：徽章、狀態卡、dev_mode_notice、回覆 2 筆）：`S6_off_375_light.png`、`S6_off_1280_light.png`；`S6_loading_375_light.png`；`S6_sim_375_light.png`、`S6_sim_1280_light.png`、`S6_live_375_light.png`；`S6_last_error_375_light.png`、`S6_last_error_1280_light.png`。
 - 預估：3h
 - 排程：Day 5
+- 狀態：程式已完成（2026-09-30；`pages/bot/botModel.js`、`useBotStatus.js`、`ReplyItem.jsx`、`bot.test.js`，前端單元測試 409）。
+  sim 狀態以瀏覽器對 fixture 實測；off／live_error 只有單元測試，截圖檢核未做
 
 ### S-12 建立 /oauth/callback 授權碼顯示頁
 - 優先級：P0
@@ -2725,4 +2727,52 @@ flowchart LR
 - 驗收：YAML 可解析；負責人加入 secret 後以 workflow_dispatch 手動觸發一次，log 顯示 http 200。
 - 預估：0.5h
 - 排程：報告後
-- 狀態：檔案已完成（2026-09-24）；**待負責人把 `ADMIN_TOKEN` 加入 repository secret**
+- 狀態：已由 O-30 取代（2026-09-30 刪除 `factcheck-daily.yml`；熱門牆改在 `factcheck-sync` 同步後更新）
+
+## 12. 2026-09-30 新增票（每日同步、每週評測、模型下架）
+
+負責人要求「每天或每半天把新內容更新進資料庫，讓每週的 CGU 額度都用到、不要浪費」；同日發現閘道已下架 `gpt-5.4-mini`。
+
+### B-35 查核結論同步：後端背景工作與管理端點
+- 優先級：P1
+- 依賴：D-07、B-30、B-33
+- 對應：spec v1.6 FR-23
+- 範圍：`code/backend/app/services/factcheck_corpus.py`（新增：收錄規則從 `scripts/ingest_factchecks.py` 移出，兩邊共用）、`app/services/factcheck_sync.py`（新增）、`app/api/admin.py`（`POST`／`GET /api/admin/factcheck-sync`）、`app/services/pandas_store.py`／`pg_store.py`（`existing_hashes`、`verified_origin_count`）、`scripts/ingest_factchecks.py`（改用共用模組）、`tests/test_factcheck_sync.py`（新增）、`tests/test_pg_store.py`（+1）
+- 做什麼：`recent`／`full` 兩種範圍；只寫 MISINFO／SCAM；已有同文字的已證實列或 `factcheck_batch` 列就略過；依發布日由舊到新、每 256 筆寫一次；知識庫還沒有查核機構資料時 `recent` 自動改跑 `full`；單一來源失敗不影響其他來源；同時只跑一輪（請求當下取得鎖）。
+- 驗收：`pytest tests/test_factcheck_sync.py`（18）；`RUN_PG_TESTS=1 pytest tests/test_pg_store.py`（31）；實抓（不花 AI）：recent 候選 493 筆、耗時 18 秒。
+- 預估：4h
+- 排程：報告後
+- 狀態：已完成（2026-09-30）
+
+### B-36 每週新查核自動評測
+- 優先級：P1
+- 依賴：B-35
+- 對應：spec v1.6 FR-24、`docs/test/上線後準確率驗證計畫.md` M5
+- 範圍：`code/backend/app/services/weekly_eval.py`（新增）、`app/api/admin.py`（`POST`／`GET /api/admin/weekly-eval`、`report.md`、`results.csv`）、`app/config.py`（`WEEKLY_EVAL_MAX_USD`、`WEEKLY_EVAL_RESERVE_USD`）、`app/services/pandas_store.py`／`pg_store.py`（`sample_verified`）、`tests/test_weekly_eval.py`（新增）、`tests/test_pg_store.py`（+1）
+- 做什麼：本週新查核（主要數字）＋知識庫歷史輪替（每週 2,000 題，參考）；直接呼叫 AIService、不經快取；可用額 = min(6, 剩餘 − 3)；報告與 CSV 不含訊息原文。
+- 驗收：`pytest tests/test_weekly_eval.py`（17）；實抓本週題目（不花 AI）41 題；以真的閘道小額試跑時發現 `gpt-5.4-mini` 已下架（B-37）。
+- 預估：4h
+- 排程：報告後
+- 狀態：已完成（2026-09-30）
+
+### O-30 factcheck-sync 與 weekly-eval workflow（取代 O-29）
+- 優先級：P1
+- 依賴：B-35、B-36
+- 對應：FR-23、FR-24、HANDOFF 待辦第 11 項
+- 範圍：`.github/workflows/factcheck-sync.yml`（新增）、`.github/workflows/weekly-eval.yml`（新增）、`.github/workflows/factcheck-daily.yml`（刪除）
+- 做什麼：factcheck-sync 每天台灣 08:07、20:07 recent，週日 03:37 full，每分鐘讀一次進度直到做完，之後更新熱門牆；weekly-eval 週日 21:17 執行並把報告 commit 到 `docs/test/results/weekly/`。同步失敗、來源抓取失敗、閘道已沒有設定的模型、整批 AI 失敗時 workflow 標為失敗（GitHub 寄信）。沒有 `ADMIN_TOKEN` 時印出說明並正常結束。
+- 驗收：YAML 可解析；負責人加入 secret 後以 workflow_dispatch 各手動觸發一次（weekly-eval 可先勾 plan_only）。
+- 預估：1.5h
+- 排程：報告後
+- 狀態：檔案已完成（2026-09-30）；**待負責人把 `ADMIN_TOKEN` 加入 repository secret**
+
+### B-37 AI 模型改為 gpt-5.6-luna，下架時自動改用備援模型
+- 優先級：P0（正式站新內容的 AI 判讀全數失敗）
+- 依賴：—
+- 對應：spec v1.6 FR-01、§9；測試計畫書 DEF-09
+- 範圍：`code/backend/app/config.py`（`CGU_MODEL`、`CGU_FALLBACK_MODEL`）、`app/services/ai_service.py`（`_cgu_analyze` 遇 404 `model_not_found` 改用備援模型、`gateway_models()`）、`app/services/factcheck_sync.py`（每次同步檢查模型清單）、`app/workers/pandas_task_processor.py`（價目表加兩個模型）、`.env.example`、`render.yaml`（明列 `CGU_MODEL`、`CGU_FALLBACK_MODEL`）、`tests/test_ai_service_contract.py`（+4）
+- 做什麼：2026-09-30 以真的閘道試跑每週評測時，每一題都回 HTTP 404「Model 'gpt-5.4-mini' is not available on this gateway」；閘道模型清單已無該模型。以 150 題與本週 41 則新查核比較 `gpt-5.6-luna` 與 `gpt-6-luna`（`docs/test/results/model_switch_2026-09-30.md`），選前者為主模型、後者為備援。
+- 驗收：`pytest tests -q`；`evaluate.py --timing --delay 0` 以新模型重跑 150 題（結果回填測試計畫書 6.7 與 CLAUDE.md 第 6 節）；推送後正式站未命中快取的查證不再出現灰色卡片。
+- 預估：2h
+- 排程：立即
+- 狀態：程式已完成（2026-09-30）；**待負責人核准推送**

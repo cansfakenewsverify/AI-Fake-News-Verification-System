@@ -1,0 +1,137 @@
+# 每週新查核自動評測（spec FR-24；docs/test/上線後準確率驗證計畫.md 的 M5）：
+# 呼叫後端 POST /api/admin/weekly-eval，把 CGU 每週用剩的額度拿來量 AI 判讀準確率
+# （可用額 = min(WEEKLY_EVAL_MAX_USD, CGU 剩餘 − WEEKLY_EVAL_RESERVE_USD)，保留額留給網站使用者）。
+# 題目與真值來自查核機構已發布的結論：本週新查核（主要數字）＋知識庫歷史輪替（參考）。
+# 做完後把 Markdown 報告與逐題 CSV 存進 docs/test/results/weekly/ 並 commit（不含訊息原文）。
+# 評測在後端背景執行；本 workflow 每分鐘讀一次進度（順便讓 Render 免費主機保持清醒），最多等 190 分鐘。
+# 評測失敗、或整批 AI 判讀都失敗（stop_reason=ai_unavailable）時標為失敗（GitHub 會寄信通知）。
+#
+# 需要：repository variable BACKEND_BASE_URL、repository secret ADMIN_TOKEN（與 factcheck-sync 相同）。
+name: weekly-eval
+
+on:
+  schedule:
+    - cron: "17 13 * * 0"    # 台灣週日 21:17（cron 為 UTC）
+  workflow_dispatch:
+    inputs:
+      max_usd:
+        description: "本次上限（USD）；空白 = 後端設定 WEEKLY_EVAL_MAX_USD"
+        required: false
+        default: ""
+      plan_only:
+        description: "只抓題目、算出會出幾題，不呼叫 AI（零成本）"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-eval
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    env:
+      BACKEND_BASE_URL: ${{ vars.BACKEND_BASE_URL }}
+      ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+      MAX_USD: ${{ inputs.max_usd }}
+      PLAN_ONLY: ${{ inputs.plan_only && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the evaluation on the backend
+        id: run
+        run: |
+          base="${BACKEND_BASE_URL%/}"
+          if [ -z "$base" ] || [ -z "$ADMIN_TOKEN" ]; then
+            echo "BACKEND_BASE_URL (variable) or ADMIN_TOKEN (secret) is not set -- skipping."
+            exit 0
+          fi
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 60 "$base/health" 2>/dev/null || true)
+            echo "GET /health -> http ${code:-000} (attempt ${attempt})"
+            [ "$code" = "200" ] && break
+            sleep 10
+          done
+
+          query="plan_only=${PLAN_ONLY}"
+          [ -n "$MAX_USD" ] && query="${query}&max_usd=${MAX_USD}"
+          code=$(curl -sS -o start.json -w "%{http_code}" --max-time 60 -X POST \
+            -H "X-Admin-Token: ${ADMIN_TOKEN}" "$base/api/admin/weekly-eval?${query}" 2>/dev/null || true)
+          echo "POST /api/admin/weekly-eval?${query} -> http ${code:-000}"
+          cat start.json 2>/dev/null || true
+          echo
+          case "$code" in
+            202) ;;
+            409) echo "An evaluation is already running on the server; following it." ;;
+            401|403) echo "::error::The backend rejected ADMIN_TOKEN (http $code)."; exit 1 ;;
+            *) echo "::error::Could not start the evaluation (http ${code:-000})."; exit 1 ;;
+          esac
+
+          state=""
+          for i in $(seq 1 190); do
+            sleep 60
+            code=$(curl -sS -o status.json -w "%{http_code}" --max-time 60 \
+              -H "X-Admin-Token: ${ADMIN_TOKEN}" "$base/api/admin/weekly-eval" 2>/dev/null || true)
+            state=$(python3 -c 'import json; s=json.load(open("status.json")); print(s.get("state",""), s.get("phase") or "", s.get("done",0), s.get("planned",0), s.get("spent_usd",0), sep=" ")' 2>/dev/null || true)
+            echo "[${i} min] http ${code:-000} state/phase/done/planned/usd: ${state}"
+            case "${state%% *}" in
+              done|skipped|failed|idle) break ;;
+            esac
+          done
+
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          s = json.load(open("status.json"))
+          keys = ("state", "plan_only", "allowed_usd", "available_fresh", "planned_fresh", "planned_history", "done",
+                  "fallbacks", "spent_usd", "stop_reason", "source_errors", "summary", "error", "started_at", "finished_at")
+          print(json.dumps({k: s.get(k) for k in keys}, ensure_ascii=False, indent=2))
+          problems = []
+          if s.get("state") == "idle":
+              problems.append("the server lost the evaluation (it restarted while running)")
+          elif s.get("state") not in ("done", "skipped"):
+              problems.append(f"evaluation did not finish: state={s.get('state')} error={s.get('error')}")
+          if s.get("stop_reason") == "ai_unavailable":
+              problems.append("every AI call in a batch failed: check CGU quota and CGU_MODEL (see CLAUDE.md section 2)")
+          for p in problems:
+              print(f"::error::{p}")
+          report = s.get("state") in ("done", "skipped") and not s.get("plan_only")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"report={'true' if report else 'false'}\n")
+          sys.exit(1 if problems else 0)
+          PY
+
+      - name: Save the report to docs/test/results/weekly/
+        if: steps.run.outputs.report == 'true'
+        run: |
+          base="${BACKEND_BASE_URL%/}"
+          curl -sS --fail --max-time 60 -H "X-Admin-Token: ${ADMIN_TOKEN}" \
+            "$base/api/admin/weekly-eval/report.md" -o report.md
+          curl -sS --fail --max-time 60 -H "X-Admin-Token: ${ADMIN_TOKEN}" \
+            "$base/api/admin/weekly-eval/results.csv" -o results.csv
+          day=$(head -n 1 report.md | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' | head -n 1)
+          [ -n "$day" ] || day=$(TZ=Asia/Taipei date +%F)
+          mkdir -p docs/test/results/weekly
+          mv report.md "docs/test/results/weekly/weekly_eval_${day}.md"
+          mv results.csv "docs/test/results/weekly/weekly_eval_${day}.csv"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/test/results/weekly/
+          if git diff --cached --quiet; then
+            echo "Nothing new to commit."
+            exit 0
+          fi
+          git commit -m "每週新查核自動評測 ${day}（weekly-eval workflow 自動產生）"
+          for attempt in 1 2 3; do
+            git push origin HEAD:main && exit 0
+            git pull --rebase origin main
+          done
+          echo "::error::Could not push the report."
+          exit 1

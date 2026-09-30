@@ -698,6 +698,42 @@ class PgKnowledgeStore(_PgStoreBase):
                 page_sql, {**params, "limit": int(limit), "offset": int(offset)}).mappings().all()]
         return int(total or 0), _kb_frame(rows)
 
+    def existing_hashes(self, hashes: Iterable[str], origin: Optional[str] = None) -> set:
+        wanted = sorted({str(h) for h in hashes if h})
+        if not wanted:
+            return set()
+        clause = "(verified OR origin = :origin)" if origin is not None else "verified"
+        statement = text(f"SELECT DISTINCT data_hash FROM knowledge_base WHERE {clause} AND data_hash = ANY(:hashes)")
+        found: set = set()
+        with self._connect() as conn:
+            for start in range(0, len(wanted), 1000):
+                params = {"hashes": wanted[start:start + 1000]}
+                if origin is not None:
+                    params["origin"] = origin
+                found.update(str(r[0]) for r in conn.execute(statement, params))
+        return found
+
+    def verified_origin_count(self, origin: str) -> int:
+        statement = text("SELECT count(*) FROM knowledge_base WHERE verified AND origin = :origin"
+                         " AND data_hash IS NOT NULL")
+        with self._connect() as conn:
+            return int(conn.execute(statement, {"origin": origin}).scalar() or 0)
+
+    def sample_verified(self, origin: str, n: int, seed: str = "", offset: int = 0) -> List[Dict[str, Any]]:
+        if n <= 0:
+            return []
+        # COLLATE "C"：md5 十六進位字串以位元組順序排序，與本機版（Python 字串比較）相同
+        statement = text(
+            "SELECT id, raw_content, risk_type, source_url, data_hash FROM knowledge_base"
+            " WHERE verified AND origin = :origin AND data_hash IS NOT NULL"
+            ' ORDER BY md5(data_hash || :seed) COLLATE "C", id OFFSET :offset LIMIT :n'
+        )
+        params = {"origin": origin, "seed": seed, "n": int(n), "offset": max(int(offset), 0)}
+        with self._connect() as conn:
+            rows = conn.execute(statement, params).mappings().all()
+        return [{"id": str(r["id"]), "raw_content": str(r["raw_content"]), "risk_type": str(r["risk_type"]),
+                 "source_url": r["source_url"], "data_hash": str(r["data_hash"])} for r in rows]
+
     def get_verified_by_ids(self, ids: Iterable[str]) -> pd.DataFrame:
         wanted = sorted({str(i) for i in ids if i})
         if not wanted:

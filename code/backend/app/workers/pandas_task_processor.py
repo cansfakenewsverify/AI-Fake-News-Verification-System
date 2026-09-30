@@ -47,6 +47,10 @@ MODEL_PRICING_PER_1M: Dict[str, Tuple[float, float]] = {
     # CGU_MODEL 預設型號：CGU 閘道實際計價（OpenAI 公告價 0.75／4.50 的 2 倍；DEF-06，2026-09-16 PF-5 以
     # /me/usage 核對，2026-09-23 批次 embedding 實扣也是牌價的 2 倍）
     "gpt-5.4-mini": (1.50, 9.00),
+    # 2026-09-30 起的 CGU_MODEL／CGU_FALLBACK_MODEL：以 191 次呼叫的 /me/usage 實扣總額與 token 數反推
+    # （docs/test/results/model_switch_2026-09-30.md）
+    "gpt-5.6-luna": (0.55, 2.20),
+    "gpt-6-luna": (0.25, 1.00),
 }
 
 # ai_service 附在分析結果上的呼叫資訊（只供 log，不寫進知識庫／回應）

@@ -35,7 +35,11 @@ class Settings(BaseSettings):
     # CGU AIR Gateway（OpenAI 相容 Responses API）：新增選項，不取代 myai168。
     CGU_API_KEY: str = ""
     CGU_BASE_URL: str = "https://air.cgu.edu.tw/cgullmapi/v1"
-    CGU_MODEL: str = "gpt-5.4-mini"
+    # 2026-09-30 閘道下架 gpt-5.4-mini（HTTP 404 model_not_found），改用 gpt-5.6-luna（比較見
+    # docs/test/results/model_switch_2026-09-30.md）。可用模型：GET {CGU_BASE_URL}/models
+    CGU_MODEL: str = "gpt-5.6-luna"
+    # 主模型被閘道下架（HTTP 404 model_not_found）時改用的模型；空字串 = 不備援
+    CGU_FALLBACK_MODEL: str = "gpt-6-luna"
     CGU_REASONING_EFFORT: str = "medium"
 
     # 向量 embedding：CGU LLM Gateway（OpenAI 相容，有 embeddings 端點，與 myai168 不同把金鑰）
@@ -98,6 +102,11 @@ class Settings(BaseSettings):
     # 預設刻意寬鬆：同一間教室／校園 Wi-Fi 的所有人對外是同一個 IP。
     RATE_LIMIT_PER_MINUTE: int = 30
     RATE_LIMIT_PER_HOUR: int = 200
+
+    # 每週新查核自動評測（FR-24，app/services/weekly_eval.py）：CGU 每週額度用剩的拿來量 AI 準確率。
+    # 可用額 = min(WEEKLY_EVAL_MAX_USD, CGU 剩餘額度 − WEEKLY_EVAL_RESERVE_USD)；保留額是留給網站使用者的。
+    WEEKLY_EVAL_MAX_USD: float = 6.0
+    WEEKLY_EVAL_RESERVE_USD: float = 3.0
 
     # ── Threads 查核機器人（延伸功能，預設關）──────────────────
     # 使用者在 Threads 上 @機器人帳號 回覆可疑貼文 → 機器人抓原貼文

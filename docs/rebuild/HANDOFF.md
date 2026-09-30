@@ -1,18 +1,19 @@
-# 專案現況與待辦（2026-09-22）
+# 專案現況與待辦（2026-09-30）
 
 本文件記錄專案在第三次進度報告前後的狀態、指導教授的最新規定，以及尚未完成的工作。
-上游文件依序為 `00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）→ `03_tickets.md`（實作票）；
+上游文件依序為 `00_consensus.md`（共識）→ `01_spec.md`（規格 v1.6）→ `03_tickets.md`（實作票）；
 測試項目與結果在 `docs/test/TP-FNV-2026-01.md`。
 
 ## 現況
 
 - 系統已上線：<https://fakenewsverify.vercel.app>。前端 Vercel、後端 Render
   （`https://fakenewsverify-api.onrender.com`）、資料 Supabase PostgreSQL 與 pgvector；
-  AI 使用學校 CGU AIR 閘道的 `gpt-5.4-mini`。金鑰僅存在本機設定檔與 Render 後台，不進版本庫。
-- 測試：後端 757 項通過（另 29 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-23 對 Supabase 全數通過）、
-  前端 403 項通過。
-- 測試計畫書 `docs/test/TP-FNV-2026-01.md` 為 v1.5，第 6.5 節為 2026-09-19～20 的重測結果：
-  P0 通過 27／30；PF-2 未通過，UI-6 未執行。PDF 在 `presentations/2026-09_進度報告/`。
+  AI 使用學校 CGU AIR 閘道的 `gpt-5.6-luna`（2026-09-30 閘道下架 `gpt-5.4-mini` 後改用，備援 `gpt-6-luna`）。
+  金鑰僅存在本機設定檔與 Render 後台，不進版本庫（`ADMIN_TOKEN` 另需存為 GitHub repository secret，見待辦第 11 項）。
+- 測試：後端 810 項通過（另 31 項 PostgreSQL 契約測試需 `RUN_PG_TESTS=1`，2026-09-30 對 Supabase 全數通過）、
+  前端 409 項通過。
+- 測試計畫書 `docs/test/TP-FNV-2026-01.md` 為 v1.7：第 6.5 節為 2026-09-19～20 的重測結果（P0 通過 27／30；
+  PF-2 未通過，UI-6 未執行），第 6.7 節為 2026-09-30 換模型後的重測。PDF 在 `presentations/2026-09_進度報告/`。
 - 第三次進度報告的資料集中在 `presentations/2026-09_進度報告/`，見該資料夾的 README。
 - 專案位置為 `C:\Users\user\Desktop\AI-Fake-News-Verification-System`（2026-09-19 搬移）。
   Python 虛擬環境的啟動器在搬移後失效，一律以 `.\venv\Scripts\python -m pytest`／`-m pip`／`-m uvicorn` 執行。
@@ -56,12 +57,23 @@
 
 - **查核機構資料批次語料與證據信心研究**（2026-09-23）：
   - `code/backend/scripts/ingest_factchecks.py` 抓取 MyGoPen 全站、台灣事實查核中心全部查核報告與 Cofacts 已有判定的訊息，
-    可入庫 18,469 筆；求證平台上沒有判定的訊息、抽不出被查核主張的文章一律不收。向量已算好（CGU 扣 USD 0.24），
-    **尚未寫入正式資料庫**。
+    可入庫 18,469 筆；求證平台上沒有判定的訊息、抽不出被查核主張的文章一律不收。向量已算好（CGU 扣 USD 0.24）。
+    正式資料庫改由待辦第 11 項的同步寫入（第一次同步自動完整回填）。
   - `code/backend/scripts/evidence_confidence_study.py` 的報告 `docs/test/results/evidence_confidence_2026-09-24.md`：
     評測的 50 題安全訊息沒有一題會因入庫而被誤判；最近的已查核案例相似度越高，題目真的有風險的比例越高，
     可作為「夾角信心」的依據。
   - 知識庫頁改在資料庫裡分頁與計數（入庫後的必要條件）；修正【非謠言】被標成假訊息的標記規則錯誤。
+
+- **查核結論同步與每週新查核自動評測**（2026-09-30，規格 v1.6 的 FR-23、FR-24，票 B-35、B-36、O-30）：
+  - 後端背景工作每天兩次把 MyGoPen、台灣事實查核中心、Cofacts 新發布的判定寫進知識庫（只耗 embedding），
+    做完再更新熱門牆；第一次執行自動完整回填約 1.85 萬筆。GitHub Actions `factcheck-sync` 觸發。
+  - 每週日用 CGU 每週剩下的額度（上限 USD 6、保留 USD 3 給使用者）量 AI 判讀準確率：本週新發布的查核結論為主要數字，
+    知識庫歷史資料每週輪替 2,000 題為參考；報告自動存進 `docs/test/results/weekly/`。GitHub Actions `weekly-eval` 觸發。
+  - 兩者都要 GitHub repository secret `ADMIN_TOKEN`，**尚未設定**（待辦第 11 項）。
+- **AI 模型下架與更換**（2026-09-30，票 B-37，測試計畫書 DEF-10）：試跑每週評測時發現閘道已下架 `gpt-5.4-mini`，
+  正式站沒命中快取的查證全部回「AI 分析暫時無法使用」。比較兩個候選模型後改用 `gpt-5.6-luna`（本週新查核漏判 5 則，
+  另一個 10 則；每次判讀約 USD 0.0014，舊模型的 22%），主模型被下架時自動改用 `gpt-6-luna`，同步時檢查模型清單、
+  不見就寄信。比較紀錄 `docs/test/results/model_switch_2026-09-30.md`。**推送後正式站才會恢復**（待辦第 0 項）。
 
 ## 審查意見（2026-09-21，陳仁暉教授）
 
@@ -76,6 +88,7 @@
 
 ## 待辦
 
+0. **推送 2026-09-30 的變更**（負責人核准後推送）：推送後 Render 重新部署，正式站的 AI 判讀恢復。
 1. **列印與簽名**：書面報告由指導教授簽名；三份文件各印 3 份；
    測試計畫書 §6.4 亦須簽名。
 2. **UI-1 勾核**：截圖與檢核表已就緒，待石岱勳逐列勾核、張宇宏覆核，
@@ -102,18 +115,21 @@
 8. **UI-6**：OpenCC 簡繁比對，其中英文字允許清單須經指導教授裁定。
 9. **熱門牆資料更新**：雲端排程關閉，目前為手動更新。2026-09-22 以「只抓不判」更新一次（MyGoPen 與台灣事實查核中心 31 篇；
    其中 23 則查核結論寫入知識庫，知識庫確定性標記由 0 筆增為 23 筆；既有 24 筆熱門牆資料未被改動）。
-   之後改由第 11 項的每日排程處理。
+   之後改由第 11 項的同步排程處理（每次同步完順便更新熱門牆）。
 10. **Threads 實機串接**：排在報告後，需 Meta App Review 與企業驗證，詳見 `CLAUDE.md` 第 11 節。
-11. **查核結論每日進庫**：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false`，
-    需先把 `ADMIN_TOKEN` 加入 GitHub repository secret；此步驟不呼叫判讀模型。
+11. **把 `ADMIN_TOKEN` 加入 GitHub repository secret**：查核結論同步（每天兩次）與每週評測（週日）都靠它；
+    值從 Render 後台 Environment 頁複製（不要貼到聊天或檔案）。加好後可在 GitHub Actions 頁手動執行一次 `factcheck-sync`，
+    第一次會自動完整回填約 1.85 萬筆（30～40 分鐘）。
 12. **提供查核機構的熱搜名單**：排序已完成（`app/services/hot_claims.py`），尚缺管理端點、個資遮蔽，
     以及隱私政策增列「提供查核機構」的用途；公開頁維持只列已證實內容。
 13. **上線後準確率量測**：報告前的 150 筆評測題庫已飽和（accuracy 100%）且自 2026-06 起就公開在版本庫，
     不能用來說明上線後的準確率。量測方法、真值來源、信心校準與判定準則已寫成
     `docs/test/上線後準確率驗證計畫.md`：M1 不公開的 90 題新題庫（每次約 USD 0.6）、
     M2 每週 20 筆線上結果雙人獨立覆核並計算 Cohen's kappa、M3 以 `recheck_unverified.py` 做查核結論回溯比對、
-    M4 使用者回饋只作抽樣導引不計入正確率。下一步是由姚睿出題（依票 O-11 的原則，AI 助理不代為產生題目）。
-14. **查核機構資料寫入正式資料庫**：先部署知識庫分頁，再執行 `ingest_factchecks.py apply --target cloud --apply`
-    （約 182 MB；可用 `rollback` 撤回）。須負責人核准。
-15. **證據信心（夾角）上線**：信心等級改依與已證實內容的相似度，結果頁顯示「知識庫中的相似查證」（規格 v1.5 FR-22）。
-    程式、測試與說明文件（`docs/rebuild/信心程度的產生方式.md`）已完成，待第 14 項完成後推送。
+    M4 使用者回饋只作抽樣導引不計入正確率，M5 每週新查核自動評測（第 11 項設好後自動執行，每週一份報告）。
+    M1 的下一步是由姚睿出題（依票 O-11 的原則，AI 助理不代為產生題目）。
+14. **查核機構資料寫入正式資料庫**：改由第 11 項的第一次同步自動完成（約 180 MB，免費上限 500 MB；
+    必要時可用 `ingest_factchecks.py rollback --target cloud --apply` 撤回）。
+15. **證據信心（夾角）**：已於 2026-09-24 上線（規格 v1.5 FR-22）；第 14 項完成後才有足夠的已查核近鄰。
+16. **確認 CGU 每週額度的重置日**：每週評測排在週日 21:17，假設週一 00:00 重置；若不是，把排程移到重置前一晚，
+    用剩的額度才不會浪費（改 `.github/workflows/weekly-eval.yml` 的 cron）。

@@ -4,17 +4,21 @@
 > **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
 > 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
 
-**現況（2026-09-19）**
+**現況（2026-09-30）**
 - 系統已經是**線上網站**：<https://fakenewsverify.vercel.app>。Vercel（React 靜態檔）把 `/api/*` 同源代理到 Render 後端
   `https://fakenewsverify-api.onrender.com`（FastAPI），資料在 Supabase Postgres + pgvector。架構與操作見第 12 節。
-- AI 只用學校 **CGU AIR 閘道的 `gpt-5.4-mini`**（embedding `text-embedding-3-small`），沒有備援；myai168 已停用（第 2 節）。
+- AI 只用學校 **CGU AIR 閘道**：分析 `gpt-5.6-luna`（2026-09-30 閘道下架 `gpt-5.4-mini` 後改用；主模型被下架時自動改用
+  備援 `gpt-6-luna`）、embedding `text-embedding-3-small`；myai168 已停用（第 2 節）。
+- 知識庫由 GitHub Actions **`factcheck-sync`** 每天兩次同步查核機構的新結論（第一次會自動回填約 1.85 萬筆）；**`weekly-eval`**
+  每週日用 CGU 每週剩下的額度做準確率測驗、報告自動存進 `docs/test/results/weekly/`（第 3、6 節）。
+  兩者都要 GitHub repository secret **`ADMIN_TOKEN`**（與 Render 相同值）；**截至 2026-09-30 尚未設定，所以還沒開始跑**。
 - 進度報告資料都在 `presentations/2026-09_進度報告/`（簡報影片網址、投影片、報告內容說明、測試計畫書 PDF、分工表；
   先看該資料夾的 README）。**報告當天播的是 5 分鐘簡報影片**（老師 2026-09-20 的新規定）：
   <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>（4 分 38 秒；v1.1 起旁白為女聲 `zh-TW-HsiaoChenNeural`；原始碼 `video/hf-presentation/`，
   規格 `docs/demo/presentation_video_brief.md`，製作紀錄 `docs/demo/footage_log.md`）。
   舊的 demo 影片 v0.4.0：<https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4>（`video/hf-demo/`）。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
-  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.5；6.5 為 2026-09-19～20 重測）。
+  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.7；6.7 為 2026-09-30 換模型後重測）。
 
 ---
 
@@ -44,10 +48,14 @@
 
 | 用途 | base_url | 模型 | 設定鍵 |
 |------|----------|------|--------|
-| 分析（文字／網址／圖片） | `https://air.cgu.edu.tw/cgullmapi/v1` | `gpt-5.4-mini` | `CGU_API_KEY` / `CGU_BASE_URL` / `CGU_MODEL` / `CGU_REASONING_EFFORT`（預設 `medium`） |
+| 分析（文字／網址／圖片） | `https://air.cgu.edu.tw/cgullmapi/v1` | `gpt-5.6-luna`（備援 `gpt-6-luna`） | `CGU_API_KEY` / `CGU_BASE_URL` / `CGU_MODEL` / `CGU_FALLBACK_MODEL` / `CGU_REASONING_EFFORT`（預設 `medium`） |
 | 向量 embedding | 同上 | `text-embedding-3-small`（1536 維） | `EMBED_RELAY_URL` / `EMBED_MODEL` / `EMBED_API_KEY`（空時退用 `CGU_API_KEY`） |
 
-- **額度**：新學期金鑰，OpenAI 成本額度 **USD 10**＋本地模型 1,000 萬 tokens（共識 §4）。用量查 `GET {CGU_BASE_URL}/me/usage`
+- **閘道會無預警下架模型**：2026-09-30 發現 `gpt-5.4-mini` 已下架（HTTP 404 `model_not_found`），網站新內容的判讀全部變成
+  fallback 卻沒有人發現。現在 `_cgu_analyze` 遇到 404 會自動改用 `CGU_FALLBACK_MODEL`；`factcheck-sync` 每次執行都讀模型清單
+  （`ai_service.gateway_models()` = `GET {CGU_BASE_URL}/models`，不花額度），設定的模型不在清單上時 workflow 變紅並寄信。
+  換模型要重跑評測（第 6 節），選型比較見 `docs/test/results/model_switch_2026-09-30.md`；模型名稱寫在 `render.yaml`。
+- **額度**：OpenAI 成本額度**每週 USD 10**（每週重置、用不完不累積；重置是星期幾尚未確認）＋本地模型 1,000 萬 tokens（共識 §4）。用量查 `GET {CGU_BASE_URL}/me/usage`
   （寫法見 `scripts/batch_verify_pending.py` 的 `cgu_cost_usd()`）。閘道教學頁：`https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html`。
 - **myai168（OpenAI／Claude 中繼）已停用**：`.env.example` 把它註解在「已停用」區，雲端只設 CGU 金鑰。舊碼留著供日後切回
   （`ai_service.py` 的 `_openai_analyze`／`_claude_analyze`；`config.py` 的 `MYAI_API_KEY`、`OPENAI_*`、`CLAUDE_*`，且 `AI_PROVIDER`
@@ -60,9 +68,11 @@
 - `DEMO_MODE=true` 會讓分析端點直接回固定的假結果（不呼叫 AI）；本機與雲端都應該是 `false`。
 
 ### 💰 額度與成本（最常踩雷）
-- 量級（2026-09-16 實測，測試計畫書 PF-5）：每次未命中快取的查證約 **USD 0.0064**、150 筆評測約 USD 0.94。
-  後端 log 的 `usd` 欄以 CGU 閘道實際計價估算（`MODEL_PRICING_PER_1M`，DEF-06 已於 2026-09-24 修正；閘道價為 OpenAI 牌價的 2 倍），
-  對帳仍以 `/me/usage` 為準。
+- 量級：`gpt-5.6-luna` 每次未命中快取的查證約 **USD 0.0014**、150 筆評測約 USD 0.2（2026-09-30 實測；
+  舊 `gpt-5.4-mini` 約 USD 0.0064）。後端 log 的 `usd` 欄以 CGU 閘道實際計價估算（`MODEL_PRICING_PER_1M`；
+  luna 兩個模型的單價由 /me/usage 實扣反推），對帳仍以 `/me/usage` 為準。
+- **每週額度的用法**：`weekly-eval` 每週日 21:17 用剩下的額度做準確率測驗（`app/services/weekly_eval.py`，第 6 節）：
+  可用額 = min(`WEEKLY_EVAL_MAX_USD`=6, 剩餘 − `WEEKLY_EVAL_RESERVE_USD`=3)，保留額留給網站使用者；每 100 題重讀一次用量。
 - `web_search` 工具讓每次呼叫**貴 3–7 倍**，由 `USE_WEB_SEARCH` 控制（`config.py` 與 `.env.example` 預設 true；**雲端設 false**；
   `evaluate.py` 固定不帶、`batch_verify_pending.py` 預設關）。CGU 閘道是否支援 `web_search` 尚未驗證（spec §12 R1）；
   帶了失敗時 `_run_analysis_chain` 會關掉 web_search 再試一次。
@@ -84,7 +94,9 @@
      `true` 只代表金鑰有設，**不代表金鑰有效或額度還夠**。
    - `"daily_ai_calls": {"used": N, "cap": 300}`：`used` 到頂是每日上限用完（429 `daily_cap_reached`，不是 AI 壞掉），隔日自動恢復。
    - 逾時或 502／504 → Render 免費主機正在喚醒（約 1 分鐘）或部署中。
-2. 後端 log 找 `[AI] cgu HTTP <碼>`（雲端：Render 服務頁的 Logs；本機：後端視窗）。401 = 金鑰錯或被重置；其餘對照
+2. 後端 log 找 `[AI] cgu HTTP <碼>`（雲端：Render 服務頁的 Logs；本機：後端視窗）。401 = 金鑰錯或被重置；
+   404 `model_not_found` = 閘道下架了模型（主模型與備援都不在才會變成 fallback；查 `gateway_models()`，改 `render.yaml` 的
+   `CGU_MODEL`／`CGU_FALLBACK_MODEL`）；其餘對照
    `ai_service._classify_upstream_error`（402 → 額度、429／503 → 限流）。額度另查 `/me/usage`。
 3. 本機低成本驗證（一次 AI 呼叫＋一次 embedding，印出 `risk_type` 或 HTTP 錯誤碼）：
    `cd code\backend` 後執行 `.\venv\Scripts\python scripts\test_ai_provider.py --provider cgu`。
@@ -126,7 +138,7 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
 - **查核結果回補（FR-20，2026-09-22）**：URL／Hash 層不過濾 verified，一字不差的重複查詢原本會一直拿到當初「尚無查核機構證實」。
   命中未證實列時，處理器以該列向量（Postgres 版沒載入向量時以原文算一次 embedding）呼叫
   `find_similar_by_vector(..., label_sources=DETERMINISTIC_LABEL_SOURCES)`，**只讓 rule／gold／admin 列取代舊結果**
-  （一般 AI 判定＋來源的列可能只是長得像的另一則訊息）。查核機構的新結論靠熱門牆抓取以 `rule` 寫入：
+  （一般 AI 判定＋來源的列可能只是長得像的另一則訊息）。查核機構的新結論主要由下面的查核結論同步寫入；熱門牆抓取也會以 `rule` 寫入：
   `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false` 只抓 MyGoPen／TFC 的 RSS 與寫入結論、不呼叫判讀模型
   （Cofacts 的 RUMOR 文章常是對話片段，寫進知識庫前要另外審閱）。抓取時擋下徵才、闢謠 TOP10、小考題等非查核文章；
   `_cleanup_legacy_strings` 不再把 Cofacts 已查核的謠言退回未查證（它的判定來自回覆、標題沒有【錯誤】標籤）。
@@ -135,10 +147,18 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   全部查核報告（WordPress REST 的「查核結果」分類＋「謠言原文」）、Cofacts 文字訊息（RUMOR 回覆獲正面評價、至少 3 人回報、
   沒有 NOT_RUMOR 回覆）→ 可入庫 18,469 筆（MISINFO／SCAM，`label_source=rule`、`origin=factcheck_batch`），
   另 1,813 筆「查核結果為真」只供分析、**永不寫入**（仿冒官方通知的詐騙若命中 SAFE 列會拿到綠燈）。
+  收錄規則在 `app/services/factcheck_corpus.py`（腳本與伺服器上的同步共用）。
   主張只收看得出被查核說法者（`news_fetcher._claim_for_index`：舊版問句標題，或「網傳「…」」引號內）；台灣事實查核中心
   新版標題寫的是結論，直接當謠言會把正確說法標成假訊息（2026-09-24 排除 120 筆）。
   步驟 fetch → embed（2026-09-23 實測 609 萬 tokens、CGU 扣 USD 0.24）→ apply（預設 dry-run；`--target cloud --apply`
-  要負責人核准）→ 需要時 `rollback`。**截至 2026-09-23 尚未寫入正式資料庫**。
+  要負責人核准）→ 需要時 `rollback`。正式資料庫改由下一段的同步寫入（第一次同步自動完整回填），不必手動 apply。
+- **查核結論同步（FR-23，2026-09-30，`app/services/factcheck_sync.py`）**：後端背景工作，以同一套收錄規則抓三個來源、
+  只寫 MISINFO／SCAM（`label_source=rule`、`origin=factcheck_batch`），只耗 embedding。`recent`＝各來源最新一批（MyGoPen 150 篇、
+  TFC 100 篇報告＋300 則謠言原文、Cofacts 最近有新回覆的 300 則）；`full`＝全部掃過。知識庫還沒有 `factcheck_batch` 列時
+  `recent` 自動改跑 `full`（約 1.85 萬筆、30～40 分鐘、embedding 約 USD 0.25）。已有同文字的已證實列或 `factcheck_batch` 列就略過
+  （`existing_hashes`），可重跑、中斷後續做；一個來源失敗不擋其他來源；同時只跑一輪。管理端點 `POST /api/admin/factcheck-sync?mode=`
+  （202／409）與 `GET` 同網址看進度。GitHub Actions `factcheck-sync`：台灣 08:07、20:07 recent，週日 03:37 full，做完再更新熱門牆；
+  失敗、來源抓不到或模型下架時變紅並寄信。本機實抓 recent 候選 493 筆、18 秒。
 - **證據信心研究（`scripts/evidence_confidence_study.py`，報告 `docs/test/results/evidence_confidence_2026-09-24.md`）**：
   評測 50 題安全訊息對 18,469 筆可入庫列的最近相似度最高 0.70（沒有一題會被語意快取誤判）；最近鄰相似度越高、
   題目真的有風險的比例越高（≥0.75：3／3、0.70～0.75：93%、0.65～0.70：85%、<0.55：36%）。話術原型（KMeans 40 群，
@@ -166,7 +186,8 @@ code/backend/
 │   │                            （?analyze=false 只抓查核文章寫入知識庫、不呼叫判讀模型；?per_feed=1..25；
 │   │                            ?cofacts=false 只抓 MyGoPen／TFC）
 │   ├── api/threads.py          /api/threads/{status,replies} 公開唯讀；POST /poll 需管理 token
-│   ├── api/admin.py            /api/admin/tasks/{id}/override 管理者覆寫（X-Admin-Token；label_source=admin）
+│   ├── api/admin.py            /api/admin/tasks/{id}/override 管理者覆寫（X-Admin-Token；label_source=admin）；
+│   │                            /api/admin/factcheck-sync（FR-23）、/api/admin/weekly-eval＋report.md／results.csv（FR-24）
 │   ├── api/feedback.py         /api/feedback/tasks/{id} 使用者回饋
 │   ├── models/fact_check_record.py  熱門記錄（唯一的 SQLAlchemy model）
 │   ├── services/
@@ -181,6 +202,9 @@ code/backend/
 │   │   ├── news_fetcher.py     熱門牆流程＋第 9 節標記規則；search_service.py = MyGoPen／TFC RSS＋Cofacts
 │   │   ├── hot_claims.py       熱門查證排行：查證紀錄 tasks.kb_id × 半衰期 3 小時的時間衰減、7 天視窗（FR-21）
 │   │   ├── evidence.py         ★證據信心（FR-22）：信心規則表 assess、相似查證 similar_news、話術差距 pattern_margin
+│   │   ├── factcheck_corpus.py ★查核機構資料的收錄規則（抓取、標記、主張、去重、寫入內容）；批次腳本與同步共用
+│   │   ├── factcheck_sync.py   查核結論同步（FR-23）：recent／full、第一次自動回填、模型清單檢查
+│   │   ├── weekly_eval.py      每週新查核自動評測（FR-24）：本週新查核＋歷史輪替、額度護欄、報告／CSV
 │   │   ├── cache_service.py / vector_service.py   內容 SHA-256 hash／embedding 包裝
 │   │   ├── threads_service.py  Threads Graph API 客戶端（live）、ThreadsClient 介面、token 檔
 │   │   └── threads_sim.py / threads_state.py / threads_reply.py   模擬模式／狀態與回覆紀錄（原子寫入）／回覆模板
@@ -211,13 +235,14 @@ code/backend/
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **757 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **29 個** Postgres
+├── tests/                      ★pytest **810 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **31 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
 │   ├── knowledge_base.parquet  ★已提交的種子（清洗後 218 筆、verified 128）。平常執行的變動不用 commit；**例外**：FR-18
 │   │                            清洗後的版本提交過一次作新種子（commit db8c62d），以後重做清洗／重建種子才再提交
-│   ├── eval_set.csv、eval_*.csv、eval_archive_gpt5mini_2026-06/   評測題庫、最新結果、前一版結果封存
+│   ├── eval_set.csv、eval_*.csv、eval_archive_*/   評測題庫、最新結果（gpt-5.6-luna）、前幾版結果封存
+│   │                            （gpt5mini_2026-06、gpt54mini_2026-09）
 │   ├── claim_prototypes.npz     話術原型（40 群）與正常訊息原型（12 群）的中心向量（evidence_confidence_study.py 產生）
 │   ├── SCHEMA.md               資料結構說明
 │   └── （runtime，已 gitignore）factcheck.db、tasks.parquet、回饋／覆寫 Parquet、threads_*、uploads/、*.bak-*、clean_sources_*、
@@ -241,16 +266,18 @@ code/frontend/                  React 19 + Vite 8.3.0 + Tailwind 4
     ├── lib/                    api.js（★所有後端呼叫的唯一入口、FALLBACK_PREFIX）、fixtures.js、verdict.js、history.js、
     │                            validateInput.js、httpUrl.js、theme.js、useDocumentTitle.js
     ├── dev/fixtures/           開發用假回應（VITE_FIXTURES=1 才生效，production build 會剔除；用法看該資料夾 README）
-    └── **/*.test.js            單元測試（node --test，**403 個**）
+    └── **/*.test.js            單元測試（node --test，**409 個**）
 legacy/                         已封存、不再維護：舊單檔查核儀 fake-news-detector.html、_run_detector.bat、README.md
 render.yaml                     Render Blueprint（後端雲端部署設定；金鑰只在 Render 後台輸入，檔案裡只有鍵名）
 .github/workflows/ci.yml        push／PR：test（後端 pytest）＋ frontend（build、單元測試）
 .github/workflows/keepalive.yml 每 10 分鐘叫醒 Render 後端＋讀一次資料庫（網址取自 repository variable BACKEND_BASE_URL）
 .github/workflows/cgu-reachability.yml   手動觸發：確認校外雲端主機連不連得到 CGU 閘道（不帶金鑰）
+.github/workflows/factcheck-sync.yml     查核結論同步（每天兩次 recent、每週 full）＋更新熱門牆；需 secret ADMIN_TOKEN
+.github/workflows/weekly-eval.yml        每週新查核自動評測，報告 commit 到 docs/test/results/weekly/；需 secret ADMIN_TOKEN
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
-docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.5）、results/（原始紀錄）、screens/（截圖）、ui_checklist.csv、
+docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.7）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
                                 pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）、
                                 上線後準確率驗證計畫.md（上線後怎麼量準確率與信心校準）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
@@ -267,6 +294,7 @@ assets/                         PlantUML 圖 + confusion_matrix.png（最新評�
 **設定鍵**都定義在 `app/config.py`（範本 `.env.example`；雲端的值寫在 `render.yaml`）。站台相關：`PUBLIC_BASE_URL`（分享連結、Threads
 回覆、OAuth redirect 都用它；雲端 = `https://fakenewsverify.vercel.app`）、`ADMIN_TOKEN`（管理端點的 `X-Admin-Token`；空字串 =
 管理功能停用）、`CORS_ORIGINS`；`BRAND_NAME`、`CONTACT_EMAIL` 目前程式沒有讀取（靜態頁的品牌名與信箱直接寫在 `public/*.html`）。
+每週評測：`WEEKLY_EVAL_MAX_USD`（6）、`WEEKLY_EVAL_RESERVE_USD`（3）。
 資料層與護欄見第 7、12 節；AI 見第 2 節；Threads（`THREADS_MODE`、`BOT_HANDLE`…）見第 11 節。
 
 ---
@@ -287,7 +315,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 757 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 810 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -310,6 +338,9 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 
 # 管理端點要帶 X-Admin-Token（值 = .env 的 ADMIN_TOKEN；不要貼進聊天、issue 或 commit）
 curl.exe -s -X POST http://localhost:8000/api/trending/refresh -H "X-Admin-Token: <ADMIN_TOKEN>"    # 會抓 RSS 並呼叫 AI
+curl.exe -s -X POST "http://localhost:8000/api/admin/factcheck-sync?mode=recent" -H "X-Admin-Token: <ADMIN_TOKEN>"  # 查核結論同步（背景）
+curl.exe -s http://localhost:8000/api/admin/factcheck-sync -H "X-Admin-Token: <ADMIN_TOKEN>"                        # 同步進度
+curl.exe -s -X POST "http://localhost:8000/api/admin/weekly-eval?plan_only=true" -H "X-Admin-Token: <ADMIN_TOKEN>" # 評測只規劃（零成本）
 
 # 雲端資料層：檢查連線／搬資料（預設 dry-run）／對真的 Supabase 跑契約測試（拋棄式 schema，不碰 public）
 .\venv\Scripts\python scripts\check_supabase.py
@@ -319,7 +350,7 @@ $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q
 # ── 前端：以下都先 cd code\frontend ──
 npm ci                 # 依 package-lock.json 安裝
 npm run dev            # http://localhost:5173，/api 由 vite 代理到 localhost:8000
-npm run test:unit      # node --test，403 個
+npm run test:unit      # node --test，409 個
 npm run lint
 npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:unit
 ```
@@ -329,12 +360,17 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 ## 6. 評測現況（論文數據）
 
 - 資料集 `data/eval_set.csv`：150 筆（SCAM/MISINFO/SAFE 各 50），含刻意設計的「像詐騙的合法官方訊息」當難題。
-- **最新結果（2026-09-16，CGU `gpt-5.4-mini`、web_search 關）：accuracy 100%、macro-F1 1.000、FN=0、FP=0**
-  （有效預測 150／150；95% CI 0.976–1.000）。結果檔在 `data/eval_*.csv` 與 `assets/confusion_matrix.png`。
-- 前一版（2026-06，myai168 `gpt-5-mini`）：accuracy 96.0%、macro-F1 0.960、FN=0、FP=5（把反詐宣導、政府補助公告誤判成 SCAM）；
-  封存在 `data/eval_archive_gpt5mini_2026-06/`。兩版判定不同的 6 筆全是「舊錯新對」。
-- **誠實的限制**：150 筆全對代表這組題庫對新模型已經**飽和**（太簡單），分不出模型或設定之間的差異；題庫從 2026-06 起就公開在 repo，
-  也無法排除新模型看過。所以 100% **不能解讀成「系統不會出錯」**，對外要連同這個限制一起講；下一步是擴充題庫再比（第 8 節）。
+- **最新結果（2026-09-30，CGU `gpt-5.6-luna`、web_search 關）：accuracy 96.7%、macro-F1 0.967、FN=0、FP=5**
+  （有效預測 150／150；95% CI 0.924–0.986；5 筆 FP 全是官方公告被判成 MISINFO；未命中延遲 p50 5.87 s、p90 8.31 s；
+  150 筆約 USD 0.2）。同日另一次並行執行為 98.7%（FP=2）：同一模型在官方公告題上會在 2～5 筆之間浮動。
+  結果檔在 `data/eval_*.csv` 與 `assets/confusion_matrix.png`；選型比較（含本週 41 則新查核）見 `docs/test/results/model_switch_2026-09-30.md`。
+- 2026-09-16 的 CGU `gpt-5.4-mini`（2026-09-30 已被閘道下架）：accuracy 100%、FN=0、FP=0，封存在 `data/eval_archive_gpt54mini_2026-09/`；
+  換成新模型後 5 筆由對變錯、0 筆由錯變對（McNemar 精確檢定 p = 0.0625）。
+- 更早（2026-06，myai168 `gpt-5-mini`）：accuracy 96.0%、macro-F1 0.960、FN=0、FP=5（把反詐宣導、政府補助公告誤判成 SCAM）；
+  封存在 `data/eval_archive_gpt5mini_2026-06/`。
+- **誠實的限制**：`gpt-5.4-mini` 曾 150 筆全對，代表這組題庫偏簡單、分不太出模型之間的差異；題庫從 2026-06 起就公開在 repo，
+  也無法排除模型看過。所以這組數字**不能解讀成「系統不會出錯」**，對外要連同這個限制一起講；下一步是擴充題庫再比（第 8 節）。
+  模型沒看過的題目看每週新查核自動評測（M5，`docs/test/results/weekly/`）。
   **上線後的準確率不用這組題庫量**：方法、真值來源、信心校準與判定準則寫在 `docs/test/上線後準確率驗證計畫.md`
   （新題庫不公開、只把雜湊進 git；線上抽樣雙人獨立覆核；查核結論回溯比對；使用者回饋只作抽樣導引）。
 - 重跑評測會呼叫真實 AI；`--report-only` 只重算報告、零點數。
@@ -349,7 +385,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - **`requirements.txt` 與 `requirements-prod.txt` 都只能放 ASCII**：pip 讀 requirements 用系統編碼（cp950），
   放中文註解會讓 `pip install -r` 直接 UnicodeDecodeError（start.bat 就炸在這，2026-07 踩過）。
   `.env` 可以有中文，因為 config 已指定 `env_file_encoding="utf-8"`。
-- **repo 是公開的，金鑰只存在兩個地方**：本機 `code/backend/.env`（已 gitignore）與 Render 後台的 Environment 頁。
+- **repo 是公開的，金鑰只存在兩個地方**：本機 `code/backend/.env`（已 gitignore）與 Render 後台的 Environment 頁
+  （例外：`ADMIN_TOKEN` 另存為 GitHub repository secret，給 factcheck-sync／weekly-eval workflow 用）。
   不要把金鑰寫進任何檔案、commit、issue、聊天或截圖；AI 助理不要讀取或印出 `.env`。改設定改 `.env`；範本改 `.env.example`。
   Settings 已設 `extra="ignore"`：.env 有多餘舊變數不會炸，但也**不會警告拼錯的變數名**。
 - **專案資料夾搬家後**（2026-09-19 發生過）：venv 的 `.exe` 啟動器（`pip.exe`、`uvicorn.exe`、`activate`）寫死建立時的路徑會失效，
@@ -402,24 +439,28 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       全套 pytest 以 `-W error::FutureWarning` 通過）；
       DEF-08 `backend_down` 橫幅與首頁 inline 驗證紅字用了判定色 token，與 spec §8.1「紅黃綠只用於判定」字面衝突（待 6.4 審查裁定）
 - [ ] 首頁圖片上傳 UI（票 S-13，P1）：後端端點已有檔頭檢查與 10 MB 上限；票 B-26 的圖片 bytes hash 快取與寫知識庫尚未做
-- [ ] `/bot` 機器人狀態頁（票 S-11）：目前是佔位頁（`src/pages/Bot.jsx`）；後端 `/api/threads/status`、`/replies` 已就緒
+- [ ] `/bot` 機器人狀態頁（票 S-11）：程式已完成（模式徽章、上次輪詢、錯誤、最近回覆、2 秒刷新；fixture 可看三種狀態），
+      待推送；截圖檢核未做
 - [ ] 上線後準確率量測（計畫已寫：`docs/test/上線後準確率驗證計畫.md`）：先建 90 題的不公開新題庫（M1，約 USD 0.6），
       再開始每週 20 筆的線上抽樣雙人獨立覆核（M2）。現有 150 筆已飽和且公開，不能用來宣稱上線準確率（第 6 節）
 - [ ] （選）信心分數校準：可靠度圖、ECE、Brier，並檢驗 `GREEN_MIN_CONFIDENCE=0.7` 實際擋掉多少錯誤（同上計畫第 4 節）
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
-- [ ] 查核結論每日進庫（FR-20）：以 GitHub Actions 每日呼叫 `POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false`，
-      需負責人把 `ADMIN_TOKEN` 加入 repository secret；在那之前是手動觸發。不呼叫判讀模型，只耗 embedding
-- [ ] 查核機構資料寫入正式資料庫：`ingest_factchecks.py apply --target cloud --apply`（18,469 筆、約 180 MB，免費上限 500 MB）。
-      **要先部署知識庫頁的資料庫分頁**（`list_verified` 等；舊版每次把整個知識庫載入記憶體，1.9 萬列會撐爆 Render 512 MB）。
+- [ ] **查核結論同步與每週評測開始運作（FR-23／FR-24）**：程式與 workflow 已完成；**要負責人把 `ADMIN_TOKEN` 加入 GitHub
+      repository secret**（值從 Render 後台 Environment 頁複製）。設好後第一次 `factcheck-sync` 會自動回填約 1.85 萬筆查核機構資料
+      （約 180 MB，免費上限 500 MB），證據信心（FR-22）也要等這一步才有足夠的近鄰。
       已知限制：Cofacts 的 RUMOR 一律標 MISINFO，其中的詐騙訊息（釣魚、假中獎）命中時燈號是紅色「假訊息」而不是「詐騙警告」
-- [ ] 證據信心（FR-22）部署：程式與測試已完成（後端 `evidence.py`、結果頁 `SimilarNewsSection`），待負責人核准推送；
-      要在查核機構資料寫入正式資料庫之後才有足夠的近鄰（寫入前正式知識庫只有約 150 筆已證實列）
+- [ ] 確認 CGU 每週額度的重置日：`weekly-eval` 排在週日 21:17，若重置不是週一 00:00，把排程移到重置前一晚（用剩的才不浪費）
 - [ ] 提供查核機構的熱搜名單（FR-21 延伸）：`hot_claims.rank()` 已可用於未證實內容；還缺管理端點、電話／帳號／人名遮蔽、
       隱私政策增列「提供查核機構」用途（現行政策只寫「供後續相同或相似內容快速比對」）
 - [ ] 熱門牆標記規則的缺口（第 9 節範圍，改規則需負責人決定）：MyGoPen 的【詐騙】標籤不算確定判定，詐騙警示文章不會寫進知識庫；
       TFC 近期 RSS 標題多半沒有判定標籤（2026-09-22 抽 10 篇只有 1 篇命中），查核結論進庫以 MyGoPen 與 Cofacts 為主
 
 ### 已完成（2026-09 重做與上雲）
+- [x] AI 模型改為 `gpt-5.6-luna`＋備援 `gpt-6-luna`（2026-09-30，票 B-37）：閘道已下架 `gpt-5.4-mini`，正式站新內容的判讀全數是
+      fallback。以 150 題與本週 41 則新查核比較兩個候選模型後選定；遇到 404 `model_not_found` 自動改用備援；同步時檢查模型清單。
+      舊評測結果封存在 `data/eval_archive_gpt54mini_2026-09/`
+- [x] 查核結論同步（FR-23，票 B-35）與每週新查核自動評測（FR-24，票 B-36）＋兩個 workflow（票 O-30，取代 factcheck-daily）
+- [x] 證據信心（FR-22）上線（2026-09-24 推送；正式站快取命中查核機構列時顯示「信心 高」）
 - [x] 查核結果回補與本站熱門查證（2026-09-22，spec v1.4 FR-20／FR-21，票 D-06、B-27～B-29、S-15）：
       URL／hash 命中未證實列時只讓 rule／gold／admin 列取代；`/api/trending/refresh?analyze=false`；
       `recheck_unverified.py` 唯讀盤點；`GET /api/knowledge/hot` 與熱門頁「本站熱門查證」分頁。pytest 718、Postgres 契約 26、前端 390
@@ -601,6 +642,7 @@ token 不進 log（`redact_token`）。Threads API 端點如有改版只需改 `
                                                          ├─ Supabase Postgres + pgvector（資料）
                                                          └─ CGU AIR 閘道（AI / embedding）
 GitHub Actions keepalive（每 10 分鐘）→ Render /health + /api/knowledge/stats
+GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ Render /api/admin/*（X-Admin-Token = secret ADMIN_TOKEN）
 ```
 
 - **金鑰只存在兩個地方**：本機 `code/backend/.env` 與 Render 後台的 Environment 頁
@@ -614,6 +656,7 @@ GitHub Actions keepalive（每 10 分鐘）→ Render /health + /api/knowledge/s
   Supabase 免費專案 7 天沒活動會被暫停（keepalive 會讀資料庫）。
 - **上線護欄數值寫在 `render.yaml`**（後台手動改的值，下次 Blueprint 同步會被檔案蓋回去）：
   `DAILY_AI_CALL_CAP=300`、`RATE_LIMIT_PER_MINUTE=30`、`RATE_LIMIT_PER_HOUR=200`；用量看 `/health.daily_ai_calls`。
+  AI 模型 `CGU_MODEL`／`CGU_FALLBACK_MODEL` 與每週評測的 `WEEKLY_EVAL_MAX_USD`／`WEEKLY_EVAL_RESERVE_USD` 也寫在 `render.yaml`。
 - **雲端刻意關閉**：`ENABLE_SCHEDULER=false`、`USE_WEB_SEARCH=false`、`THREADS_MODE=off`
   （Threads 機器人的狀態檔還是本機檔案，雲端重啟會忘記回過誰 → 只在本機跑）。
 - 只有 `code/backend` 底下的變更會觸發 Render 自動部署（`rootDir`）。

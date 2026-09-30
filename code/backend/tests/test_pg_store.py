@@ -528,6 +528,53 @@ def test_nearest_verified_matches_local_store(kb, tmp_path):
     assert list(kb.get_all_records()["hit_count"]) == [1, 1, 1, 1]          # 不算命中
 
 
+def test_existing_hashes_matches_local_store(kb, tmp_path):
+    """批次入庫與每日同步略過已寫入的文字：已證實列或指定 origin 的列算「已有」，只有未證實列的不算。"""
+    from app.services.pandas_store import PandasStore
+
+    local = PandasStore(data_dir=str(tmp_path))
+    rule_src = [{"title": "MyGoPen", "url": "https://www.mygopen.com/a", "tier": 1}]
+    blog = [{"title": "部落格", "url": "https://blog.example.com/p"}]
+    hashes = {}
+    for store in (kb, local):
+        hashes["verified"] = _save(store, "已證實", ai_result=_ai(rule_src, "MISINFO"), label_source="rule")[1]
+        hashes["unverified"] = _save(store, "未證實", ai_result=_ai(blog))[1]
+        hashes["batch"] = _save(store, "批次未證實", ai_result=_ai(blog), origin="factcheck_batch")[1]
+    asked = list(hashes.values()) + ["missing"]
+    for store in (kb, local):
+        assert store.existing_hashes(asked) == {hashes["verified"]}
+        assert store.existing_hashes(asked, origin="factcheck_batch") == {hashes["verified"], hashes["batch"]}
+        assert store.existing_hashes([]) == set()
+
+
+def test_sample_verified_matches_local_store(kb, tmp_path):
+    """每週評測的歷史抽樣：只抽指定 origin 的已證實列，同一個 seed 兩個 store 抽到同一批、順序相同。"""
+    from app.services.pandas_store import PandasStore
+
+    local = PandasStore(data_dir=str(tmp_path))
+    rule_src = [{"title": "MyGoPen", "url": "https://www.mygopen.com/a", "tier": 1}]
+    blog = [{"title": "部落格", "url": "https://blog.example.com/p"}]
+    for store in (kb, local):
+        for i in range(6):
+            _save(store, f"批次謠言第{i}則", ai_result=_ai(rule_src, "MISINFO"), label_source="rule",
+                  origin="factcheck_batch")
+        _save(store, "批次但未證實", ai_result=_ai(blog), origin="factcheck_batch")
+        _save(store, "一般已證實", ai_result=_ai(rule_src, "SCAM"), label_source="rule")
+    for store in (kb, local):
+        assert store.verified_origin_count("factcheck_batch") == 6
+    full = [[r["raw_content"] for r in s.sample_verified("factcheck_batch", 50, seed="v1")] for s in (kb, local)]
+    assert full[0] == full[1] and len(full[0]) == 6
+    assert all(text.startswith("批次謠言") for text in full[0])
+    # offset 往後移就是下一段，兩個 store 一致
+    for store in (kb, local):
+        head = [r["raw_content"] for r in store.sample_verified("factcheck_batch", 4, seed="v1")]
+        tail = [r["raw_content"] for r in store.sample_verified("factcheck_batch", 4, seed="v1", offset=4)]
+        assert head == full[0][:4] and tail == full[0][4:]
+        assert {r["risk_type"] for r in store.sample_verified("factcheck_batch", 6, seed="v1")} == {"MISINFO"}
+        assert store.sample_verified("factcheck_batch", 0) == []
+        assert store.sample_verified("factcheck_batch", 3, seed="v1", offset=10) == []
+
+
 # ── 任務 ─────────────────────────────────────────────────────────
 def test_task_lifecycle_defaults_and_json_columns(tasks):
     tid = tasks.create_task("analyze_text", "測試輸入")

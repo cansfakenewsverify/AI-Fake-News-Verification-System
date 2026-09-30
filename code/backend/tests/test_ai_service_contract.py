@@ -146,7 +146,7 @@ def test_run_analysis_attaches_usage_and_actual_provider(monkeypatch):
     monkeypatch.setattr(ai_mod.requests, "post", _fake_post)
     svc = AIService()
     svc.providers = ["cgu", "openai"]
-    svc.cgu_base, svc.cgu_key, svc.cgu_model = "https://cgu.invalid/v1", "k", "gpt-5.4-mini"
+    svc.cgu_base, svc.cgu_key, svc.cgu_model = "https://cgu.invalid/v1", "k", "gpt-5.6-luna"
     svc.openai_base, svc.myai_key, svc.openai_model = "https://openai.invalid/v1", "k", "gpt-5-mini"
 
     result = svc._run_analysis("prompt", use_web_search=False)
@@ -154,3 +154,95 @@ def test_run_analysis_attaches_usage_and_actual_provider(monkeypatch):
     assert result["model"] == "gpt-5-mini"
     assert result["usage"] == {"input_tokens": 1234, "output_tokens": 56}
     assert len(calls) == 2
+
+
+# ── 閘道下架模型時改用備援模型（2026-09-30 gpt-5.4-mini 下架事件）──
+def _cgu_only_service(monkeypatch, status_by_model):
+    """只有 cgu 一個 provider 的 AIService；status_by_model[model] = HTTP 狀態碼（200 = 正常回應）。"""
+    import json as _json
+
+    import requests
+
+    import app.services.ai_service as ai_mod
+
+    payload = {"is_risk": True, "risk_type": "SCAM", "category": "Phishing",
+               "confidence_score": 0.9, "summary": "s", "explanation": "e", "sources": []}
+    posted = []
+
+    class _Resp:
+        def __init__(self, status):
+            self.status = status
+
+        def raise_for_status(self):
+            if self.status != 200:
+                err = requests.exceptions.HTTPError(str(self.status))
+                body = '{"error":{"code":"model_not_found"}}' if self.status == 404 else "insufficient_credits"
+                err.response = type("R", (), {"status_code": self.status, "text": body})()
+                raise err
+
+        def json(self):
+            return {"output": [{"type": "message", "content": [
+                {"type": "output_text", "text": _json.dumps(payload)}]}],
+                "usage": {"input_tokens": 1000, "output_tokens": 300, "total_tokens": 1300}}
+
+    def _fake_post(url, headers=None, json=None, timeout=None):
+        posted.append(json["model"])
+        return _Resp(status_by_model.get(json["model"], 200))
+
+    monkeypatch.setattr(ai_mod.requests, "post", _fake_post)
+    svc = AIService()
+    svc.providers = ["cgu"]
+    svc.cgu_base, svc.cgu_key = "https://cgu.invalid/v1", "k"
+    svc.cgu_model, svc.cgu_fallback_model = "retired-model", "backup-model"
+    return svc, posted
+
+
+def test_missing_model_falls_back_to_the_backup_model(monkeypatch):
+    svc, posted = _cgu_only_service(monkeypatch, {"retired-model": 404})
+
+    result = svc._run_analysis("prompt", use_web_search=False)
+
+    assert not _is_fallback(result)
+    assert result["model"] == "backup-model" and result["risk_type"] == "SCAM"
+    assert posted == ["retired-model", "backup-model"]
+
+
+def test_other_upstream_errors_do_not_switch_models(monkeypatch):
+    svc, posted = _cgu_only_service(monkeypatch, {"retired-model": 402})
+
+    result = svc._run_analysis("prompt", use_web_search=False)
+
+    assert _is_fallback(result) and result["error_kind"] == "quota"
+    assert posted == ["retired-model"]
+
+
+def test_no_backup_model_configured_means_no_retry(monkeypatch):
+    svc, posted = _cgu_only_service(monkeypatch, {"retired-model": 404})
+    svc.cgu_fallback_model = ""
+
+    assert _is_fallback(svc._run_analysis("prompt", use_web_search=False))
+    assert posted == ["retired-model"]
+
+
+def test_gateway_models_lists_ids_without_spending_quota(monkeypatch):
+    import app.services.ai_service as ai_mod
+    from app.config import settings
+
+    class _Resp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"object": "list", "data": [{"id": "gpt-6-luna"}, {"id": "gpt-5.6-luna"}]}
+
+    monkeypatch.setattr(settings, "CGU_API_KEY", "k")
+    monkeypatch.setattr(ai_mod.requests, "get", lambda url, headers=None, timeout=None: _Resp())
+    assert ai_mod.gateway_models() == ["gpt-5.6-luna", "gpt-6-luna"]
+
+    def _down(*args, **kwargs):
+        raise ConnectionError("offline")
+
+    monkeypatch.setattr(ai_mod.requests, "get", _down)
+    assert ai_mod.gateway_models() is None
+    monkeypatch.setattr(settings, "CGU_API_KEY", "")
+    assert ai_mod.gateway_models() is None

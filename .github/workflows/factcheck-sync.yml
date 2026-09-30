@@ -1,0 +1,140 @@
+# 查核結論同步（spec FR-23；CLAUDE.md 第 3、8 節）：呼叫後端 POST /api/admin/factcheck-sync，
+# 把 MyGoPen、台灣事實查核中心、Cofacts 新發布的判定以 label_source=rule 寫進知識庫
+# （收錄規則同 app/services/factcheck_corpus.py；只耗 embedding，不呼叫判讀模型）。
+# - 每天兩次 recent（台灣 08:07、20:07）：各來源最新一批，通常幾分鐘、embedding 不到 USD 0.001。
+# - 每週一次 full（台灣週日 03:37）：全部掃過，補上後來才達到收錄門檻的 Cofacts 訊息。
+#   知識庫還沒有查核機構資料時，recent 會自動改跑 full（第一次約 30～40 分鐘、embedding 約 USD 0.25）。
+# 同步在後端背景執行；本 workflow 每分鐘讀一次進度（順便讓 Render 免費主機保持清醒），直到做完。
+# 做完後再更新熱門牆「查核機構最新」（POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false，不呼叫判讀模型；
+# 取代原本的 factcheck-daily workflow）。
+# 做完後有下列情況就標為失敗（GitHub 會寄信通知）：同步失敗、某個來源抓不到、
+# CGU 閘道已經沒有設定的模型（model_check.missing；2026-09-30 閘道無預警下架 gpt-5.4-mini）。
+#
+# 需要兩個設定（沒設好時本 workflow 印出說明後正常結束，不會變紅）：
+# - repository variable BACKEND_BASE_URL（keepalive 已在用）
+# - repository secret ADMIN_TOKEN：值與 Render 後台 Environment 頁的 ADMIN_TOKEN 相同
+#   （GitHub → Settings → Secrets and variables → Actions → New repository secret）
+# token 只放在 X-Admin-Token 標頭，GitHub 會在 log 中自動遮蔽 secret 的值。
+name: factcheck-sync
+
+on:
+  schedule:
+    - cron: "7 0 * * *"      # 台灣 08:07 recent（cron 為 UTC；避開整點的排程尖峰）
+    - cron: "7 12 * * *"     # 台灣 20:07 recent
+    - cron: "37 19 * * 6"    # 台灣週日 03:37 full
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "recent = 各來源最新一批；full = 全部掃過"
+        type: choice
+        options: [recent, full]
+        default: recent
+
+permissions: {}
+
+concurrency:
+  group: factcheck-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    env:
+      BACKEND_BASE_URL: ${{ vars.BACKEND_BASE_URL }}
+      ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event.schedule == '37 19 * * 6' && 'full' || 'recent') }}
+    steps:
+      - name: Sync fact-check verdicts into the knowledge base
+        run: |
+          base="${BACKEND_BASE_URL%/}"
+          if [ -z "$base" ]; then
+            echo "Repository variable BACKEND_BASE_URL is not set -- skipping."
+            exit 0
+          fi
+          if [ -z "$ADMIN_TOKEN" ]; then
+            echo "Repository secret ADMIN_TOKEN is not set -- skipping."
+            echo "Add it under Settings > Secrets and variables > Actions (same value as ADMIN_TOKEN on Render)."
+            exit 0
+          fi
+
+          # A sleeping free instance needs about a minute to wake up.
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 60 "$base/health" 2>/dev/null || true)
+            echo "GET /health -> http ${code:-000} (attempt ${attempt})"
+            [ "$code" = "200" ] && break
+            sleep 10
+          done
+
+          code=$(curl -sS -o start.json -w "%{http_code}" --max-time 60 -X POST \
+            -H "X-Admin-Token: ${ADMIN_TOKEN}" "$base/api/admin/factcheck-sync?mode=${MODE}" 2>/dev/null || true)
+          echo "POST /api/admin/factcheck-sync?mode=${MODE} -> http ${code:-000}"
+          cat start.json 2>/dev/null || true
+          echo
+          case "$code" in
+            202) ;;
+            409) echo "A sync is already running on the server; following it." ;;
+            401|403)
+              echo "::error::The backend rejected ADMIN_TOKEN (http $code). Check that the secret matches Render."
+              exit 1
+              ;;
+            *)
+              echo "::error::Could not start the sync (http ${code:-000})."
+              exit 1
+              ;;
+          esac
+
+          # Poll once a minute: this also keeps the free instance awake while the sync runs.
+          state=""
+          for i in $(seq 1 95); do
+            sleep 60
+            code=$(curl -sS -o status.json -w "%{http_code}" --max-time 60 \
+              -H "X-Admin-Token: ${ADMIN_TOKEN}" "$base/api/admin/factcheck-sync" 2>/dev/null || true)
+            state=$(python3 -c 'import json; s=json.load(open("status.json")); print(s.get("state",""), s.get("phase") or "", s.get("written",0), sep=" ")' 2>/dev/null || true)
+            echo "[${i} min] http ${code:-000} state/phase/written: ${state}"
+            case "${state%% *}" in
+              done|failed|idle) break ;;
+            esac
+          done
+
+          python3 - <<'PY'
+          import json
+          import sys
+
+          s = json.load(open("status.json"))
+          keys = ("state", "mode", "upgraded_from", "candidates", "already_present", "to_write", "written",
+                  "written_by_source", "tokens", "source_errors", "model_check", "error", "started_at", "finished_at")
+          print(json.dumps({k: s.get(k) for k in keys}, ensure_ascii=False, indent=2))
+          problems = []
+          if s.get("state") == "idle":
+              problems.append("the server lost the sync (it restarted while running); the next run resumes it")
+          elif s.get("state") != "done":
+              problems.append(f"sync did not finish: state={s.get('state')} error={s.get('error')}")
+          missing = (s.get("model_check") or {}).get("missing") or []
+          if missing:
+              problems.append("the CGU gateway no longer lists " + ", ".join(missing)
+                              + ": new AI verdicts on the site will fail. Pick an available model "
+                              "(GET {CGU_BASE_URL}/models) and change CGU_MODEL / CGU_FALLBACK_MODEL in render.yaml.")
+          if s.get("source_errors"):
+              problems.append("some sources could not be fetched: " + json.dumps(s["source_errors"], ensure_ascii=False))
+          for p in problems:
+              print(f"::error::{p}")
+          sys.exit(1 if problems else 0)
+          PY
+
+      - name: Refresh the trending wall (no AI)
+        if: always()
+        run: |
+          base="${BACKEND_BASE_URL%/}"
+          if [ -z "$base" ] || [ -z "$ADMIN_TOKEN" ]; then
+            exit 0
+          fi
+          url="$base/api/trending/refresh?analyze=false&per_feed=25&cofacts=false"
+          code=$(curl -sS -o refresh.json -w "%{http_code}" --max-time 60 -X POST \
+            -H "X-Admin-Token: ${ADMIN_TOKEN}" "$url" 2>/dev/null || true)
+          echo "POST /api/trending/refresh?analyze=false -> http ${code:-000}"
+          cat refresh.json 2>/dev/null || true
+          echo
+          if [ "$code" != "200" ]; then
+            echo "::warning::The trending refresh did not start (http ${code:-000}); the next run retries."
+          fi

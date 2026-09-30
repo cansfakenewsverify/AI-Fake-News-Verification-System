@@ -62,8 +62,9 @@ https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4
 瀏覽器 → https://fakenewsverify.vercel.app（Vercel：React 靜態檔）
            └─ /api/* 由 code/frontend/vercel.json rewrite 同源代理 → https://fakenewsverify-api.onrender.com（Render 免費 web service，FastAPI，render.yaml）
                                                                    ├─ Supabase Postgres 17 + pgvector（東京；知識庫／任務／回饋／熱門／每日 AI 計數）
-                                                                   └─ 學校 CGU AIR 閘道（AI gpt-5.4-mini、embedding text-embedding-3-small 1536 維）
+                                                                   └─ 學校 CGU AIR 閘道（AI gpt-5.6-luna、embedding text-embedding-3-small 1536 維）
 GitHub Actions keepalive（每 10 分鐘）→ Render /health + /api/knowledge/stats
+GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ Render /api/admin/*
 ```
 
 - 金鑰只存在兩個地方：負責人本機的 `code/backend/.env` 與 Render 後台。這個 repo 是公開的，`render.yaml` 只有變數名稱，沒有值。
@@ -95,13 +96,13 @@ GitHub Actions keepalive（每 10 分鐘）→ Render /health + /api/knowledge/s
 
 **後端**：Python 3.12、FastAPI + Uvicorn、SQLAlchemy + psycopg 3、pandas + pyarrow、numpy、APScheduler（排程，預設關閉）、trafilatura + BeautifulSoup4 + requests（網址內文擷取）
 
-**AI**：學校 CGU AIR 閘道（OpenAI 相容 Responses API），模型 `gpt-5.4-mini`；embedding `text-embedding-3-small`（1536 維）
+**AI**：學校 CGU AIR 閘道（OpenAI 相容 Responses API），模型 `gpt-5.6-luna`（2026-09-30 起；閘道下架主模型時自動改用 `gpt-6-luna`）；embedding `text-embedding-3-small`（1536 維）
 
 **資料**：雲端用 Supabase Postgres 17 + pgvector；本機開發預設用 SQLite + Parquet（`STORAGE_BACKEND` 切換，兩邊介面相同）
 
 **前端**：React 19 + Vite 8.3.0 + Tailwind CSS 4 + React Router 7；單元測試用 Node 內建 test runner；ESLint 9
 
-**部署與自動化**：Vercel（前端）、Render（後端）、Supabase（資料庫）、GitHub Actions（`ci.yml` 測試、`keepalive.yml` 保持後端與資料庫清醒）
+**部署與自動化**：Vercel（前端）、Render（後端）、Supabase（資料庫）、GitHub Actions（`ci.yml` 測試、`keepalive.yml` 保持後端與資料庫清醒、`factcheck-sync.yml` 每天兩次把查核機構的新結論同步進知識庫、`weekly-eval.yml` 每週用剩下的 AI 額度做準確率測驗）
 
 ---
 
@@ -130,7 +131,7 @@ AI-Fake-News-Verification-System/
 │       ├── public/              ← privacy.html、data-deletion.html、deauthorize.html、og.png、demo/（簡報影片與 demo 影片）
 │       └── vercel.json          ← /api/* 代理到 Render + SPA fallback
 │
-├── .github/workflows/           ← ci.yml、keepalive.yml、cgu-reachability.yml
+├── .github/workflows/           ← ci.yml、keepalive.yml、factcheck-sync.yml、weekly-eval.yml、cgu-reachability.yml
 ├── docs/
 │   ├── rebuild/                 ← 2026-09 重做文件：00_consensus、01_spec、02_mockup_brief + mockup/、03_tickets、
 │   │                              owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel
@@ -149,15 +150,18 @@ AI-Fake-News-Verification-System/
 
 150 筆人工標註資料集 `code/backend/data/eval_set.csv`（SCAM／MISINFO／SAFE 各 50 筆，含刻意設計的「看起來像詐騙的合法官方訊息」）。
 
-| 指標 | `gpt-5.4-mini`（2026-09-16，現行） | `gpt-5-mini`（2026-06，前一版） |
-|------|-----------------------------------|--------------------------------|
-| Accuracy | **100%** | 96.0% |
-| Macro-F1 | 1.000 | 0.960 |
-| 偽陰性 FN（漏判風險） | **0** | 0 |
-| 偽陽性 FP（誤報） | 0 | 5 |
+| 指標 | `gpt-5.6-luna`（2026-09-30，現行） | `gpt-5.4-mini`（2026-09-16，已被閘道下架） | `gpt-5-mini`（2026-06） |
+|------|-----------------------------------|-------------------------------------------|------------------------|
+| Accuracy | 96.7% | 100% | 96.0% |
+| Macro-F1 | 0.967 | 1.000 | 0.960 |
+| 偽陰性 FN（漏判風險） | **0** | **0** | 0 |
+| 偽陽性 FP（誤報） | 5 | 0 | 5 |
+| 每次判讀成本 | 約 USD 0.0014 | 約 USD 0.0064 | — |
 
-- 現行結果在 `code/backend/data/eval_report.csv`、`eval_binary.csv`；前一版封存在 `code/backend/data/eval_archive_gpt5mini_2026-06/`；混淆矩陣圖在 `assets/confusion_matrix.png`。
-- 150 筆全對，代表這組題目對現行模型已經太簡單，數字只說明在這份資料集上的表現；下一步是擴充題庫再比。
+- 現行結果在 `code/backend/data/eval_report.csv`、`eval_binary.csv`；舊版封存在 `code/backend/data/eval_archive_*/`；混淆矩陣圖在 `assets/confusion_matrix.png`。
+- 5 筆誤報全是官方公告被判成假訊息（同一模型另一次執行為 2 筆），在網站上會顯示紅燈；每週評測持續觀察。
+- 這組題目偏簡單且已公開，數字只說明在這份資料集上的表現；模型沒看過的題目看每週新查核自動評測（`docs/test/results/weekly/`）。
+  換模型的比較見 [`docs/test/results/model_switch_2026-09-30.md`](docs/test/results/model_switch_2026-09-30.md)。
 - 重跑方式見 [`code/backend/README.md`](code/backend/README.md)。
 
 ---
@@ -166,8 +170,8 @@ AI-Fake-News-Verification-System/
 
 | 項目 | 數量 | 怎麼跑 |
 |------|------|--------|
-| 後端 pytest | 757 個通過；另有 29 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
-| 前端單元測試 | 403 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
+| 後端 pytest | 810 個通過；另有 31 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
+| 前端單元測試 | 409 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
 
 - 兩邊的測試都離線執行，不呼叫 AI、不花額度。
 - CI（`.github/workflows/ci.yml`）在每次 push／PR 到 `main` 時跑兩個 job：`test`（後端 pytest）與 `frontend`（`npm ci` → `npm run build` → `npm run test:unit`）。
@@ -267,7 +271,8 @@ chmod +x start.sh
 |------|----------|------|
 | `AI_PROVIDER` | `openai` | 主要 AI provider。目前只使用 `cgu`（`.env.example` 與雲端都設 `cgu`）；只有填了金鑰的 provider 會進入備援鏈 |
 | `CGU_API_KEY` | 空（機密） | CGU AIR 閘道金鑰 |
-| `CGU_MODEL` | `gpt-5.4-mini` | 分析用模型 |
+| `CGU_MODEL` | `gpt-5.6-luna` | 分析用模型（閘道會下架舊模型；可用清單 `GET {CGU_BASE_URL}/models`） |
+| `CGU_FALLBACK_MODEL` | `gpt-6-luna` | 主模型被閘道下架（HTTP 404）時改用的模型；空字串＝不備援 |
 | `EMBED_API_KEY` | 空（機密） | embedding 金鑰；空的時候退用 `CGU_API_KEY`，兩者都沒有則向量層自動停用 |
 | `SIMILARITY_THRESHOLD` | `0.75` | 向量快取命中門檻（實測校準值，換 embedding 模型要重新量測） |
 | `USE_WEB_SEARCH` | `true` | 分析時是否帶 web_search；每次呼叫貴 3–7 倍，雲端設 `false` |
@@ -294,6 +299,9 @@ chmod +x start.sh
 - **後端**：Render 免費 web service，設定全部在 [`render.yaml`](render.yaml)（`rootDir: code/backend`、`pip install -r requirements-prod.txt`、健康檢查 `/health`）。`main` 分支有動到 `code/backend` 的 commit 會自動部署。
 - **資料庫**：Supabase Postgres + pgvector，後端以 `STORAGE_BACKEND=supabase` 連線。本機資料用 `scripts/migrate_to_supabase.py` 搬上去（2026-09-19 搬移時：知識庫 218 筆、熱門 24 筆）。
 - **保持清醒**：`keepalive.yml` 每 10 分鐘打一次 `/health` 與 `/api/knowledge/stats`（Render 免費方案會休眠；Supabase 免費專案 7 天沒活動會被暫停）。
+- **查核結論同步**：`factcheck-sync.yml` 每天台灣 08:07、20:07 呼叫 `POST /api/admin/factcheck-sync`（週日 03:37 全部掃過一次），把 MyGoPen、台灣事實查核中心、Cofacts 新發布的判定寫進知識庫，做完再更新熱門牆；閘道下架設定的 AI 模型時 workflow 會變紅並寄信。
+- **每週評測**：`weekly-eval.yml` 每週日 21:17 呼叫 `POST /api/admin/weekly-eval`，用 CGU 每週剩下的額度（保留 USD 3 給使用者）量 AI 判讀準確率，報告存進 `docs/test/results/weekly/`。
+- 這兩個 workflow 需要 repository secret `ADMIN_TOKEN`（與 Render 後台相同）；沒設時會印出說明並略過。
 
 完整步驟、免費方案的限制與退回本機的方法：[`docs/rebuild/runbook_cloud_deploy.md`](docs/rebuild/runbook_cloud_deploy.md)。
 

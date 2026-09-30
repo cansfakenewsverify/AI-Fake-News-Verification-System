@@ -2,6 +2,7 @@
 Pandas 資料儲存層 - 使用 Parquet 檔案儲存
 """
 import functools
+import hashlib
 import json
 import pandas as pd
 import numpy as np
@@ -301,6 +302,44 @@ class PandasStore:
         if risk_type.strip():
             df = df[df["risk_type"].astype(str).str.upper() == risk_type.strip().upper()]
         return int(len(df)), newest_first(df).iloc[offset:offset + limit]
+
+    def existing_hashes(self, hashes: Iterable[str], origin: Optional[str] = None) -> set:
+        """
+        輸入的 hash 中，已有已證實列（或 origin 等於指定值的列）者——批次入庫與每日同步用它略過已寫入的文字。
+        只有未證實列的 hash 不算：寫入查核結論後，FR-20 的回補會讓舊的未證實結果改回查核結論。
+        """
+        wanted = {str(h) for h in hashes if h}
+        df = self._load_knowledge_base()
+        if df.empty or not wanted:
+            return set()
+        mask = df["verified"]
+        if origin is not None and "origin" in df.columns:
+            mask = mask | (df["origin"] == origin)
+        return set(df.loc[mask & df["data_hash"].isin(wanted), "data_hash"].astype(str))
+
+    def _origin_rows(self, origin: str) -> pd.DataFrame:
+        df = self._load_knowledge_base()
+        if df.empty or "origin" not in df.columns:
+            return df.iloc[0:0]
+        return df[df["verified"] & (df["origin"] == origin) & df["data_hash"].notna()]
+
+    def verified_origin_count(self, origin: str) -> int:
+        """指定 origin 的已證實列數（每週評測算歷史輪替的位置用）。"""
+        return int(len(self._origin_rows(origin)))
+
+    def sample_verified(self, origin: str, n: int, seed: str = "", offset: int = 0) -> List[Dict[str, Any]]:
+        """
+        指定 origin 的已證實列依 md5(data_hash + seed) 排序後，取第 offset 筆起的 n 筆（每週評測的歷史抽樣）。
+        同一個 seed 的順序固定，兩個 store 的結果相同；每週把 offset 往後移，就是不重複地輪過整個知識庫。
+        """
+        df = self._origin_rows(origin)
+        if df.empty or n <= 0:
+            return []
+        key = df["data_hash"].astype(str).map(lambda h: hashlib.md5((h + seed).encode("utf-8")).hexdigest())
+        picked = df.assign(_key=key).sort_values(["_key", "id"]).iloc[max(int(offset), 0):max(int(offset), 0) + n]
+        return [{"id": str(r["id"]), "raw_content": str(r["raw_content"]), "risk_type": str(r["risk_type"]),
+                 "source_url": r["source_url"] if isinstance(r["source_url"], str) else None,
+                 "data_hash": str(r["data_hash"])} for _, r in picked.iterrows()]
 
     def get_verified_by_ids(self, ids: Iterable[str]) -> pd.DataFrame:
         """指定 id 中已證實的列（/api/knowledge/hot 用）；不存在或未證實的 id 直接略過。"""

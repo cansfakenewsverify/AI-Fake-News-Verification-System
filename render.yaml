@@ -28,6 +28,11 @@ services:
       # ---- 非機密設定（鍵名與 app/config.py 的 Settings 欄位完全一致）----
       - key: AI_PROVIDER
         value: "cgu"
+      # 閘道會下架舊模型（2026-09-30 gpt-5.4-mini 下架）；可用模型見 GET {CGU_BASE_URL}/models
+      - key: CGU_MODEL
+        value: "gpt-5.6-luna"
+      - key: CGU_FALLBACK_MODEL
+        value: "gpt-6-luna"
       - key: STORAGE_BACKEND
         value: "supabase"
       - key: THREADS_MODE
@@ -45,6 +50,11 @@ services:
         value: "30"
       - key: RATE_LIMIT_PER_HOUR
         value: "200"
+      # 每週新查核自動評測（GitHub Actions weekly-eval 觸發）：單次上限與留給使用者的 CGU 額度（USD）
+      - key: WEEKLY_EVAL_MAX_USD
+        value: "6"
+      - key: WEEKLY_EVAL_RESERVE_USD
+        value: "3"
       - key: PUBLIC_BASE_URL
         value: "https://fakenewsverify.vercel.app"
       # 逗號分隔字串（config.py 的 cors_origins_list 會切開）；API 走 Vercel 同源代理，這裡只是保險

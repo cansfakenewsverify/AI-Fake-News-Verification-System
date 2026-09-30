@@ -1,6 +1,6 @@
 ﻿label,precision,recall,f1,support,provider,model,date,use_web_search,elapsed_ms_p50,elapsed_ms_p90,elapsed_ms_n
-SCAM,1.0,1.0,1.0,50,cgu,gpt-5.4-mini,2026-09-20,False,4864.5,6641.1,150
-MISINFO,1.0,1.0,1.0,50,cgu,gpt-5.4-mini,2026-09-20,False,4864.5,6641.1,150
-SAFE,1.0,1.0,1.0,50,cgu,gpt-5.4-mini,2026-09-20,False,4864.5,6641.1,150
-accuracy,,,1.0,150,cgu,gpt-5.4-mini,2026-09-20,False,4864.5,6641.1,150
-macro_avg,1.0,1.0,1.0,150,cgu,gpt-5.4-mini,2026-09-20,False,4864.5,6641.1,150
+SCAM,1.0,1.0,1.0,50,cgu,gpt-5.6-luna,2026-09-30,False,5874.5,8305.4,150
+MISINFO,0.909,1.0,0.952,50,cgu,gpt-5.6-luna,2026-09-30,False,5874.5,8305.4,150
+SAFE,1.0,0.9,0.947,50,cgu,gpt-5.6-luna,2026-09-30,False,5874.5,8305.4,150
+accuracy,,,0.967,150,cgu,gpt-5.6-luna,2026-09-30,False,5874.5,8305.4,150
+macro_avg,0.97,0.967,0.967,150,cgu,gpt-5.6-luna,2026-09-30,False,5874.5,8305.4,150

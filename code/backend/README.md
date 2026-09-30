@@ -12,7 +12,7 @@
 ```
 https://fakenewsverify.vercel.app/api/*  ──(code/frontend/vercel.json rewrite)──►  Render web service（本目錄）
                                                                                    ├─ Supabase Postgres 17 + pgvector
-                                                                                   └─ 學校 CGU AIR 閘道（gpt-5.4-mini、text-embedding-3-small）
+                                                                                   └─ 學校 CGU AIR 閘道（gpt-5.6-luna、text-embedding-3-small）
 ```
 
 | 項目 | 內容 |
@@ -22,7 +22,7 @@ https://fakenewsverify.vercel.app/api/*  ──(code/frontend/vercel.json rewrit
 | 安裝 | `pip install -r requirements-prod.txt`（只有執行期套件；評測與開發工具留在 `requirements.txt`） |
 | 啟動 | `uvicorn app.main:app --host 0.0.0.0 --port $PORT`，Python 3.12.9，健康檢查 `/health` |
 | 資料層 | `STORAGE_BACKEND=supabase` + `SUPABASE_DB_URL` → Supabase Postgres（知識庫、任務、回饋、熱門、每日 AI 計數） |
-| AI | `AI_PROVIDER=cgu`（CGU AIR 閘道，`gpt-5.4-mini`） |
+| AI | `AI_PROVIDER=cgu`（CGU AIR 閘道，`CGU_MODEL=gpt-5.6-luna`、備援 `CGU_FALLBACK_MODEL=gpt-6-luna`，寫在 `render.yaml`） |
 | 護欄 | `DAILY_AI_CALL_CAP=300`、`RATE_LIMIT_PER_MINUTE=30`、`RATE_LIMIT_PER_HOUR=200` |
 | 刻意關閉 | `ENABLE_SCHEDULER=false`、`USE_WEB_SEARCH=false`、`THREADS_MODE=off` |
 | 機密 | `CGU_API_KEY`、`EMBED_API_KEY`、`SUPABASE_DB_URL`、`ADMIN_TOKEN` 只在 Render 後台輸入（`render.yaml` 裡是 `sync: false`，沒有值） |
@@ -75,7 +75,8 @@ app/
 │   ├── trending.py         ← /api/trending、/api/trending/refresh（管理；?analyze=false 不呼叫判讀模型）
 │   ├── knowledge.py        ← /api/knowledge、/api/knowledge/stats、/api/knowledge/hot（只回已證實的資料列）
 │   ├── feedback.py         ← /api/feedback/tasks/{id}
-│   ├── admin.py            ← /api/admin/tasks/{id}/override（管理：人工覆寫判定）
+│   ├── admin.py            ← /api/admin/tasks/{id}/override（人工覆寫判定）、/api/admin/factcheck-sync（查核結論同步）、
+│   │                         /api/admin/weekly-eval（每週新查核自動評測）；全部是管理端點
 │   └── threads.py          ← /api/threads/{status,replies,poll}
 │
 ├── services/
@@ -93,6 +94,9 @@ app/
 │   ├── search_service.py   ← 熱門來源：MyGoPen RSS、TFC RSS、Cofacts API（只取已有 RUMOR 判定的文章）
 │   ├── news_fetcher.py     ← 熱門新聞兩階段流程與標記規則（規則說明見根目錄 CLAUDE.md 第 9 節）
 │   ├── hot_claims.py       ← 本站熱門查證排行（查證紀錄 × 半衰期 3 小時的時間衰減）
+│   ├── factcheck_corpus.py ← 查核機構資料的收錄規則（MyGoPen、台灣事實查核中心、Cofacts）；批次腳本與同步共用
+│   ├── factcheck_sync.py   ← 查核結論同步：recent／full、第一次自動完整回填、檢查閘道模型清單
+│   ├── weekly_eval.py      ← 每週新查核自動評測：本週新查核＋知識庫歷史輪替、額度護欄、報告與 CSV
 │   ├── threads_service.py  ← Threads Graph API 客戶端
 │   ├── threads_sim.py      ← 模擬模式 FakeThreadsService（THREADS_MODE=sim，讀寫 data/threads_sim/）
 │   ├── threads_state.py    ← 機器人狀態與回覆紀錄（原子寫入）
@@ -139,7 +143,8 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 | `AI_PROVIDER` | `openai` | 主要 provider。目前只使用 `cgu`（`.env.example` 與雲端都設 `cgu`）；只有填了金鑰的 provider 會進入備援鏈，所以實際的鏈是 `['cgu']` |
 | `CGU_API_KEY` | 空（機密） | CGU AIR 閘道金鑰 |
 | `CGU_BASE_URL` | `https://air.cgu.edu.tw/cgullmapi/v1` | CGU AIR 閘道位址 |
-| `CGU_MODEL` | `gpt-5.4-mini` | 分析用模型 |
+| `CGU_MODEL` | `gpt-5.6-luna` | 分析用模型（2026-09-30 閘道下架 `gpt-5.4-mini` 後改用；可用清單 `GET {CGU_BASE_URL}/models`） |
+| `CGU_FALLBACK_MODEL` | `gpt-6-luna` | 主模型被閘道下架（HTTP 404 `model_not_found`）時改用的模型；空字串＝不備援 |
 | `CGU_REASONING_EFFORT` | `medium` | 推理強度 |
 | `EMBED_RELAY_URL` | `https://air.cgu.edu.tw/cgullmapi/v1` | embedding 端點 |
 | `EMBED_API_KEY` | 空（機密） | embedding 金鑰；空的時候退用 `CGU_API_KEY`，都沒有則向量層自動停用 |
@@ -148,6 +153,8 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 | `USE_WEB_SEARCH` | `true` | 分析時是否帶 web_search；每次呼叫貴 3–7 倍，雲端與高量任務設 `false` |
 | `WEB_SEARCH_ALLOWED_DOMAINS` | 空 | web_search 限定網域（逗號分隔） |
 | `SIMILARITY_THRESHOLD` | `0.75` | 向量快取命中門檻 |
+| `WEEKLY_EVAL_MAX_USD` | `6` | 每週新查核自動評測一次最多花多少（USD） |
+| `WEEKLY_EVAL_RESERVE_USD` | `3` | 評測時 CGU 剩餘額度至少留多少給網站使用者（USD） |
 
 **資料層**
 
@@ -290,6 +297,8 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | POST | `/api/trending/refresh` | 手動觸發抓取熱門（管理端點）：`analyze`（預設 `true`；`false` 只抓查核文章並寫入知識庫、不呼叫判讀模型）、`per_feed`（1–25，預設 4）、`cofacts`（預設 `true`；`false` 只抓 MyGoPen／TFC）。一律擋下徵才、闢謠 TOP10、小考題等非查核文章 |
 | POST | `/api/feedback/tasks/{id}` | 使用者回饋：`rating`、`comment`（選填） |
 | POST | `/api/admin/tasks/{id}/override` | 人工覆寫判定（管理端點）：`risk_type`、`category`、`confidence_score`、`reason`、`admin_id` |
+| POST／GET | `/api/admin/factcheck-sync` | 查核結論同步（管理端點）：POST `?mode=recent\|full` 在背景執行（202；已在跑 409），GET 看進度。只寫查核機構判定為不實或詐騙的內容，只耗 embedding；知識庫還沒有查核機構資料時 `recent` 自動改跑 `full` |
+| POST／GET | `/api/admin/weekly-eval` | 每週新查核自動評測（管理端點）：POST `?max_usd=&plan_only=&days=`（202；409），GET 看進度與統計；做完後 `GET /api/admin/weekly-eval/report.md`、`/results.csv` 取報告（不含訊息原文） |
 | GET | `/api/threads/status`、`/api/threads/replies` | Threads 機器人狀態與回覆紀錄（公開唯讀，不含 token） |
 | POST | `/api/threads/poll` | 手動跑一輪輪詢（管理端點；`THREADS_MODE=off` 時回 `threads_disabled`） |
 | GET | `/health`、`/api/health` | 健康檢查：`ai_available`、`threads_mode`、`scheduler`、`daily_ai_calls`、`storage_backend`。不呼叫任何付費 API |
@@ -348,7 +357,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | `run_pf2.py` | PF-2 量測：對本機後端送出組員審定的改寫句，記錄命中層與延遲（執行前自動備份資料檔） |
 | `pf2_similarity.py` | PF-2 診斷：算出每一句改寫句與知識庫的實際相似度（唯讀，不呼叫判讀模型） |
 | `recheck_unverified.py` | 查核結果回補盤點：未證實列能否由已證實列、最新查核文章或 Cofacts 新回覆補上（唯讀；`--cloud` 讀正式資料；輸出含使用者原文，已 gitignore） |
-| `ingest_factchecks.py` | 查核機構已證實資料批次入庫：`fetch`（MyGoPen、台灣事實查核中心、Cofacts）→ `embed` → `apply`（預設 dry-run；`--target cloud --apply` 寫正式資料庫）；`rollback` 撤回 |
+| `ingest_factchecks.py` | 查核機構已證實資料批次語料：`fetch`（MyGoPen、台灣事實查核中心、Cofacts）→ `embed` → `apply`（預設 dry-run；`--target cloud --apply` 寫正式資料庫）；`rollback` 撤回（含同步寫入的列）。正式資料庫平常由後端同步寫入（`/api/admin/factcheck-sync`），不必手動 apply |
 | `audit_cofacts_sources.py` | 盤點以 Cofacts 文章當 Tier 1 來源的已證實列：文章現在有沒有判定、判定方向是否一致（預設只讀；`--apply` 只處理沒有判定者） |
 | `evidence_confidence_study.py` | 證據信心研究：夾角與判定的關係、入庫後的誤命中檢查、話術原型；輸出報告到 `docs/test/results/` |
 
@@ -364,7 +373,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q; Remove-Item Env:RUN_PG_TESTS
 ```
 
-- **757 個通過**；另有 **29 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
+- **810 個通過**；另有 **31 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
 - `tests/conftest.py` 在測試中預設關閉限速與每日上限，要測護欄的測試再自己打開。
 - GitHub Actions（`.github/workflows/ci.yml` 的 `test` job）在每次 push／PR 到 `main` 時用 Python 3.12 跑 `python -m pytest tests -q`。
 
@@ -383,14 +392,15 @@ $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q
 
 資料集 `data/eval_set.csv`：150 筆人工標註（SCAM／MISINFO／SAFE 各 50 筆）。
 
-| 指標 | `gpt-5.4-mini`（2026-09-16，現行） | `gpt-5-mini`（2026-06，前一版） |
-|------|-----------------------------------|--------------------------------|
-| Accuracy | **100%** | 96.0% |
-| Macro-F1 | 1.000 | 0.960 |
-| 偽陰性 FN | **0** | 0 |
-| 偽陽性 FP | 0 | 5 |
+| 指標 | `gpt-5.6-luna`（2026-09-30，現行） | `gpt-5.4-mini`（2026-09-16，已被閘道下架） | `gpt-5-mini`（2026-06） |
+|------|-----------------------------------|-------------------------------------------|------------------------|
+| Accuracy | 96.7% | 100% | 96.0% |
+| Macro-F1 | 0.967 | 1.000 | 0.960 |
+| 偽陰性 FN | **0** | **0** | 0 |
+| 偽陽性 FP | 5 | 0 | 5 |
 
-前一版的結果封存在 `data/eval_archive_gpt5mini_2026-06/`。150 筆全對，代表這組題目對現行模型已經太簡單；數字只說明在這份資料集上的表現。
+舊版結果封存在 `data/eval_archive_gpt54mini_2026-09/`、`data/eval_archive_gpt5mini_2026-06/`。這組題目偏簡單且已公開；數字只說明在這份資料集上的表現。
+換模型的比較見 `docs/test/results/model_switch_2026-09-30.md`；每週新查核自動評測見 `app/services/weekly_eval.py`。
 
 ```powershell
 .\venv\Scripts\python scripts\evaluate.py --report-only   # 只用現有 eval_predictions.csv 重算指標，不呼叫 AI
