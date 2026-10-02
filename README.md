@@ -61,14 +61,16 @@ https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4
 ```
 瀏覽器 → https://fakenewsverify.vercel.app（Vercel：React 靜態檔）
            └─ /api/* 由 code/frontend/vercel.json rewrite 同源代理 → https://fakenewsverify-api.onrender.com（Render 免費 web service，FastAPI，render.yaml）
-                                                                   ├─ Supabase Postgres 17 + pgvector（東京；知識庫／任務／回饋／熱門／每日 AI 計數）
-                                                                   └─ 學校 CGU AIR 閘道（AI gpt-5.6-luna、embedding text-embedding-3-small 1536 維）
+                                                                   ├─ Supabase Postgres 17 + pgvector（東京；知識庫／任務／回饋／熱門／每日 AI 計數／Threads 機器人狀態）
+                                                                   ├─ 學校 CGU AIR 閘道（AI gpt-5.6-luna、embedding text-embedding-3-small 1536 維）
+                                                                   └─ Threads API（機器人每 30 秒檢查 @提及並回覆）
+Supabase pg_cron（每 5 分鐘）→ Render /health（讓免費主機不休眠，機器人才會一直檢查）
 GitHub Actions keepalive（每 10 分鐘）→ Render /health + /api/knowledge/stats
 GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ Render /api/admin/*
 ```
 
 - 金鑰只存在兩個地方：負責人本機的 `code/backend/.env` 與 Render 後台。這個 repo 是公開的，`render.yaml` 只有變數名稱，沒有值。
-- 雲端刻意關閉三樣東西：自動抓新聞排程、AI 的 web_search、Threads 機器人（設定見 `render.yaml`）。
+- 雲端刻意關閉兩樣東西：自動抓新聞排程、AI 的 web_search（設定見 `render.yaml`）。Threads 機器人在雲端執行，每 30 秒檢查一次提及。
 - Render 出問題時的退路是「負責人電腦 + cloudflared tunnel」，見 [`docs/rebuild/runbook_tunnel.md`](docs/rebuild/runbook_tunnel.md)。
 
 ---
@@ -88,7 +90,7 @@ GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ 
 | **上線護欄** | 每日 AI 次數上限、每 IP 限速、請求大小上限（JSON 1 MB／圖片 10 MB）、SSRF 防護（拒絕內部與保留位址，每次轉址重新檢查）、管理端點需要 `X-Admin-Token`。 |
 | **AI 失效時的降級** | AI 閘道失敗時結果頁顯示灰色「AI 暫時無法使用」，失敗結果不寫進快取；熱門牆與知識庫不受影響。 |
 | **圖片查證（後端）** | 端點已完成（以檔頭判斷 PNG／JPG／WEBP、10 MB 上限），網頁上傳介面尚未開放。 |
-| **Threads 查核機器人（延伸功能）** | 在 Threads 上 @機器人，自動回覆判定與來源。目前 demo 用模擬模式（`THREADS_MODE=sim`）；實機串接需要 Meta App Review，排在進度報告之後。只在負責人電腦上跑，雲端關閉。 |
+| **Threads 查核機器人（延伸功能）** | 在可疑貼文底下回覆並 @factcheck_tw_bot（或直接 @ 它並寫下說法），機器人讀原貼文，自動回覆燈號、查核來源與結果頁連結。2026-10-01 起在雲端執行，每 30 秒檢查一次。目前是 Meta 的開發模式（測試版）：只有加入測試人員、帳號設公開的人 @ 它才會回；開放給所有人需通過 Meta App Review 與企業驗證，暫不送審。 |
 
 ---
 

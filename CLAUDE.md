@@ -4,13 +4,13 @@
 > **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
 > 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
 
-**現況（2026-09-30）**
+**現況（2026-10-03）**
 - 系統已經是**線上網站**：<https://fakenewsverify.vercel.app>。Vercel（React 靜態檔）把 `/api/*` 同源代理到 Render 後端
   `https://fakenewsverify-api.onrender.com`（FastAPI），資料在 Supabase Postgres + pgvector。架構與操作見第 12 節。
 - AI 只用學校 **CGU AIR 閘道**：分析 `gpt-5.6-luna`（2026-09-30 閘道下架 `gpt-5.4-mini` 後改用；主模型被下架時自動改用
   備援 `gpt-6-luna`）、embedding `text-embedding-3-small`；myai168 已停用（第 2 節）。
 - **Threads 機器人 `@factcheck_tw_bot` 在雲端執行**（2026-10-01；Render 每 30 秒檢查提及，狀態存在 Supabase，
-  Supabase pg_cron 每 5 分鐘叫醒 Render；開發模式只收測試人員的提及，第 11 節）。
+  Supabase pg_cron 每 5 分鐘叫醒 Render；開發模式只收測試人員的提及；2026-10-03 決定先不送 Meta App Review，第 11 節）。
 - 知識庫由 GitHub Actions **`factcheck-sync`** 每天兩次同步查核機構的新結論（第一次會自動回填約 1.85 萬筆）；**`weekly-eval`**
   每週日用 CGU 每週剩下的額度做準確率測驗、報告自動存進 `docs/test/results/weekly/`（第 3、6 節）。
   兩者都用 GitHub repository secret **`ADMIN_TOKEN`**（與 Render 相同值，2026-09-30 已設定）。第一次同步 2026-09-30 完成：
@@ -33,7 +33,7 @@
 以紅黃綠燈呈現並附上**已做出判定的查核來源**；每筆結果有可分享的獨立網址 `/r/{id}`。
 信心等級依「和查核機構已證實內容的相似度（夾角）」決定，結果頁列出「知識庫中的相似查證」（FR-22，見第 3 節）。
 另有熱門頁（「查核機構最新」＝MyGoPen／TFC RSS＋Cofacts；「本站熱門查證」＝最近 7 天大家查最多的已證實內容）、知識庫搜尋、
-三層快取＋向量檢索、Threads 查核機器人（目前用模擬模式）。
+三層快取＋向量檢索、Threads 查核機器人（2026-10-01 起在雲端執行；Meta 開發模式，只回覆測試人員）。
 
 - **使用方式**：直接開線上網站。`start.bat` / `start.sh` 只供**本機開發**（後端 8000 + React dev server 5173，用本機資料）。
 - **輸入**：網頁 UI 只開放文字與網址。圖片端點 `/api/analyze/image` 後端已有（檔頭檢查、10 MB 上限），上傳 UI 尚未開放。
@@ -210,8 +210,9 @@ code/backend/
 │   │   ├── factcheck_sync.py   查核結論同步（FR-23）：recent／full、第一次自動回填、模型清單檢查
 │   │   ├── weekly_eval.py      每週新查核自動評測（FR-24）：本週新查核＋歷史輪替、額度護欄、報告／CSV
 │   │   ├── cache_service.py / vector_service.py   內容 SHA-256 hash／embedding 包裝
-│   │   ├── threads_service.py  Threads Graph API 客戶端（live）、ThreadsClient 介面、token 檔
-│   │   └── threads_sim.py / threads_state.py / threads_reply.py   模擬模式／狀態與回覆紀錄（原子寫入）／回覆模板
+│   │   ├── threads_service.py  Threads Graph API 客戶端（live）、ThreadsClient 介面、token（資料庫＞檔案＞.env；剩 10 天自動續期）
+│   │   ├── threads_pg.py       雲端機器人狀態：Supabase 的 threads_kv（狀態、token、輪詢鎖）、threads_replies（回覆紀錄）
+│   │   └── threads_sim.py / threads_state.py / threads_reply.py   模擬模式／狀態與回覆紀錄（本機原子寫入；雲端 live 轉存 threads_pg）／回覆模板
 │   ├── utils/
 │   │   ├── verdict.py          ★紅黃綠單一權威 frame_of（8 列規則）＋ is_fallback（fallback 唯一判斷點）
 │   │   ├── source_tier.py      ★來源分級 Tier 1/2/3（tier_of、grade_sources；offline 時不發請求）
@@ -237,6 +238,8 @@ code/backend/
 │   ├── llm_second_opinion.py / fix_factcheck_labels.py   清洗審閱輔助（CGU 本地模型）／2026-07 一次性標籤修復
 │   ├── ensure_admin_token.py   啟動腳本每次呼叫：.env 的 ADMIN_TOKEN 空就補亂數（不印出）
 │   ├── threads_auth.py         Threads OAuth 取得／續期 token → data/threads_token.json
+│   ├── threads_cloud_setup.py  機器人狀態、回覆紀錄、token 搬上 Supabase（預設 dry-run；重新授權後 --token-only --apply）
+│   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
 ├── tests/                      ★pytest **842 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
@@ -339,6 +342,8 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 .\venv\Scripts\python scripts\test_threads_bot.py --poll         # 觸發一輪輪詢並印結果（live 模式會真的回覆、花額度）
 .\venv\Scripts\python scripts\test_threads_bot.py --live         # 有 token 時驗證憑證＋讀 mentions 筆數
 .\venv\Scripts\python scripts\threads_auth.py                    # Threads OAuth 取得 60 天 token；--refresh 續期
+.\venv\Scripts\python scripts\threads_cloud_setup.py             # 本機與雲端的機器人狀態（dry-run）；重新授權後加 --token-only --apply
+.\venv\Scripts\python scripts\supabase_keepalive.py              # Supabase 叫醒排程的狀態與最近幾次 HTTP 結果（唯讀）
 
 # 管理端點要帶 X-Admin-Token（值 = .env 的 ADMIN_TOKEN；不要貼進聊天、issue 或 commit）
 curl.exe -s -X POST http://localhost:8000/api/trending/refresh -H "X-Admin-Token: <ADMIN_TOKEN>"    # 會抓 RSS 並呼叫 AI
@@ -427,8 +432,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
 - [ ] Threads：**2026-10-01 已串接並搬上雲端**（票 B-38、B-39；`docs/test/threads_live_log.md`）。剩非測試人員貼文、
-      延遲量測與截圖（票 T-16、O-27）、授權約 2026-12-29 到期要重新授權、送 Meta App Review（先問老師企業驗證；
-      準備清單與表單草稿在 `docs/rebuild/meta_app_review.md`）；
+      延遲量測與截圖（票 T-16、O-27）、授權約 2026-12-29 到期要重新授權。**Meta App Review 先不送**（2026-10-03 負責人決定
+      先用測試版：要試用的人加為 Threads 測試人員、帳號設公開；送審準備清單與表單草稿留在 `docs/rebuild/meta_app_review.md`）；
       步驟見 `docs/rebuild/threads_live_checklist.md`。原本的說明：
       要公開給陌生人用必須通過 Meta App Review（＋企業驗證）。FN-4 的三項行為（HTTP 429 → `backoff_until`、未知 4xx →
       標 failed 不回覆、container `FINISHED` 才 publish／`ERROR` 重建一次）已於 2026-09-20 實作並以模擬與 mock 測過（T-12／T-13）；
@@ -602,7 +607,7 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 | 每日 AI 次數 | `factcheck.db` 的 `ai_usage_daily` | `ai_usage_daily` 表 | ✅ 重啟不歸零 |
 | 管理者覆寫／使用者回饋 | `admin_overrides.parquet`／`user_feedback.parquet` | 同名資料表 | ✅ 持久 |
 | 個人查證歷史（首頁「最近查證」） | 瀏覽器 `localStorage`（key `fcc_history_v1`） | 同左 | 只存在那台瀏覽器、沒有伺服器副本；最多 50 筆、首頁顯示最近 5 筆（`src/lib/history.js`） |
-| Threads 機器人狀態 | `data/threads_*` 本機檔案 | 不上雲 | 見第 11 節 |
+| Threads 機器人狀態、回覆紀錄、token | `data/threads_*` 本機檔案（模擬模式與測試） | `threads_kv`、`threads_replies` 表（live 模式） | ✅ 持久，雲端重啟不會重複回覆；見第 11 節 |
 | 每 IP 限速計數 | 行程內記憶體 | 同左 | 重啟歸零（守預算的是每日 AI 次數） |
 
 - **沒有使用者帳號 / 登入系統**，也不做（共識 §2；過度設計、牽涉帳密安全）。「重整後還看得到自己查過什麼」已用 `localStorage` 解決；
@@ -629,6 +634,7 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
   私人帳號的回覆收不到（實測：朋友改公開後才收到；Meta 官方文件也寫只通知公開貼文）。需要 Meta App（Threads use case）的五個權限：
   `threads_basic`、`threads_content_publish`、`threads_manage_replies`、`threads_manage_mentions`、`threads_read_replies`。
   通過 **Meta App Review（＋企業驗證）** 之前是開發模式：只收得到被加為 Threads Tester 的帳號的提及，不能公開給陌生人用。
+  **2026-10-03 負責人決定先不送審**，維持測試版；送審準備資料留在 `docs/rebuild/meta_app_review.md`。
   token：`scripts/threads_auth.py`（需 `THREADS_APP_ID`／`THREADS_APP_SECRET`／`PUBLIC_BASE_URL`；授權後導回網站的 `/oauth/callback` 顯示 code）
   → 寫出 `data/threads_token.json`（60 天，`--refresh` 續期；存在時優先於 `.env` 的 `THREADS_ACCESS_TOKEN`／`THREADS_USER_ID`）。
   驗證：`test_threads_bot.py --live`（只驗憑證）→ `--poll`（會真的回覆貼文、花額度）。

@@ -24,7 +24,8 @@ https://fakenewsverify.vercel.app/api/*  ──(code/frontend/vercel.json rewrit
 | 資料層 | `STORAGE_BACKEND=supabase` + `SUPABASE_DB_URL` → Supabase Postgres（知識庫、任務、回饋、熱門、每日 AI 計數） |
 | AI | `AI_PROVIDER=cgu`（CGU AIR 閘道，`CGU_MODEL=gpt-5.6-luna`、備援 `CGU_FALLBACK_MODEL=gpt-6-luna`，寫在 `render.yaml`） |
 | 護欄 | `DAILY_AI_CALL_CAP=300`、`RATE_LIMIT_PER_MINUTE=30`、`RATE_LIMIT_PER_HOUR=200` |
-| 刻意關閉 | `ENABLE_SCHEDULER=false`、`USE_WEB_SEARCH=false`、`THREADS_MODE=off` |
+| 刻意關閉 | `ENABLE_SCHEDULER=false`、`USE_WEB_SEARCH=false` |
+| Threads 機器人 | `THREADS_MODE=live`、`THREADS_POLL_SECONDS=30`；狀態、回覆紀錄、token 與輪詢鎖存在 Supabase（`threads_kv`、`threads_replies`）；Supabase pg_cron 每 5 分鐘呼叫 `/health`，主機不休眠 |
 | 機密 | `CGU_API_KEY`、`EMBED_API_KEY`、`SUPABASE_DB_URL`、`ADMIN_TOKEN` 只在 Render 後台輸入（`render.yaml` 裡是 `sync: false`，沒有值） |
 
 確認雲端真的接上資料庫：`/health`（或 `/api/health`）要回 `"storage_backend":"supabase"`。`SUPABASE_DB_URL` 沒設好時，後端會退回主機的暫時硬碟（看起來正常，但主機一休眠資料就消失）。同一個回應裡的 `daily_ai_calls` 是今天的 AI 用量。
@@ -33,7 +34,7 @@ https://fakenewsverify.vercel.app/api/*  ──(code/frontend/vercel.json rewrit
 
 上雲步驟、免費方案的限制（Render 15 分鐘沒流量休眠、Supabase 7 天沒活動暫停）與退回本機的方法：[`docs/rebuild/runbook_cloud_deploy.md`](../../docs/rebuild/runbook_cloud_deploy.md)。
 
-仍然只在本機跑的東西：Threads 機器人（狀態檔是本機檔案）、自動抓新聞排程、評測與資料腳本、單元測試（本機與 GitHub Actions）。
+仍然只在本機跑的東西：自動抓新聞排程、評測與資料腳本、單元測試（本機與 GitHub Actions）。Threads 機器人 2026-10-01 起改在雲端執行（見下方「Threads 查核機器人」）。
 
 ---
 
@@ -99,7 +100,8 @@ app/
 │   ├── weekly_eval.py      ← 每週新查核自動評測：本週新查核＋知識庫歷史輪替、額度護欄、報告與 CSV
 │   ├── threads_service.py  ← Threads Graph API 客戶端
 │   ├── threads_sim.py      ← 模擬模式 FakeThreadsService（THREADS_MODE=sim，讀寫 data/threads_sim/）
-│   ├── threads_state.py    ← 機器人狀態與回覆紀錄（原子寫入）
+│   ├── threads_state.py    ← 機器人狀態與回覆紀錄（本機原子寫入；雲端 live 時轉存 threads_pg）
+│   ├── threads_pg.py       ← 雲端機器人狀態：Supabase 的 threads_kv（狀態、token、輪詢鎖）、threads_replies（回覆紀錄）
 │   └── threads_reply.py    ← Threads 回覆模板與長度計數
 │
 ├── workers/
@@ -192,7 +194,8 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 | `THREADS_MODE` | 未設定（等同 `off`） | `off`／`live`／`sim`。`sim` 是模擬模式，不打 Threads API |
 | `THREADS_APP_ID`、`THREADS_APP_SECRET`（機密） | 空 | Meta App 的 Threads use case 設定頁上的值 |
 | `THREADS_ACCESS_TOKEN`（機密）、`THREADS_USER_ID` | 空 | 長效 token（60 天）與機器人帳號 id |
-| `THREADS_POLL_MINUTES` | `5` | 輪詢 mentions 的間隔 |
+| `THREADS_POLL_MINUTES` | `5` | 輪詢 mentions 的間隔（分鐘） |
+| `THREADS_POLL_SECONDS` | `0` | 大於 0 時改以秒為單位輪詢、取代 `THREADS_POLL_MINUTES`（雲端設 `30`） |
 | `THREADS_MAX_REPLIES_PER_POLL`、`THREADS_MAX_REPLIES_PER_DAY` | `5`、`50` | 回覆上限 |
 | `BOT_HANDLE`、`THREADS_BASE_URL` | `factcheck_tw_bot`、`https://graph.threads.net/v1.0` | 機器人帳號、Graph API 位址 |
 
@@ -211,8 +214,9 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 | 管理者覆寫、使用者回饋 | `data/admin_overrides.parquet`、`data/user_feedback.parquet` | `admin_overrides`、`user_feedback` 表 |
 | 熱門記錄 | `data/factcheck.db`（SQLite）的 `fact_check_records` | `fact_check_records` 表 |
 | 每日 AI 計數 | 同一個 SQLite 的 `ai_usage_daily` | `ai_usage_daily` 表 |
+| Threads 機器人狀態、回覆紀錄、token、輪詢鎖 | `data/threads_state.json`、`data/threads_replies.jsonl`、`data/threads_token.json`、`data/threads_poll.lock` | `threads_kv`、`threads_replies` 表（`THREADS_MODE=live` 時） |
 
-不進資料庫、只寫在主機硬碟上的檔案：`data/uploads/`（圖片暫存，分析完刪除）、`data/threads_state.json`、`data/threads_replies.jsonl`、`data/threads_token.json`、`data/threads_sim/`（Threads 機器人的狀態，這也是機器人只在本機跑的原因）。
+不進資料庫、只寫在主機硬碟上的檔案：`data/uploads/`（圖片暫存，分析完刪除）、`data/threads_sim/`（模擬模式的提及與回覆）。
 
 - 欄位定義見 [`data/SCHEMA.md`](data/SCHEMA.md)。
 - 本機檔案沒有跨行程鎖（單機單寫者）：跑批次腳本時，不要同時對後端做大量查證。
@@ -348,6 +352,8 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | `migrate_to_supabase.py` | 本機 Parquet／SQLite → Supabase，冪等；`--insert-only` 不覆寫雲端既有資料列 |
 | `test_ai_provider.py` | 確認 AI provider 與 embedding 能正常呼叫 |
 | `test_threads_bot.py`、`threads_auth.py` | Threads 機器人測試與 token 管理 |
+| `threads_cloud_setup.py` | 把機器人狀態、回覆紀錄、token 搬上 Supabase（預設 dry-run；重新授權後 `--token-only --apply` 只上傳新 token） |
+| `supabase_keepalive.py` | Supabase pg_cron＋pg_net 每 5 分鐘呼叫 Render `/health`（不加參數只看狀態；`--apply` 建立、`--remove` 刪除） |
 | `threads_sim_mentions.example.json`、`threads_sim_seed.json` | 模擬模式的範例 mentions 與預熱用種子 |
 | `ensure_admin_token.py` | 確保 `.env` 有非空的 `ADMIN_TOKEN`（`start.bat`／`start.sh` 每次啟動都會呼叫，不印出 token） |
 | `clean_sources_2026_09.py` | 2026-09 來源清洗（一次性、冪等，預設 dry-run；已於 2026-09-16 套用） |
@@ -373,18 +379,19 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q; Remove-Item Env:RUN_PG_TESTS
 ```
 
-- **830 個通過**；另有 **31 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
+- **842 個通過**；另有 **34 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
 - `tests/conftest.py` 在測試中預設關閉限速與每日上限，要測護欄的測試再自己打開。
 - GitHub Actions（`.github/workflows/ci.yml` 的 `test` job）在每次 push／PR 到 `main` 時用 Python 3.12 跑 `python -m pytest tests -q`。
 
 | 主題 | 測試檔 |
 |------|--------|
 | 快取與儲存 | `test_cache_and_store`、`test_kb_write_gate`、`test_task_store_schema`、`test_parquet_io`、`test_store_factory`、`test_sql_migration`、`test_pg_store`（需開關） |
-| 判定、來源與 AI 契約 | `test_verdict`、`test_source_tier`、`test_marking_rules`、`test_url_validator`、`test_ai_service_contract`、`test_ai_prompt_rules`、`test_ai_timeout_budget` |
+| 判定、來源與 AI 契約 | `test_verdict`、`test_source_tier`、`test_marking_rules`、`test_url_validator`、`test_ai_service_contract`、`test_ai_prompt_rules`、`test_ai_timeout_budget`、`test_evidence` |
 | API 與主流程 | `test_api`、`test_analyze_api`、`test_result_api`、`test_knowledge_api`、`test_health`、`test_processor_flow`、`test_keyword_search_missing`、`test_news_fetcher_async` |
 | 上線護欄與安全 | `test_launch_guards`、`test_rate_limit`、`test_ai_budget`、`test_safe_url`、`test_admin_auth`、`test_ensure_admin_token` |
-| Threads 機器人 | `test_threads_api`、`test_threads_auth`、`test_threads_bot_sim`、`test_threads_config`、`test_threads_reply_format`、`test_threads_state`、`test_threads_token` |
-| 資料清洗 | `test_clean_sources` |
+| Threads 機器人 | `test_threads_api`、`test_threads_auth`、`test_threads_bot_sim`、`test_threads_config`、`test_threads_reply_format`、`test_threads_state`、`test_threads_token`、`test_threads_publish`、`test_threads_cloud` |
+| 查核機構資料、熱門與評測 | `test_tfc_reports`、`test_factcheck_sync`、`test_factcheck_supersede`、`test_trending_refresh_safety`、`test_hot_claims`、`test_weekly_eval`、`test_evaluate_timing` |
+| 資料清洗與維護 | `test_clean_sources`、`test_reembed_vectors` |
 
 ---
 
@@ -426,11 +433,12 @@ $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q
 
 使用者在 Threads 上 @機器人，機器人讀取被回覆的貼文，走與 `/api/analyze/sync` 相同的查證流程，再回覆判定、摘要、查核來源與結果頁連結。
 
-- `THREADS_MODE=sim`：模擬模式（`FakeThreadsService`，讀寫 `data/threads_sim/`），不需要網路與 token，demo 用的就是這個模式。
-- `THREADS_MODE=live`：真的讀 mentions 並回覆。需要 Meta App Review，排在進度報告之後。
-- 只在負責人電腦上跑，雲端固定 `off`：狀態檔是本機檔案，雲端主機重啟後會忘記回覆過誰。
+- `THREADS_MODE=sim`：模擬模式（`FakeThreadsService`，讀寫 `data/threads_sim/`），不需要網路與 token，進度報告的 demo 影片用的就是這個模式。
+- `THREADS_MODE=live`：真的讀 mentions 並回覆。2026-10-01 起在雲端執行（`render.yaml`：`THREADS_MODE=live`、`THREADS_POLL_SECONDS=30`）；狀態、回覆紀錄、token 與輪詢鎖存在 Supabase（`app/services/threads_pg.py`），主機重啟不會忘記回覆過誰。
+- 本機要跑 live 必須設 `STORAGE_BACKEND=supabase`（和雲端共用狀態與輪詢鎖）；用本機檔案狀態跑 live 會和雲端重複回覆。
+- Meta 開發模式（測試版）：只有加入 Threads 測試人員、帳號設公開的人 @ 機器人才會收到回覆。開放給所有人需通過 Meta App Review 與企業驗證；2026-10-03 決定先不送審（準備資料在 [`docs/rebuild/meta_app_review.md`](../../docs/rebuild/meta_app_review.md)）。
 - AI 失敗的 fallback 不回覆、不標記，額度恢復後下一輪會補回。
-- 申請步驟與防呆設計見根目錄 [`CLAUDE.md`](../../CLAUDE.md) 第 11 節。
+- 搬遷、token 續期、叫醒排程與防呆設計見根目錄 [`CLAUDE.md`](../../CLAUDE.md) 第 11 節。
 
 ---
 

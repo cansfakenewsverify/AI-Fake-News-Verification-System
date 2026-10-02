@@ -226,7 +226,7 @@ Render 官方對免費方案的原話是「不要用在 production」。對專�
 - [ ] 金鑰只存在兩個地方：本機 `code/backend/.env`（已 gitignore）與 Render 的 **Environment** 頁。`render.yaml` 裡只有鍵名、沒有值（這個 repo 是公開的）。
 - [ ] 沒有把金鑰貼到聊天、issue、commit、截圖。貼錯了就當作已外洩：換一把（CGU 金鑰找學校重發；資料庫密碼到 Supabase 重設，位置以畫面為準），本機 `.env` 與 Render 兩邊都要更新。
 - [ ] `ADMIN_TOKEN` 有設、長度 32 字以上。沒設時管理端點一律回 403（安全的預設），但也就不能用 `/api/trending/refresh` 等管理功能。
-- [ ] 雲端 `THREADS_MODE=off`。Threads 機器人目前只在本機跑；雲端和本機同時開 live 會重複回覆同一則貼文。
+- [ ] Threads 機器人在雲端以 `THREADS_MODE=live` 執行（2026-10-01 起；狀態在 Supabase）。本機要跑 live 必須設 `STORAGE_BACKEND=supabase`（和雲端共用狀態與輪詢鎖）；用本機檔案狀態跑 live 會和雲端重複回覆同一則貼文。
 - [ ] 知道這些是公開的：`<RENDER_URL>` 本身（不經 Vercel 也打得到）、`/docs`、`/redoc`、`/openapi.json`（看得到 API 長相，看不到金鑰）、`/api/analyze/*`（會花 AI 額度；有每 IP 限速與每日 300 次上限保護，見 C1）。
 - [ ] 改雲端設定的方法：Render 服務頁 → **Environment** → 改值 → **Save and deploy**。注意 `render.yaml` 裡有寫值的設定（非 `sync: false`）下次同步 Blueprint 時會被檔案裡的值蓋回去，這類設定要改就改 `render.yaml`。
 - [ ] 分享 Render 的 **Logs** 截圖前先掃一眼有沒有敏感內容（程式設計上 log 不含 token）。
@@ -237,7 +237,7 @@ Render 官方對免費方案的原話是「不要用在 production」。對專�
 
 | 項目 | 為什麼還在本機 | 怎麼跑 |
 |---|---|---|
-| Threads 查核機器人（`THREADS_MODE=live`／`sim`） | 狀態檔是本機檔案（`data/threads_state.json`、`data/threads_replies.jsonl`、`data/threads_token.json`、`data/threads_sim/`）；雲端硬碟是暫時的，重啟就忘記回過誰，會重複回覆 | 本機 `.env` 設 `THREADS_MODE`，`.\start.bat` |
+| Threads 機器人的模擬模式（`THREADS_MODE=sim`） | demo 影片用，讀寫本機 `data/threads_sim/`。live 模式 2026-10-01 起在雲端執行（見 C3） | `scripts\test_threads_bot.py --reset-sim`、`--poll` |
 | 自動抓熱門新聞排程（`ENABLE_SCHEDULER`） | 雲端刻意關閉以保護 AI 額度 | 本機跑 `scripts\batch_verify_pending.py`；本機 `.env` 也設 `STORAGE_BACKEND=supabase` 時，結果會直接寫進雲端看得到的同一份資料 |
 | 評測與資料腳本（`scripts/evaluate.py`、`batch_verify_pending.py`、`clean_sources_2026_09.py`、`check_db.py`、`check_supabase.py`、`test_ai_provider.py`…） | 需要 `requirements.txt` 的完整套件（scikit-learn、matplotlib、seaborn），`requirements-prod.txt` 刻意不裝；且會花額度，要有人看著 | `code\backend\venv\Scripts\python scripts\<名稱>.py` |
 | 單元測試 | 跑在 GitHub Actions（`ci.yml`）與本機，不在 Render | `venv\Scripts\python -m pytest tests -q` |
