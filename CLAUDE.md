@@ -152,7 +152,7 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   沒有 NOT_RUMOR 回覆）→ 可入庫 18,469 筆（MISINFO／SCAM，`label_source=rule`、`origin=factcheck_batch`），
   另 1,813 筆「查核結果為真」只供分析、**永不寫入**（仿冒官方通知的詐騙若命中 SAFE 列會拿到綠燈）。
   收錄規則在 `app/services/factcheck_corpus.py`（腳本與伺服器上的同步共用）。
-  主張只收看得出被查核說法者（`news_fetcher._claim_for_index`：舊版問句標題，或「網傳「…」」引號內）；台灣事實查核中心
+  主張只收看得出被查核說法者（`news_fetcher._claim_for_index`：標籤問句標題取結論以外的所有問句段落，或「網傳「…」」引號內）；台灣事實查核中心
   新版標題寫的是結論，直接當謠言會把正確說法標成假訊息（2026-09-24 排除 120 筆）。
   步驟 fetch → embed（2026-09-23 實測 609 萬 tokens、CGU 扣 USD 0.24）→ apply（預設 dry-run；`--target cloud --apply`
   要負責人核准）→ 需要時 `rollback`。正式資料庫改由下一段的同步寫入（第一次同步自動完整回填），不必手動 apply。
@@ -233,6 +233,7 @@ code/backend/
 │   ├── clean_sources_2026_09.py  FR-18 資料清洗（預設 dry-run、冪等、--apply 前自動備份；2026-09-16 已套用）
 │   ├── recheck_unverified.py   FR-20 唯讀盤點：未證實列 vs 已證實列／最新查核文章／Cofacts 新回覆（輸出含原文，gitignored）
 │   ├── ingest_factchecks.py    查核機構已證實資料批次入庫：fetch／embed／stats／apply／rollback（apply 預設 dry-run）
+│   ├── fix_title_claims.py     2026-10 一次性：標籤標題的舊主張（只取第一個問號前）改成新規則；預設 dry-run、--apply 前自動備份、--restore
 │   ├── evidence_confidence_study.py  證據信心研究（夾角 vs 判定、誤命中檢查、話術原型）→ docs/test/results/evidence_confidence_*.md
 │   ├── audit_cofacts_sources.py  盤點以 Cofacts 當 Tier 1 來源的已證實列（有無判定、方向是否一致；預設只讀）
 │   ├── llm_second_opinion.py / fix_factcheck_labels.py   清洗審閱輔助（CGU 本地模型）／2026-07 一次性標籤修復
@@ -242,7 +243,7 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **842 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **843 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -322,7 +323,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 842 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 843 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -586,7 +587,10 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - **台灣事實查核中心的判定取自「查核結果」分類**（2026-09-24，`app/services/tfc_client.py`；熱門牆抓取與批次入庫共用）：
   錯誤、部分錯誤 → 確定不實（`verdict="FALSE"`，與 Cofacts 的 RUMOR 同等）；事實釐清、證據不足不算判定。新版標題沒有
   【錯誤】標籤，所以 `_cleanup_legacy_strings` 對 `/fact-check-reports/` 網址與 Cofacts 一樣不以標題退回未查證。
-- **寫進知識庫的主張只收看得出被查核說法者**（`_claim_for_index`）：舊版問句標題（【錯誤】網傳XXX？）取問號前的主張；
+- **寫進知識庫的主張只收看得出被查核說法者**（`_claim_for_index`）：標籤問句標題（【錯誤】網傳XXX？YYY？結論）取**最後一段結論以外的
+  所有問句段落**，以「，」相接、最多 3 段；第二段以後若是查核者的評語（謠言、假新聞、還在傳…）不收。2026-10-12 以前只取第一個
+  問號前，MyGoPen「【謠言】日月同輝照片？用16部相機等62天捕捉？錯誤描述」只存了「日月同輝照片」，被查核的說法不在知識庫裡
+  （每週評測覆核 `docs/test/results/weekly/review_2026-10-05.md`）；舊列由 `scripts/fix_title_claims.py` 就地改寫（id 不變）。
   沒有標籤的標題只收「網傳／流傳…「主張」」引號內的主張；台灣事實查核中心新版的**結論句標題不收**（「健保署不會用 LINE
   通知健保卡異常」當成謠言會把正確說法標成假訊息）。熱門牆上這類報告改以「網傳「主張」」呈現。
 - **否定的判定不算不實**（2026-09-23）：【非謠言】【非詐騙】【不是謠言】與標題中的「並非謠言」結論是「不是假的」，

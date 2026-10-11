@@ -123,6 +123,19 @@ def test_claim_for_index_only_takes_identifiable_claims():
     assert nf._claim_for_index("健保署不會用LINE、電話或簡訊，通知健保卡異常") == ""
 
 
+def test_tagged_title_claim_keeps_every_question_before_the_conclusion():
+    # MyGoPen「【標籤】主題？說法？結論」：被查核的說法在第二段（2026-10-05 每週評測覆核）
+    assert nf._claim_for_index("【謠言】日月同輝照片？用16部相機等62天捕捉？錯誤描述") == "日月同輝照片，用16部相機等62天捕捉"
+    assert nf._claim_for_index("【錯誤】張忠謀告別信？講黃仁勳保護台灣和蔣萬安送鑰匙？非真實訊息！多段落拼湊文章") \
+        == "張忠謀告別信，講黃仁勳保護台灣和蔣萬安送鑰匙"
+    assert nf._claim_for_index("【謠言】海大黃道祥教授説明振興券的妙用？教授澄清冒名文章") == "海大黃道祥教授説明振興券的妙用"
+    assert nf._claim_for_index("【錯誤】吃這些天然「增肌果」比雞蛋厲害？") == "吃這些天然「增肌果」比雞蛋厲害"
+    assert nf._claim_for_index("【錯誤】網傳A說法？B說法？C說法？D說法？結論") == "A說法，B說法，C說法"   # 最多 3 段
+    assert nf._claim_for_index("【錯誤】注意！明天起騎車不戴安全帽罰3千？假的") == "注意！明天起騎車不戴安全帽罰3千"
+    # 第二段是查核者的評語：不收
+    assert nf._claim_for_index("【錯誤】祖克伯解釋為何娶醜老婆？執迷不悟的你還在傳這種假新聞？") == "祖克伯解釋為何娶醜老婆"
+
+
 def test_fetch_skips_tfc_rss_when_the_reports_api_works(monkeypatch):
     seen = []
 

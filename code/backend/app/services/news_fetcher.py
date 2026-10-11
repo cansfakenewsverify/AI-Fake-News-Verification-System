@@ -131,17 +131,40 @@ _NEWS_ANALYSIS_GUIDANCE = (
 )
 
 
+_QUESTION_MARK_RE = re.compile(r"[？?]")
+_MAX_CLAIM_PARTS = 3
+# 第二段以後若是查核者的評語（「執迷不悟的你還在傳這種假新聞？」）就不收，免得把結論帶進主張
+_CLAIM_COMMENT_RE = re.compile(r"(謠言|假新聞|還在傳|別再傳|不要再傳|歷史故事)")
+
+
+def _tagged_title_claim(title: str) -> str:
+    """
+    標籤標題的主張：最後一段結論以外的所有問句段落，以「，」相接。
+    MyGoPen 的標題是「【標籤】主題？說法？結論」，被查核的說法常在第二段（「日月同輝照片？用16部相機等62天捕捉？
+    錯誤描述」）；只取第一段時題目只剩主題，2026-10-05 每週評測中 15 字以下的這類題目 AI 只答對 63%。
+    標題以問號結尾時每段都是問句；沒有問號（只有驚嘆號）時沿用 _extract_claim_from_title。
+    """
+    s = _LEADING_TAG_RE.sub("", (title or "").strip())
+    s = re.sub(r"^(網傳|傳言|謠言|流傳)[\s:：]*", "", s)
+    if not _QUESTION_MARK_RE.search(s):
+        return _extract_claim_from_title(title)
+    parts = [p.strip() for p in _QUESTION_MARK_RE.split(s)]
+    questions = [p for p in (parts if not parts[-1] else parts[:-1]) if p]
+    claims = questions[:1] + [p for p in questions[1:] if not _CLAIM_COMMENT_RE.search(p)]
+    return "，".join(claims[:_MAX_CLAIM_PARTS])
+
+
 def _claim_for_index(title: str) -> str:
     """
     查核文章標題 → 寫進知識庫的主張；看不出被查核的說法時回 ""（寧可不收，也不把結論句當成謠言）。
-    - 舊版標籤標題「【錯誤】網傳XXX？說明」：標籤後面要有問號或驚嘆號，取 _extract_claim_from_title 的結果
-      （與既有索引一致）；「【易誤解】普悠瑪本來就沒有安全帶…」這類沒有問句的說明文字不收。
+    - 舊版標籤標題「【錯誤】網傳XXX？說明」：標籤後面要有問號或驚嘆號，取 _tagged_title_claim 的結果
+      （所有問句段落，不含最後的結論）；「【易誤解】普悠瑪本來就沒有安全帶…」這類沒有問句的說明文字不收。
     - 沒有標籤的標題（台灣事實查核中心新版「背景。網傳「主張」說法，結論」）：只收「網傳／流傳…「主張」」
       引號裡的主張；「健保署不會用 LINE 通知健保卡異常」這類結論句不收（2026-09-24 全站語料檢查時發現）。
     """
     t = (title or "").strip()
     if _LEADING_TAG_RE.match(t):
-        return _extract_claim_from_title(t) if _QUESTION_RE.search(_LEADING_TAG_RE.sub("", t)) else ""
+        return _tagged_title_claim(t) if _QUESTION_RE.search(_LEADING_TAG_RE.sub("", t)) else ""
     return quoted_claim(t) or ""
 
 
