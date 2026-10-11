@@ -8,7 +8,8 @@
 - 系統已經是**線上網站**：<https://fakenewsverify.vercel.app>。Vercel（React 靜態檔）把 `/api/*` 同源代理到 Render 後端
   `https://fakenewsverify-api.onrender.com`（FastAPI），資料在 Supabase Postgres + pgvector。架構與操作見第 12 節。
 - AI 只用學校 **CGU AIR 閘道**：分析 `gpt-5.6-luna`（2026-09-30 閘道下架 `gpt-5.4-mini` 後改用；主模型被下架時自動改用
-  備援 `gpt-6-luna`）、embedding `text-embedding-3-small`；myai168 已停用（第 2 節）。
+  備援 `gpt-6-luna`）、embedding `text-embedding-3-small`；myai168 已停用（第 2 節）。2026-10-12 系統提示加判定校準
+  （每週評測發現常把真的內容判成假，第 6 節）。
 - **Threads 機器人 `@factcheck_tw_bot` 在雲端執行**（2026-10-01；Render 每 30 秒檢查提及，狀態存在 Supabase，
   Supabase pg_cron 每 5 分鐘叫醒 Render；開發模式只收測試人員的提及；2026-10-03 決定先不送 Meta App Review，第 11 節）。
 - 知識庫由 GitHub Actions **`factcheck-sync`** 每天兩次同步查核機構的新結論（第一次會自動回填約 1.85 萬筆）；**`weekly-eval`**
@@ -22,7 +23,7 @@
   規格 `docs/demo/presentation_video_brief.md`，製作紀錄 `docs/demo/footage_log.md`）。
   舊的 demo 影片 v0.4.0：<https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4>（`video/hf-demo/`）。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
-  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.7；6.7 為 2026-09-30 換模型後重測）。
+  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.8；6.7 為 2026-09-30 換模型後重測，6.8 為 2026-10-12 判定校準後重測）。
 
 ---
 
@@ -195,7 +196,7 @@ code/backend/
 │   ├── api/feedback.py         /api/feedback/tasks/{id} 使用者回饋
 │   ├── models/fact_check_record.py  熱門記錄（唯一的 SQLAlchemy model）
 │   ├── services/
-│   │   ├── ai_service.py       ★AI 呼叫、系統 prompt（含 FR-19 來源規則）、fallback 契約、embedding
+│   │   ├── ai_service.py       ★AI 呼叫、系統 prompt（含 FR-19 來源規則、2026-10 判定校準）、fallback 契約、embedding
 │   │   ├── ai_budget.py        每日 AI 次數上限（FR-14；SQL 表 ai_usage_daily、原子扣額度）
 │   │   ├── store_factory.py    ★取得 store 的唯一入口：依 settings.use_supabase 回傳本機檔案版或 Postgres 版
 │   │   ├── pandas_store.py     本機知識庫 Parquet：三層快取查詢＋寫入門檻 compute_write_gate（雲端版共用）
@@ -285,7 +286,7 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
-docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.7）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
+docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.8）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
                                 pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）、
                                 上線後準確率驗證計畫.md（上線後怎麼量準確率與信心校準）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
@@ -370,10 +371,13 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 ## 6. 評測現況（論文數據）
 
 - 資料集 `data/eval_set.csv`：150 筆（SCAM/MISINFO/SAFE 各 50），含刻意設計的「像詐騙的合法官方訊息」當難題。
-- **最新結果（2026-09-30，CGU `gpt-5.6-luna`、web_search 關）：accuracy 96.7%、macro-F1 0.967、FN=0、FP=5**
-  （有效預測 150／150；95% CI 0.924–0.986；5 筆 FP 全是官方公告被判成 MISINFO；未命中延遲 p50 5.87 s、p90 8.31 s；
-  150 筆約 USD 0.2）。同日另一次並行執行為 98.7%（FP=2）：同一模型在官方公告題上會在 2～5 筆之間浮動。
-  結果檔在 `data/eval_*.csv` 與 `assets/confusion_matrix.png`；選型比較（含本週 41 則新查核）見 `docs/test/results/model_switch_2026-09-30.md`。
+- **最新結果（2026-10-12，CGU `gpt-5.6-luna`＋判定校準、web_search 關）：accuracy 100%、FN=0、FP=0**
+  （兩次執行都是 150／150；未命中延遲 p50 4.75 s、p90 6.07 s；150 筆約 USD 0.2）。結果檔在 `data/eval_*.csv` 與
+  `assets/confusion_matrix.png`。判定校準＝系統提示的「Calibration」段落（票 B-40）：查不到的新聞與具名公告不判假、
+  詐騙開場白判 SCAM；開發組 306 題（每週評測的歷史抽樣）風險題漏判 16 → 13、安全題誤報 94 → 75（`docs/test/results/prompt_calibration_2026-10-12.md`）。
+  **校準第 5 條正是針對這組題庫已知的錯誤型態（官方公告被判成假），所以 100% 偏樂觀**；以每週評測為準。
+- 校準前（2026-09-30）：accuracy 96.7%、macro-F1 0.967、FN=0、FP=5（全是官方公告被判成 MISINFO；同日另一次 98.7%、FP=2），
+  未命中延遲 p50 5.87 s、p90 8.31 s，封存在 `data/eval_archive_gpt56luna_2026-09/`；選型比較見 `docs/test/results/model_switch_2026-09-30.md`。
 - 2026-09-16 的 CGU `gpt-5.4-mini`（2026-09-30 已被閘道下架）：accuracy 100%、FN=0、FP=0，封存在 `data/eval_archive_gpt54mini_2026-09/`；
   換成新模型後 5 筆由對變錯、0 筆由錯變對（McNemar 精確檢定 p = 0.0625）。
 - 更早（2026-06，myai168 `gpt-5-mini`）：accuracy 96.0%、macro-F1 0.960、FN=0、FP=5（把反詐宣導、政府補助公告誤判成 SCAM）；
@@ -459,10 +463,10 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] （選）信心分數校準：可靠度圖、ECE、Brier，並檢驗 `GREEN_MIN_CONFIDENCE=0.7` 實際擋掉多少錯誤（同上計畫第 4 節）
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 - [ ] 每週評測覆核找到的兩個問題（待負責人決定，`docs/test/results/weekly/review_2026-10-05.md`）：
-      ① AI 把真的內容判成假：Cofacts「不是謠言」的安全題 991 題中 679 題被判 MISINFO／SCAM（舊新聞、政府通知、衛教常識），
-      網站上就是紅燈「假訊息」→ 改系統提示（查不到的新近事件／官方通知沒有造假跡象時判 UNVERIFIABLE 或 SAFE）再重跑評測；
-      ② MyGoPen 主張太短：`_claim_for_index` 只取標題第一個問號前的主題（「日月同輝照片」），被查核的說法在第二段；
-      知識庫約 4,200 筆中 60% 在 15 字以下 → 改取「主題＋說法」並替換正式知識庫的舊列。
+      ① AI 把真的內容判成假（安全題 991 題中 679 題被判有風險，網站上是紅燈「假訊息」）→ **2026-10-12 已修**：系統提示加
+      判定校準（票 B-40，`docs/test/results/prompt_calibration_2026-10-12.md`）；2026-10-18 的每週評測是第一次在新規則上量新查核，要看偽陰性有沒有增加；
+      ② MyGoPen 主張太短（只存標題第一個問號前的主題，例如「日月同輝照片」）→ 程式已修（票 B-41，`_tagged_title_claim`）；
+      正式知識庫 1,718 列的改寫要負責人執行 `scripts/fix_title_claims.py --apply`（AI 助理對正式資料庫的寫入會被擋）。
       第一次 `weekly-eval`（2026-10-05）：本週新查核 44 題風險判定一致 84.1%，偽陰性 6 筆已覆核
       （5 筆是詐騙對話的單句、不列缺陷；1 筆是 ② 的題目缺陷）
 - [ ] 已知限制：Cofacts 的 RUMOR 一律標 MISINFO，其中的詐騙訊息（釣魚、假中獎）命中時燈號是紅色「假訊息」而不是「詐騙警告」

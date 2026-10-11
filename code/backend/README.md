@@ -365,6 +365,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | `recheck_unverified.py` | 查核結果回補盤點：未證實列能否由已證實列、最新查核文章或 Cofacts 新回覆補上（唯讀；`--cloud` 讀正式資料；輸出含使用者原文，已 gitignore） |
 | `ingest_factchecks.py` | 查核機構已證實資料批次語料：`fetch`（MyGoPen、台灣事實查核中心、Cofacts）→ `embed` → `apply`（預設 dry-run；`--target cloud --apply` 寫正式資料庫）；`rollback` 撤回（含同步寫入的列）。正式資料庫平常由後端同步寫入（`/api/admin/factcheck-sync`），不必手動 apply |
 | `fix_title_claims.py` | 2026-10 一次性：標籤標題的舊主張（只取第一個問號前）改成「結論以外的所有問句段落」，就地改寫正式知識庫（預設 dry-run；`--apply` 前自動備份；`--restore` 還原） |
+| `correct_kb_row.py` | 人工更正正式知識庫的單一列（判定與說明一起改；預設 dry-run、`--apply` 前自動備份、`--restore`）。管理者覆寫端點只改燈號、不改說明 |
 | `audit_cofacts_sources.py` | 盤點以 Cofacts 文章當 Tier 1 來源的已證實列：文章現在有沒有判定、判定方向是否一致（預設只讀；`--apply` 只處理沒有判定者） |
 | `evidence_confidence_study.py` | 證據信心研究：夾角與判定的關係、入庫後的誤命中檢查、話術原型；輸出報告到 `docs/test/results/` |
 
@@ -400,14 +401,14 @@ $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q
 
 資料集 `data/eval_set.csv`：150 筆人工標註（SCAM／MISINFO／SAFE 各 50 筆）。
 
-| 指標 | `gpt-5.6-luna`（2026-09-30，現行） | `gpt-5.4-mini`（2026-09-16，已被閘道下架） | `gpt-5-mini`（2026-06） |
-|------|-----------------------------------|-------------------------------------------|------------------------|
-| Accuracy | 96.7% | 100% | 96.0% |
-| Macro-F1 | 0.967 | 1.000 | 0.960 |
-| 偽陰性 FN | **0** | **0** | 0 |
-| 偽陽性 FP | 5 | 0 | 5 |
+| 指標 | `gpt-5.6-luna`＋判定校準（2026-10-12，現行） | `gpt-5.6-luna`（2026-09-30，校準前） | `gpt-5.4-mini`（2026-09-16，已被閘道下架） | `gpt-5-mini`（2026-06） |
+|------|------------------------------------------|-------------------------------------|-------------------------------------------|------------------------|
+| Accuracy | 100%（兩次） | 96.7% | 100% | 96.0% |
+| Macro-F1 | 1.000 | 0.967 | 1.000 | 0.960 |
+| 偽陰性 FN | **0** | **0** | **0** | 0 |
+| 偽陽性 FP | 0 | 5 | 0 | 5 |
 
-舊版結果封存在 `data/eval_archive_gpt54mini_2026-09/`、`data/eval_archive_gpt5mini_2026-06/`。這組題目偏簡單且已公開；數字只說明在這份資料集上的表現。
+舊版結果封存在 `data/eval_archive_gpt56luna_2026-09/`（校準前）、`data/eval_archive_gpt54mini_2026-09/`、`data/eval_archive_gpt5mini_2026-06/`。這組題目偏簡單且已公開；數字只說明在這份資料集上的表現。
 換模型的比較見 `docs/test/results/model_switch_2026-09-30.md`；每週新查核自動評測見 `app/services/weekly_eval.py`。
 
 ```powershell

@@ -257,6 +257,13 @@
 
 ### FR-19 AI web_search 網域限制與 prompt 規則（prompt 規則 P0；`allowed_domains` P1，視閘道支援）
 - **prompt 規則（P0，零風險）**：`ai_service.py` 系統 prompt「雙重事實查核」段（ai_service.py:42）加逐字規則：「`sources` 只能列出**已對這則訊息做出判定**的查核機構或媒體查核報導（TFC、MyGoPen、Cofacts 有回覆的文章、政府機關公告、主流媒體的查核報導）。找不到這類來源就回 `sources: []`，不要列出求證平台上尚未回覆的貼文、一般新聞或社群貼文，不要猜測或編造網址。」——與 FR-16 後端分級**雙保險**（prompt 減少 Tier 3 產生，`tier_of()` 兜底）。
+- **判定校準（2026-10-12，票 B-40）**：系統 prompt 加「Calibration」段落。
+  - 判 MISINFO 要有具體的不實跡象；
+  - 出處清楚的新聞報導、具名機關公告、活動資訊、生活與衛教建議，不因模型不知道就判 MISINFO，改判 SAFE（信心 0.5～0.7）；
+    轉傳片段、照片或影片的說明、驚人數據、政治人物言論不適用這一條；
+  - 詐騙開場白（冒名「唯一官方帳號」、陌生人自我介紹、不具名貸款或撥款通知、代辦門號或預付卡、海外創業補助）判 SCAM；
+  - 具名機關的正式通知沒有可疑網址、也沒有要求個資或匯款時，不因為是通知就判 SCAM。
+  起因與前後比較見 `docs/test/results/weekly/review_2026-10-05.md` 與 `docs/test/results/prompt_calibration_2026-10-12.md`。
 - **`allowed_domains`（P1，優先級不隨實測改變）**：OpenAI Responses API 的 `web_search` 工具支援 `filters.allowed_domains`（≤20 個網域）；CGU AIR 閘道為 OpenAI-compatible，是否原樣轉發**未驗證**。Day 1 OP-2 以 `test_ai_provider.py --web-search --allowed-domains` 打一次，**只記錄結果、不改優先級**：回 200 且 `url_citation` 全在清單內 → 閘道支援，**維持 P1**，實作（設定鍵 `WEB_SEARCH_ALLOWED_DOMAINS` 於 `_responses_analyze` 帶入 `filters`，ai_service.py:237-238 旁，約 30 分鐘）排在 **Day 6 下午有餘裕時順手做**（D-16），不進 P0 時程；回 400／被忽略 → 閘道不支援，**不做**，靠 prompt + `tier_of()`。設定鍵預設 = `TIER1_DOMAINS`（≤20 個、**不含萬用字元**；`gov.tw` 以裸網域列入，OpenAI 是否以此涵蓋子網域於 OP-2 一併驗證並記錄）；主流媒體網域不在預設內（Tier 2 以標題判定、無網域白名單，留待 P1 實作時決定）。
 - **驗收**：FN-1 加「prompt 含上述逐字規則」斷言（字串比對）；OP-2 記錄 `allowed_domains` 實測結果（含 `gov.tw` 子網域涵蓋與否）；P1 實作時 `tests/test_ai_service_contract.py` 加「`WEB_SEARCH_ALLOWED_DOMAINS` 非空時 body 帶 `filters`」案例。
 

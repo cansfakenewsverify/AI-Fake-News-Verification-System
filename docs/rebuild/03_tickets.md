@@ -2817,3 +2817,26 @@ flowchart LR
   `render.yaml`（`THREADS_MODE=live`、`THREADS_POLL_SECONDS=30`）、`tests/test_threads_cloud.py`（11）、`tests/test_pg_store.py`（+3）
 - 驗收：pytest 842、Postgres 契約 34；搬遷後雲端第一輪不重複回覆舊提及；pg_cron 每 5 分鐘 HTTP 200；負責人 @機器人 → 雲端回覆
 - 狀態：已完成（2026-10-01，commit `3935b67`；實測紀錄 `docs/test/threads_live_log.md`）
+
+### B-40 判定校準（系統提示加 Calibration 段落）
+- 優先級：P1
+- 依賴：B-36、B-37
+- 對應：每週評測覆核 `docs/test/results/weekly/review_2026-10-05.md`（AI 把真的內容判成假）；負責人 2026-10-12「修」
+- 範圍：`code/backend/app/services/ai_service.py`（`SYSTEM_PROMPT_V41` 加 5 條規則）、`data/eval_*`（重跑 150 題）、
+  `data/eval_archive_gpt56luna_2026-09/`（校準前結果封存）、`docs/test/results/prompt_calibration_2026-10-12.md`
+- 驗收：306 題開發組風險題漏判不增加（16 → 13）、安全題誤報下降（94 → 75）；150 題 FN=0（兩次 150／150）
+- 狀態：已完成（2026-10-12）；2026-10-18 每週評測看新查核的偽陰性
+
+### B-41 查核標題的主張取完整說法
+- 優先級：P1
+- 依賴：B-35
+- 對應：同上覆核（MyGoPen 主張只取第一個問號前，60% 在 15 字以下）
+- 範圍：`news_fetcher._tagged_title_claim`、`tests/test_tfc_reports.py`（+1）、`scripts/fix_title_claims.py`（正式知識庫就地改寫）
+- 驗收：pytest 843；dry-run 11,420 列中 1,718 列要改、0 列衝突
+- 狀態：程式已上線（commit `03ec185`）；正式知識庫改寫待負責人執行 `--apply`
+
+### B-42 更正判反的知識庫列（禧年探索資本）
+- 優先級：P1
+- 對應：HANDOFF 待辦第 5 項；負責人 2026-10-12 同意「改成這則警示屬實、不參與語意比對」
+- 範圍：`scripts/correct_kb_row.py`（`--preset xinian`；管理者覆寫端點只改燈號、不改說明）
+- 狀態：程式完成、dry-run 已確認；`--apply` 待負責人執行

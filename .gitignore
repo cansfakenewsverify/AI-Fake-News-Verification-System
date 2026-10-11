@@ -134,3 +134,4 @@ video/hf-presentation/.debug/
 video/hf-presentation/.media/
 video/hf-presentation/.raw/
 code/backend/data/fix_title_claims_report.txt
+code/backend/data/correct_kb_row_report.txt
