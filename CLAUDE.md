@@ -59,7 +59,7 @@
   fallback 卻沒有人發現。現在 `_cgu_analyze` 遇到 404 會自動改用 `CGU_FALLBACK_MODEL`；`factcheck-sync` 每次執行都讀模型清單
   （`ai_service.gateway_models()` = `GET {CGU_BASE_URL}/models`，不花額度），設定的模型不在清單上時 workflow 變紅並寄信。
   換模型要重跑評測（第 6 節），選型比較見 `docs/test/results/model_switch_2026-09-30.md`；模型名稱寫在 `render.yaml`。
-- **額度**：OpenAI 成本額度**每週 USD 20**（2026-10-11 由 `/me/usage` 的 `quota_usd` 確認；共識 §4 與早期文件寫 USD 10），用不完不累積；**週四重置**（2026-10-08 那次落在台灣時間週四 03:00～週五 03:00 之間，由每次同步的 embedding 用量反推，精確時刻未確認）。另有本地模型的 token 額度（目前沒用到）。用量查 `GET {CGU_BASE_URL}/me/usage`
+- **額度**：OpenAI 成本額度**每週 USD 10**（負責人確認），用不完不累積；**週四重置**（2026-10-08 那次落在台灣時間週四 03:00～週五 03:00 之間，由每次同步的 embedding 用量反推）。閘道 `/me/usage` 的 `quota_usd` 顯示 20，因為閘道扣款是 OpenAI 牌價的 2 倍（第 2 節「額度與成本」）；程式裡的護欄一律讀閘道帳上的數字。另有本地模型的 token 額度（目前沒用到）。用量查 `GET {CGU_BASE_URL}/me/usage`
   （寫法見 `scripts/batch_verify_pending.py` 的 `cgu_cost_usd()`）。閘道教學頁：`https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html`。
 - **myai168（OpenAI／Claude 中繼）已停用**：`.env.example` 把它註解在「已停用」區，雲端只設 CGU 金鑰。舊碼留著供日後切回
   （`ai_service.py` 的 `_openai_analyze`／`_claude_analyze`；`config.py` 的 `MYAI_API_KEY`、`OPENAI_*`、`CLAUDE_*`，且 `AI_PROVIDER`
@@ -457,10 +457,13 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       再開始每週 20 筆的線上抽樣雙人獨立覆核（M2）。現有 150 筆已飽和且公開，不能用來宣稱上線準確率（第 6 節）
 - [ ] （選）信心分數校準：可靠度圖、ECE、Brier，並檢驗 `GREEN_MIN_CONFIDENCE=0.7` 實際擋掉多少錯誤（同上計畫第 4 節）
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
-- [ ] 每週評測的偽陰性覆核：第一次 `weekly-eval` 於 2026-10-05 01:33 完成（GitHub 排程晚約 4 小時；報告
-      `docs/test/results/weekly/weekly_eval_2026-10-05.md`）。本週新查核 44 題風險判定一致 84.1%、偽陰性 6 筆（Cofacts 5、MyGoPen 1）；
-      歷史抽樣 3,000 題 70.3%（安全題 991 題中 679 題被判有風險、MyGoPen 偽陰性 114／427）。偽陰性逐筆看查核網址
-      （`docs/test/上線後準確率驗證計畫.md` M5）
+- [ ] 每週評測覆核找到的兩個問題（待負責人決定，`docs/test/results/weekly/review_2026-10-05.md`）：
+      ① AI 把真的內容判成假：Cofacts「不是謠言」的安全題 991 題中 679 題被判 MISINFO／SCAM（舊新聞、政府通知、衛教常識），
+      網站上就是紅燈「假訊息」→ 改系統提示（查不到的新近事件／官方通知沒有造假跡象時判 UNVERIFIABLE 或 SAFE）再重跑評測；
+      ② MyGoPen 主張太短：`_claim_for_index` 只取標題第一個問號前的主題（「日月同輝照片」），被查核的說法在第二段；
+      知識庫約 4,200 筆中 60% 在 15 字以下 → 改取「主題＋說法」並替換正式知識庫的舊列。
+      第一次 `weekly-eval`（2026-10-05）：本週新查核 44 題風險判定一致 84.1%，偽陰性 6 筆已覆核
+      （5 筆是詐騙對話的單句、不列缺陷；1 筆是 ② 的題目缺陷）
 - [ ] 已知限制：Cofacts 的 RUMOR 一律標 MISINFO，其中的詐騙訊息（釣魚、假中獎）命中時燈號是紅色「假訊息」而不是「詐騙警告」
 - [ ] 提供查核機構的熱搜名單（FR-21 延伸）：`hot_claims.rank()` 已可用於未證實內容；還缺管理端點、電話／帳號／人名遮蔽、
       隱私政策增列「提供查核機構」用途（現行政策只寫「供後續相同或相似內容快速比對」）
@@ -468,8 +471,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       TFC 近期 RSS 標題多半沒有判定標籤（2026-09-22 抽 10 篇只有 1 篇命中），查核結論進庫以 MyGoPen 與 Cofacts 為主
 
 ### 已完成（2026-09 重做與上雲）
-- [x] CGU 每週額度（2026-10-11）：`/me/usage` 顯示每週 USD 20；週四重置（台灣時間週四 03:00～週五 03:00 之間）。週日的評測在週期中間、
-      先讀剩餘額度再跑（最多 6 美元、保留 3 美元），不必改排程
+- [x] CGU 每週額度（2026-10-11）：每週 USD 10、週四重置（台灣時間週四 03:00～週五 03:00 之間；閘道帳上顯示 20，扣款是牌價 2 倍）。
+      週日的評測在週期中間、先讀剩餘額度再跑（閘道帳上最多 6、保留 3），不必改排程
 - [x] AI 模型改為 `gpt-5.6-luna`＋備援 `gpt-6-luna`（2026-09-30，票 B-37）：閘道已下架 `gpt-5.4-mini`，正式站新內容的判讀全數是
       fallback。以 150 題與本週 41 則新查核比較兩個候選模型後選定；遇到 404 `model_not_found` 自動改用備援；同步時檢查模型清單。
       舊評測結果封存在 `data/eval_archive_gpt54mini_2026-09/`
