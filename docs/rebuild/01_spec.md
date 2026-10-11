@@ -300,7 +300,7 @@
 - **驗收**：`tests/test_factcheck_sync.py`（只寫風險判定、重跑不重複、未證實同文字仍寫入、缺向量留待下次、依發布日寫入、recent／full 參數、第一次自動回填、單一來源失敗、全部失敗、同時只跑一輪、模型檢查、端點授權與 409／422）；`tests/test_pg_store.py::test_existing_hashes_matches_local_store`。
 
 ### FR-24 每週新查核自動評測（P1；2026-09-30 新增）
-- **描述**：CGU 的 OpenAI 額度每週 USD 10、用不完不累積。`app/services/weekly_eval.py` 把每週用剩的額度拿來量 AI 判讀準確率（`docs/test/上線後準確率驗證計畫.md` 的 M5）；題目與真值都來自查核機構已發布的結論，不由 AI 助理或組員產生。
+- **描述**：CGU 的 OpenAI 額度每週 USD 20（2026-10-11 確認；原寫 USD 10）、用不完不累積。`app/services/weekly_eval.py` 把每週用剩的額度拿來量 AI 判讀準確率（`docs/test/上線後準確率驗證計畫.md` 的 M5）；題目與真值都來自查核機構已發布的結論，不由 AI 助理或組員產生。
   - **本週新查核**（主要數字）：最近 7 天（台灣時間）發布、已有判定的查核結論，含 SAFE 題（台灣事實查核中心「正確」、MyGoPen【真】、Cofacts 獲認可的 NOT_RUMOR；Cofacts 評測題不設回報人數門檻），一篇報告一題，三個來源輪流排。
   - **歷史輪替**（參考）：風險題是知識庫 `factcheck_batch` 列依固定順序的第 N 段（每週 2,000 題，從 2026-09-28 那週起算，約 9～10 週輪完一遍），安全題是 Cofacts 獲認可的 NOT_RUMOR 訊息（每週抽樣），2:1；可能在模型訓練資料中，報告分開列。
   - 直接呼叫 AIService：不經快取、不帶 web_search、不寫知識庫、不計入每日 AI 次數（FR-14）。
