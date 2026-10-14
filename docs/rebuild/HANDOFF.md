@@ -106,8 +106,8 @@
    **1 筆方向相反**：「禧年探索資本已被金管會通報為高風險投資詐騙黑平台」本站判為假訊息，
    引用的 Cofacts 文章（`236p4q2fmierk`）卻判定「不是謠言」。2026-10-12 負責人同意更正為「這則警示屬實」，
    並設成不參與語意比對（知識庫 id `c792a37e-fa12-4226-8db4-76169014768c`）。
-   管理者覆寫端點只改燈號、不改說明，所以改用 `code/backend/scripts/correct_kb_row.py --preset xinian`；
-   `--apply` 寫正式資料庫，要負責人自己執行。
+   管理者覆寫端點只改燈號、不改說明，所以改用 `code/backend/scripts/correct_kb_row.py --preset xinian`，
+   **2026-10-14 負責人已執行**（備份 `code/backend/data/correct_kb_row.bak-20261014-235551.json`）。
 6. **後端防休眠**：已於 2026-10-01 完成。Supabase 以 `pg_cron` 搭配 `pg_net` 每 5 分鐘呼叫 Render 的 `/health`
    （`code/backend/scripts/supabase_keepalive.py`，負責人同意後設定），Render 不再休眠，Threads 機器人才能每 30 秒檢查一次。
 7. **雲端知識庫補入示範用的 gold 列**：細節見 `CLAUDE.md` 第 8 節。
@@ -128,7 +128,9 @@
     覆核紀錄 `docs/test/results/weekly/review_2026-10-05.md`：偽陰性 5 筆是詐騙對話的單句（不列缺陷）、1 筆是 MyGoPen 主張太短；另發現 AI 常把真的內容判成假，
     兩項修正已於 2026-10-12 完成（票 B-40、B-41）：
     - 系統提示加判定校準：150 題兩次都 100%；開發組漏判 16 → 13、誤報 94 → 75（`docs/test/results/prompt_calibration_2026-10-12.md`）；
-    - MyGoPen 主張改取完整說法：正式知識庫的改寫要負責人執行 `fix_title_claims.py --apply`。
+    - MyGoPen 主張改取完整說法：2026-10-14 負責人執行 `fix_title_claims.py --apply`，1,652 列就地改寫、66 列重複刪除。
+    第二次每週評測（2026-10-12，已是新規則，`docs/test/results/weekly/weekly_eval_2026-10-12.md`）：安全題誤判率 68.5% → 55.0%，歷史風險題漏判率 10.4% → 12.8%。
+    要不要讓 AI 改回「無法查證」待負責人決定（`CLAUDE.md` 第 8 節）。
     workflow 失敗時 GitHub 會寄信給負責人。
 12. **提供查核機構的熱搜名單**：排序已完成（`app/services/hot_claims.py`），尚缺管理端點、個資遮蔽，
     以及隱私政策增列「提供查核機構」的用途；公開頁維持只列已證實內容。

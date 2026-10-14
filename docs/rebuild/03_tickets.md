@@ -2825,7 +2825,7 @@ flowchart LR
 - 範圍：`code/backend/app/services/ai_service.py`（`SYSTEM_PROMPT_V41` 加 5 條規則）、`data/eval_*`（重跑 150 題）、
   `data/eval_archive_gpt56luna_2026-09/`（校準前結果封存）、`docs/test/results/prompt_calibration_2026-10-12.md`
 - 驗收：306 題開發組風險題漏判不增加（16 → 13）、安全題誤報下降（94 → 75）；150 題 FN=0（兩次 150／150）
-- 狀態：已完成（2026-10-12）；2026-10-18 每週評測看新查核的偽陰性
+- 狀態：已完成（2026-10-12）。2026-10-12 每週評測（新規則）：安全題誤判率 68.5% → 55.0%、歷史風險題漏判率 10.4% → 12.8%，取捨待負責人決定（CLAUDE.md 第 8 節）
 
 ### B-41 查核標題的主張取完整說法
 - 優先級：P1
@@ -2833,10 +2833,10 @@ flowchart LR
 - 對應：同上覆核（MyGoPen 主張只取第一個問號前，60% 在 15 字以下）
 - 範圍：`news_fetcher._tagged_title_claim`、`tests/test_tfc_reports.py`（+1）、`scripts/fix_title_claims.py`（正式知識庫就地改寫）
 - 驗收：pytest 843；dry-run 11,420 列中 1,718 列要改、0 列衝突
-- 狀態：程式已上線（commit `03ec185`）；正式知識庫改寫待負責人執行 `--apply`
+- 狀態：已完成（程式 commit `03ec185`；2026-10-14 負責人執行 `--apply`：1,652 列就地改寫、66 列重複刪除）
 
 ### B-42 更正判反的知識庫列（禧年探索資本）
 - 優先級：P1
 - 對應：HANDOFF 待辦第 5 項；負責人 2026-10-12 同意「改成這則警示屬實、不參與語意比對」
 - 範圍：`scripts/correct_kb_row.py`（`--preset xinian`；管理者覆寫端點只改燈號、不改說明）
-- 狀態：程式完成、dry-run 已確認；`--apply` 待負責人執行
+- 狀態：已完成（2026-10-14 負責人執行 `--apply`；該列現為 SAFE、label_source=admin、verified=false）
