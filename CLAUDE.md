@@ -60,7 +60,7 @@
   fallback 卻沒有人發現。現在 `_cgu_analyze` 遇到 404 會自動改用 `CGU_FALLBACK_MODEL`；`factcheck-sync` 每次執行都讀模型清單
   （`ai_service.gateway_models()` = `GET {CGU_BASE_URL}/models`，不花額度），設定的模型不在清單上時 workflow 變紅並寄信。
   換模型要重跑評測（第 6 節），選型比較見 `docs/test/results/model_switch_2026-09-30.md`；模型名稱寫在 `render.yaml`。
-- **額度**：OpenAI 成本額度**每週 USD 10**（負責人確認），用不完不累積；**週四重置**（2026-10-08 那次落在台灣時間週四 03:00～週五 03:00 之間，由每次同步的 embedding 用量反推）。閘道 `/me/usage` 的 `quota_usd` 顯示 20，因為閘道扣款是 OpenAI 牌價的 2 倍（第 2 節「額度與成本」）；程式裡的護欄一律讀閘道帳上的數字。另有本地模型的 token 額度（目前沒用到）。用量查 `GET {CGU_BASE_URL}/me/usage`
+- **額度**：OpenAI 成本額度**每週 USD 10**（負責人確認），用不完不累積；**週四重置**（2026-10-08 那次落在台灣時間週四 03:00～週五 03:00 之間，由每次同步的 embedding 用量反推）。閘道 `/me/usage` 的 `quota_usd` 在 2026-10-15 也是 10；10-04～10-14 那兩週曾顯示 20（原因不明，不是先前推測的「扣款是牌價 2 倍」）。程式裡的護欄一律讀閘道帳上的剩餘額度。另有本地模型的 token 額度（目前沒用到）。用量查 `GET {CGU_BASE_URL}/me/usage`
   （寫法見 `scripts/batch_verify_pending.py` 的 `cgu_cost_usd()`）。閘道教學頁：`https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html`。
 - **myai168（OpenAI／Claude 中繼）已停用**：`.env.example` 把它註解在「已停用」區，雲端只設 CGU 金鑰。舊碼留著供日後切回
   （`ai_service.py` 的 `_openai_analyze`／`_claude_analyze`；`config.py` 的 `MYAI_API_KEY`、`OPENAI_*`、`CLAUDE_*`，且 `AI_PROVIDER`
@@ -479,8 +479,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       TFC 近期 RSS 標題多半沒有判定標籤（2026-09-22 抽 10 篇只有 1 篇命中），查核結論進庫以 MyGoPen 與 Cofacts 為主
 
 ### 已完成（2026-09 重做與上雲）
-- [x] CGU 每週額度（2026-10-11）：每週 USD 10、週四重置（台灣時間週四 03:00～週五 03:00 之間；閘道帳上顯示 20，扣款是牌價 2 倍）。
-      週日的評測在週期中間、先讀剩餘額度再跑（閘道帳上最多 6、保留 3），不必改排程
+- [x] CGU 每週額度（2026-10-11 查、10-15 更正）：每週 USD 10、週四重置（台灣時間週四 03:00～週五 03:00 之間）；
+      閘道帳上曾有兩週顯示 20，10-15 起是 10。週日的評測在週期中間、先讀剩餘額度再跑（最多 6、保留 3），不必改排程
 - [x] AI 模型改為 `gpt-5.6-luna`＋備援 `gpt-6-luna`（2026-09-30，票 B-37）：閘道已下架 `gpt-5.4-mini`，正式站新內容的判讀全數是
       fallback。以 150 題與本週 41 則新查核比較兩個候選模型後選定；遇到 404 `model_not_found` 自動改用備援；同步時檢查模型清單。
       舊評測結果封存在 `data/eval_archive_gpt54mini_2026-09/`
