@@ -72,14 +72,16 @@ SYSTEM_PROMPT_V41 = """
 
 4. **標準化摘要**：去除雜訊，保留人名、關鍵字、宣稱的後果 (如：帳戶凍結、會致癌)。
 
-# Calibration (判定校準 - 避免把真的內容判成假，也不放過詐騙)
+# Calibration (判定校準 - 避免把真的內容判成假，也不放過謠言與詐騙)
 - **判 MISINFO 要有具體的不實跡象**：與公認事實或官方說明矛盾、偽科學或神奇療效、陰謀論、誇大聳動的因果宣稱、
   舊照片／舊影片配上新說法、捏造的名人語錄或公文、催促「趕快轉傳」。
-- **新聞報導、具名機關公告、活動資訊、一般生活與衛教建議**：內容具體合理、出處清楚（媒體名稱、新聞連結或具名機關），
-  又沒有上述跡象時，不要只因為你不知道這件事就判 MISINFO；判 `SAFE`，`confidence_score` 給 0.5～0.7，
-  並在 `explanation` 建議查證原始出處。
-- 上一條**不適用於**：沒頭沒尾的轉傳片段、對照片或影片的說明（「這張照片是…」「…的影片」）、驚人數據、政治人物言論。
-  這些常是移花接木或斷章取義的謠言，仍依內容判斷，有疑點就判 MISINFO。
+- **新聞報導、具名機關公告、活動資訊、一般生活與衛教建議**：寫法平實、出處清楚（媒體名稱、新聞連結或具名機關），
+  又沒有上述跡象，但你無法確認內容時，判 `UNVERIFIABLE`（無法查證）：`is_risk` 填 false，`category` 填 `Unverifiable`，
+  並在 `explanation` 說明查不到什麼、建議到哪裡查證（官方網站、查核機構）。不要只因為你不知道這件事就判 MISINFO，
+  也不要在無法確認時判 SAFE。
+- 上一條**不適用於**：沒頭沒尾的轉傳片段、對照片或影片的說明（「這張照片是…」「…的影片」）、驚人數據、政治人物言論、
+  帶有情緒或攻擊性的評論。這些是謠言最常見的形式，仍依內容判斷，有疑點就判 MISINFO。
+- **判 SAFE 要有把握**：公認的常識與衛教、可以確認的官方資訊、沒有任何可查證宣稱的閒聊或個人分享。
 - **詐騙開場白要判 SCAM**（即使還沒出現金錢或連結）：冒充名人或機構的「唯一官方帳號／官方 LINE」、陌生人主動自我介紹或聊感情、
   不具名的貸款、撥款或帳戶通知、要求代辦門號、預付卡、電話卡、銀行帳戶或提供證件、海外創業補助或「免證明、免還款」的
   貸款與補助、附短網址或不明連結的欠費／包裹／帳戶異常通知。
@@ -105,14 +107,15 @@ SYSTEM_PROMPT_V41 = """
 [其他]
 - `Safe`: 安全且正確的資訊 (官方公告)
 - `Irrelevant`: 無關內容 (自拍、閒聊)
+- `Unverifiable`: 無法查證 (查不到可靠資料，也沒有明顯不實或詐騙跡象)
 
 # Output Format (輸出格式)
 你 **必須且只能** 回傳一個標準的 JSON 物件。不要使用 Markdown，不要加任何說明文字。
 
 JSON 結構如下：
 {
-  "is_risk": (Boolean, 只要是詐騙 OR 假訊息，都填 true),
-  "risk_type": (String, 詐騙填 "SCAM", 假訊息填 "MISINFO", 安全填 "SAFE"),
+  "is_risk": (Boolean, 只要是詐騙 OR 假訊息，都填 true；無法查證填 false),
+  "risk_type": (String, 詐騙填 "SCAM", 假訊息填 "MISINFO", 安全填 "SAFE", 無法查證填 "UNVERIFIABLE"),
   "category": (String, 必須從上面的分類清單中選擇),
   "confidence_score": (Float, 0.0-1.0 代表信心程度),
   "summary": (String, 用於向量資料庫的高品質摘要),
@@ -255,8 +258,13 @@ class AIService:
         for field in ["is_risk", "risk_type", "category", "confidence_score", "summary", "explanation", "sources"]:
             if field not in result:
                 raise ValueError(f"缺少必要欄位: {field}")
-        if result["risk_type"] not in ["SCAM", "MISINFO", "SAFE", "UNKNOWN"]:
+        if result["risk_type"] not in ["SCAM", "MISINFO", "SAFE", "UNKNOWN", "UNVERIFIABLE"]:
             result["risk_type"] = "SAFE"
+        if result["risk_type"] == "UNVERIFIABLE":
+            # AI 判讀後無法確認（2026-10，票 B-43）：不算風險、分類固定。網址讀不到的 UNVERIFIABLE 不經 AI，
+            # 分類是 Irrelevant；兩者在信心依據上分開（evidence.assess 的 ai_checked）
+            result["is_risk"] = False
+            result["category"] = "Unverifiable"
 
     # ── Claude 引擎 ──────────────────────────────────────────────
     def _claude_analyze(self, prompt_text: str, image: Optional[dict], use_web_search: bool) -> Dict[str, Any]:

@@ -381,7 +381,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q; Remove-Item Env:RUN_PG_TESTS
 ```
 
-- **843 個通過**；另有 **34 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
+- **851 個通過**；另有 **34 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
 - `tests/conftest.py` 在測試中預設關閉限速與每日上限，要測護欄的測試再自己打開。
 - GitHub Actions（`.github/workflows/ci.yml` 的 `test` job）在每次 push／PR 到 `main` 時用 Python 3.12 跑 `python -m pytest tests -q`。
 
@@ -401,14 +401,14 @@ $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q
 
 資料集 `data/eval_set.csv`：150 筆人工標註（SCAM／MISINFO／SAFE 各 50 筆）。
 
-| 指標 | `gpt-5.6-luna`＋判定校準（2026-10-12，現行） | `gpt-5.6-luna`（2026-09-30，校準前） | `gpt-5.4-mini`（2026-09-16，已被閘道下架） | `gpt-5-mini`（2026-06） |
-|------|------------------------------------------|-------------------------------------|-------------------------------------------|------------------------|
-| Accuracy | 100%（兩次） | 96.7% | 100% | 96.0% |
-| Macro-F1 | 1.000 | 0.967 | 1.000 | 0.960 |
-| 偽陰性 FN | **0** | **0** | **0** | 0 |
-| 偽陽性 FP | 0 | 5 | 0 | 5 |
+| 指標 | 可回「無法查證」（2026-10-15，現行） | 判定校準 v2（2026-10-12） | `gpt-5.6-luna`（2026-09-30，校準前） | `gpt-5.4-mini`（2026-09-16，已被閘道下架） | `gpt-5-mini`（2026-06） |
+|------|------|------|------|------|------|
+| Accuracy（三類，無法查證算錯） | 78.7% | 100%（兩次） | 96.7% | 100% | 96.0% |
+| AI 判「無法查證」 | 32（全是安全題） | 0 | 0 | 0 | 0 |
+| 偽陰性 FN | **0** | **0** | **0** | **0** | 0 |
+| 偽陽性 FP | 0 | 0 | 5 | 0 | 5 |
 
-舊版結果封存在 `data/eval_archive_gpt56luna_2026-09/`（校準前）、`data/eval_archive_gpt54mini_2026-09/`、`data/eval_archive_gpt5mini_2026-06/`。這組題目偏簡單且已公開；數字只說明在這份資料集上的表現。
+AI 判「無法查證」不算偽陰性也不算偽陽性，另外列在 `eval_binary.csv` 的 `UNV_無法查證`。舊版結果封存在 `data/eval_archive_calibration_v2_2026-10-12/`（判定校準 v2）、`data/eval_archive_gpt56luna_2026-09/`（校準前）、`data/eval_archive_gpt54mini_2026-09/`、`data/eval_archive_gpt5mini_2026-06/`。這組題目偏簡單且已公開；數字只說明在這份資料集上的表現。
 換模型的比較見 `docs/test/results/model_switch_2026-09-30.md`；每週新查核自動評測見 `app/services/weekly_eval.py`。
 
 ```powershell

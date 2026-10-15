@@ -68,6 +68,12 @@ test("resultView dispatches on the ai_unavailable boolean, never on the summary 
   const prefixOnly = { ai_unavailable: false, result: { risk_type: "SAFE", summary: `${FALLBACK_PREFIX} x` } };
   assert.equal(resultView(prefixOnly), "success");
   assert.equal(resultView({ ai_unavailable: false, result: { risk_type: "UNVERIFIABLE" } }), "unverifiable");
+  // B-43: a crawl failure keeps the "cannot read" screen; the AI's own "cannot verify" uses the normal layout
+  const crawl = { risk_type: "UNVERIFIABLE", confidence_basis: "unverifiable" };
+  assert.equal(resultView({ ai_unavailable: false, result: crawl }), "unverifiable");
+  for (const basis of ["ai_unverifiable", "conflict"]) {
+    assert.equal(resultView({ ai_unavailable: false, result: { risk_type: "UNVERIFIABLE", confidence_basis: basis } }), "success");
+  }
   assert.equal(resultView({ ai_unavailable: false, result: { risk_type: "SCAM" } }), "success");
   assert.equal(resultView({ ai_unavailable: false, result: null }), "invalid");
   assert.equal(resultView(null), "invalid");

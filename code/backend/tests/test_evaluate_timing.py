@@ -379,6 +379,24 @@ def test_seed_db_writes_gold_verified(box, tmp_path, monkeypatch):
 
 # ── Windows 主控台（cp950）印得出來 ──────────────────────────────────
 
+def test_unverifiable_predictions_are_listed_apart_from_misses(box, capsys):
+    # 票 B-43：AI 判「無法查證」不算偽陰性、也不算偽陽性，另外列出；三類準確率照算錯
+    df = box.eval_set(["SCAM", "MISINFO", "SAFE", "SAFE"])
+    box.use_ai([ok("UNVERIFIABLE", 0.1), ok("MISINFO", 0.1), ok("UNVERIFIABLE", 0.1), ok("SAFE", 0.1)])
+    preds = ev.run_predictions(df, delay=0, resume=False, timing=False)
+    ev.compute_metrics(preds)
+
+    binary = pd.read_csv(box["BINARY_PATH"])
+    assert binary.loc[0, ["TP", "FP_偽陽性", "FN_偽陰性", "TN", "UNV_無法查證"]].tolist() == [1, 0, 0, 1, 2]
+    errors = pd.read_csv(box["ERRORS_PATH"])
+    assert errors["error_type"].tolist() == ["無法查證(AI 無法確認)"] * 2
+    report = pd.read_csv(box["REPORT_PATH"])
+    assert report.loc[report["label"] == "accuracy", "f1"].item() == 0.5
+    out = capsys.readouterr().out
+    assert "無法查證" in out
+    out.encode("cp950")
+
+
 def test_console_output_is_cp950_safe(box, capsys):
     box.eval_set(["SCAM", "MISINFO", "SAFE"])
     box.use_ai([ok("SCAM", 0.1), ok("SAFE", 0.2), down(0.3)])

@@ -35,6 +35,10 @@ def _n(sim, risk="MISINFO", url="https://www.mygopen.com/a", text="網傳喝鹽�
     ("SAFE", dict(verification_status="verified"), ("中", "safe_source")),
     ("SAFE", dict(), ("低", "ai_only")),
     ("UNVERIFIABLE", dict(), ("低", "unverifiable")),
+    # AI 判讀後無法確認（票 B-43）：和網址讀不到分開；像已查核的謠言時提醒
+    ("UNVERIFIABLE", dict(ai_checked=True), ("低", "ai_unverifiable")),
+    ("UNVERIFIABLE", dict(ai_checked=True, neighbours=[_n(0.70)]), ("低", "conflict")),
+    ("UNVERIFIABLE", dict(ai_checked=True, margin=0.12), ("低", "conflict")),
 ])
 def test_assess_follows_the_rule_table(risk, kwargs, expected):
     got = evidence.assess(risk, **kwargs)
@@ -154,7 +158,7 @@ class _FakeAI:
 
     def analyze_content(self, content, url=None, context=None, use_web_search=None):
         self.calls += 1
-        return {"is_risk": self.risk != "SAFE", "risk_type": self.risk, "category": "Test",
+        return {"is_risk": self.risk in ("SCAM", "MISINFO"), "risk_type": self.risk, "category": "Test",
                 "confidence_score": 0.99, "summary": "摘要", "explanation": "解釋", "sources": []}
 
 
@@ -215,6 +219,38 @@ def test_safe_verdict_close_to_a_fact_checked_rumour_is_flagged(tmp_path, monkey
     result = _run(tmp_path, USER_TEXT)
     assert (result["confidence_level"], result["confidence_basis"]) == ("低", "conflict")
     assert result["frame_type"] == "yellow"                              # 燈號規則不變：未證實的安全仍是黃燈
+
+
+class _FarVector:
+    """使用者原文與知識庫那一則謠言只相似 0.30：沒有相近的已查核案例。"""
+
+    def vectorize_content(self, text):
+        return _mix(BASE, OTHER, 0.30)
+
+
+def test_ai_unverifiable_is_yellow_and_stays_out_of_semantic_matching(tmp_path, monkeypatch):
+    # 票 B-43：AI 判讀後無法確認 → 黃燈「無法查證」；像已查核的謠言（0.70）時信心依據是 conflict；
+    # 存成未證實（只有一模一樣的文字會命中），快取命中沿用同一份依據，結果頁才能和「網址讀不到」分開
+    ai = _FakeAI("UNVERIFIABLE")
+    store = _setup(monkeypatch, tmp_path, ai)
+    result = _run(tmp_path, USER_TEXT)
+    assert (result["risk_type"], result["frame_type"], result["frame_label"]) == ("UNVERIFIABLE", "yellow", "無法查證")
+    assert result["is_risk"] is False and result["verified"] is False
+    assert (result["confidence_level"], result["confidence_basis"]) == ("低", "conflict")
+    saved = store.get_all_records().iloc[-1]
+    assert saved["raw_content"] == USER_TEXT and not bool(saved["verified"])
+
+    again = _run(tmp_path, USER_TEXT)
+    assert ai.calls == 1 and again["cache_layer"] == "hash"
+    assert (again["risk_type"], again["confidence_basis"]) == ("UNVERIFIABLE", "conflict")
+
+
+def test_ai_unverifiable_without_close_cases_says_the_ai_could_not_confirm(tmp_path, monkeypatch):
+    _setup(monkeypatch, tmp_path, _FakeAI("UNVERIFIABLE"))
+    monkeypatch.setattr(proc, "VectorService", _FarVector)
+    result = _run(tmp_path, USER_TEXT)
+    assert (result["confidence_level"], result["confidence_basis"]) == ("低", "ai_unverifiable")
+    assert result["confidence_note"] == evidence.NOTE_OF_BASIS["ai_unverifiable"]
 
 
 def test_hit_on_a_fact_checked_row_is_high_confidence(tmp_path, monkeypatch):

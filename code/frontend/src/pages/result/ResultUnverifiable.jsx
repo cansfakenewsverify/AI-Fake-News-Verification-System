@@ -10,7 +10,8 @@ import { isThreadsUrl } from "./resultState.js";
 
 // Unverifiable (S-06; FR-02 acceptance 3-5; spec 5.3 exception, 8.3 S2 state 7;
 // ResultStates.dc.html "cannot verify (threads URL hint)").
-// risk_type UNVERIFIABLE means the content could not be read, so the AI was never asked:
+// This screen is for a crawl failure: the content could not be read, so the AI was never asked. (When the AI
+// read the content and answered UNVERIFIABLE itself, resultView picks ResultSuccess instead; B-43.)
 // - Yellow verdict block with the backend frame_type / frame_label ("cannot verify"). No confidence or
 //   "AI live" chip and no category line: none of them is meaningful without an AI verdict.
 // - unverifiable_body, then the backend explanation (the specific reason, e.g. video links are not

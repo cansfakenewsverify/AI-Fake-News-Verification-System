@@ -18,6 +18,7 @@ export const CONFIDENCE_BASES = [
   "conflict",
   "safe_source",
   "unverifiable",
+  "ai_unverifiable",
   "ai_only",
   "ai_unavailable",
 ];

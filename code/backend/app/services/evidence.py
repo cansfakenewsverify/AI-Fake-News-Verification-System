@@ -11,7 +11,8 @@
   5. 判定有風險＋AI 引用了 Tier 1／2 來源                     → 中  cited_source
   6. 判定為安全，但規則 3 或 4 的條件成立（衝突）              → 低  conflict
   7. 判定為安全＋有 Tier 1／2 來源                            → 中  safe_source
-  8. 無法查證                                               → 低  unverifiable
+  8. 無法查證：網址讀不到、AI 沒有判讀                        → 低  unverifiable
+     無法查證：AI 判讀後無法確認（2026-10，票 B-43）           → 低  ai_unverifiable（規則 3 或 4 的條件成立時 conflict）
   9. 其他                                                   → 低  ai_only
 
 相似度一律是 cosine（text-embedding-3-small）；夾角 = arccos(相似度)。
@@ -56,6 +57,7 @@ LEVEL_OF_BASIS = {
     "conflict": "低",
     "safe_source": "中",
     "unverifiable": "低",
+    "ai_unverifiable": "低",
     "ai_only": "低",
 }
 
@@ -69,6 +71,7 @@ NOTE_OF_BASIS = {
     "conflict": "與已查核的不實訊息相近，請小心",
     "safe_source": "有查核機構或官方資料佐證",
     "unverifiable": "無法取得內容，無從判斷",
+    "ai_unverifiable": "AI 查不到可以確認的資料，也沒有明顯的不實或詐騙跡象",
     "ai_only": "只有 AI 判斷，沒有相近的查核案例",
 }
 
@@ -132,8 +135,12 @@ def assess(
     verification_status: str = "unverified",
     neighbours: Optional[List[Dict[str, Any]]] = None,
     margin: Optional[float] = None,
+    ai_checked: bool = False,
 ) -> Dict[str, Any]:
-    """依模組開頭的規則表決定信心。回傳 {level, basis, note, nearest_similarity, nearest_degrees, pattern_margin}。"""
+    """
+    依模組開頭的規則表決定信心。回傳 {level, basis, note, nearest_similarity, nearest_degrees, pattern_margin}。
+    ai_checked：結果來自 AI 判讀（UNVERIFIABLE 時用來區分「AI 無法確認」與「網址讀不到」）。
+    """
     risk = str(risk_type or "").upper()
     nearest = _nearest_risky(neighbours)
     near_sim = float(nearest["similarity"]) if nearest else None
@@ -151,7 +158,10 @@ def assess(
     elif risk == "SAFE":
         basis = "conflict" if (close_case or known_pattern) else "safe_source" if has_source else "ai_only"
     elif risk == "UNVERIFIABLE":
-        basis = "unverifiable"
+        if not ai_checked:
+            basis = "unverifiable"
+        else:
+            basis = "conflict" if (close_case or known_pattern) else "ai_unverifiable"
     else:
         basis = "ai_only"
     return {

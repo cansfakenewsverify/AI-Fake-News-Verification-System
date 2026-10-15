@@ -623,6 +623,8 @@ async def process_analysis_task_async(
                 ai_result=graded_ai,
                 source_url=url,
                 label_source="ai",
+                # AI 判「無法查證」的列只供一模一樣的文字命中，不參與語意比對、不上知識庫頁（票 B-43）
+                verified=False if _safe_str(graded_ai.get("risk_type")).upper() == "UNVERIFIABLE" else None,
                 origin=origin,
                 last_result_id=task_id,
                 related_discussions=related,
@@ -667,7 +669,7 @@ async def _finish_ai(
     evidence = evidence_mod.assess(
         _safe_str(ai_result.get("risk_type")) or "SAFE", ai_unavailable=fallback, label_source="ai",
         verification_status=_verification_status("ai", tiered, ai_result, fallback),
-        neighbours=neighbours, margin=margin,
+        neighbours=neighbours, margin=margin, ai_checked=True,
     )
     if not fallback:
         # 存進知識庫的 ai_analysis：之後快取命中沿用同一份依據（同一則訊息每次查都得到相同的信心）

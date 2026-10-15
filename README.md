@@ -48,7 +48,7 @@ https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4
 |------|------|--------------|
 | 🔴 紅 | 詐騙警告／假訊息／風險訊息 | AI 判定有風險 |
 | 🟡 黃 | 尚無查核機構證實 | AI 判定安全，但找不到已有判定的查核來源 |
-| 🟡 黃 | 尚待確認／無法查證 | 信心不足；或網址讀不到內容、平台不支援 |
+| 🟡 黃 | 尚待確認／無法查證 | 信心不足；網址讀不到內容、平台不支援；或 AI 查不到可以確認的資料（2026-10-15 起） |
 | 🟢 綠 | 查無異常 | AI 判定安全、有已證實的來源，且信心 ≥ 0.7 |
 | ⚪ 灰 | AI 暫時無法使用 | 呼叫 AI 閘道失敗（這種結果不會寫進快取，也不提供分享） |
 
@@ -152,17 +152,20 @@ AI-Fake-News-Verification-System/
 
 150 筆人工標註資料集 `code/backend/data/eval_set.csv`（SCAM／MISINFO／SAFE 各 50 筆，含刻意設計的「看起來像詐騙的合法官方訊息」）。
 
-| 指標 | `gpt-5.6-luna`＋判定校準（2026-10-12，現行） | `gpt-5.6-luna`（2026-09-30，校準前） | `gpt-5.4-mini`（2026-09-16，已被閘道下架） | `gpt-5-mini`（2026-06） |
-|------|------------------------------------------|-------------------------------------|-------------------------------------------|------------------------|
-| Accuracy | 100%（兩次） | 96.7% | 100% | 96.0% |
-| Macro-F1 | 1.000 | 0.967 | 1.000 | 0.960 |
-| 偽陰性 FN（漏判風險） | **0** | **0** | **0** | 0 |
-| 偽陽性 FP（誤報） | 0 | 5 | 0 | 5 |
-| 每次判讀成本 | 約 USD 0.0014 | 約 USD 0.0014 | 約 USD 0.0064 | — |
+| 指標 | `gpt-5.6-luna`＋可回「無法查證」（2026-10-15，現行） | 判定校準 v2（2026-10-12） | `gpt-5.6-luna`（2026-09-30，校準前） | `gpt-5.4-mini`（2026-09-16，已被閘道下架） | `gpt-5-mini`（2026-06） |
+|------|------|------|------|------|------|
+| Accuracy（三類，無法查證算錯） | 78.7% | 100%（兩次） | 96.7% | 100% | 96.0% |
+| AI 判「無法查證」 | 32（全是安全題） | 0 | 0 | 0 | 0 |
+| 偽陰性 FN（漏判風險） | **0** | **0** | **0** | **0** | 0 |
+| 偽陽性 FP（誤報） | 0 | 0 | 5 | 0 | 5 |
+| 每次判讀成本 | 約 USD 0.0014 | 約 USD 0.0014 | 約 USD 0.0014 | 約 USD 0.0064 | — |
 
 - 現行結果在 `code/backend/data/eval_report.csv`、`eval_binary.csv`；舊版封存在 `code/backend/data/eval_archive_*/`；混淆矩陣圖在 `assets/confusion_matrix.png`。
-- 校準前的 5 筆誤報全是官方公告被判成假訊息。2026-10-12 在系統提示加了判定校準，兩次執行都是 150 題全對。
-  但校準規則正是針對這類已知錯誤寫的，數字偏樂觀；判定校準的前後比較見 [`docs/test/results/prompt_calibration_2026-10-12.md`](docs/test/results/prompt_calibration_2026-10-12.md)。
+- 2026-10-15 起，AI 查不到可以確認的資料、又沒有明顯跡象時，回「無法查證」（黃燈），不再硬判安全或假訊息。
+  150 題中風險題全部判對，32 題官方公告判「無法查證」：算錯時 accuracy 是 78.7%，換成「作答率」看是作答 118 題、全對。
+  網站上「無法查證」和「安全但沒有查核來源」都是黃燈。
+- 校準前的 5 筆誤報全是官方公告被判成假訊息；判定校準的前後比較（含每週評測的取捨）見
+  [`docs/test/results/prompt_calibration_2026-10-12.md`](docs/test/results/prompt_calibration_2026-10-12.md)。
 - 這組題目偏簡單且已公開，數字只說明在這份資料集上的表現；模型沒看過的題目看每週新查核自動評測（`docs/test/results/weekly/`）。
   換模型的比較見 [`docs/test/results/model_switch_2026-09-30.md`](docs/test/results/model_switch_2026-09-30.md)。
 - 重跑方式見 [`code/backend/README.md`](code/backend/README.md)。
@@ -173,7 +176,7 @@ AI-Fake-News-Verification-System/
 
 | 項目 | 數量 | 怎麼跑 |
 |------|------|--------|
-| 後端 pytest | 843 個通過；另有 34 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
+| 後端 pytest | 851 個通過；另有 34 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
 | 前端單元測試 | 409 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
 
 - 兩邊的測試都離線執行，不呼叫 AI、不花額度。

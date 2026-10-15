@@ -23,6 +23,7 @@ CATEGORY_LABELS: Dict[str, str] = {
     # 其他
     "Safe": "安全資訊",
     "Irrelevant": "無關內容",
+    "Unverifiable": "查無可靠資料",
 }
 
 CATEGORY_LABEL_UNKNOWN = "其他"

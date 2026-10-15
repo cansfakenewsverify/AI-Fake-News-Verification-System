@@ -2840,3 +2840,17 @@ flowchart LR
 - 對應：HANDOFF 待辦第 5 項；負責人 2026-10-12 同意「改成這則警示屬實、不參與語意比對」
 - 範圍：`scripts/correct_kb_row.py`（`--preset xinian`；管理者覆寫端點只改燈號、不改說明）
 - 狀態：已完成（2026-10-14 負責人執行 `--apply`；該列現為 SAFE、label_source=admin、verified=false）
+
+### B-43 AI 可以回「無法查證」（判定校準 v4）
+- 優先級：P1
+- 依賴：B-40
+- 對應：2026-10-12 每週評測顯示 v2 讓歷史風險題漏判率 10.4% → 12.8%；負責人 2026-10-15 選 B
+- 範圍：
+  - `ai_service.py`：Calibration 改寫，出處清楚的新聞與具名公告查不到時判 UNVERIFIABLE；`_validate_result` 保留 UNVERIFIABLE、
+    `is_risk=False`、`category=Unverifiable`；
+  - `evidence.assess(ai_checked=)`：信心依據 `ai_unverifiable`（像已查核謠言時 `conflict`）；
+  - `pandas_task_processor`：AI 的 UNVERIFIABLE 存成 `verified=false`；
+  - `labels.py`：`Unverifiable` → 查無可靠資料；`scripts/evaluate.py`：無法查證另外列出，不算 FN／FP；
+  - 前端 `resultState.resultView`：AI 的無法查證改走一般結果頁，網址讀不到才用無法查證頁；i18n `confidence_basis_ai_unverifiable`。
+- 驗收：pytest 851、前端 409、lint、build；開發組 306 題漏判 16 → 2；150 題 FN 0、FP 0（無法查證 32）
+- 狀態：已完成（2026-10-15）；2026-10-18 每週評測驗證

@@ -45,18 +45,28 @@ export function outcomeFromError(err) {
   return { phase: "error", data: null, code: "unknown" };
 }
 
+// confidence_basis of an UNVERIFIABLE verdict the AI itself gave (B-43): it read the content but could not
+// confirm it. A crawl failure (AI never asked) has basis "unverifiable" or, on results stored before FR-22, none.
+const AI_UNVERIFIABLE_BASES = new Set(["ai_unverifiable", "conflict"]);
+
+/** True when the AI analysed the content and answered "cannot verify" (shown with the normal result layout). */
+export function isAiUnverifiable(result) {
+  return result?.risk_type === "UNVERIFIABLE" && AI_UNVERIFIABLE_BASES.has(result?.confidence_basis);
+}
+
 /**
  * Which completed-result screen to show (spec 8.3 S2):
  *   "ai_unavailable" state 5 (grey card)  - decided by the ai_unavailable boolean only
- *   "unverifiable"   state 7 (yellow)     - risk_type UNVERIFIABLE (crawl failed, AI not called)
- *   "success"        states 3, 4, 10
+ *   "unverifiable"   state 7 (yellow)     - risk_type UNVERIFIABLE from a crawl failure (AI not called)
+ *   "success"        states 3, 4, 10, and the AI's own "cannot verify" verdict (isAiUnverifiable: yellow
+ *                    frame, summary, explanation, confidence note and similar checks like any AI verdict)
  *   "invalid"        completed without a result object (the backend treats it as analysis_failed)
  */
 export function resultView(data) {
   if (data?.ai_unavailable === true) return "ai_unavailable";
   const result = data?.result;
   if (!result || typeof result !== "object") return "invalid";
-  if (result.risk_type === "UNVERIFIABLE") return "unverifiable";
+  if (result.risk_type === "UNVERIFIABLE" && !isAiUnverifiable(result)) return "unverifiable";
   return "success";
 }
 

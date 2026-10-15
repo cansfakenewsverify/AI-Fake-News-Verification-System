@@ -259,8 +259,10 @@
 - **prompt 規則（P0，零風險）**：`ai_service.py` 系統 prompt「雙重事實查核」段（ai_service.py:42）加逐字規則：「`sources` 只能列出**已對這則訊息做出判定**的查核機構或媒體查核報導（TFC、MyGoPen、Cofacts 有回覆的文章、政府機關公告、主流媒體的查核報導）。找不到這類來源就回 `sources: []`，不要列出求證平台上尚未回覆的貼文、一般新聞或社群貼文，不要猜測或編造網址。」——與 FR-16 後端分級**雙保險**（prompt 減少 Tier 3 產生，`tier_of()` 兜底）。
 - **判定校準（2026-10-12，票 B-40）**：系統 prompt 加「Calibration」段落。
   - 判 MISINFO 要有具體的不實跡象；
-  - 出處清楚的新聞報導、具名機關公告、活動資訊、生活與衛教建議，不因模型不知道就判 MISINFO，改判 SAFE（信心 0.5～0.7）；
-    轉傳片段、照片或影片的說明、驚人數據、政治人物言論不適用這一條；
+  - 出處清楚的新聞報導、具名機關公告、活動資訊、生活與衛教建議，不因模型不知道就判 MISINFO；無法確認時判 **UNVERIFIABLE**
+    （2026-10-15 起，票 B-43；10-12 版判 SAFE 信心 0.5～0.7，每週評測顯示漏判增加）。轉傳片段、照片或影片的說明、驚人數據、
+    政治人物言論、帶情緒的評論不適用這一條，有疑點就判 MISINFO；
+  - 判 SAFE 要有把握（公認常識、可確認的官方資訊、沒有可查證宣稱的閒聊）；
   - 詐騙開場白（冒名「唯一官方帳號」、陌生人自我介紹、不具名貸款或撥款通知、代辦門號或預付卡、海外創業補助）判 SCAM；
   - 具名機關的正式通知沒有可疑網址、也沒有要求個資或匯款時，不因為是通知就判 SCAM。
   起因與前後比較見 `docs/test/results/weekly/review_2026-10-05.md` 與 `docs/test/results/prompt_calibration_2026-10-12.md`。
@@ -287,12 +289,12 @@
   1. AI 不可用 → 低（`ai_unavailable`，前端不顯示信心）；2. 結果來自確定性標記（rule／gold／admin）→ **高**（`factchecked`）；
   3. 判定有風險且最接近的已證實不實內容相似度 ≥0.65 → 中（`similar_case`）；4. 判定有風險且話術差距 ≥0.10 → 中（`pattern`）；
   5. 判定有風險且有 Tier 1／2 來源 → 中（`cited_source`）；6. 判定為安全但規則 3 或 4 的條件成立 → 低（`conflict`，提醒使用者）；
-  7. 判定為安全且有 Tier 1／2 來源 → 中（`safe_source`）；8. 無法查證 → 低（`unverifiable`）；9. 其他 → 低（`ai_only`）。
+  7. 判定為安全且有 Tier 1／2 來源 → 中（`safe_source`）；8. 無法查證 → 低：網址讀不到為 `unverifiable`；AI 判讀後無法確認為 `ai_unverifiable`，附近有已查證的不實內容或話術差距成立時為 `conflict`（2026-10-15，票 B-43）；9. 其他 → 低（`ai_only`）。
 - **話術差距**：與最接近的「話術原型」（已證實不實內容 KMeans 40 群的中心）相似度，減去與最接近的「正常訊息原型」（查核結果為真的內容 12 群）相似度；中心向量 `code/backend/data/claim_prototypes.npz`，由 `scripts/evidence_confidence_study.py` 產生。
 - **門檻依據**（`docs/test/results/evidence_confidence_2026-09-24.md`，評測題庫 150 題）：最近鄰相似度 ≥0.65 的 30 題有 27 題真的有風險、0.55～0.65 為 70%（與基準 67% 相當）、<0.55 為 36%；話術差距 ≥0.10 的 29 題有 27 題有風險。燈號仍只由 `frame_of()` 決定（7.8），綠燈的信心條件仍讀 `confidence_score`。
 - **計算時機**：近鄰查詢與 AI 判讀同時進行（不增加等待時間）；結果存進知識庫列的 `ai_analysis.evidence`，之後快取命中沿用同一份依據（確定性標記一律依規則 2）；查詢失敗只記 log，信心退回只看來源。v1.5 以前的舊結果沒有 `confidence_basis`，畫面仍顯示原本的 `confidence_note`。
 - **API**：結果多 `confidence_basis`（上列代碼）、`evidence`（`nearest_similarity`、`nearest_degrees`、`pattern_margin`），`confidence_note` 改為依據說明；`similar_news` 每筆為 `{title, url, source, risk_type, frame_type, frame_label, similarity, degrees, kb_id}`（5.3）。
-- **文案**（`i18n.js` EXTRA）：`confidence_basis_{factchecked|similar_case|pattern|cited_source|conflict|safe_source|unverifiable|ai_only|ai_unavailable}`、`confidence_evidence`「最接近的已查核案例：相似度 {similarity}（夾角約 {degrees}°）。」、`confidence_method`「信心依「和查核機構已證實內容的相似度」判斷，不是 AI 自評的分數。」、`similar_sub`「查核機構已查證、內容相近的案例；相似度越高越接近。」；8.7 的 `similar_item` 改為「相似度 {similarity}・夾角約 {degrees}°」。
+- **文案**（`i18n.js` EXTRA）：`confidence_basis_{factchecked|similar_case|pattern|cited_source|conflict|safe_source|unverifiable|ai_unverifiable|ai_only|ai_unavailable}`、`confidence_evidence`「最接近的已查核案例：相似度 {similarity}（夾角約 {degrees}°）。」、`confidence_method`「信心依「和查核機構已證實內容的相似度」判斷，不是 AI 自評的分數。」、`similar_sub`「查核機構已查證、內容相近的案例；相似度越高越接近。」；8.7 的 `similar_item` 改為「相似度 {similarity}・夾角約 {degrees}°」。
 - **驗收**：`tests/test_evidence.py`（規則表、門檻含等號、只有風險列算佐證、相似查證最多 3 筆且 ≥0.60、機構名稱、話術差距與缺檔、處理器整合：AI 判讀帶證據並存進知識庫、快取命中沿用、安全判定遇近鄰給衝突、命中查核機構列為高、查詢失敗退回來源）；`tests/test_pg_store.py::test_nearest_verified_matches_local_store`；前端 `src/pages/result/similarNews.test.js`；fixture `result_fx-red-similar.json`（`/r/fx-red-similar`）。
 
 ### FR-23 查核結論同步（P1；2026-09-30 新增）
@@ -379,7 +381,7 @@
     "category_label": "釣魚詐騙",
     "confidence_score": 0.93,
     "confidence_level": "高 | 中 | 低",
-    "confidence_basis": "factchecked | similar_case | pattern | cited_source | conflict | safe_source | unverifiable | ai_only | ai_unavailable",
+    "confidence_basis": "factchecked | similar_case | pattern | cited_source | conflict | safe_source | unverifiable | ai_unverifiable | ai_only | ai_unavailable",
     "confidence_note": "相近的已查核案例支持此判定（依據說明，FR-22）",
     "evidence": {"nearest_similarity": 0.7234, "nearest_degrees": 43.6, "pattern_margin": 0.083},
     "summary": "≤120 字一句摘要",
@@ -766,6 +768,7 @@ AI 自動判讀，請自行查證。
 5. **AI 不可用 fallback**（`ai_unavailable`）：灰框、圖示「!」、`ai_unavailable_title/body`、按鈕「重新查證」（重送同一輸入、產生新 id）；分享／複製隱藏。
 6. **失敗**（`status=failed`）：`error_title` + `error_server`（帶 `code`）+ 「重新查證」。
 7. **UNVERIFIABLE**：黃框「無法查證」+ `unverifiable_body`（`source_url` 為 threads 網域時加 `unverifiable_threads_hint`）；仍有分享（`share_text_yellow`）。
+   只用在網址讀不到、AI 沒有判讀的情形。AI 判讀後回 UNVERIFIABLE（2026-10-15，票 B-43；`confidence_basis` 為 `ai_unverifiable` 或 `conflict`）改走狀態 3／4 的版面：黃框「無法查證」、分類「查無可靠資料」、摘要與說明、信心說明、相似查證；不顯示未證實橫幅與來源區。
 8. **分享後**：分享鈕文字 3 秒內「已開啟 Threads」+ toast `toast_share`；複製鈕「已複製」。
 9. **404**：`result_not_found_title/body` + 「回首頁」。
 10. **未經證實**（`verification_status="unverified"`，FR-16）：與狀態 3／4 疊加——`no_verified_source_*` 橫幅 + 來源區 `sources_empty`；SAFE 時燈號區為黃「尚無查核機構證實」（7.8），紅燈時維持紅但橫幅照顯示；分享文案用 `share_text_yellow_unverified`（黃）或去尾段的紅文案。**例外（5.3）**：`risk_type=UNVERIFIABLE`（狀態 7）與 `ai_unavailable`（狀態 5）雖然 `verification_status` 亦為 `unverified`，**不顯示** `no_verified_source_*` 橫幅、來源區整區隱藏（狀態 7 只顯示 `unverifiable_body`，狀態 5 只顯示 `ai_unavailable_*`），避免「讀不到內容」與「找不到查核來源」兩種語意同時出現。
@@ -858,7 +861,7 @@ P0 畫面 = S1、S2、S3、S4、S6（只讀版）；UI-1 截圖檢核表以此�
 | `tier_1_chip` / `tier_2_chip` | 查核機構／媒體查核報導 |
 | `no_verified_source_title` | 尚無查核機構證實 |
 | `no_verified_source_body` | 目前找不到已對這則訊息做出判定的查核機構或媒體查核報導，以上為 AI 的初步判讀。轉傳前請先到台灣事實查核中心、MyGoPen 或 Cofacts 查證。 |
-| `frame_yellow_no_source` | 尚無查核機構證實（7.8 新列；與 `frame_yellow_unverifiable`「無法查證」不同：後者是讀不到內容，前者是讀得到但找不到已判定的查核來源） |
+| `frame_yellow_no_source` | 尚無查核機構證實（7.8 新列；與 `frame_yellow_unverifiable`「無法查證」不同：後者是讀不到內容或 AI 判讀後無法確認（B-43），前者是 AI 判為安全但找不到已判定的查核來源） |
 | `ai_unavailable_title` | AI 服務暫時無法使用 |
 | `ai_unavailable_body` | 可能是額度用盡或連線問題，這次沒有產生判定。你可以稍後再試，或先到知識庫搜尋是否已有人查過。 |
 | `quota_exceeded_title` | 今日查證額度已用完 |

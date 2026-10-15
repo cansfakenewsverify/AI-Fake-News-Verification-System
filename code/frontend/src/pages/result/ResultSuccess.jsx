@@ -27,6 +27,8 @@ import { confidenceNoteLines } from "./similarNews.js";
 // 5. SimilarNewsSection: similar checks in the knowledge base (FR-02 similar_news; hidden on cache hits)
 // 7. ResultFooter (analyzed_at, label_source, disclaimer).
 // 6. S-08 ResultActions: >= 768px a plain row under the verdict area; mobile sticky at the end of the page.
+// Also used for the AI's own "cannot verify" verdict (B-43, isAiUnverifiable): yellow "無法查證" frame, no banner
+// and no sources section (showNoSourceBanner skips UNVERIFIABLE), confidence note ai_unverifiable / conflict.
 
 function ChipNote({ id, open, children }) {
   return (

@@ -36,6 +36,23 @@ def test_validate_result_bad_risk_type_coerced_to_safe():
     assert r["risk_type"] == "SAFE"
 
 
+def test_validate_result_keeps_unverifiable_as_not_risky():
+    # AI 判讀後無法確認（票 B-43）：保留 UNVERIFIABLE，不算風險、分類固定
+    svc = AIService()
+    r = {
+        "is_risk": True, "risk_type": "UNVERIFIABLE", "category": "Health_Rumor",
+        "confidence_score": 0.4, "summary": "s", "explanation": "e", "sources": [],
+    }
+    svc._validate_result(r)
+    assert (r["risk_type"], r["is_risk"], r["category"]) == ("UNVERIFIABLE", False, "Unverifiable")
+
+
+def test_prompt_lets_the_model_answer_unverifiable():
+    from app.services.ai_service import SYSTEM_PROMPT_V41
+    assert '無法查證填 "UNVERIFIABLE"' in SYSTEM_PROMPT_V41
+    assert "`Unverifiable`" in SYSTEM_PROMPT_V41
+
+
 # ── fallback 契約：三個前端靠這個字樣辨識，改字樣要三處一起改 ──
 def test_fallback_summary_prefix_is_stable():
     res = _default_fallback_result("測試錯誤")

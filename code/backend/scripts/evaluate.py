@@ -273,12 +273,22 @@ def compute_metrics(preds: pd.DataFrame, timing: bool = False):
     for i, lab in enumerate(LABELS):
         print(f"    {lab:8}" + "".join(f"{cm[i][j]:>9}" for j in range(len(LABELS))))
 
+    # AI 判「無法查證」（2026-10，票 B-43）：三類準確率算錯，不進混淆矩陣與下面的二分類，另外列出
+    unv_by_gold = {lab: sum(1 for t, p in zip(y_true, y_pred) if t == lab and p == "UNVERIFIABLE") for lab in LABELS}
+    unv = sum(unv_by_gold.values())
+    if unv:
+        print("\n  AI 判「無法查證」：" + "、".join(f"{lab} {n}" for lab, n in unv_by_gold.items()) + f"（共 {unv} 筆）")
+
     # ── 二分類視角（風險 vs 安全）：給論文算偽陽性/偽陰性 ──
     def to_bin(x):
         return "SAFE" if x == "SAFE" else "RISK"
-    yb_true = [to_bin(x) for x in y_true]
-    yb_pred = [to_bin(x) for x in y_pred]
-    bcm = confusion_matrix(yb_true, yb_pred, labels=["RISK", "SAFE"])
+    judged = [(t, p) for t, p in zip(y_true, y_pred) if p != "UNVERIFIABLE"]
+    yb_true = [to_bin(t) for t, _ in judged]
+    yb_pred = [to_bin(p) for _, p in judged]
+    if judged:
+        bcm = confusion_matrix(yb_true, yb_pred, labels=["RISK", "SAFE"])
+    else:
+        bcm = [[0, 0], [0, 0]]
     tp, fn = int(bcm[0][0]), int(bcm[0][1])   # 真實有風險：判對 / 漏判(偽陰性)
     fp, tn = int(bcm[1][0]), int(bcm[1][1])   # 真實安全：誤判風險(偽陽性) / 判對
     prec = tp / (tp + fp) if (tp + fp) else 0.0
@@ -296,7 +306,7 @@ def compute_metrics(preds: pd.DataFrame, timing: bool = False):
         "TP": tp, "FP_偽陽性": fp, "FN_偽陰性": fn, "TN": tn,
         "precision": round(prec, 3), "recall": round(rec, 3),
         "specificity": round(spec, 3), "FPR_偽陽性率": round(fpr, 3),
-        "FNR_偽陰性率": round(fnr, 3),
+        "FNR_偽陰性率": round(fnr, 3), "UNV_無法查證": unv,
     }]).to_csv(BINARY_PATH, index=False, encoding="utf-8-sig")
     print(f"  [v] 偽陽性/偽陰性指標已存：{BINARY_PATH}")
 
@@ -357,6 +367,8 @@ def _save_error_cases(valid: pd.DataFrame):
         pass
 
     def etype(r):
+        if r["pred"] == "UNVERIFIABLE":
+            return "無法查證(AI 無法確認)"
         if r["gold"] == "SAFE" and r["pred"] != "SAFE":
             return "偽陽性FP(安全被誤判為風險)"
         if r["gold"] != "SAFE" and r["pred"] == "SAFE":

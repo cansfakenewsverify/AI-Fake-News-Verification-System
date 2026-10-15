@@ -223,6 +223,7 @@ export const EXTRA = {
   confidence_basis_conflict: "內容和已查核的不實訊息相近，請小心求證。",
   confidence_basis_safe_source: "有查核機構或官方資料佐證。",
   confidence_basis_unverifiable: "無法取得內容，無從判斷。",
+  confidence_basis_ai_unverifiable: "AI 查不到可以確認的資料，也沒有看到明顯的不實或詐騙跡象。轉傳前請先查證。",
   confidence_basis_ai_only: "只有 AI 判斷，沒有相近的查核案例。",
   confidence_basis_ai_unavailable: "AI 服務暫時無法使用。",
   confidence_evidence: "最接近的已查核案例：相似度 {similarity}（夾角約 {degrees}°）。",

@@ -8,8 +8,8 @@
 - 系統已經是**線上網站**：<https://fakenewsverify.vercel.app>。Vercel（React 靜態檔）把 `/api/*` 同源代理到 Render 後端
   `https://fakenewsverify-api.onrender.com`（FastAPI），資料在 Supabase Postgres + pgvector。架構與操作見第 12 節。
 - AI 只用學校 **CGU AIR 閘道**：分析 `gpt-5.6-luna`（2026-09-30 閘道下架 `gpt-5.4-mini` 後改用；主模型被下架時自動改用
-  備援 `gpt-6-luna`）、embedding `text-embedding-3-small`；myai168 已停用（第 2 節）。2026-10-12 系統提示加判定校準
-  （每週評測發現常把真的內容判成假，第 6 節）。
+  備援 `gpt-6-luna`）、embedding `text-embedding-3-small`；myai168 已停用（第 2 節）。2026-10 系統提示加判定校準
+  （每週評測發現常把真的內容判成假；10-15 起 AI 查不到時回「無法查證」，第 6 節）。
 - **Threads 機器人 `@factcheck_tw_bot` 在雲端執行**（2026-10-01；Render 每 30 秒檢查提及，狀態存在 Supabase，
   Supabase pg_cron 每 5 分鐘叫醒 Render；開發模式只收測試人員的提及；2026-10-03 決定先不送 Meta App Review，第 11 節）。
 - 知識庫由 GitHub Actions **`factcheck-sync`** 每天兩次同步查核機構的新結論（第一次會自動回填約 1.85 萬筆）；**`weekly-eval`**
@@ -23,14 +23,14 @@
   規格 `docs/demo/presentation_video_brief.md`，製作紀錄 `docs/demo/footage_log.md`）。
   舊的 demo 影片 v0.4.0：<https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4>（`video/hf-demo/`）。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
-  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.8；6.7 為 2026-09-30 換模型後重測，6.8 為 2026-10-12 判定校準後重測）。
+  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.9；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測）。
 
 ---
 
 ## 1. 這個專案是什麼
 
 **全民查證公社 — AI 假訊息與詐騙查證系統**（學生專題 / 論文；GitHub repo 是公開的）。
-使用者到網站貼上**文字或網址**，系統判定 **詐騙(SCAM) / 假訊息(MISINFO) / 安全(SAFE)**（查不了 = `UNVERIFIABLE`），
+使用者到網站貼上**文字或網址**，系統判定 **詐騙(SCAM) / 假訊息(MISINFO) / 安全(SAFE)**（查不了 = `UNVERIFIABLE`：網址讀不到，或 2026-10-15 起 AI 判讀後無法確認），
 以紅黃綠燈呈現並附上**已做出判定的查核來源**；每筆結果有可分享的獨立網址 `/r/{id}`。
 信心等級依「和查核機構已證實內容的相似度（夾角）」決定，結果頁列出「知識庫中的相似查證」（FR-22，見第 3 節）。
 另有熱門頁（「查核機構最新」＝MyGoPen／TFC RSS＋Cofacts；「本站熱門查證」＝最近 7 天大家查最多的已證實內容）、知識庫搜尋、
@@ -170,7 +170,7 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   中心向量存 `data/claim_prototypes.npz`）單獨判斷會把 25／50 題安全訊息當成可疑，只能當輔助（差距 ≥0.10 時 27／29 題有風險）。
 - **證據信心（FR-22，2026-09-23，`app/services/evidence.py`）**：`confidence_level` 不再由 AI 自評分數換算，改依規則表
   （確定性標記→高；有風險＋最近已證實不實內容 ≥0.65 或話術差距 ≥0.10 或有 Tier 1／2 來源→中；安全但近鄰是不實內容→低並提醒；
-  其餘→低）。近鄰查詢 `nearest_verified` 與 AI 判讀同時跑，結果存進 `ai_analysis.evidence` 供快取命中沿用；回應多
+  AI 判無法查證→低（`ai_unverifiable`，近鄰是不實內容時同樣提醒）；其餘→低）。近鄰查詢 `nearest_verified` 與 AI 判讀同時跑，結果存進 `ai_analysis.evidence` 供快取命中沿用；回應多
   `confidence_basis`、`evidence`，`similar_news` 列出最多 3 筆 ≥0.60 的已證實近鄰（連到查核機構原文）。燈號規則不變
   （綠燈仍讀 `confidence_score`）。說明文件 `docs/rebuild/信心程度的產生方式.md`；舊結果沒有 `confidence_basis`，前端沿用舊說明。
 
@@ -244,14 +244,14 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **843 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **851 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
 │   ├── knowledge_base.parquet  ★已提交的種子（清洗後 218 筆、verified 128）。平常執行的變動不用 commit；**例外**：FR-18
 │   │                            清洗後的版本提交過一次作新種子（commit db8c62d），以後重做清洗／重建種子才再提交
-│   ├── eval_set.csv、eval_*.csv、eval_archive_*/   評測題庫、最新結果（gpt-5.6-luna）、前幾版結果封存
-│   │                            （gpt5mini_2026-06、gpt54mini_2026-09）
+│   ├── eval_set.csv、eval_*.csv、eval_archive_*/   評測題庫、最新結果（gpt-5.6-luna＋判定校準 v4）、前幾版結果封存
+│   │                            （gpt5mini_2026-06、gpt54mini_2026-09、gpt56luna_2026-09、calibration_v2_2026-10-12）
 │   ├── claim_prototypes.npz     話術原型（40 群）與正常訊息原型（12 群）的中心向量（evidence_confidence_study.py 產生）
 │   ├── SCHEMA.md               資料結構說明
 │   └── （runtime，已 gitignore）factcheck.db、tasks.parquet、回饋／覆寫 Parquet、threads_*、uploads/、*.bak-*、clean_sources_*、
@@ -286,7 +286,7 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
-docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.8）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
+docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.9）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
                                 pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）、
                                 上線後準確率驗證計畫.md（上線後怎麼量準確率與信心校準）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
@@ -324,7 +324,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 843 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 851 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -371,11 +371,15 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 ## 6. 評測現況（論文數據）
 
 - 資料集 `data/eval_set.csv`：150 筆（SCAM/MISINFO/SAFE 各 50），含刻意設計的「像詐騙的合法官方訊息」當難題。
-- **最新結果（2026-10-12，CGU `gpt-5.6-luna`＋判定校準、web_search 關）：accuracy 100%、FN=0、FP=0**
-  （兩次執行都是 150／150；未命中延遲 p50 4.75 s、p90 6.07 s；150 筆約 USD 0.2）。結果檔在 `data/eval_*.csv` 與
-  `assets/confusion_matrix.png`。判定校準＝系統提示的「Calibration」段落（票 B-40）：查不到的新聞與具名公告不判假、
-  詐騙開場白判 SCAM；開發組 306 題（每週評測的歷史抽樣）風險題漏判 16 → 13、安全題誤報 94 → 75（`docs/test/results/prompt_calibration_2026-10-12.md`）。
-  **校準第 5 條正是針對這組題庫已知的錯誤型態（官方公告被判成假），所以 100% 偏樂觀**；以每週評測為準。
+- **最新結果（2026-10-15，CGU `gpt-5.6-luna`＋判定校準 v4：AI 可以回「無法查證」，票 B-43）**：風險題 100 題全判對、
+  **FN=0、FP=0**；安全題 50 題中 18 題判 SAFE、**32 題判「無法查證」**（黃燈，全是官方公告類）。三類 accuracy 78.7%
+  （無法查證算錯）；換成「作答率」看：作答 118／150（78.7%），作答的全對。未命中延遲 p50 4.82 s、p90 6.30 s。
+  結果檔在 `data/eval_*.csv`（`eval_binary.csv` 多一欄 `UNV_無法查證`）與 `assets/confusion_matrix.png`（只畫三類）。
+  判定校準＝系統提示的「Calibration」段落：判 MISINFO 要有具體不實跡象；出處清楚的新聞與具名公告查不到時判 UNVERIFIABLE；
+  轉傳片段、照片影片說明、政治言論有疑點仍判 MISINFO；詐騙開場白判 SCAM。開發組 306 題（每週評測的歷史抽樣）：
+  風險題漏判 16 → 2、紅燈 90% → 85%（其餘變黃燈「無法查證」）、安全題誤報 94 → 69（`docs/test/results/prompt_calibration_2026-10-12.md` 第 6 節）。
+- 2026-10-12 的判定校準 v2（查不到判 SAFE 0.5～0.7）：150 題兩次都 100%，但每週評測的歷史風險題漏判率 10.4% → 12.8%，
+  所以改成 v4；結果封存在 `data/eval_archive_calibration_v2_2026-10-12/`。
 - 校準前（2026-09-30）：accuracy 96.7%、macro-F1 0.967、FN=0、FP=5（全是官方公告被判成 MISINFO；同日另一次 98.7%、FP=2），
   未命中延遲 p50 5.87 s、p90 8.31 s，封存在 `data/eval_archive_gpt56luna_2026-09/`；選型比較見 `docs/test/results/model_switch_2026-09-30.md`。
 - 2026-09-16 的 CGU `gpt-5.4-mini`（2026-09-30 已被閘道下架）：accuracy 100%、FN=0、FP=0，封存在 `data/eval_archive_gpt54mini_2026-09/`；
@@ -462,11 +466,9 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       再開始每週 20 筆的線上抽樣雙人獨立覆核（M2）。現有 150 筆已飽和且公開，不能用來宣稱上線準確率（第 6 節）
 - [ ] （選）信心分數校準：可靠度圖、ECE、Brier，並檢驗 `GREEN_MIN_CONFIDENCE=0.7` 實際擋掉多少錯誤（同上計畫第 4 節）
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
-- [ ] 判定校準的取捨（待負責人決定，`docs/test/results/prompt_calibration_2026-10-12.md` 第 5 節）：2026-10-12 加了判定校準（票 B-40）後，
-      第一次每週評測（`docs/test/results/weekly/weekly_eval_2026-10-12.md`，部署後約 1 小時跑）安全題誤判率 68.5% → 55.0%，但歷史風險題漏判率 10.4% → 12.8%
-      （台灣事實查核中心 5.7% → 9.6%、Cofacts 6.1% → 9.8%；兩週抽樣不同）。漏判多落在信心 0.5～0.6 的 SAFE：照片影片說明、
-      冒名機關公告、新聞連結。網站上這類 SAFE 沒有查核來源，顯示黃燈「尚無查核機構證實」，不是綠燈。
-      選項：A 維持；B 讓 AI 可以回「無法查證」（黃燈），結果頁要另做「AI 無法確認」的說明（現有的無法查證頁是給網址讀不到用的）；C 退回舊規則。
+- [ ] 看 2026-10-18 的每週評測（第一次用判定校準 v4，票 B-43）：v2 讓歷史風險題漏判率 10.4% → 12.8%，負責人 2026-10-15 選 B
+      （AI 查不到又沒有明顯跡象時回「無法查證」，黃燈）。開發組預估漏判 16 → 2、紅燈 90% → 85%、安全題誤報 94 → 69（`docs/test/results/prompt_calibration_2026-10-12.md` 第 6 節）。
+      要看：歷史風險題的 SAFE（漏判）有沒有降、UNVERIFIABLE 佔多少、安全題被判有風險的比例
       MyGoPen 主張太短（票 B-41）已完成：2026-10-14 負責人執行 `fix_title_claims.py --apply`，1,652 列就地改寫、66 列重複刪除。
       第一次 `weekly-eval`（2026-10-05）：本週新查核 44 題風險判定一致 84.1%，偽陰性 6 筆已覆核
       （5 筆是詐騙對話的單句、不列缺陷；1 筆是 ② 的題目缺陷）
