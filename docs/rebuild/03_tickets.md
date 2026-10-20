@@ -2870,3 +2870,11 @@ flowchart LR
   舊結果也更正）、`tests/test_kb_write_gate.py`、`tests/test_result_api.py`（各 +1）
 - 驗收：pytest 853；正式站舊結果頁（雲林停水那則）燈號下方顯示「已查核假訊息」
 - 狀態：程式已完成（2026-10-18），待推上線
+
+### O-32 專題介紹海報（兩張 A1）
+- 優先級：P1
+- 對應：課程規定每組兩張 A1、300 dpi 以上，由學校影印店輸出；負責人 2026-10-18 定案：第 1 張給一般人、第 2 張講技術與成果，
+  淺色底＋網站配色，學術海報的框線分區，不放校徽與組別，英文題目 An AI-Centered Misinformation Verification System
+- 範圍：`presentations/2026-10_專題海報/`（PDF、300 dpi PNG、預覽、`src/` HTML 原始檔與素材、README）、`presentations/tools/build_posters.py`
+- 驗收：A1 594 × 841 mm、300 dpi PNG 7017 × 9933 px；輸出腳本檢查沒有區塊被切掉；數字都有出處（README）
+- 狀態：已完成（2026-10-21）；待送印

@@ -1,0 +1,24 @@
+{
+ "misinfo": {
+  "task": "981b5722-c381-44db-ad3d-bc8b227476d1",
+  "frame_label": "假訊息",
+  "cache_layer": "hash"
+ },
+ "scam": {
+  "task": "093c536c-2e6b-415e-8e12-966bb5f64177",
+  "frame_label": "詐騙警告",
+  "cache_layer": "hash"
+ },
+ "unverifiable": {
+  "task": "b852e12a-3085-4159-97ae-7729185dbdd1",
+  "frame_label": "無法查證",
+  "cache_layer": "hash"
+ },
+ "kb_total": 18769,
+ "kb_by_risk": {
+  "SAFE": 24,
+  "MISINFO": 18552,
+  "SCAM": 193
+ },
+ "kb_date": "2026-10-21"
+}

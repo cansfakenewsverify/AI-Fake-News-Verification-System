@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<title>海報 2：技術與成果</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&display=block" rel="stylesheet">
+<link rel="stylesheet" href="poster.css">
+<style>
+  body { font-size: 25pt; }
+
+  /* 系統架構：節點以 mm 定位，箭頭畫在同尺寸的 SVG 上 */
+  .arch { position: relative; width: 542mm; height: 148mm; }
+  .arch svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .node {
+    position: absolute;
+    border: 0.6mm solid var(--ink);
+    border-radius: 4mm;
+    background: var(--surface);
+    padding: 2.5mm 4mm;
+    font-size: 21pt;
+    line-height: 1.4;
+  }
+  .node b { display: block; font-size: 25pt; line-height: 1.3; margin-bottom: 0.5mm; }
+  .node.dark { background: var(--ink); color: #fff; }
+  .node.dark ul { margin: 1.5mm 0 0; padding-left: 7mm; }
+  .node.plain { background: var(--bg); border-style: dashed; }
+
+  .methods { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 9mm; }
+  .panel h3 { font-size: 28pt; margin-bottom: 2mm; }
+  .panel h3 .hint { font-size: 21pt; font-weight: 500; color: var(--ink-2); margin-left: 2mm; }
+  .tiers { display: grid; grid-template-columns: auto 1fr; gap: 1.5mm 4mm; font-size: 21pt; line-height: 1.4; }
+  .tiers .k { font-weight: 900; white-space: nowrap; }
+  .stage { display: grid; grid-template-columns: 26mm 1fr auto; gap: 3mm; align-items: center;
+           background: var(--surface); border-radius: 3mm; padding: 2mm 4mm; margin-bottom: 2mm; font-size: 21pt; line-height: 1.35; }
+  .stage .lv { font-weight: 900; font-size: 25pt; }
+  .stage .t { font-weight: 900; white-space: nowrap; }
+  .down { text-align: left; font-size: 18pt; color: var(--ink-3); margin: -1mm 0 1mm 9mm; line-height: 1; }
+  table.sim { border-collapse: collapse; width: 100%; font-size: 21pt; line-height: 1.35; }
+  table.sim th, table.sim td { border-bottom: 0.4mm solid var(--line); padding: 1.5mm 2mm; text-align: left; vertical-align: top; }
+  table.sim th { font-weight: 900; color: var(--ink-2); font-size: 19pt; }
+  table.sim td:first-child, table.sim th:first-child { width: 16mm; text-align: center; white-space: nowrap; }
+  table.sim td:first-child { font-weight: 900; }
+  ul.rules { margin: 0; padding-left: 7mm; font-size: 21pt; line-height: 1.45; }
+  ul.rules li { margin-bottom: 1mm; }
+
+  .results { display: grid; grid-template-columns: 1.15fr 1fr; gap: 6mm 9mm; }
+  .bars { display: grid; grid-template-columns: 44mm 1fr; gap: 3mm 4mm; align-items: center; font-size: 21pt; }
+  .bars .lab { font-weight: 900; line-height: 1.25; }
+  .bars .lab small { display: block; font-weight: 500; font-size: 17pt; color: var(--ink-2); }
+  .bar { display: flex; height: 13mm; gap: 0.8mm; }
+  .seg { display: flex; align-items: center; padding: 0 3mm; color: #fff; font-weight: 900; font-size: 19pt; white-space: nowrap;
+         border-radius: 1.5mm; }
+  .seg.red { background: var(--red); }
+  .seg.green { background: var(--green); }
+  .seg.yellow { background: #F79009; color: var(--ink); }
+  table.wk { border-collapse: collapse; width: 100%; font-size: 21pt; line-height: 1.35; margin: 2mm 0; }
+  table.wk th, table.wk td { border-bottom: 0.4mm solid var(--line); padding: 1.5mm 2mm; text-align: right; white-space: nowrap; }
+  table.wk th { font-weight: 900; color: var(--ink-2); font-size: 19pt; }
+  table.wk td:first-child, table.wk th:first-child { text-align: left; }
+  table.wk td:last-child { font-weight: 900; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5mm; margin-top: 5mm; }
+  .tile { background: var(--surface); border-radius: 4mm; padding: 3mm 4mm; }
+  .tile .n { font-size: 40pt; font-weight: 900; line-height: 1.15; }
+  .tile .n small { font-size: 24pt; font-weight: 700; margin-left: 1mm; }
+  .tile .l { font-size: 19pt; line-height: 1.35; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="poster">
+  <header class="head">
+    <div class="dept">長庚大學資訊工程學系　軟硬體專題</div>
+    <h1>AI 為核心的假訊息驗證系統</h1>
+    <div class="en">An AI-Centered Misinformation Verification System</div>
+    <div class="meta">系統名稱：<b>全民查證公社</b><span class="sep">｜</span>指導教授：黃崇源<span class="sep">｜</span>組員：廖晢勛、石岱勳、姚睿、張宇宏、廖育翔</div>
+  </header>
+  <div class="tag">海報 2／2　技術與成果</div>
+
+  <section class="box">
+    <h2>系統架構</h2>
+    <div class="body">
+      <div class="arch">
+        <svg viewBox="0 0 542 148" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#111"/>
+            </marker>
+          </defs>
+          <g stroke="#111" stroke-width="0.9" fill="none" marker-end="url(#ah)">
+            <line x1="104" y1="25" x2="133" y2="25"/>
+            <line x1="246" y1="25" x2="275" y2="25"/>
+            <line x1="104" y1="83" x2="133" y2="83"/>
+            <line x1="247" y1="83" x2="275" y2="83" marker-start="url(#ah)"/>
+            <line x1="397" y1="25" x2="425" y2="25" marker-start="url(#ah)"/>
+            <line x1="397" y1="83" x2="425" y2="83" marker-start="url(#ah)"/>
+            <line x1="330" y1="114" x2="330" y2="105"/>
+            <polyline points="426,131 386,131 386,105"/>
+          </g>
+        </svg>
+        <div class="node" style="left:0;top:4mm;width:104mm;height:42mm"><b>使用者</b>手機或電腦瀏覽器，<br>貼上可疑訊息</div>
+        <div class="node" style="left:0;top:62mm;width:104mm;height:42mm"><b>Threads 使用者</b>在貼文底下標記 @factcheck_tw_bot</div>
+        <div class="node" style="left:134mm;top:4mm;width:112mm;height:42mm"><b>前端｜Vercel</b>React 19 網站：<br>查證、結果頁、熱門、知識庫</div>
+        <div class="node" style="left:134mm;top:62mm;width:112mm;height:42mm"><b>Threads API</b>讀取標記、發布回覆</div>
+        <div class="node dark" style="left:276mm;top:4mm;width:120mm;height:100mm"><b>後端｜Render（FastAPI）</b>
+          <ul>
+            <li>三層快取</li>
+            <li>AI 判讀與判定校準</li>
+            <li>來源分級、證據信心</li>
+            <li>Threads 機器人（每 30 秒）</li>
+          </ul>
+        </div>
+        <div class="node" style="left:426mm;top:4mm;width:116mm;height:42mm"><b>Supabase</b>PostgreSQL＋pgvector：<br>知識庫、查證紀錄</div>
+        <div class="node" style="left:426mm;top:62mm;width:116mm;height:42mm"><b>長庚大學 CGU AIR 閘道</b>gpt-5.6-luna 判讀、文字向量</div>
+        <div class="node plain" style="left:134mm;top:114mm;width:240mm;height:34mm"><b>GitHub Actions</b>每天 2 次同步查核結論、每週日自動評測</div>
+        <div class="node plain" style="left:426mm;top:114mm;width:116mm;height:34mm"><b>Supabase 排程</b>每 5 分鐘叫醒後端</div>
+      </div>
+      <p class="cap">圖 5　系統架構：網站與 Threads 機器人共用同一個後端與知識庫；查核結論由 MyGoPen、台灣事實查核中心、Cofacts 每天同步</p>
+    </div>
+  </section>
+
+  <section class="box">
+    <h2>研究方法</h2>
+    <div class="body methods">
+      <div class="panel">
+        <h3>三層快取<span class="hint">查過就記住，省時間也省成本</span></h3>
+        <div class="stage"><span class="lv">L1</span><span><span class="t">內容雜湊</span>　一字不差就命中</span><span>0.2 秒</span></div>
+        <div class="stage"><span class="lv">L2</span><span><span class="t">語意向量</span>　cos ≥ 0.75，只比已證實資料</span><span>約 3 秒</span></div>
+        <div class="stage"><span class="lv">L3</span><span><span class="t">AI 判讀</span>　每次約 USD 0.0014</span><span>中位數 4.8 秒</span></div>
+        <p class="small muted">任何一層命中就直接回答；AI 的結果經來源分級後寫回知識庫。</p>
+      </div>
+      <div class="panel">
+        <h3>來源分級<span class="hint">還沒被查證的不能當來源</span></h3>
+        <div class="tiers">
+          <span class="k">第 1 級　查核機構</span><span>台灣事實查核中心、MyGoPen、已回覆的 Cofacts、政府機關</span>
+          <span class="k">第 2 級　媒體查核</span><span>其他媒體的查核、闢謠報導</span>
+          <span class="k">第 3 級　未查證</span><span>一般新聞、社群貼文：只列為相關討論</span>
+        </div>
+        <p class="small" style="margin-top:2mm"><b>沒有第 1、2 級來源，就不給綠燈。</b></p>
+      </div>
+      <div class="panel">
+        <h3>證據信心<span class="hint">看「夾角」，不看 AI 自評</span></h3>
+        <table class="sim">
+          <tr><th>信心</th><th>依據：與查核機構已證實內容的夾角</th></tr>
+          <tr><td>高</td><td>≤ 41°（cos ≥ 0.75）：同一則訊息換個說法</td></tr>
+          <tr><td>中</td><td>≤ 49°（cos ≥ 0.65）且判定有風險，或符合已知話術</td></tr>
+          <tr><td>低</td><td>沒有相近的查核案例，只有 AI 判斷</td></tr>
+        </table>
+        <p class="small muted" style="margin-top:2mm">判為安全、卻和已知謠言相近時，信心降為低並提醒使用者。</p>
+      </div>
+      <div class="panel">
+        <h3>判定校準<span class="hint">每週用新查核結論檢驗後調整</span></h3>
+        <ul class="rules">
+          <li>查不到、也沒有造假跡象：回「無法查證」，不硬判真假。</li>
+          <li>轉傳片段、照片影片說明、聳動說法：有疑點仍判假訊息。</li>
+          <li>冒名官方帳號、「解除分期」、代辦門號：判為詐騙。</li>
+        </ul>
+        <p class="small muted" style="margin-top:2mm">上線前以 306 題開發組比較 v1～v4，選漏判最少的 v4（10/15 上線）。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="box">
+    <h2>實驗結果</h2>
+    <div class="body">
+      <div class="results">
+        <div>
+          <h3>150 題評測<span class="hint" style="font-size:21pt;font-weight:500;color:var(--ink-2);margin-left:2mm">2026-10-15</span></h3>
+          <div class="bars">
+            <div class="lab">詐騙<small>50 題</small></div>
+            <div class="bar"><div class="seg red" style="flex:50">判為詐騙 50</div></div>
+            <div class="lab">假訊息<small>50 題</small></div>
+            <div class="bar"><div class="seg red" style="flex:50">判為假訊息 50</div></div>
+            <div class="lab">真實訊息<small>50 題</small></div>
+            <div class="bar"><div class="seg green" style="flex:18">安全 18</div><div class="seg yellow" style="flex:32">無法查證 32</div></div>
+          </div>
+          <p class="small" style="margin-top:3mm"><b>漏判 0、誤報 0。</b>真實訊息中查不到出處的官方公告回「無法查證」（黃燈），沒有一題被判成假訊息或詐騙。</p>
+          <p class="cap" style="text-align:left">圖 6　150 題評測結果（每列為一種正確答案，色塊為系統的判定）</p>
+        </div>
+        <div>
+          <h3>每週新查核自動評測</h3>
+          <p class="small">每週日自動出題：歷史抽樣約 2,600 題＋當週新查核。</p>
+          <table class="wk">
+            <tr><th></th><th>10/05 校準前</th><th>10/12 v2</th><th>10/19 v4</th></tr>
+            <tr><td>謠言被判成安全（漏判）</td><td>10.4%</td><td>12.8%</td><td>2.0%</td></tr>
+            <tr><td>真實內容被判紅燈（誤報）</td><td>68.5%</td><td>55.0%</td><td>54.0%</td></tr>
+            <tr><td>當週新謠言：漏判</td><td>6／41</td><td>4／24</td><td>1／29</td></tr>
+            <tr><td>當週新謠言：無法查證</td><td>0／41</td><td>0／24</td><td>9／29</td></tr>
+          </table>
+          <p class="small muted">前兩列為歷史抽樣；當週新謠言題數少，只看趨勢。</p>
+        </div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><div class="n">18,745<small>筆</small></div><div class="l">查核機構已證實的假訊息與詐騙，<br>每天自動同步</div></div>
+        <div class="tile"><div class="n">0.2<small>秒</small></div><div class="l">相同訊息再查一次（快取命中）</div></div>
+        <div class="tile"><div class="n">4.8<small>秒</small></div><div class="l">新訊息的 AI 判讀（中位數）</div></div>
+        <div class="tile"><div class="n">1,262<small>項</small></div><div class="l">自動化測試（後端 853、前端 409），<br>每次更新都跑</div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="row grow" style="grid-template-columns: 1fr 1fr;">
+    <section class="box">
+      <h2>研究限制</h2>
+      <div class="body">
+        <ul class="dots">
+          <li>150 題題庫已公開也偏簡單，數字偏樂觀；<br>以每週新查核評測為準。</li>
+          <li>真實的轉傳訊息仍有過半被判紅燈，誤報偏高。</li>
+          <li>AI 不連網搜尋，最近發生的事常回「無法查證」。</li>
+          <li>Threads 機器人在 Meta 開發模式，只回覆測試人員。</li>
+        </ul>
+      </div>
+    </section>
+    <section class="box">
+      <h2>結論與未來展望</h2>
+      <div class="body">
+        <p>先比對查核機構的結論、再交給 AI 判讀；<br>只列已判定的查核來源，查不到就說查不到。</p>
+        <p><b>下一步：</b>降低真實訊息的誤報、找一般使用者實測、<br>用不公開的新題庫量上線準確率、開放圖片查證。</p>
+      </div>
+    </section>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<title>海報 1：系統介紹</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&display=block" rel="stylesheet">
+<link rel="stylesheet" href="poster.css">
+<style>
+  .goals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6mm; }
+  .goal { background: var(--surface); border-radius: 4mm; padding: 4mm 5mm; }
+  .goal .no { font-size: 40pt; font-weight: 900; line-height: 1.1; }
+  .goal .t { font-size: 28pt; font-weight: 900; line-height: 1.35; margin: 1mm 0 1.5mm; }
+  .goal .d { font-size: 22pt; line-height: 1.45; color: var(--ink-2); }
+
+  .legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; margin-top: 6mm; }
+  .legend > div { border-radius: 4mm; padding: 3.5mm 5mm; font-size: 22pt; line-height: 1.45; }
+  .legend .r { background: var(--red-soft); }
+  .legend .y { background: var(--yellow-soft); }
+  .legend .g { background: var(--green-soft); }
+  .legend b { font-size: 26pt; display: block; margin-bottom: 0.5mm; }
+
+  .bot { display: grid; grid-template-columns: 1fr 1.05fr; gap: 7mm; align-items: center; align-content: center; }
+  .try { display: flex; flex-direction: column; justify-content: center; }
+  .reply {
+    border: 0.6mm solid var(--line);
+    border-radius: 5mm;
+    padding: 4mm 5mm;
+    background: var(--surface);
+    font-size: 21pt;
+    line-height: 1.5;
+  }
+  .reply .who { font-size: 19pt; color: var(--ink-2); margin-bottom: 1.5mm; }
+  .reply .who b { color: var(--ink); }
+  .reply .verdict { font-weight: 900; font-size: 24pt; }
+  .reply .link { color: var(--ink-2); word-break: break-all; }
+  ol.flow { margin: 0; padding-left: 9mm; font-size: 25pt; }
+  ol.flow li { margin-bottom: 2mm; }
+</style>
+</head>
+<body>
+<div class="poster">
+  <header class="head">
+    <div class="dept">長庚大學資訊工程學系　軟硬體專題</div>
+    <h1>AI 為核心的假訊息驗證系統</h1>
+    <div class="en">An AI-Centered Misinformation Verification System</div>
+    <div class="meta">系統名稱：<b>全民查證公社</b><span class="sep">｜</span>指導教授：黃崇源<span class="sep">｜</span>組員：廖晢勛、石岱勳、姚睿、張宇宏、廖育翔</div>
+  </header>
+  <div class="tag">海報 1／2　系統介紹</div>
+
+  <div class="row" style="grid-template-columns: 1fr 1fr;">
+    <section class="box">
+      <h2>摘要</h2>
+      <div class="body">
+        <p>「全民查證公社」是一個免註冊、免登入的假訊息與詐騙查證網站，也是 Threads 上的查核機器人。使用者貼上在 LINE 等管道收到的可疑訊息，系統在數秒內以<b>紅、黃、綠燈</b>回覆判定，並列出已做出判定的查核機構來源。</p>
+        <p>系統先比對從查核機構同步而來、約 <b>1.9 萬筆</b>已證實的假訊息與詐騙資料，找不到才交給 AI 判讀；AI 查不到可以確認的資料時，誠實回答「<b>無法查證</b>」，不硬給答案。</p>
+      </div>
+    </section>
+    <section class="box">
+      <h2>研究動機</h2>
+      <div class="body">
+        <ul class="dots">
+          <li>假訊息與詐騙多半透過 LINE 群組轉傳，<br>收到的人很難自己判斷真假。</li>
+          <li>台灣事實查核中心、MyGoPen、Cofacts<br>已查證上萬則訊息，但民眾不知道去哪裡查。</li>
+          <li>直接問 AI 會「自信地答錯」：<br>沒有根據也給答案，甚至編出不存在的來源。</li>
+          <li>同一則謠言換個說法又傳一次，<br>每次都重新判讀，既慢又花錢。</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <section class="box">
+    <h2>研究目的</h2>
+    <div class="body">
+      <div class="goals">
+        <div class="goal"><div class="no">01</div><div class="t">10 秒內回答</div><div class="d">貼上就查，不必註冊或登入，<br>手機也好用。</div></div>
+        <div class="goal"><div class="no">02</div><div class="t">有根據才下結論</div><div class="d">只列已做出判定的查核來源；<br>沒有來源就不給綠燈。</div></div>
+        <div class="goal"><div class="no">03</div><div class="t">查過就記住</div><div class="d">相同或語意相近的訊息直接回答，省時間也省 AI 成本。</div></div>
+        <div class="goal"><div class="no">04</div><div class="t">在討論現場查證</div><div class="d">在 Threads 標記機器人，<br>它直接在貼文底下回覆。</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="box">
+    <h2>系統功能與使用流程</h2>
+    <div class="body">
+      <div class="phones">
+        <figure class="phone-col" style="margin:0">
+          <div class="step">① 貼上可疑訊息</div>
+          <div class="phone"><img src="assets/phone_home.png" alt=""></div>
+          <figcaption>圖 1　首頁：貼上文字或網址</figcaption>
+        </figure>
+        <figure class="phone-col" style="margin:0">
+          <div class="step">② 結果：假訊息</div>
+          <div class="phone"><img src="assets/phone_misinfo.png" alt=""></div>
+          <figcaption>圖 2　範例：雲林停水謠言</figcaption>
+        </figure>
+        <figure class="phone-col" style="margin:0">
+          <div class="step">② 結果：詐騙警告</div>
+          <div class="phone"><img src="assets/phone_scam.png" alt=""></div>
+          <figcaption>圖 3　範例：解除分期詐騙</figcaption>
+        </figure>
+        <figure class="phone-col" style="margin:0">
+          <div class="step">② 結果：無法查證</div>
+          <div class="phone"><img src="assets/phone_unverifiable.png" alt=""></div>
+          <figcaption>圖 4　範例：公車路線新聞</figcaption>
+        </figure>
+      </div>
+      <p style="text-align:center;margin:5mm 0 0"><b>③ 分享結果：</b>每筆結果都有專屬網址，可以複製連結或一鍵分享到 Threads。</p>
+      <div class="legend">
+        <div class="r"><b><span class="light red"></span>紅燈　詐騙警告／假訊息</b>查核機構已證實，或有明確的詐騙、造假跡象。</div>
+        <div class="y"><b><span class="light yellow"></span>黃燈　無法查證</b>查不到可以確認的資料，轉傳前請先查證。</div>
+        <div class="g"><b><span class="light green"></span>綠燈　查無異常</b>有查核機構或官方資料佐證，才會給綠燈。</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="row grow" style="grid-template-columns: 1.55fr 1fr;">
+    <section class="box">
+      <h2>Threads 查核機器人</h2>
+      <div class="body bot">
+        <div>
+          <ol class="flow">
+            <li>在可疑貼文底下標記<br><b>@factcheck_tw_bot</b>。</li>
+            <li>機器人每 30 秒檢查一次，<br>用和網站相同的流程查證。</li>
+            <li>在貼文底下回覆燈號、摘要、<br>查核來源與結果頁連結。</li>
+          </ol>
+          <p class="small muted" style="margin-top:3mm">目前為 Meta 開發模式，只回覆測試人員。</p>
+        </div>
+        <div class="reply">
+          <div class="who"><b>factcheck_tw_bot</b>　回覆（示意）</div>
+          <div class="verdict"><span class="light red"></span>假訊息</div>
+          <div>此為已被查核的假訊息：「雲林縣從四月六日開始，晚上十點至清晨六點停水…」</div>
+          <div class="link">查核來源：tfc-taiwan.org.tw/…</div>
+          <div class="link">完整判讀：fakenewsverify.vercel.app/r/…</div>
+          <div class="muted">AI 自動判讀，請自行查證。</div>
+        </div>
+      </div>
+    </section>
+    <section class="box">
+      <h2>立即試用</h2>
+      <div class="body try">
+        <div class="qrs">
+          <div class="qr"><img src="assets/qr_site.svg" alt=""><div class="label"><b>網站</b>掃描就能查</div></div>
+          <div class="qr"><img src="assets/qr_threads.svg" alt=""><div class="label"><b>Threads</b>查核機器人</div></div>
+          <div class="qr"><img src="assets/qr_video.svg" alt=""><div class="label"><b>簡報影片</b>4 分 38 秒</div></div>
+          <div class="qr"><img src="assets/qr_github.svg" alt=""><div class="label"><b>原始碼</b>GitHub</div></div>
+        </div>
+        <p class="cap" style="margin-top:4mm">fakenewsverify.vercel.app</p>
+      </div>
+    </section>
+  </div>
+</div>
+</body>
+</html>
