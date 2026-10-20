@@ -2861,3 +2861,12 @@ flowchart LR
 - 範圍：`docs/test/第三方實測_說明.md`、`docs/test/第三方實測_題卡.md`、`docs/test/第三方實測_記錄表.csv`、`docs/test/第三方實測_問卷.csv`
 - 驗收：至少 5 位非團隊受測者完成 T1～T5 與 SUS 問卷；T1 達成率附 95% 信賴區間、SUS 平均分數、誤解清單寫進測試計畫書
 - 狀態：作業包已完成（2026-10-15，三則題卡訊息已在正式站確認結果固定）；待組員執行
+
+### B-44 查核機構資料的分類在結果頁顯示成「其他」
+- 優先級：P1
+- 對應：2026-10-18 製作專題海報時發現：結果頁燈號下方的分類，命中查核機構資料時一律顯示「其他」
+  （正式知識庫絕大多數列的 category 是程式寫入的「已查核假訊息」「已查核詐騙」，不在英文對照表裡）
+- 範圍：`app/utils/labels.py`（`NATIVE_CATEGORY_LABELS` 原樣顯示）、`app/api/analyze.py`（`_with_v2_defaults` 讀取時依 category 重算，
+  舊結果也更正）、`tests/test_kb_write_gate.py`、`tests/test_result_api.py`（各 +1）
+- 驗收：pytest 853；正式站舊結果頁（雲林停水那則）燈號下方顯示「已查核假訊息」
+- 狀態：程式已完成（2026-10-18），待推上線

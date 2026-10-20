@@ -396,6 +396,16 @@ def test_category_label_mapping():
     assert category_label(None) == ""
 
 
+def test_category_label_keeps_native_chinese():
+    """查核機構資料與熱門牆寫入的中文分類原樣顯示（正式知識庫多數是這種列，以前一律顯示「其他」）。"""
+    from app.services import news_fetcher
+    from app.utils.labels import category_label
+    assert category_label("已查核假訊息") == "已查核假訊息"
+    assert category_label("已查核詐騙") == "已查核詐騙"
+    for meta in {**news_fetcher.FACT_CHECK_SOURCES, **news_fetcher.SAFE_SOURCES}.values():
+        assert category_label(meta["category"]) == meta["category"]
+
+
 def test_related_discussions_stored_as_json(tmp_path):
     store = PandasStore(data_dir=str(tmp_path))
     rec, _ = _save(store, "相關討論", [], related_discussions=[{"title": "x", "url": "https://line.me/x"}])

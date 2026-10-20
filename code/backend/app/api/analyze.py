@@ -281,8 +281,10 @@ def _with_v2_defaults(payload: dict, result_id: str, analyzed_at: str = "") -> d
     payload["result_id"] = payload.get("result_id") or result_id
     payload.setdefault("ai_unavailable", False)
     payload.setdefault("similar_news", [])
-    if not payload.get("category_label"):
-        payload["category_label"] = category_label(payload.get("category")) or CATEGORY_LABEL_UNKNOWN
+    # 有 category 就依現行對照表重算：舊結果存的是當時的標籤（查核機構資料的中文分類 2026-10 以前存成「其他」）
+    label = category_label(payload.get("category"))
+    if label or not payload.get("category_label"):
+        payload["category_label"] = label or CATEGORY_LABEL_UNKNOWN
     payload["label_source"] = payload.get("label_source") or "ai"
     payload["analyzed_at"] = payload.get("analyzed_at") or analyzed_at
     if payload.get("verification_status") not in ("verified", "rule", "unverified"):

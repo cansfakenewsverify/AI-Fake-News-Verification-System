@@ -407,7 +407,7 @@
 - `platform_post` 只在 `origin` 為 `threads*` 時有值，否則 `null`。
 - `status != completed` → `result: null`、`share: null`；`failed` → `error: {code:"analysis_failed", message}`（訊息為通用文案，原始例外只進 log）。
 - `ai_unavailable=true` 時 `status="completed"`、`result.frame_type="grey"`（**第四種框色，僅此情況**）、`frame_label`=「AI 暫時無法使用」、`share=null`。
-- `category_label` 由後端統一中文化（取代前端各自 `CAT_MAP`）。
+- `category_label` 由後端統一中文化（取代前端各自 `CAT_MAP`）。查核結論同步與熱門牆寫入的中文分類（已查核假訊息、已查核詐騙、官方衛教、官方資訊）原樣顯示；讀取時一律依 `category` 以現行對照表重算，舊結果也會更正（票 B-44）。
 - **來源與證實狀態**（FR-16／17）：`sources[]` 只含 Tier 1／2，每項 `tier ∈ {1,2}`、`tier_label ∈ {"查核機構","媒體查核報導"}`；Tier 3 在 `related_discussions[]`（P0 畫面不顯示，可為 `[]`）。`verification_status` **推導順序（固定）**：① `label_source ∈ {rule, gold, admin}` → `rule`；② 否則 `source_tier ∈ {1,2}`（≥1 個 Tier 1／2 來源存活）→ `verified`；③ 否則 `unverified`（rule 與 Tier 1 來源同時成立時取 `rule`）。`verified` = `verification_status != "unverified"`。**`rule`／`verified` 狀態保證 `sources` 非空**：`sources` 為空但列的 `source_url` 為 Tier 1／2 時，後端已在寫入時把 `source_url` 補進 `sources`（FR-17「計算位置」、FR-18 規則 1），因此結果頁來源區與 Threads「查核來源」行只在 `unverified` 時才會出現「尚無查核機構證實」。`unverified` 時 `frame_type ≠ "green"`（7.8），結果頁顯示 `no_verified_source_*` 橫幅，`share.text` 不含「查核來源：」段。**例外**：`risk_type = UNVERIFIABLE`（爬取失敗，不呼叫 AI）與 `ai_unavailable = true` 兩種結果無來源，`verification_status` 固定 `unverified`、`verified=false`，但**不觸發** `no_verified_source_*` 橫幅（各自以 S2 狀態 7 `unverifiable_body`／狀態 5 `ai_unavailable_*` 呈現；8.7 `frame_yellow_no_source` 註解已強調兩者語意不同）。`source_tier` = `sources` 中最高等級（1 或 2），無來源為 `null`。
 - 404 `{"detail":"找不到這筆查證","code":"result_not_found"}`。
 

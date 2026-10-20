@@ -159,6 +159,18 @@ def test_legacy_fallback_task_marked_ai_unavailable(client, store):
     assert body["share"] is None
 
 
+def test_old_result_category_label_recomputed(client, store):
+    """查核機構資料命中的舊結果存了「其他」；讀取時依 category 重算成「已查核假訊息」。"""
+    tid = store.create_task("analyze_text", "雲林停水", input_type="text")
+    old = {
+        "is_risk": True, "risk_type": "MISINFO", "category": "已查核假訊息", "category_label": "其他",
+        "confidence_score": 0.95, "summary": "此為已被查核的假訊息", "explanation": "x", "sources": [],
+    }
+    store.update_task(tid, status="completed", result_data=json.dumps(old, ensure_ascii=False))
+    body = client.get(f"/api/result/{tid}").json()
+    assert body["result"]["category_label"] == "已查核假訊息"
+
+
 def test_share_text_unverified_red_has_no_source_tail(client, store):
     tid = store.create_task("analyze_text", "某則謠言", input_type="text")
     _complete(store, tid, {
