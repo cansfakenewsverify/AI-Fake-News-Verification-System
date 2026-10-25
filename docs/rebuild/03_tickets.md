@@ -2869,7 +2869,7 @@ flowchart LR
 - 範圍：`app/utils/labels.py`（`NATIVE_CATEGORY_LABELS` 原樣顯示）、`app/api/analyze.py`（`_with_v2_defaults` 讀取時依 category 重算，
   舊結果也更正）、`tests/test_kb_write_gate.py`、`tests/test_result_api.py`（各 +1）
 - 驗收：pytest 853；正式站舊結果頁（雲林停水那則）燈號下方顯示「已查核假訊息」
-- 狀態：程式已完成（2026-10-18），待推上線
+- 狀態：已完成（2026-10-26 上線；正式站舊結果頁也改顯示「已查核假訊息」，海報圖 2 已重拍）
 
 ### O-32 專題介紹海報（兩張 A1）
 - 優先級：P1
