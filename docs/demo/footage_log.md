@@ -225,3 +225,16 @@
 | 規格 | 278.0 秒；1920×1080、30 fps、H.264 High；母片 81.6 MB（`docs/demo/presentation_v1.1.mp4`，未進 git）；網站用檔 23.2 MB（CRF 24、`+faststart`），覆蓋 `code/frontend/public/demo/presentation_v1.mp4`，網址不變；整體響度 −16 LUFS、LRA 3 LU、真實峰值 −4.5 dBFS；`tools/verify.mjs` 12／12 項通過 |
 | 製作 | 本機 render 9 分 21 秒（5 workers）；C 槽空間不足，暫存目錄改用 E 槽 |
 | 讀音 | 旁白文字與送合成的文字（`tts` 欄）沿用 v1.0，未針對新聲音另做讀音調整；多音字的實際讀法以播放成片確認 |
+
+# presentation_v1.2：口語版男聲與事實更新（2026-10-26）
+
+| 項目 | 內容 |
+|---|---|
+| 起因 | 負責人覺得開箱影片的配音要改，參考一位健身 YouTuber 的說話方式（成年男聲、口語、節奏快）。不仿製真人的聲音，只做同樣的風格 |
+| 選擇過程 | 同一段口語化旁白做成三個試聽樣本：`zh-CN-YunxiNeural`（活潑男聲）、`zh-CN-YunjianNeural`（熱血男聲）、`zh-TW-HsiaoChenNeural`（v1.1 的女聲）。台灣華語的男聲只有 v1.0 被評「像變聲期」的 `zh-TW-YunJheNeural`，所以沒有列入。負責人選定 `zh-CN-YunjianNeural` |
+| 旁白 | 12 段全部改寫成口語版，每段句數與 v1.1 相同（實錄場景的鏡頭運動依句子編號對齊）；第 9 段第 4 句拆成兩句，避免兩行字幕壓到說明框 |
+| 事實更新 | AI 模型 `gpt-5.4-mini` → `gpt-5.6-luna`（第 10 段圖卡）；第 11 段改為 2026-10-15 的 150 題結果（風險題全抓到、真實訊息 0 則誤判、32 則回無法查證）與每週評測（漏判率 12.8% → 2.0%），自動化測試 853／409，語意快取命中率改為最新的 50%；第 9 段說明機器人 10 月起已在雲端以測試版上線（畫面仍是模擬模式錄製，畫面上標明）；第 12 段的下一步改為開放機器人與量上線準確率 |
+| 片長 | 男聲念第 10、11 段比鏡頭長，兩段改為 37.5、39 秒，不加快語速；全片 281.5 秒 |
+| 規格 | 1920×1080、30 fps、H.264 High；母片 81.8 MB（`docs/demo/presentation_v1.2.mp4`，未進 git）；網站用檔 26.1 MB（CRF 24、`+faststart`），覆蓋 `code/frontend/public/demo/presentation_v1.mp4`，網址不變；整體響度 −16.4 LUFS、真實峰值 −4.3 dBFS；`tools/verify.mjs` 12／12 項通過 |
+| 製作 | C 槽只剩約 33 GB，5 workers 的影格暫存需要約 70 GB；改用單一 worker 的串流編碼（`--workers 1 --low-memory-mode`，並設 `PRODUCER_STREAMING_ENCODE_MAX_DURATION_SECONDS=900`），render 20 分鐘 |
+| 其他 | edge-tts 7.2.8 合成時回 HTTP 403，升級到 7.3.1 後恢復 |

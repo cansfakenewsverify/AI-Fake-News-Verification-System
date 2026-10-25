@@ -1,5 +1,5 @@
 {
-  "_doc": "presentation_v1.0 edit decision list. shots[n].dur = shot length in seconds; audio = where the narration clip starts inside the shot. scenes = one sub-composition per continuous stage. footage[*].pieces maps the film clock back onto the raw recording: from/to are raw seconds since that take started, speed>1 is accelerated footage (labelled 畫面加速 on screen), hold freezes the last shown frame, and a gap between two pieces is a stretch of recording where nothing moved, cut out. Every take is a genuine capture of https://fakenewsverify.vercel.app made on 2026-09-20 (docs/demo/footage_log.md).",
+  "_doc": "presentation_v1.0 edit decision list. shots[n].dur = shot length in seconds; audio = where the narration clip starts inside the shot. scenes = one sub-composition per continuous stage. footage[*].pieces maps the film clock back onto the raw recording: from/to are raw seconds since that take started, speed>1 is accelerated footage (labelled 畫面加速 on screen), hold freezes the last shown frame, and a gap between two pieces is a stretch of recording where nothing moved, cut out. Every take is a genuine capture of https://fakenewsverify.vercel.app made on 2026-09-20 (docs/demo/footage_log.md). v1.2 (2026-10-26): shots 10 and 11 lengthened to 37.5 s and 39 s for the new voice.",
   "fps": 30,
   "transition": 0.5,
   "overlap": 0.6,
@@ -41,11 +41,11 @@
       "audio": 1
     },
     "10": {
-      "dur": 37,
+      "dur": 37.5,
       "audio": 1.2
     },
     "11": {
-      "dur": 36,
+      "dur": 39,
       "audio": 1.2
     },
     "12": {

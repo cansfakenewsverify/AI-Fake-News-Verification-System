@@ -169,8 +169,8 @@
           const root = document.querySelector('[data-composition-id="s01-hook"]');
           const $ = (s) => root.querySelector(s);
           const tl = gsap.timeline({ paused: true });
-          // Narration (shot clock): 1.00 這種訊息… / 3.89 說健保卡要停用… / 7.56 今天就帶大家開箱…
-          const CUE = { seen: 1.0, msg: 3.89, unbox: 7.56 };
+          // Narration (shot clock, v1.2): 1.00 這種訊息… / 3.64 健保卡要停用… / 7.22 先別急著點！今天就來開箱…
+          const CUE = { seen: 1.0, msg: 3.64, unbox: 7.22 };
 
           tl.set($("#h-scene-b"), { opacity: 0 });
 

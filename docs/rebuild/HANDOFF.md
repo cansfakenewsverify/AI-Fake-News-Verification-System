@@ -32,8 +32,9 @@
 ## 已完成
 
 - **簡報影片 presentation_v1.1**（2026-09-20 製作，09-22 更換旁白為女聲 `zh-TW-HsiaoChenNeural`）：4 分 38 秒，畫面全部為正式站實錄。
-  網址 <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>，
-  網站播放版在 `code/frontend/public/demo/presentation_v1.mp4`，字幕在 `docs/demo/presentation_v1.1.srt`。
+  **2026-10-26 改為 v1.2**：負責人要求口語、有活力的男聲，改用 `zh-CN-YunjianNeural`，旁白改口語版、事實同步到 10 月，4 分 41 秒。
+  網址 <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>（不變），
+  網站播放版在 `code/frontend/public/demo/presentation_v1.mp4`，字幕在 `docs/demo/presentation_v1.2.srt`。
   原始碼 `video/hf-presentation/`，旁白稿 `presentations/2026-09_進度報告/06_簡報影片旁白稿.md`，
   製作紀錄 `docs/demo/footage_log.md`。整支影片僅耗用正式站 1 次 AI 查證。
 - **書面報告**：`presentations/2026-09_進度報告/10_書面報告.pptx`，10 張投影片，封面含簽名欄。

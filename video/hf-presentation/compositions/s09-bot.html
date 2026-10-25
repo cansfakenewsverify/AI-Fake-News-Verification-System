@@ -166,7 +166,7 @@
         <div class="fnv-grid"></div>
 
         <div class="fnv-tag" id="b-sim" style="left: 700px; top: 16px">
-          模擬模式：流程與正式串接相同，正式上線需 Meta App Review
+          此段為模擬模式錄製；2026-10-01 起機器人已在雲端上線（測試版）
         </div>
 
         <div class="b-card" id="b-post">
@@ -206,7 +206,7 @@
             <video
               id="b-phone-v"
               src="assets/footage/phone_result.mp4"
-              data-start="10.6"
+              data-start="10"
               data-duration="8"
               data-track-index="0"
               muted
@@ -220,10 +220,10 @@
 
         <div class="b-note" id="b-note">
           <div class="b-note-rule" id="b-note-rule"></div>
-          <div class="b-note-h">這一段是模擬模式</div>
+          <div class="b-note-h">這一段是模擬模式錄的</div>
           <div class="b-note-b">
-            輪詢、判定、回覆的流程與正式串接相同，用的是本專題留下的實際輸出；<br />
-            要真的對外公開回覆，還需要通過 Meta App Review 與企業驗證。
+            回覆是實際輸出；10/1 起已在雲端以測試版上線，只回覆測試人員；<br />
+            要開放給所有人，還需要通過 Meta App Review 與企業驗證。
           </div>
         </div>
       </div>
@@ -233,8 +233,8 @@
           const root = document.querySelector('[data-composition-id="s09-bot"]');
           const $ = (s) => root.querySelector(s);
           const tl = gsap.timeline({ paused: true });
-          // Narration (shot clock): 1.10 機器人 / 3.82 有人標記… / 10.71 點開那個連結… / 14.36 模擬模式…
-          const CUE = { intro: 1.1, tagged: 3.82, link: 10.71, sim: 14.36 };
+          // Narration (shot clock, v1.2): 1.10 機器人 / 3.83 標記… / 10.04 點開連結… / 13.23 模擬模式錄的…
+          const CUE = { intro: 1.1, tagged: 3.83, link: 10.04, sim: 13.23 };
 
           tl.set([$("#b-reply"), $("#b-arrow"), $("#b-phone"), $("#b-phone-tag"), $("#b-note")], { opacity: 0 });
           tl.set($("#b-phone-cam"), { x: 10, y: 0, scale: 0.487 });
@@ -260,10 +260,10 @@
           tl.fromTo($("#b-note-rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power3.inOut" }, CUE.sim - 0.4);
           tl.to($("#b-note"), { opacity: 1, duration: 0.45, ease: "none" }, CUE.sim - 0.4);
 
-          // the phone clip runs out at 18.6s; let it leave rather than freeze mid-scroll
-          tl.to([$("#b-phone"), $("#b-phone-tag")], { opacity: 0, y: -24, duration: 0.5, ease: "power2.in" }, 18.2);
-          tl.to($("#b-reply"), { opacity: 0, duration: 0.45, ease: "power2.in" }, 18.4);
-          tl.to($("#b-note"), { y: -210, duration: 0.9, ease: "power3.inOut" }, 18.6);
+          // the phone clip (data-start 10, 8 s) runs out at 18s; let it leave rather than freeze mid-scroll
+          tl.to([$("#b-phone"), $("#b-phone-tag")], { opacity: 0, y: -24, duration: 0.5, ease: "power2.in" }, 17.6);
+          tl.to($("#b-reply"), { opacity: 0, duration: 0.45, ease: "power2.in" }, 17.8);
+          tl.to($("#b-note"), { y: -210, duration: 0.9, ease: "power3.inOut" }, 18.0);
 
           window.__timelines["s09-bot"] = tl;
         })();

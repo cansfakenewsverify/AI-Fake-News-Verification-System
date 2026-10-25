@@ -18,16 +18,6 @@
    "why": "scene s03-check"
   },
   {
-   "sound": "click",
-   "t": 33.216,
-   "why": "check click @raw 5.916"
-  },
-  {
-   "sound": "click",
-   "t": 38.215,
-   "why": "check click @raw 10.915"
-  },
-  {
    "sound": "tick",
    "t": 39.008,
    "why": "progress step 1"
@@ -43,24 +33,9 @@
    "why": "progress step 3"
   },
   {
-   "sound": "chime",
-   "t": 43.744,
-   "why": "check result_top"
-  },
-  {
    "sound": "whoosh",
    "t": 46.88,
    "why": "scene s04-result"
-  },
-  {
-   "sound": "click",
-   "t": 58.374,
-   "why": "result click @raw 10.474"
-  },
-  {
-   "sound": "click",
-   "t": 81.24,
-   "why": "result click @raw 28.64"
   },
   {
    "sound": "whoosh",
@@ -68,74 +43,14 @@
    "why": "scene s05-url"
   },
   {
-   "sound": "click",
-   "t": 86.388,
-   "why": "url click @raw 3.388"
-  },
-  {
-   "sound": "click",
-   "t": 90.287,
-   "why": "url click @raw 7.287"
-  },
-  {
-   "sound": "click",
-   "t": 95.928,
-   "why": "url click @raw 14.324"
-  },
-  {
-   "sound": "chime",
-   "t": 98.175,
-   "why": "url url_result"
-  },
-  {
    "sound": "whoosh",
    "t": 105.88,
    "why": "scene s06-cache"
   },
   {
-   "sound": "click",
-   "t": 108.262,
-   "why": "cache_hash click @raw 4.214"
-  },
-  {
-   "sound": "chime",
-   "t": 110.69,
-   "why": "cache_hash cache_chip"
-  },
-  {
-   "sound": "click",
-   "t": 111.736,
-   "why": "cache_hash click @raw 11.211"
-  },
-  {
-   "sound": "click",
-   "t": 115.745,
-   "why": "cache_vector click @raw 4.245"
-  },
-  {
-   "sound": "chime",
-   "t": 118.761,
-   "why": "cache_vector vector_chip"
-  },
-  {
    "sound": "whoosh",
    "t": 125.88,
    "why": "scene s07-wall"
-  },
-  {
-   "sound": "click",
-   "t": 126.355,
-   "why": "trending click @raw 3.061"
-  },
-  {
-   "sound": "chime",
-   "t": 137.737,
-   "why": "knowledge search_results"
-  },
-  {
-   "sound": "click",
-   "t": 144.562,
-   "why": "knowledge click @raw 20.413"
   },
   {
    "sound": "whoosh",
@@ -154,12 +69,12 @@
   },
   {
    "sound": "whoosh",
-   "t": 225.88,
+   "t": 226.38,
    "why": "scene s11-numbers"
   },
   {
    "sound": "whoosh",
-   "t": 261.88,
+   "t": 265.38,
    "why": "scene s12-end"
   }
  ]

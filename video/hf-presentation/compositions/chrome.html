@@ -57,7 +57,7 @@
           transform-origin: left center;
         }
       </style>
-      <div id="root" class="fnv-root" data-composition-id="chrome" data-width="1920" data-height="1080" data-duration="278">
+      <div id="root" class="fnv-root" data-composition-id="chrome" data-width="1920" data-height="1080" data-duration="281.5">
         <div class="chr-brand" id="chr-brand">
           <span class="chr-name">全民查證公社</span>
           <span class="chr-sub fnv-mono">fakenewsverify.vercel.app</span>
@@ -69,11 +69,11 @@
         (function () {
           const root = document.querySelector('[data-composition-id="chrome"]');
           const tl = gsap.timeline({ paused: true });
-          const TOTAL = 278;
+          const TOTAL = 281.5;
           tl.fromTo(root.querySelector("#chr-fill"), { scaleX: 0 }, { scaleX: 1, duration: TOTAL, ease: "none" }, 0);
           // brand: hidden over the hook (scene 1) and the end card
           tl.fromTo(root.querySelector("#chr-brand"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 15.55);
-          tl.to(root.querySelector("#chr-brand"), { opacity: 0, duration: 0.4, ease: "power1.in" }, 261.8);
+          tl.to(root.querySelector("#chr-brand"), { opacity: 0, duration: 0.4, ease: "power1.in" }, 265.3);
           window.__timelines["chrome"] = tl;
         })();
       </script>

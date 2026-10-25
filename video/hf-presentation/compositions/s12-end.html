@@ -117,12 +117,12 @@
           <div class="e-h" id="e-h">下一步</div>
           <div class="e-items">
             <div class="e-item" id="e-i1">
-              <div class="e-item-h">Threads 實機串接</div>
-              <div class="e-item-b">通過 Meta App Review 與企業驗證後對外開放</div>
+              <div class="e-item-h">機器人開放給所有人</div>
+              <div class="e-item-b">已在雲端以測試版上線，通過 Meta App Review 後對外開放</div>
             </div>
             <div class="e-item" id="e-i2">
-              <div class="e-item-h">更大的評測資料集</div>
-              <div class="e-item-b">現在是 150 筆，要再擴充並重新評測</div>
+              <div class="e-item-h">量上線後的準確率</div>
+              <div class="e-item-b">用不公開的新題庫，加上線上抽樣雙人覆核</div>
             </div>
           </div>
         </div>
@@ -138,7 +138,7 @@
 
         <div class="e-thanks" id="e-thanks">謝謝各位老師</div>
         <div class="e-fine" id="e-fine">
-          片中 Threads 機器人為模擬模式；判讀由 AI 自動產生，僅供參考，請自行查證。
+          片中 Threads 機器人畫面為模擬模式錄製；判讀由 AI 自動產生，僅供參考，請自行查證。
         </div>
       </div>
 
@@ -147,8 +147,8 @@
           const root = document.querySelector('[data-composition-id="s12-end"]');
           const $ = (s) => root.querySelector(s);
           const tl = gsap.timeline({ paused: true });
-          // Narration (shot clock): 1.10 下一步 / 5.73 網站與原始碼 / 9.65 謝謝各位老師
-          const CUE = { next: 1.1, links: 5.73, thanks: 9.65 };
+          // Narration (shot clock, v1.2): 1.10 下一步 / 7.94 網站與原始碼 / 11.42 謝謝各位老師
+          const CUE = { next: 1.1, links: 7.94, thanks: 11.42 };
           const rise = (sel, t, y = 24, d = 0.5) =>
             tl.fromTo($(sel), { opacity: 0, y }, { opacity: 1, y: 0, duration: d, ease: "power3.out" }, t);
 
