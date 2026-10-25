@@ -22,8 +22,13 @@
   <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>（2026-10-26 起為 v1.2：4 分 41 秒，旁白改為口語版男聲 `zh-CN-YunjianNeural`、數字同步到 10 月；報告當天播的是 v1.1 女聲版；原始碼 `video/hf-presentation/`，
   規格 `docs/demo/presentation_video_brief.md`，製作紀錄 `docs/demo/footage_log.md`）。
   舊的 demo 影片 v0.4.0：<https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4>（`video/hf-demo/`）。
+- **第二次簡報（2026-11-02～11-04；平均及格才能參加 12-03 期末成果展）**：老師要「使用情境文」——5 分鐘內的情境劇影片，
+  加完整且詳盡的測試計畫書。資料在 `presentations/2026-11_第二次簡報/`（劇本、拍攝清單、時程、分工；先看 README）。
+  情境劇《轉傳之前》的影片專案在 `video/hf-scenario/`：由 `data/storyboard.json` 產生，組員的實拍放進 `raw/` 就換掉佔位字卡；
+  2026-10-26 已有分鏡預覽片（真人鏡頭為字卡、台詞為 AI 語音）。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
-  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（v1.9；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測）。
+  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.0 完整版**；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
+  **3.6 與 6.10 為第二次簡報輪次**，附錄 A 為需求追溯矩陣；PDF 以 `node presentations/tools/build_testplan_pdf.mjs --full` 產生）。
 
 ---
 
@@ -286,11 +291,12 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
-docs/test/                      測試計畫書 TP-FNV-2026-01.md（v1.9）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
+docs/test/                      測試計畫書 TP-FNV-2026-01.md（v2.0）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
                                 pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）、
                                 上線後準確率驗證計畫.md（上線後怎麼量準確率與信心校準）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
 video/hf-demo/                  demo 影片 v0.4.0 的 HyperFrames 專案原始碼（有自己的 CLAUDE.md；只在本機 render）。
+video/hf-scenario/              第二次簡報的情境劇《轉傳之前》（storyboard.json → build.mjs；raw/ 放組員實拍，不進 git；見其 README）
                                 video/ 其餘是未採用的 Remotion 試作，不進 git
 presentations/                  簡報與報告資料；`2026-09_進度報告/` = 這次進度報告的全部檔案（投影片、報告內容說明、demo 影片網址、
                                 測試計畫書 PDF、分工表），檔名用中文、前面有編號，組員一看就懂；先看該資料夾的 README。

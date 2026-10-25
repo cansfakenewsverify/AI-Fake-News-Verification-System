@@ -1,0 +1,15 @@
+{
+  "name": "hf-scenario",
+  "private": true,
+  "type": "module",
+  "description": "The scenario drama 《轉傳之前》 for the second course presentation (2026-11). HyperFrames, local rendering only.",
+  "scripts": {
+    "capture": "node tools/capture.mjs",
+    "footage": "node tools/build_footage.mjs",
+    "tts": "..\..\code\backend\venv\Scripts\python tools\tts.py",
+    "sfx": "..\..\code\backend\venv\Scripts\python tools\sfx.py",
+    "build": "node tools/build.mjs",
+    "check": "npx --yes hyperframes@0.8.50 check",
+    "render": "npx --yes hyperframes@0.8.50 render --quality delivery --video-frame-format png --workers 1 --low-memory-mode --output renders/scenario.mp4"
+  }
+}

@@ -1,0 +1,14 @@
+UX-2 first check (2026-10-26): the four scenario-drama messages on the live site
+https://fakenewsverify.vercel.app, submitted exactly as written in
+presentations/2026-11_第二次簡報/01_情境劇劇本.md. No AI call was made: all four answered from the cache.
+
+message                                  verdict      confidence  cache             result page
+雲林停水（情境一）                        假訊息       高          快取命中・相同內容  /r/c0065eea-5c79-4caa-a40d-a84d275f24eb
+網購刷卡分期解除（情境二）                詐騙警告     中          快取命中・相同內容  /r/662b15f0-433c-4aa5-b19d-93b2c9f7bdce
+每天吃香蕉讓骨密度增強50倍（情境三）      假訊息       高          hash              /r/5de8dd09-c56c-44c7-b7fb-cfaa310bc0a5
+台中夜間公車（情境四）                    無法查證     低          快取命中・相同內容  /r/c8ad3ebf-a65f-498f-bdfa-72500b17eec5
+
+Sources: the first, second and fourth rows come from the phone recordings made with
+video/hf-scenario/tools/capture.mjs (result_url, verdict and chip captured from the live page);
+the third row from a direct submission through the public API.
+Second check: on the day before the presentation (planned 2026-11-01).

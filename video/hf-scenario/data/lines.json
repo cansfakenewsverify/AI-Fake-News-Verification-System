@@ -1,0 +1,176 @@
+{
+ "S01_0": {
+  "who": "阿嬤",
+  "hash": "7ddc957f3495",
+  "speech_end": 2.819,
+  "dur": 3.101
+ },
+ "S03_0": {
+  "who": "阿嬤",
+  "hash": "7fdb50588f4e",
+  "speech_end": 1.619,
+  "dur": 1.969
+ },
+ "S04_0": {
+  "who": "爸爸",
+  "hash": "7e2b598fc4a4",
+  "speech_end": 1.805,
+  "dur": 2.155
+ },
+ "S04_1": {
+  "who": "阿嬤",
+  "hash": "df743cafb310",
+  "speech_end": 1.34,
+  "dur": 1.69
+ },
+ "S05_0": {
+  "who": "小翔",
+  "hash": "3746fc0e220e",
+  "speech_end": 1.949,
+  "dur": 2.299
+ },
+ "S06_0": {
+  "who": "小翔",
+  "hash": "1c7d481ae0bf",
+  "speech_end": 3.21,
+  "dur": 3.492
+ },
+ "S07_0": {
+  "who": "小翔",
+  "hash": "fdaa29ab3698",
+  "speech_end": 2.609,
+  "dur": 2.891
+ },
+ "S07_1": {
+  "who": "阿嬤",
+  "hash": "0dd0e96d38d6",
+  "speech_end": 5.266,
+  "dur": 5.548
+ },
+ "F1_0": {
+  "who": "旁白",
+  "hash": "8800bc4beb6f",
+  "speech_end": 5.419,
+  "dur": 5.733
+ },
+ "R1_0": {
+  "who": "旁白",
+  "hash": "111c9ec28e05",
+  "speech_end": 2.336,
+  "dur": 2.654
+ },
+ "S08_0": {
+  "who": "阿嬤",
+  "hash": "6accc6e06946",
+  "speech_end": 2.35,
+  "dur": 2.652
+ },
+ "S11_0": {
+  "who": "阿嬤",
+  "hash": "446f26e9c7ac",
+  "speech_end": 1.3,
+  "dur": 1.65
+ },
+ "S13_0": {
+  "who": "旁白",
+  "hash": "4fbca3af0937",
+  "speech_end": 6.393,
+  "dur": 6.667
+ },
+ "S14_0": {
+  "who": "爸爸",
+  "hash": "8892a1b7ab23",
+  "speech_end": 7.272,
+  "dur": 7.546
+ },
+ "S16_0": {
+  "who": "爸爸",
+  "hash": "36aa72d83270",
+  "speech_end": 1.685,
+  "dur": 2.035
+ },
+ "S16_1": {
+  "who": "旁白",
+  "hash": "06374f37e7f7",
+  "speech_end": 3.931,
+  "dur": 4.257
+ },
+ "S17_0": {
+  "who": "爸爸",
+  "hash": "9c9d9a6f790e",
+  "speech_end": 1.432,
+  "dur": 1.782
+ },
+ "S19_0": {
+  "who": "爸爸",
+  "hash": "5298fad0634b",
+  "speech_end": 1.925,
+  "dur": 2.275
+ },
+ "S19_1": {
+  "who": "旁白",
+  "hash": "7f0554575955",
+  "speech_end": 5.312,
+  "dur": 5.606
+ },
+ "S21_0": {
+  "who": "阿凱",
+  "hash": "2769a3eb9c28",
+  "speech_end": 1.868,
+  "dur": 2.218
+ },
+ "S23_0": {
+  "who": "阿凱",
+  "hash": "0810bdb6fbfb",
+  "speech_end": 2.334,
+  "dur": 2.604
+ },
+ "S23_1": {
+  "who": "旁白",
+  "hash": "6b9c612871df",
+  "speech_end": 3.026,
+  "dur": 3.34
+ },
+ "S24_0": {
+  "who": "阿嬤",
+  "hash": "cb320653b6ac",
+  "speech_end": 4.933,
+  "dur": 5.203
+ },
+ "S24_1": {
+  "who": "阿嬤",
+  "hash": "2411912fb9af",
+  "speech_end": 1.313,
+  "dur": 1.663
+ },
+ "S26_0": {
+  "who": "阿嬤",
+  "hash": "0df9532f821f",
+  "speech_end": 2.736,
+  "dur": 3.022
+ },
+ "S26_1": {
+  "who": "旁白",
+  "hash": "7ade8b881b6e",
+  "speech_end": 2.967,
+  "dur": 3.309
+ },
+ "C1_0": {
+  "who": "旁白",
+  "hash": "601f00a14ba1",
+  "speech_end": 2.871,
+  "dur": 3.217
+ },
+ "C1_1": {
+  "who": "旁白",
+  "hash": "6808b516a24a",
+  "speech_end": 4.99,
+  "dur": 5.248
+ },
+ "S28_0": {
+  "who": "全員",
+  "hash": "66f3a8d4559a",
+  "speech_end": 2.075,
+  "dur": 2.425
+ }
+}

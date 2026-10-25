@@ -135,3 +135,16 @@ video/hf-presentation/.media/
 video/hf-presentation/.raw/
 code/backend/data/fix_title_claims_report.txt
 code/backend/data/correct_kb_row_report.txt
+
+# ── HyperFrames 影片專案 video/hf-scenario（第二次簡報的情境劇）：只提交原始碼 ──
+# 組員拍的原始影片（raw/）、正式站實錄、旁白與音效、render、快取都不進 git
+video/hf-scenario/raw/
+video/hf-scenario/assets/footage/
+video/hf-scenario/assets/audio/
+video/hf-scenario/renders/
+video/hf-scenario/snapshots/
+video/hf-scenario/node_modules/
+video/hf-scenario/.hyperframes/
+video/hf-scenario/.hf-tmp/
+video/hf-scenario/.debug/
+video/hf-scenario/.media/

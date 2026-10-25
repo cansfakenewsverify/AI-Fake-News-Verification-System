@@ -1,10 +1,12 @@
-// Builds the printable short version of the test plan:
-//   docs/test/TP-FNV-2026-01_精簡版.md
-//     → presentations/2026-09_進度報告/04_測試計畫書_TP-FNV-2026-01_v1.6_精簡版.pdf
+// Builds the printable test plan:
+//   default  docs/test/TP-FNV-2026-01_精簡版.md
+//              → presentations/2026-09_進度報告/04_測試計畫書_TP-FNV-2026-01_v1.6_精簡版.pdf
+//   --full   docs/test/TP-FNV-2026-01.md（完整版，第二次簡報要交的版本）
+//              → presentations/2026-11_第二次簡報/03_測試計畫書_TP-FNV-2026-01_v2.0_完整版.pdf
 //
 // Usage (from the repo root):
 //   npm install --prefix "%TEMP%\fnv-md" marked@15      (once; kept out of the repo, like pptxgenjs)
-//   node presentations/tools/build_testplan_pdf.mjs
+//   node presentations/tools/build_testplan_pdf.mjs [--full]
 //
 // The Markdown file is the source. The HTML only exists in TEMP and is printed by
 // code/frontend/tools/html_to_pdf.mjs (headless Edge over CDP). Page numbers come from CSS @page
@@ -17,9 +19,14 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const SRC = path.join(REPO, "docs", "test", "TP-FNV-2026-01_精簡版.md");
-const OUT = path.join(REPO, "presentations", "2026-09_進度報告", "04_測試計畫書_TP-FNV-2026-01_v1.6_精簡版.pdf");
-const MAX_PAGES = 15;
+const FULL = process.argv.includes("--full");
+const SRC = FULL
+  ? path.join(REPO, "docs", "test", "TP-FNV-2026-01.md")
+  : path.join(REPO, "docs", "test", "TP-FNV-2026-01_精簡版.md");
+const OUT = FULL
+  ? path.join(REPO, "presentations", "2026-11_第二次簡報", "03_測試計畫書_TP-FNV-2026-01_v2.0_完整版.pdf")
+  : path.join(REPO, "presentations", "2026-09_進度報告", "04_測試計畫書_TP-FNV-2026-01_v1.6_精簡版.pdf");
+const MAX_PAGES = FULL ? 120 : 15;
 
 const markedPath = path.join(os.tmpdir(), "fnv-md", "node_modules", "marked", "lib", "marked.esm.js");
 if (!fs.existsSync(markedPath)) {
@@ -74,15 +81,32 @@ function classifyTables(html) {
   });
 }
 
+// The complete edition is read on paper rather than skimmed: larger type than the short version, page
+// numbers, headers that never break mid-word, and every column except the ID allowed to wrap (its
+// 本次執行 / result cells hold whole sentences).
+const FULL_CSS = `
+  @page { @bottom-center { content: counter(page) " / " counter(pages); font-size: 9pt; color: #444; } }
+  body { font-size: 10.5pt; line-height: 1.6; }
+  h1 { font-size: 20pt; }
+  h2 { font-size: 15pt; }
+  h3 { font-size: 12.5pt; }
+  h4 { font-size: 11pt; }
+  table { font-size: 9pt; line-height: 1.5; }
+  th { white-space: nowrap; }
+  table.items td:nth-child(-n+3), table.results td:nth-child(-n+3), table.retest td:nth-child(-n+3), table.retest td:nth-child(5) { white-space: normal; }
+  table.items td:first-child, table.results td:first-child, table.retest td:first-child { white-space: nowrap; }
+  td code { word-break: break-all; }
+`;
+
 const md = fs.readFileSync(SRC, "utf8");
 const body = classifyTables(marked.parse(md, { gfm: true }));
 const html = `<!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><title>測試計畫書（精簡版） TP-FNV-2026-01</title>
-<style>${CSS}</style></head><body>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>${FULL ? "測試計畫書（完整版 v2.0）" : "測試計畫書（精簡版）"} TP-FNV-2026-01</title>
+<style>${CSS}${FULL ? FULL_CSS : ""}</style></head><body>
 ${body}
 </body></html>`;
 
-const staged = path.join(os.tmpdir(), "fnv-md", "testplan_short.html");
+const staged = path.join(os.tmpdir(), "fnv-md", FULL ? "testplan_full.html" : "testplan_short.html");
 fs.writeFileSync(staged, html, "utf8");
 
 const tool = path.join(REPO, "code", "frontend", "tools", "html_to_pdf.mjs");

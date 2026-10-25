@@ -2878,3 +2878,24 @@ flowchart LR
 - 範圍：`presentations/2026-10_專題海報/`（PDF、300 dpi PNG、預覽、`src/` HTML 原始檔與素材、README）、`presentations/tools/build_posters.py`
 - 驗收：A1 594 × 841 mm、300 dpi PNG 7017 × 9933 px；輸出腳本檢查沒有區塊被切掉；數字都有出處（README）
 - 狀態：已完成（2026-10-21）；待送印
+
+### O-33 第二次簡報：情境劇《轉傳之前》
+- 優先級：P0（評審平均及格才能參加 12-03 期末成果展）
+- 對應：老師規定的「使用情境文」：5 分鐘內的情境劇，呈現使用前的困擾與使用後的好處；負責人 2026-10-26 選真人拍攝
+- 範圍：`presentations/2026-11_第二次簡報/`（劇本、拍攝清單、時程與分工）；`video/hf-scenario/`（分鏡 `data/storyboard.json`、
+  產生器 `tools/build.mjs`、正式站手機錄影、旁白與音效）
+- 驗收：片長 ≤ 5 分鐘；四個情境的系統畫面皆為正式站實錄；組員實拍換掉所有佔位字卡；網站上可直接播放
+- 狀態：分鏡預覽片完成（2026-10-26，4 分 31 秒）；待組員拍攝（10-27～10-28）
+
+### O-34 測試計畫書 v2.0 完整版
+- 優先級：P0
+- 對應：老師要求第二次簡報交「完整且詳盡的測試計畫書，而非簡略摘要」
+- 範圍：`docs/test/TP-FNV-2026-01.md`（3.6 新增 16 項、6.10 第二次簡報輪次結果、附錄 A 需求追溯矩陣）；
+  `presentations/tools/build_testplan_pdf.mjs --full`；`code/frontend/tools/html_to_pdf.mjs` 改為串流取回 PDF（長文件原本會無聲失敗）
+- 狀態：v2.0 完成（2026-10-26，PDF 22 頁）；OP-10、UX-1、UX-2 待執行後回填 6.10
+
+### O-35 開箱簡報影片 v1.2（口語版男聲）
+- 優先級：P1
+- 對應：負責人 2026-10-26 要求配音改成口語、有活力的男聲（從三個試聽樣本選 `zh-CN-YunjianNeural`）
+- 範圍：`video/hf-presentation/`（旁白口語版、事實同步到 10 月、第 10、11 段加長）；網站用檔覆蓋 `code/frontend/public/demo/presentation_v1.mp4`
+- 狀態：已完成（2026-10-26，commit `02061cc`；verify 12／12）

@@ -50,6 +50,12 @@ async function connect(url) {
     pending.delete(m.id);
     m.error ? p.rej(new Error(`${p.method}: ${m.error.message}`)) : p.res(m.result);
   });
+  // A dropped socket would otherwise leave every pending call unresolved and the script would exit 0
+  // without writing anything.
+  ws.addEventListener("close", () => {
+    for (const p of pending.values()) p.rej(new Error(`${p.method}: devtools connection closed`));
+    pending.clear();
+  });
   return {
     ws,
     send(method, params = {}, sessionId) {
@@ -103,14 +109,24 @@ async function main() {
   }
   await sleep(600); // let the page's own script finish drawing
 
-  const pdf = await send("Page.printToPDF", {
+  // Stream the PDF back in 1 MB pieces: a long document (the complete test plan is 60+ pages) is too big
+  // to come back as one devtools message.
+  const { stream } = await send("Page.printToPDF", {
     printBackground: true,
     preferCSSPageSize: true,
     landscape,
     displayHeaderFooter: false,
+    transferMode: "ReturnAsStream",
   });
+  const chunks = [];
+  for (;;) {
+    const r = await send("IO.read", { handle: stream, size: 1 << 20 });
+    chunks.push(Buffer.from(r.data, r.base64Encoded ? "base64" : "utf8"));
+    if (r.eof) break;
+  }
+  await send("IO.close", { handle: stream });
   fs.mkdirSync(path.dirname(dst), { recursive: true });
-  fs.writeFileSync(dst, Buffer.from(pdf.data, "base64"));
+  fs.writeFileSync(dst, Buffer.concat(chunks));
 
   try { await c.send("Browser.close"); } catch { /* already gone */ }
   c.ws.close(); proc.kill(); await sleep(400);
