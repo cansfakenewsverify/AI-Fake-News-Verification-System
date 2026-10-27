@@ -192,7 +192,7 @@ ${(rail.facts ?? []).map((f, i) => `            <div class="sc-fact" id="${sc.id
         }
         .sc-title {
           margin-top: 16px;
-          font-size: 62px;
+          font-size: 58px;
           line-height: 1.18;
           font-weight: 700;
           letter-spacing: 0.02em;
@@ -219,7 +219,7 @@ ${(rail.facts ?? []).map((f, i) => `            <div class="sc-fact" id="${sc.id
           display: grid;
           grid-template-columns: 54px 1fr;
           column-gap: 12px;
-          padding: 18px 0 16px;
+          padding: 12px 0 10px; /* v1.3: ends above the 54 px captions */
           border-bottom: 2px solid #d4d4d8;
         }
         .sc-fact-n {

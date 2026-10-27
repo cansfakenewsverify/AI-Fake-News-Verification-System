@@ -2900,6 +2900,13 @@ flowchart LR
   `presentations/tools/build_testplan_pdf.mjs --full`；`code/frontend/tools/html_to_pdf.mjs` 改為串流取回 PDF（長文件原本會無聲失敗）
 - 狀態：v2.0 完成（2026-10-26，PDF 22 頁）；OP-10、UX-1、UX-2 待執行後回填 6.10
 
+### O-36 開箱簡報影片 v1.3（配樂、真實音效、字幕放大）
+- 優先級：P2
+- 對應：負責人 2026-10-28 同意讓開箱影片與情境劇用同一套聲音與字幕標準（內容不變）
+- 範圍：`video/hf-presentation/`（`tools/mixkit.py`、`build_timeline.mjs` 的配樂壓低與音效對照、字幕 54 px、開場網址與右欄清單的位置）；
+  網站用檔覆蓋 `code/frontend/public/demo/presentation_v1.mp4`，網址不變
+- 狀態：見 `docs/demo/footage_log.md` 的 presentation_v1.3 一節
+
 ### O-35 開箱簡報影片 v1.2（口語版男聲）
 - 優先級：P1
 - 對應：負責人 2026-10-26 要求配音改成口語、有活力的男聲（從三個試聽樣本選 `zh-CN-YunjianNeural`）

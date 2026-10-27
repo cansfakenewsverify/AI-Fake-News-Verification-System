@@ -1,11 +1,14 @@
-// Assembles presentation_v1.2 from data/plan.json (edit decision list) + data/timing.json (real narration timings).
+// Assembles presentation_v1.3 from data/plan.json (edit decision list) + data/timing.json (real narration timings).
+// v1.3 (2026-10-28) changes only the sound and the captions: a Mixkit music bed ducked under the narration, Mixkit
+// effects instead of the synthesised ones, captions at 54 px (5 % of the frame height) -- the same choices as the
+// scenario film (video/hf-scenario), from the video-shotcraft skill's sound-design and aesthetic notes.
 //
 // Usage (from video/hf-demo):  node tools/build_timeline.mjs
 // Writes:
 //   index.html                      thin orchestrator: scene hosts, chrome, caption track, narration clips,
 //                                   scene-to-scene transitions on the root timeline
 //   compositions/captions.html      the single caption track (one group per narration cue)
-//   ../../docs/demo/presentation_v1.2.srt the same cues as a sidecar subtitle file
+//   ../../docs/demo/presentation_v1.3.srt the same cues as a sidecar subtitle file
 //   data/schedule.json              where every shot / scene / cue lands on the film clock (reference)
 //   compositions/chrome.html        persistent brand + progress rule (durations follow the plan)
 // Scene files (compositions/sNN-*.html) are hand-authored; their root
@@ -19,7 +22,7 @@ const plan = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "plan.json"), "u
 const timing = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "timing.json"), "utf8"));
 const readOpt = (f, fallback) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf8")) : fallback);
 const sfx = readOpt(path.join(ROOT, "data", "sfx.json"), { events: [], gain: {} });
-const sfxLen = readOpt(path.join(ROOT, "data", "sfx_lengths.json"), {});
+const mixLen = readOpt(path.join(ROOT, "data", "mixkit_lengths.json"), {});
 const r3 = (n) => Math.round(n * 1000) / 1000;
 const T = plan.transition;
 const OVERLAP = plan.overlap;
@@ -85,16 +88,73 @@ const audio = Object.entries(shots).map(([n, s]) => `      <audio
         data-automation="${fade(s.clip)}"
       ></audio>`);
 
-// sound effects: one track per kind so the Studio timeline stays readable
-const SFX_TRACK = { click: 21, tick: 22, chime: 23, whoosh: 24 };
-const sfxEls = sfx.events.map((e, i) => `      <audio
+// sound effects: one track per kind so the Studio timeline stays readable (a second one, +10, for quick repeats).
+// The event names come from tools/build_sfx.mjs; the files are Mixkit recordings (tools/mixkit.py, peak -1 dBFS).
+const SOUND = {
+  click: { file: "click", track: 21 },
+  tick: { file: "click", track: 22 },
+  chime: { file: "verdict", track: 23 },
+  whoosh: { file: "whoosh", track: 24 },
+};
+const busyUntil = {};
+const sfxEls = sfx.events.map((e, i) => {
+  const snd = SOUND[e.sound];
+  if (!snd || !mixLen[snd.file]) throw new Error(`sound ${e.sound}: run tools/mixkit.py`);
+  const track = (busyUntil[snd.track] ?? -1) > e.t ? snd.track + 10 : snd.track;
+  const len = r3(Math.min(mixLen[snd.file], TOTAL - e.t));
+  busyUntil[track] = e.t + len;
+  return `      <audio
         id="sfx-${String(i).padStart(3, "0")}"
-        src="assets/audio/sfx/${e.sound}.wav"
+        src="assets/audio/mixkit/${snd.file}.wav"
         data-start="${e.t}"
-        data-duration="${sfxLen[e.sound + ".wav"] ?? 0.4}"
-        data-track-index="${SFX_TRACK[e.sound] ?? 25}"
+        data-duration="${len}"
+        data-track-index="${track}"
         data-volume="${sfx.gain[e.sound] ?? 0.4}"
-      ></audio>`);
+      ></audio>`;
+});
+
+// music bed: one Mixkit track, restarted at a scene change whenever it would run out, sitting at GAP between
+// narration cues and dipping to UNDER 0.35 s before each cue, back up 0.7 s after it (cues closer than that
+// stay ducked). Fades in at the start, out over the end card.
+const MUSIC = { file: "bgm", gap: 0.45, under: 0.14, fadeIn: 1.2, fadeOut: 3.0 };
+const bgmLen = mixLen[MUSIC.file];
+if (!bgmLen) throw new Error("music missing: run tools/mixkit.py");
+const spoken = [];
+for (const c of cues) {
+  const g = spoken.at(-1);
+  if (g && c.start - 0.35 < g[1] + 0.7) g[1] = Math.max(g[1], c.end);
+  else spoken.push([c.start, c.end]);
+}
+const duck = spoken.flatMap(([a, b]) => [[a - 0.35, MUSIC.gap], [a - 0.05, MUSIC.under], [b + 0.1, MUSIC.under], [b + 0.7, MUSIC.gap]]);
+const lerp = (pts, t, outside) => {
+  if (!pts.length || t <= pts[0][0]) return pts.length ? pts[0][1] : outside;
+  for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) return pts[i - 1][1] + ((pts[i][1] - pts[i - 1][1]) * (t - pts[i - 1][0])) / (pts[i][0] - pts[i - 1][0]);
+  return pts.at(-1)[1];
+};
+const bounds = [0];
+while (TOTAL - bounds.at(-1) > bgmLen - 0.5) {
+  const from = bounds.at(-1);
+  const next = scenes.map((sc) => sc.start).filter((t) => t > from + 20 && t <= from + bgmLen - 0.5).at(-1);
+  if (next === undefined) throw new Error(`music: no scene change to restart on between ${from}s and ${r3(from + bgmLen)}s`);
+  bounds.push(next);
+}
+bounds.push(TOTAL);
+const music = bounds.slice(0, -1).map((a, k) => {
+  const b = bounds[k + 1];
+  const last = k === bounds.length - 2;
+  const env = [[a, 0], [a + (k === 0 ? MUSIC.fadeIn : 0.3), 1], [b - (last ? MUSIC.fadeOut : 0.4), 1], [b, 0]];
+  const ts = [...new Set([...env.map((p) => p[0]), ...duck.map((p) => p[0]).filter((t) => t > a && t < b)].map(r3))].sort((x, y) => x - y);
+  const points = ts.map((t) => ({ t: r3(t - a), v: r3(lerp(duck, t, MUSIC.gap) * lerp(env, t, 0)) }));
+  return `      <audio
+        id="bgm-${k}"
+        src="assets/audio/mixkit/${MUSIC.file}.wav"
+        data-start="${r3(a)}"
+        data-duration="${r3(b - a)}"
+        data-track-index="${40 + (k % 2)}"
+        data-volume="1"
+        data-automation="${esc(JSON.stringify({ version: 1, lanes: [{ target: "volume", points }] }))}"
+      ></audio>`;
+});
 
 const trans = [];
 scenes.forEach((sc, i) => {
@@ -129,7 +189,7 @@ const index = `<!doctype html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
-    <title>全民查證公社 簡報影片 presentation v1.2</title>
+    <title>全民查證公社 簡報影片 presentation v1.3</title>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <style>
       /* ── assets/film.css, inlined by tools/build_timeline.mjs: the render compiler only embeds fonts
@@ -166,8 +226,11 @@ ${host("captions", 0, TOTAL, 6, "captions")}
       <!-- narration (track 20): edge-tts (voice and rate in data/narration.json), one clip per shot, gentle fades -->
 ${audio.join("\n")}
 
-      <!-- sound effects (tracks 21-24): synthesised locally by tools/sfx.py, placed by tools/build_sfx.mjs -->
+      <!-- sound effects (tracks 21-24, 31-34 for quick repeats): Mixkit via tools/mixkit.py, placed by tools/build_sfx.mjs -->
 ${sfxEls.join("\n")}
+
+      <!-- music bed (tracks 40-41): Mixkit via tools/mixkit.py, ducked under the narration -->
+${music.join("\n")}
     </div>
     <script>
       const tl = gsap.timeline({ paused: true });
@@ -199,9 +262,9 @@ const captions = `<!doctype html>
         .cap-g {
           position: absolute;
           left: 0;
-          top: 836px;
+          top: 806px;
           width: 1920px;
-          height: 140px;
+          height: 170px;
           display: flex;
           align-items: flex-end;
           justify-content: center;
@@ -209,13 +272,13 @@ const captions = `<!doctype html>
         }
         .cap-t {
           display: block;
-          max-width: 1480px;
-          padding: 11px 34px 13px;
-          border-radius: 18px;
+          max-width: 1640px;
+          padding: 12px 36px 14px;
+          border-radius: 20px;
           background: #161616;
           color: #ffffff;
-          font-size: 44px;
-          line-height: 56px;
+          font-size: 54px;
+          line-height: 68px;
           font-weight: 700;
           letter-spacing: 0.01em;
           text-align: center;
@@ -339,11 +402,11 @@ const tc = (t) => {
   return `${p(Math.floor(ms / 3600000))}:${p(Math.floor(ms / 60000) % 60)}:${p(Math.floor(ms / 1000) % 60)},${p(ms % 1000, 3)}`;
 };
 const srt = cues.map((c, i) => `${i + 1}\n${tc(c.in)} --> ${tc(c.out)}\n${c.text}\n`).join("\n");
-const srtPath = path.resolve(ROOT, "..", "..", "docs", "demo", "presentation_v1.2.srt");
+const srtPath = path.resolve(ROOT, "..", "..", "docs", "demo", "presentation_v1.3.srt");
 fs.writeFileSync(srtPath, srt, "utf8");
 
 fs.writeFileSync(path.join(ROOT, "data", "schedule.json"), JSON.stringify({ total: TOTAL, shots, scenes, cues }, null, 1) + "\n", "utf8");
 
-console.log(`total ${TOTAL}s · ${scenes.length} scenes · ${cues.length} cues · ${sfx.events.length} sfx`);
+console.log(`total ${TOTAL}s · ${scenes.length} scenes · ${cues.length} cues · ${sfx.events.length} sfx · music restarts at ${bounds.slice(1, -1).join("s, ")}s`);
 for (const [n, s] of Object.entries(shots)) console.log(`shot ${String(n).padStart(2)}  ${String(s.start).padStart(7)} – ${String(r3(s.start + s.dur)).padStart(7)}  vo @${s.audioStart} (+${s.clip}s)`);
 console.log(`wrote index.html, compositions/captions.html, compositions/chrome.html, data/schedule.json, ${path.relative(ROOT, srtPath)}`);

@@ -238,3 +238,11 @@
 | 規格 | 1920×1080、30 fps、H.264 High；母片 81.8 MB（`docs/demo/presentation_v1.2.mp4`，未進 git）；網站用檔 26.1 MB（CRF 24、`+faststart`），覆蓋 `code/frontend/public/demo/presentation_v1.mp4`，網址不變；整體響度 −16.4 LUFS、真實峰值 −4.3 dBFS；`tools/verify.mjs` 12／12 項通過 |
 | 製作 | C 槽只剩約 33 GB，5 workers 的影格暫存需要約 70 GB；改用單一 worker 的串流編碼（`--workers 1 --low-memory-mode`，並設 `PRODUCER_STREAMING_ENCODE_MAX_DURATION_SECONDS=900`），render 20 分鐘 |
 | 其他 | edge-tts 7.2.8 合成時回 HTTP 403，升級到 7.3.1 後恢復 |
+
+## presentation_v1.3（2026-10-28）
+
+| 項目 | 內容 |
+|---|---|
+| 變更 | 旁白與畫面不變；加 Mixkit 配樂（G Eazy NBA type／Arulo，旁白講話時自動壓低，在 86 s、189 s 的場景切換處重新開始）；合成音效換成 Mixkit 真實音效（轉場 swoosh、進度步驟 click）；字幕 44 → 54 px；開場網址移到右上角、右欄重點清單排緊，避免被字幕蓋住。來源與授權見 `video/hf-presentation/data/mixkit_sources.json` |
+| 規格 | 281.5 秒（4:41.5）；1920×1080、30 fps、H.264 High；母片 79.9 MB（`docs/demo/presentation_v1.3.mp4`，未進 git）；網站用檔 26.1 MB（CRF 24、`+faststart`），覆蓋 `code/frontend/public/demo/presentation_v1.mp4`，網址不變；整體響度 −16.6 LUFS、LRA 4.7 LU、真實峰值 −3.7 dBFS |
+| 驗證 | `node tools/verify.mjs` 12／12 項通過；hyperframes check 版面 0 錯誤（剩下的對比警告是轉場中間的取樣，v1.2 就有）；36 張抽樣影格逐格看過 |

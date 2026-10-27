@@ -20,7 +20,7 @@
 | 根目錄 README.md | 更新最新成果、加上影片與測試計畫書連結 | 待更新 |
 | 第三方實測（選做，強烈建議） | 作業包在 `docs/test/第三方實測_說明.md`；找 5～8 位非組員實測，結果寫進測試計畫書 | 待組員執行 |
 
-開箱影片已於 2026-10-26 改成男聲口語版（v1.2），網址不變：<https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>。
+開箱影片已於 2026-10-26 改成男聲口語版（v1.2），10-28 再加配樂與真實音效、字幕放大（v1.3，和情境劇同一套聲音），網址不變：<https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>。
 
 上次另外繳交的書面報告、學生自評表與評分表紙本，這次若也要交，沿用 `presentations/2026-09_進度報告/` 的做法。
 

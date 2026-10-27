@@ -19,7 +19,7 @@
   正式知識庫已證實列 **18,604 筆**。
 - 進度報告資料都在 `presentations/2026-09_進度報告/`（簡報影片網址、投影片、報告內容說明、測試計畫書 PDF、分工表；
   先看該資料夾的 README）。**報告當天播的是 5 分鐘簡報影片**（老師 2026-09-20 的新規定）：
-  <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>（2026-10-26 起為 v1.2：4 分 41 秒，旁白改為口語版男聲 `zh-CN-YunjianNeural`、數字同步到 10 月；報告當天播的是 v1.1 女聲版；原始碼 `video/hf-presentation/`，
+  <https://fakenewsverify.vercel.app/demo/presentation_v1.mp4>（2026-10-26 起為 v1.2：4 分 41 秒，旁白改為口語版男聲 `zh-CN-YunjianNeural`、數字同步到 10 月；2026-10-28 起為 v1.3：內容不變，加 Mixkit 配樂（講話時自動壓低）與真實音效、字幕放大到 54 px；報告當天播的是 v1.1 女聲版；原始碼 `video/hf-presentation/`，
   規格 `docs/demo/presentation_video_brief.md`，製作紀錄 `docs/demo/footage_log.md`）。
   舊的 demo 影片 v0.4.0：<https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4>（`video/hf-demo/`）。
 - **第二次簡報（2026-11-02～11-04；平均及格才能參加 12-03 期末成果展）**：老師要「使用情境文」——5 分鐘內的情境劇影片，

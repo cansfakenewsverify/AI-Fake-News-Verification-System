@@ -28,7 +28,7 @@
 | 本站熱門查證：最近 7 天大家查最多的已證實內容，越近的查證權重越高 | [`/trending?tab=hot`](https://fakenewsverify.vercel.app/trending?tab=hot) |
 | 知識庫：用關鍵字搜尋、依判定篩選已證實的查證內容 | [`/knowledge`](https://fakenewsverify.vercel.app/knowledge) |
 
-**開箱簡報影片**（4 分 41 秒，旁白＋音效＋字幕，整套功能與操作的完整導覽，瀏覽器直接播放；2026-10-26 改為男聲口語版 v1.2）：
+**開箱簡報影片**（4 分 41 秒，旁白＋音效＋字幕，整套功能與操作的完整導覽，瀏覽器直接播放；2026-10-26 改為男聲口語版 v1.2，10-28 起 v1.3 加配樂與真實音效、字幕放大）：
 https://fakenewsverify.vercel.app/demo/presentation_v1.mp4
 
 **舊版 demo 影片**（2 分 37 秒）：
@@ -140,7 +140,7 @@ AI-Fake-News-Verification-System/
 │   ├── test/                    ← 測試計畫書 TP-FNV-2026-01.md、results/、screens/、ui_checklist.csv
 │   └── demo/                    ← 簡報影片規格、分鏡、素材紀錄、字幕
 ├── presentations/               ← 2026-09_進度報告/ 與前兩次報告的簡報
-├── video/hf-presentation/       ← 5 分鐘開箱簡報影片原始碼（presentation_v1.2）
+├── video/hf-presentation/       ← 5 分鐘開箱簡報影片原始碼（presentation_v1.3）
 ├── video/hf-demo/               ← 舊版 demo 影片原始碼（v0.4.0）
 ├── assets/                      ← PlantUML 圖、confusion_matrix.png、期末專題文件/（OOSE 文件）
 └── legacy/                      ← 已封存、不再維護的舊版單檔查核儀
