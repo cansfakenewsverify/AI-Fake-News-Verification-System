@@ -12,3 +12,10 @@ Sources: the first, second and fourth rows come from the phone recordings made w
 video/hf-scenario/tools/capture.mjs (result_url, verdict and chip captured from the live page);
 the third row from a direct submission through the public API.
 Second check: on the day before the presentation (planned 2026-11-01).
+
+Supplement (2026-10-27): the film was changed to an explainer with short sketches, and the three website
+messages were recorded again with video/hf-scenario/tools/capture.mjs (cache hits, no AI call). Same results:
+雲林停水（情境一）                        假訊息       高          快取命中・相同內容  /r/73458752-ff92-4780-b62f-51ed05b59af5
+網購刷卡分期解除（情境二）                詐騙警告     中          快取命中・相同內容  /r/7997b1b3-3045-4925-b884-c2bf361cea33
+台中夜間公車（最後：查不到的時候）        無法查證     低          快取命中・相同內容  /r/5b22ef71-1c14-4399-aa00-36f57f0ca4ef
+The banana message (情境三) is checked again when the team records the Threads screen (T1).

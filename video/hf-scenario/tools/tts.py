@@ -1,11 +1,12 @@
-"""Voice for the scenario drama: one clip per line in data/storyboard.json.
+"""Stand-in voices for the scenario film: one clip per line in data/storyboard.json.
 
 Usage (from video/hf-scenario):
     ..\\..\\code\\backend\\venv\\Scripts\\python tools\\tts.py [--force]
 
-The narrator (旁白) stays in the final film. The characters' AI voices only exist for the storyboard
-preview: once a live shot has its real clip in raw/, the actors' own audio replaces them.
-A line may carry "tts" (what is sent to the voice, e.g. digits spelled out); captions use "text".
+Every line in the film is spoken by the team: on camera (raw/S01.mp4 ...) or in a phone voice-over
+(raw/V1.m4a ...). These AI voices only exist for the storyboard preview; tools/build.mjs uses the team's
+recording wherever it exists. A line may carry "tts" (what is sent to the voice, e.g. digits spelled out);
+captions use "text", which may be a list of caption chunks spoken as one sentence.
 
 Writes assets/audio/lines/<shot>_<n>.wav (48 kHz stereo, loudness-normalised to -16 LUFS, tail trimmed)
 and data/lines.json (duration of every clip). Unchanged lines are not synthesised again.
@@ -91,7 +92,8 @@ async def main():
         for n, line in enumerate(shot.get("lines", [])):
             key = f"{shot['id']}_{n}"
             voice = BOARD["voices"][line["who"]]
-            spoken = line.get("tts", line["text"])
+            text = "".join(line["text"]) if isinstance(line["text"], list) else line["text"]
+            spoken = line.get("tts", text)
             digest = hashlib.sha1(json.dumps([voice, spoken], ensure_ascii=False).encode("utf-8")).hexdigest()[:12]
             wav = os.path.join(OUT_DIR, f"{key}.wav")
             old = index.get(key)

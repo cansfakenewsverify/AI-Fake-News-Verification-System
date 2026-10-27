@@ -1,6 +1,7 @@
 // What to record on the live site for the scenario drama (phone width, light theme).
 //
 // The three messages are the ones in presentations/2026-11_第二次簡報/01_情境劇劇本.md, word for word.
+// build.mjs cuts every take into the tutorial's steps at the marks below (home, pasted, submitted, ...).
 // All three were checked on the live site on 2026-10-26 and answer from the cache (hash layer), so the
 // takes spend no AI call and the results on screen are the same ones the actors' phones will show.
 export const SITE = "https://fakenewsverify.vercel.app";
@@ -38,23 +39,38 @@ const check = (name, text, reading) => ({
 
 export const TAKES = [
   check("site_misinfo", MSG_MISINFO, [
+    { wait: 1.6 },
+    { mark: "scroll_sources" },
     { scroll: { text: "查核來源" }, ms: 1500, offset: 200 },
     { wait: 2.4 },
     { mark: "sources" },
+    // Headless Edge has no clipboard to write to, so the page would fall back to printing the URL.
+    // Stand in for the OS clipboard (the page and its data are untouched) so the button shows 已複製.
+    { js: "navigator.clipboard.writeText = () => Promise.resolve()" },
+    { mark: "to_copy" },
+    { click: { text: "複製連結" }, after: 200 },
+    { mark: "copied" },
+    { wait: 1.8 },
+    { mark: "copied_end" },
   ]),
   check("site_scam", MSG_SCAM, [
+    { wait: 1.6 },
+    { mark: "scroll_summary" },
     { scroll: { text: "判讀摘要" }, ms: 1100, offset: 160 },
     { wait: 1.4 },
     { mark: "summary" },
     { click: { text: "詳細說明" }, after: 900 },
     { wait: 1.2 },
     { mark: "explanation_open" },
+    { wait: 1.6 },
+    { mark: "scroll_sources" },
     { scroll: { text: "查核來源" }, ms: 1400, offset: 200 },
     { wait: 2.2 },
     { mark: "sources" },
   ]),
   check("site_unverifiable", MSG_UNVERIFIABLE, [
     { wait: 1.2 },
+    { mark: "scroll_summary" },
     { scroll: { text: "判讀摘要" }, ms: 1200, offset: 200 },
     { wait: 2.4 },
     { mark: "summary" },
