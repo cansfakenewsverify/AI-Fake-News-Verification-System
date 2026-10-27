@@ -41,17 +41,31 @@ export function loadTake(name) {
   if (!fs.existsSync(metaFile)) throw new Error(`take ${name} not found in ${RAW_TAKES}; record it: node tools/capture.mjs ${name}`);
   const meta = JSON.parse(fs.readFileSync(metaFile, "utf8"));
   const frames = meta.frames.map((f) => ({ file: path.join(dir, f.name), rel: f.ts - meta.startWall })).sort((a, b) => a.rel - b.rel);
-  const take = { name, frames, marks: meta.marks, recordedAt: meta.recordedAt };
+  const take = { name, frames, marks: meta.marks, recordedAt: meta.recordedAt, dsf: meta.device?.deviceScaleFactor ?? 1 };
   takes.set(name, take);
   return take;
 }
 
-/** A take time: seconds, or the label of a mark the take recorded ("home", "result_top", ...). */
+/** A take time: seconds, or the label of a mark the take recorded ("home", "result_top", ...), optionally "result_top-2". */
 export function takeTime(take, ref) {
   if (typeof ref === "number") return ref;
-  const m = take.marks.find((x) => x.label === ref);
-  if (!m) throw new Error(`take ${take.name} has no mark "${ref}" (marks: ${take.marks.filter((x) => x.label).map((x) => x.label).join(", ")})`);
-  return m.t;
+  const [, label, offset] = /^(.*?)([+-][\d.]+)?$/.exec(ref);
+  const m = take.marks.find((x) => x.label === label);
+  if (!m) throw new Error(`take ${take.name} has no mark "${label}" (marks: ${take.marks.filter((x) => x.label).map((x) => x.label).join(", ")})`);
+  return +(m.t + Number(offset ?? 0)).toFixed(3);
+}
+
+/** The captured frame shown at a take time (the latest one at or before it). */
+export function frameAt(take, raw) {
+  let ans = take.frames[0];
+  for (const f of take.frames) if (f.rel <= raw + 1e-6) ans = f;
+  return ans.file;
+}
+
+/** A still close-up of the page: box = [x, y, w, h] in CSS pixels of the phone viewport. */
+export function cropStill(take, raw, box, dst) {
+  const [x, y, w, h] = box.map((v) => Math.round(v * take.dsf));
+  ffmpeg(["-i", frameAt(take, raw), "-vf", `crop=${w}:${h}:${x}:${y}`, "-frames:v", "1", dst], path.basename(dst));
 }
 
 /** Segments → pieces on the step's own clock: [{from, to, speed, label, t0, t1}]. */

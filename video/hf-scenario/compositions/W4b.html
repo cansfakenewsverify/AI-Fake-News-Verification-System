@@ -41,6 +41,9 @@
           font-size: 40px; line-height: 50px; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,0.25); opacity: 0; }
         .chip b { display: inline-block; margin-right: 14px; }
         .chip.bad { background: #111111; color: #ffffff; }
+        .zm { position: absolute; left: 1250px; border-radius: 18px; overflow: hidden; background: #ffffff; outline: 4px solid #111111;
+          box-shadow: 0 18px 44px rgba(17,17,17,0.2); opacity: 0; transform-origin: 0 50%; }
+        .zm img { display: block; width: 100%; height: 100%; }
         .qt { position: absolute; left: 1250px; top: 250px; width: 600px; box-sizing: border-box; padding: 26px 32px 30px; border-radius: 24px;
           background: #ffffff; box-shadow: 0 16px 40px rgba(17,17,17,0.14); opacity: 0; }
         .qt-l { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 10px; }
@@ -52,6 +55,7 @@
         </div></div>
         <div class="tag" style="left: 1250px; top: 120px">正式站實錄</div>
         
+        <div class="zm" id="W4b-zm" style="top: 470px; width: 600px; height: 160px"><img src="assets/footage/W4b_zoom.png" alt="" /></div>
         <div class="stp"><div class="stp-h">怎麼查</div><div class="stp-i done"><span class="stp-n">✓</span><span class="stp-t">貼上查證</span></div><div class="stp-i now" id="W4b-now"><span class="stp-n">2</span><span class="stp-t">看燈號與說明</span></div></div>
         <div class="nts"><div class="nt" id="W4b-n0">黃燈＝無法查證</div><div class="nt" id="W4b-n1">AI 不硬掰</div></div>
         <div class="sc-chip" id="W4b-chip">查不到的時候</div>
@@ -62,7 +66,7 @@
           const $ = (sel) => root.querySelector(sel);
           const tl = gsap.timeline({ paused: true });
           tl.fromTo($("#W4b-chip"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.05);
-          
+          tl.fromTo($("#W4b-zm"), { opacity: 0, scale: 0.86 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.4)" }, 2.909);
           tl.fromTo($("#W4b-now"), { opacity: 0.35, x: -16 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 0.05);
           tl.fromTo($("#W4b-n0"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 2.619);
           tl.fromTo($("#W4b-n1"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 5.227);

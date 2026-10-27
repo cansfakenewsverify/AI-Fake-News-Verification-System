@@ -19,7 +19,9 @@
 | Threads 錄螢幕 | `raw/T1.mp4` | 依各步驟的 `segments` 剪（收到檔案後再設定） | 示意畫面（畫面上標明） |
 
 網站畫面一律是正式站實錄（`tools/capture.mjs`，三則訊息都是快取命中、不花 AI 額度），
-`build.mjs` 依錄影時的標記（home、pasted、result_top…）切成教學步驟，配音比畫面長時停在最後一格。
+`build.mjs` 依錄影時的標記（home、pasted、result_top…）切成教學步驟，配音比畫面長時停在最後一格；
+講到判定和查核來源時，旁邊跳出那一塊畫面的放大截圖（手機畫面縮小後字太小，評審看不清楚）。
+手機錄影不顯示滑鼠箭頭，只留點擊的波紋（`capture.mjs` 每次換頁都重新藏一次）。
 預覽片右下角標「分鏡預覽版」；所有替身都換掉後，標記自動消失。
 
 `raw/`、`assets/footage/`、`assets/audio/`、`renders/` 都不進 git。網站錄影的原始影格在 `%TEMP%\fnv-scenario-raw`（`$FNV_RAW` 可改）。
@@ -64,6 +66,7 @@ PowerShell 沒有 `&&`：上面每一行請分開貼。
 | 字卡出現的時間 | `at`：秒數，或 `line1`（第 2 句開始）、`line1.1`（第 2 句的第 2 段字幕）、`line0@0.5`（第 1 句一半）、`line0end` |
 | 配樂的音量、從哪裡重新開始 | `storyboard.music`（`gap`、`under`、`restartAt`）；音效音量在 `build.mjs` 的 `SOUND`，單次可加 `vol` |
 | 手機旁放大的訊息原文 | 該鏡頭的 `quote` |
+| 網站畫面某一塊的放大截圖（判定、查核來源） | 該步驟的 `zoom`：`time` 取哪一刻（錄影標記，可寫 `result_top-2`）、`box` 是 [x, y, 寬, 高]（手機畫面的 CSS 像素） |
 
 ## 誠實原則（畫面上看得到）
 

@@ -216,6 +216,8 @@ async function runStep(ctx, step) {
     case "goto": {
       await page.send("Page.navigate", { url: step.goto.startsWith("http") ? step.goto : SITE + step.goto });
       await settle(page);
+      // the overlay is injected again on every new document, arrow included: hide it again on a phone
+      if (deviceOf(ctx.take).mobile) await evalPage(page, `window.__cap.setCursorVisible(false)`);
       mark({ url: step.goto });
       return;
     }

@@ -15,7 +15,8 @@
 //     follow the pauses in the speech. Missing → a placeholder card and AI voices (the storyboard preview).
 //   - rec line (a team member's voice-over, one phone recording per scenario, raw/V1.m4a …): the recording is
 //     cut at the pauses between sentences and each sentence goes to its line in order. Missing → AI voice.
-//   - site step: one piece of a live-site take, with the last frame held until the voice-over ends.
+//   - site step: one piece of a live-site take, with the last frame held until the voice-over ends; "zoom" adds
+//     a still close-up of one part of the page (the verdict, the sources) beside the phone while it is talked about.
 //   - threads step: raw/T1.mp4 cut by the step's segments once they are set; until then a labelled mock-up.
 // Sound follows video-shotcraft's sound-design notes: one music bed under the whole film (restarting at the
 // chapter cards, ducked under every spoken line), real-sounding effects instead of synthesised tones.
@@ -24,7 +25,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  ffmpeg, probeDur, loadTake, piecesOf, stepTime, bakeStep, cleanAudio, speechSegments, fitSentences,
+  ffmpeg, probeDur, loadTake, takeTime, piecesOf, stepTime, bakeStep, cropStill, cleanAudio, speechSegments, fitSentences,
 } from "./footage.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -206,6 +207,10 @@ const sfxEvents = [];
 for (const s of shots) {
   if (s.kind === "site") {
     const dst = path.join(FOOTAGE, `${s.id}.mp4`);
+    if (s.zoom) {
+      const t = takeTime(s.take, s.zoom.time ?? s.segments.at(-1).to);
+      cropStill(s.take, t, s.zoom.box, path.join(FOOTAGE, `${s.id}_zoom.png`));
+    }
     if (bakeStep(s.take, s.pieces, s.dur, dst, FPS)) console.log(`${s.id}: baked ${s.take.name} ${s.pieces.map((p) => `${p.from}–${p.to}${p.speed > 1 ? `×${p.speed}` : ""}`).join(" ")} → ${s.dur}s`);
     // sound follows what the take did: a click where the cursor clicked, a chime where the result appeared
     for (const m of s.take.marks) {
@@ -262,6 +267,9 @@ const COMMON_CSS = `
           font-size: 40px; line-height: 50px; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,0.25); opacity: 0; }
         .chip b { display: inline-block; margin-right: 14px; }
         .chip.bad { background: #111111; color: #ffffff; }
+        .zm { position: absolute; left: 1250px; border-radius: 18px; overflow: hidden; background: #ffffff; outline: 4px solid #111111;
+          box-shadow: 0 18px 44px rgba(17,17,17,0.2); opacity: 0; transform-origin: 0 50%; }
+        .zm img { display: block; width: 100%; height: 100%; }
         .qt { position: absolute; left: 1250px; top: 250px; width: 600px; box-sizing: border-box; padding: 26px 32px 30px; border-radius: 24px;
           background: #ffffff; box-shadow: 0 16px 40px rgba(17,17,17,0.14); opacity: 0; }
         .qt-l { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 10px; }
@@ -443,14 +451,26 @@ const KIND = {
 
   site(s) {
     const fast = s.pieces.filter((p) => p.speed > 1);
+    // the close-up sits under the notes, as wide as the right column, and stops above the caption band
+    let zoom = { html: "", js: "" };
+    if (s.zoom) {
+      const [, , w, h] = s.zoom.box;
+      const top = 250 + (s.notes?.length ?? 0) * 106 + 8;
+      const k = Math.min(600 / w, (800 - top) / h);
+      zoom = {
+        html: `<div class="zm" id="${s.id}-zm" style="top: ${top}px; width: ${Math.round(w * k)}px; height: ${Math.round(h * k)}px"><img src="assets/footage/${s.id}_zoom.png" alt="" /></div>`,
+        js: `tl.fromTo($("#${s.id}-zm"), { opacity: 0, scale: 0.86 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.4)" }, ${when(s, s.zoom.at)});`,
+      };
+    }
     return {
       css: `#root { background: #f7f7f8; }`,
       html: `<div class="ph"><div class="ph-screen">
           <video id="${s.id}-v" src="assets/footage/${s.id}.mp4" data-start="0" data-duration="${s.dur}" data-track-index="0" muted playsinline></video>
         </div></div>
         <div class="tag" style="left: 1250px; top: 120px">正式站實錄</div>
-        ${fast.map((p, i) => `<div class="tag tag-soft" id="${s.id}-sp${i}" style="left: 1460px; top: 120px; opacity: 0">${esc(p.label ?? `畫面加速 ×${p.speed}`)}</div>`).join("\n        ")}`,
-      js: fast.map((p, i) => `tl.set($("#${s.id}-sp${i}"), { opacity: 1 }, ${p.t0}); tl.set($("#${s.id}-sp${i}"), { opacity: 0 }, ${p.t1});`).join("\n          "),
+        ${fast.map((p, i) => `<div class="tag tag-soft" id="${s.id}-sp${i}" style="left: 1500px; top: 120px; opacity: 0">${esc(p.label ?? `畫面加速 ×${p.speed}`)}</div>`).join("\n        ")}
+        ${zoom.html}`,
+      js: [...fast.map((p, i) => `tl.set($("#${s.id}-sp${i}"), { opacity: 1 }, ${p.t0}); tl.set($("#${s.id}-sp${i}"), { opacity: 0 }, ${p.t1});`), zoom.js].filter(Boolean).join("\n          "),
     };
   },
 
