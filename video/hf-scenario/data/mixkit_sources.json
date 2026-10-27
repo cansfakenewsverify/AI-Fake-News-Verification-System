@@ -1,0 +1,18 @@
+{
+  "_doc": "情境劇的配樂與音效（2026-10-28 起）。全部來自 Mixkit：音樂是 Mixkit Stock Music Free License、音效是 Mixkit Sound Effects Free License，都可免費商用、不需署名（片尾仍列出來源）。原檔取自已安裝的 video-shotcraft skill（~/.claude/skills/video-shotcraft/assets/audio/，它的 ATTRIBUTION.md 記錄了每個檔案的 Mixkit 原名與網址），tools/mixkit.py 轉成 assets/audio/mixkit/*.wav（不進 git）。訊息通知音是劇情裡手機真的會響的聲音，所以刻意保留（video-shotcraft 的 S1 準則對產品宣傳片不建議用通知音）。",
+  "skillAudioDir": "~/.claude/skills/video-shotcraft/assets/audio",
+  "music": {
+    "bgm": { "file": "bgm/g-eazy-nba-type.mp3", "title": "G Eazy NBA type", "artist": "Arulo", "bpm": 86,
+      "url": "https://assets.mixkit.co/music/403/403.mp3", "license": "Mixkit Stock Music Free License" }
+  },
+  "sfx": {
+    "message": { "file": "sfx/ui/ui-message-pop.mp3", "title": "Message pop alert", "url": "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3", "use": "收到訊息" },
+    "pop": { "file": "sfx/ui/pop-electric.mp3", "title": "Electric pop", "url": "https://assets.mixkit.co/active_storage/sfx/2365/2365-preview.mp3", "use": "自己送出訊息、轉傳" },
+    "click": { "file": "sfx/ui/switch-click-quick.mp3", "title": "Quick switch click", "url": "https://assets.mixkit.co/active_storage/sfx/2582/2582-preview.mp3", "use": "點按鈕" },
+    "verdict": { "file": "sfx/impact/bass-hit-short.mp3", "title": "Short bass hit", "url": "https://assets.mixkit.co/active_storage/sfx/2299/2299-preview.mp3", "use": "查證結果出現" },
+    "sparkle": { "file": "sfx/light/shimmer-sparkle-sweep.mp3", "title": "Sweeping sparkle presentation intro", "url": "https://assets.mixkit.co/active_storage/sfx/2633/2633-preview.mp3", "use": "片名、片尾" },
+    "scratch": { "file": "sfx/film/vinyl-scratch-small.mp3", "title": "Vinyl record small scratch", "url": "https://assets.mixkit.co/active_storage/sfx/710/710-preview.mp3", "use": "短劇定格「先暫停一下」" },
+    "whoosh": { "file": "sfx/transition/swoosh-quick.mp3", "title": "Fast small sweep transition", "url": "https://assets.mixkit.co/active_storage/sfx/166/166-preview.mp3", "use": "章節字卡" }
+  },
+  "license": "音樂 https://mixkit.co/license/#musicFree（允許教育用途、網路影片；不可用於 CD／DVD、電視廣播、電玩，不可做成純音樂作品）；音效 https://mixkit.co/license/#sfxFree（允許影片與簡報；不可單獨散布原檔）。2026-10-28 查證。原檔不放進公開的 repo。"
+}

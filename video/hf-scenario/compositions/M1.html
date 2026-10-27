@@ -12,15 +12,15 @@
           inset: 0;
           overflow: hidden;
         }
-        .sc-chip { position: absolute; left: 56px; top: 40px; padding: 8px 22px 9px; border-radius: 999px; background: rgba(17,17,17,0.82);
-          color: #fff; font-size: 26px; line-height: 34px; font-weight: 700; letter-spacing: 0.04em; z-index: 5; }
+        .sc-chip { position: absolute; left: 56px; top: 40px; padding: 8px 24px 10px; border-radius: 999px; background: rgba(17,17,17,0.82);
+          color: #fff; font-size: 32px; line-height: 40px; font-weight: 700; letter-spacing: 0.04em; z-index: 5; }
         .ph { position: absolute; left: 740px; top: 56px; width: 440px; height: 924px; box-sizing: border-box; border: 12px solid #111111;
           border-radius: 58px; background: #ffffff; overflow: hidden; box-shadow: 0 30px 70px rgba(17,17,17,0.18);
           transform: scale(0.82); transform-origin: 50% 0; } /* scaled to end above the caption band, which would hide the bottom of the screen */
         .ph-screen { position: absolute; inset: 0; overflow: hidden; }
         .ph video { position: absolute; left: 0; top: 0; width: 416px; height: 900px; object-fit: cover; object-position: top; }
-        .tag { position: absolute; padding: 8px 20px 9px; border-radius: 999px; background: #111111; color: #fff;
-          font-size: 24px; line-height: 32px; font-weight: 700; white-space: nowrap; z-index: 6; }
+        .tag { position: absolute; padding: 8px 22px 10px; border-radius: 999px; background: #111111; color: #fff;
+          font-size: 30px; line-height: 38px; font-weight: 700; white-space: nowrap; z-index: 6; }
         .tag-soft { background: #ffffff; color: #111111; box-shadow: 0 0 0 2px #d4d4d8; }
         .stp { position: absolute; left: 110px; top: 236px; width: 580px; }
         .stp-h { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 18px; letter-spacing: 0.1em; }
@@ -41,6 +41,10 @@
           font-size: 40px; line-height: 50px; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,0.25); opacity: 0; }
         .chip b { display: inline-block; margin-right: 14px; }
         .chip.bad { background: #111111; color: #ffffff; }
+        .qt { position: absolute; left: 1250px; top: 250px; width: 600px; box-sizing: border-box; padding: 26px 32px 30px; border-radius: 24px;
+          background: #ffffff; box-shadow: 0 16px 40px rgba(17,17,17,0.14); opacity: 0; }
+        .qt-l { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 10px; }
+        .qt-t { font-size: 38px; line-height: 54px; font-weight: 700; color: #111111; }
         #root { background: #eceef1; }
         .ch-top { position: absolute; left: 0; right: 0; top: 0; height: 120px; background: #ffffff; border-bottom: 2px solid #e4e4e7; }
         .ch-title { position: absolute; left: 30px; right: 30px; top: 58px; font-size: 27px; line-height: 36px; font-weight: 700; text-align: center; }
@@ -77,7 +81,7 @@
           </div>
           
         </div></div>
-        
+        <div class="qt" id="M1-qt"><div class="qt-l">三姑傳到家族群組</div><div class="qt-t">雲林縣從四月六日開始，晚上十點至清晨六點停水，所以晚上早點洗澡，洗衣，儲水備用……</div></div>
         <div class="sc-chip" id="M1-chip">情境一｜使用前</div>
       </div>
       <script>
@@ -87,7 +91,7 @@
           const tl = gsap.timeline({ paused: true });
           tl.fromTo($("#M1-chip"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.05);
           tl.fromTo($("#M1-m0"), { opacity: 0, y: 24, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "back.out(1.6)" }, 0.4);
-          
+          tl.fromTo($("#M1-qt"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 0.8);
           window.__timelines["M1"] = tl;
         })();
       </script>

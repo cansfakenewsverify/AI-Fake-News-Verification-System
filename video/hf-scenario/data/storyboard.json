@@ -1,5 +1,5 @@
 {
-  "_doc": "情境劇《轉傳之前》的分鏡（presentations/2026-11_第二次簡報/01_情境劇劇本.md 的時間軸版；2026-10-27 改為「講解為主＋短劇」）。tools/build.mjs 依這份產生 compositions/ 與 index.html。台詞 lines：text 可以是陣列（同一句話分成幾段字幕）；at 是秒數，或 \"+0.3\" 表示前一句講完後 0.3 秒。kind=live 是組員拍的影片：raw/<clip> 存在時用實拍畫面與聲音，自動剪掉講話前後的空白（lead＝第一句前保留幾秒；要自己指定就設 trim），字幕時間依影片裡的停頓自動對齊；不存在時顯示佔位字卡並用 AI 語音念台詞（分鏡預覽片）。rec 是組員用手機錄的講解配音（raw/V1.m4a…）：一句一段，依停頓切開後照順序對到各句。kind=site 是正式站實錄，依 take 的標記（home、pasted…）切成教學步驟，配音比畫面長時停在最後一格。kind=threads 在組員的 Threads 錄影（raw/T1.mp4）到之前是示意畫面，畫面上標明。",
+  "_doc": "情境劇《轉傳之前》的分鏡（presentations/2026-11_第二次簡報/01_情境劇劇本.md 的時間軸版；2026-10-27 改為「講解為主＋短劇」）。tools/build.mjs 依這份產生 compositions/ 與 index.html。台詞 lines：text 可以是陣列（同一句話分成幾段字幕）；at 是秒數，或 \"+0.3\" 表示前一句講完後 0.3 秒。kind=live 是組員拍的影片：raw/<clip> 存在時用實拍畫面與聲音，自動剪掉講話前後的空白（lead＝第一句前保留幾秒；要自己指定就設 trim），字幕時間依影片裡的停頓自動對齊；不存在時顯示佔位字卡並用 AI 語音念台詞（分鏡預覽片）。rec 是組員用手機錄的講解配音（raw/V1.m4a…）：一句一段，依停頓切開後照順序對到各句。kind=site 是正式站實錄，依 take 的標記（home、pasted…）切成教學步驟，配音比畫面長時停在最後一格。kind=threads 在組員的 Threads 錄影（raw/T1.mp4）到之前是示意畫面，畫面上標明。音效 sound 的名稱見 tools/build.mjs 的 SOUND（Mixkit，data/mixkit_sources.json）；music 是全片配樂：from 開始、restartAt 的字卡重新開始，台詞之間音量 gap、講話時降到 under。quote 是在手機旁放大顯示的訊息原文。",
   "fps": 30,
   "voices": {
     "主持人": { "voice": "zh-CN-YunjianNeural", "rate": "+0%", "label": false },
@@ -11,6 +11,7 @@
     "網友": { "voice": "zh-CN-YunxiaNeural", "rate": "+6%" },
     "全員": { "voice": "zh-CN-YunjianNeural", "rate": "+0%" }
   },
+  "music": { "sound": "bgm", "from": "P2", "restartAt": ["X2", "X3"], "gap": 0.5, "under": 0.16, "fadeIn": 1.2, "fadeOut": 2.5 },
   "stepLists": {
     "s1": ["複製訊息", "打開網站", "貼上，按開始查證", "看燈號", "看查核來源", "把結果傳回群組"],
     "s2": ["貼上簡訊查證", "看燈號", "看判讀摘要", "看該怎麼做", "看查核來源"],
@@ -31,10 +32,10 @@
   },
   "shots": [
     { "id": "P1", "kind": "card", "template": "disclaimer", "dur": 2.4 },
-    { "id": "P2", "kind": "card", "template": "title", "dur": 3.4, "sfx": [{ "sound": "chime", "at": 0.5 }] },
+    { "id": "P2", "kind": "card", "template": "title", "dur": 3.4, "sfx": [{ "sound": "sparkle", "at": 0.1 }] },
     { "id": "P3", "kind": "card", "template": "burst", "dur": 3.0,
       "bubbles": ["緊急！快轉給大家！", "不轉不是台灣人", "雲林要停水！", "點連結領補助"],
-      "sfx": [{ "sound": "ding", "at": 0.2 }, { "sound": "ding", "at": 0.8 }, { "sound": "ding", "at": 1.4 }, { "sound": "ding", "at": 2.0 }] },
+      "sfx": [{ "sound": "message", "at": 0.2 }, { "sound": "message", "at": 0.8, "vol": 0.85 }, { "sound": "message", "at": 1.4, "vol": 0.72 }, { "sound": "message", "at": 2.0, "vol": 0.6 }] },
     { "id": "S01", "kind": "live", "clip": "S01.mp4", "nameTag": "主持人", "dur": 4,
       "desc": "主持人對鏡頭開場。",
       "lines": [
@@ -48,14 +49,15 @@
     { "id": "S02", "kind": "live", "scene": "情境一｜使用前", "clip": "S02.mp4", "dur": 4.2,
       "desc": "客廳。阿嬤在沙發滑手機，手機響了，嚇一跳。",
       "lines": [{ "who": "阿嬤", "text": "蛤？雲林要停水？", "at": 1.5 }],
-      "sfx": [{ "sound": "ding", "at": 0.5 }] },
+      "sfx": [{ "sound": "message", "at": 0.5 }] },
     { "id": "M1", "kind": "chat", "scene": "情境一｜使用前", "dur": 4.6, "group": "相親相愛一家人",
+      "quote": { "label": "三姑傳到家族群組", "text": "雲林縣從四月六日開始，晚上十點至清晨六點停水，所以晚上早點洗澡，洗衣，儲水備用……", "at": 0.8 },
       "messages": [{ "from": "三姑", "at": 0.4, "text": "雲林縣從四月六日開始，晚上十點至清晨六點停水，所以晚上早點洗澡，洗衣，儲水備用，早上停水的時間較短，對大家比較不影響。" }] },
     { "id": "S03", "kind": "live", "scene": "情境一｜使用前", "clip": "S03.mp4", "dur": 5.0, "pause": true, "lead": 3.0,
       "desc": "手機特寫：阿嬤的手指一直按「轉傳」。",
       "counter": { "label": "已轉傳", "unit": "個群組", "from": 1, "to": 5, "at": 0.3, "every": 0.6 },
       "lines": [{ "who": "阿嬤", "text": "趕快跟大家講！", "at": 3.2 }],
-      "sfx": [{ "sound": "pop", "at": 0.3 }, { "sound": "pop", "at": 0.9 }, { "sound": "pop", "at": 1.5 }, { "sound": "pop", "at": 2.1 }, { "sound": "pop", "at": 2.7 }] },
+      "sfx": [{ "sound": "pop", "at": 0.3 }, { "sound": "click", "at": 0.9, "vol": 0.9 }, { "sound": "pop", "at": 1.5, "vol": 0.8 }, { "sound": "click", "at": 2.1, "vol": 0.7 }, { "sound": "pop", "at": 2.7, "vol": 0.6 }] },
     { "id": "S04", "kind": "live", "scene": "情境一｜使用前", "clip": "S04.mp4", "nameTag": "講解", "dur": 4,
       "desc": "講解一對鏡頭：這種訊息為什麼麻煩。",
       "chips": [{ "text": "看起來很像真的", "at": "line1", "bad": true }, { "text": "查了半天，各說各話", "at": "line2", "bad": true }, { "text": "家人為了真假吵架", "at": "line2.1", "bad": true }],
@@ -104,6 +106,7 @@
     { "id": "X2", "kind": "card", "template": "section", "dur": 2.0, "num": "情境二", "title": "解除分期詐騙簡訊",
       "sfx": [{ "sound": "whoosh", "at": 0.05 }] },
     { "id": "M3", "kind": "sms", "scene": "情境二｜使用前", "dur": 4.0, "from": "+886 9XX-XXX-XXX",
+      "quote": { "label": "爸爸收到的簡訊", "text": "您的網購刷卡分期設定錯誤將連續扣款12期，請立即聯繫客服人員協助解除", "at": 0.8 },
       "text": "您的網購刷卡分期設定錯誤將連續扣款12期，請立即聯繫客服人員協助解除" },
     { "id": "S06", "kind": "live", "scene": "情境二｜使用前", "clip": "S06.mp4", "dur": 4, "pause": true, "lead": 1.0,
       "desc": "書房。爸爸看著簡訊越來越慌，拿起電話準備打。",
@@ -148,7 +151,8 @@
 
     { "id": "X3", "kind": "card", "template": "section", "dur": 2.0, "num": "情境三", "title": "Threads 上吵成一團",
       "sfx": [{ "sound": "whoosh", "at": 0.05 }] },
-    { "id": "M4", "kind": "threads", "scene": "情境三｜使用前", "part": "post", "dur": 5.4 },
+    { "id": "M4", "kind": "threads", "scene": "情境三｜使用前", "part": "post", "dur": 5.4,
+      "quote": { "label": "Threads 上的貼文", "text": "每天吃香蕉讓骨密度增強50倍，比骨頭湯還補鈣", "at": 0.6 } },
     { "id": "S10", "kind": "live", "scene": "情境三｜使用前", "clip": "S10.mp4", "dur": 4, "pause": true,
       "desc": "網友滑 Threads，看留言越看越煩。",
       "lines": [{ "who": "網友", "text": "留言吵成這樣，到底誰說的對啦？", "at": 0.6 }] },
@@ -206,6 +210,6 @@
     { "id": "S13", "kind": "live", "clip": "S13.mp4", "dur": 3.6, "lead": 0.8,
       "desc": "全員並排，對鏡頭喊口號。",
       "lines": [{ "who": "全員", "text": "轉傳之前，先查一下！", "at": 0.6 }] },
-    { "id": "E1", "kind": "card", "template": "end", "dur": 6.0 }
+    { "id": "E1", "kind": "card", "template": "end", "dur": 6.0, "sfx": [{ "sound": "sparkle", "at": 0.1 }] }
   ]
 }

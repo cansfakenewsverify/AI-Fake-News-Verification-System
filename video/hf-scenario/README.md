@@ -29,7 +29,8 @@
 ```bash
 node tools/capture.mjs          # 到正式站錄三段手機畫面（都是快取命中，不花 AI 額度）
 ..\..\code\backend\venv\Scripts\python tools\tts.py    # 預覽用的 AI 替身語音（edge-tts，免帳號）
-..\..\code\backend\venv\Scripts\python tools\sfx.py    # 音效（numpy 合成：叮咚、點擊、震動…）
+..\..\code\backend\venv\Scripts\python tools\mixkit.py # 配樂與音效（Mixkit；要先裝 video-shotcraft skill，見下面「聲音」）
+..\..\code\backend\venv\Scripts\python tools\sfx.py    # 手機震動聲（numpy 合成）
 node tools/build.mjs            # 剪步驟、處理組員的檔案、產生 compositions/、index.html、字幕
 npm run check                   # lint／runtime／layout／motion／contrast
 npm run render
@@ -39,6 +40,17 @@ PowerShell 沒有 `&&`：上面每一行請分開貼。
 
 **C 槽空間不夠時**：多個 worker 的 render 會先把影格存成暫存檔（約 70 GB）。可以把暫存目錄改到空間夠的磁碟：
 `$env:TEMP='E:\hf-render-tmp'; $env:TMP='E:\hf-render-tmp'`，再加 `--workers 5` render；或用 `npm run render`（單一 worker 串流，不需要暫存空間，但慢很多）。
+
+## 聲音（2026-10-28 起）
+
+照 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) skill 的聲音設計原則（安裝在 `~/.claude/skills/video-shotcraft`）：
+
+- **配樂**：一首 Mixkit 音樂鋪滿全片（`storyboard.music`），在章節字卡重新開始；台詞之間音量 `gap`，有人講話時自動降到 `under`。
+- **音效**：用真實的錄音（訊息通知、按鍵、唱片刮擦…）取代原本合成的電子音；手機震動仍用 `tools/sfx.py` 合成。
+  短劇定格「先暫停一下」配唱片刮擦聲。
+- 來源與授權記在 `data/mixkit_sources.json`：音樂 Mixkit Stock Music Free License、音效 Mixkit Sound Effects Free License，
+  都可用在影片與教學用途、不需署名（片尾仍列出）。**授權不允許單獨散布原檔，所以 `assets/audio/` 不進 git。**
+- 換配樂：改 `data/mixkit_sources.json` 的 `music.bgm.file`（skill 裡還有 `cat-walk`、`house-vibez`、`tonight-hiphop` 可選）→ `tools/mixkit.py` → `build.mjs`。
 
 ## 要改東西的時候
 
@@ -50,6 +62,8 @@ PowerShell 沒有 `&&`：上面每一行請分開貼。
 | 實拍鏡頭的頭尾 | 預設自動（第一句前保留 `lead` 秒、最後一句後 0.6 秒）；要自己指定就設 `"trim": [開始秒, 結束秒]` |
 | 配音切句切錯 | `"recCuts": { "V1": [[開始, 結束], …] }`（秒數，以清理後的 `assets/audio/rec/V1.wav` 為準） |
 | 字卡出現的時間 | `at`：秒數，或 `line1`（第 2 句開始）、`line1.1`（第 2 句的第 2 段字幕）、`line0@0.5`（第 1 句一半）、`line0end` |
+| 配樂的音量、從哪裡重新開始 | `storyboard.music`（`gap`、`under`、`restartAt`）；音效音量在 `build.mjs` 的 `SOUND`，單次可加 `vol` |
+| 手機旁放大的訊息原文 | 該鏡頭的 `quote` |
 
 ## 誠實原則（畫面上看得到）
 

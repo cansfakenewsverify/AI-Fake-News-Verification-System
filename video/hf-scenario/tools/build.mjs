@@ -3,7 +3,8 @@
 // Usage (from video/hf-scenario):  node tools/build.mjs
 // Reads:  data/storyboard.json   the shot list (presentations/2026-11_第二次簡報/01_情境劇劇本.md on a time line)
 //         data/lines.json        length of every AI voice clip (tools/tts.py)
-//         data/sfx_lengths.json  the sound effects (tools/sfx.py)
+//         data/mixkit_lengths.json  music and sound effects from Mixkit (tools/mixkit.py)
+//         data/sfx_lengths.json  the synthesised phone buzz (tools/sfx.py)
 //         raw/                   the team's footage and voice-overs, when they exist ($FNV_SCENARIO_RAW overrides)
 //         %TEMP%\fnv-scenario-raw  the live-site takes (tools/capture.mjs; $FNV_RAW overrides)
 // Writes: compositions/*.html, index.html, data/schedule.json, renders/scenario.srt, and the baked media in
@@ -16,6 +17,8 @@
 //     cut at the pauses between sentences and each sentence goes to its line in order. Missing → AI voice.
 //   - site step: one piece of a live-site take, with the last frame held until the voice-over ends.
 //   - threads step: raw/T1.mp4 cut by the step's segments once they are set; until then a labelled mock-up.
+// Sound follows video-shotcraft's sound-design notes: one music bed under the whole film (restarting at the
+// chapter cards, ducked under every spoken line), real-sounding effects instead of synthesised tones.
 // Every composition is generated: edit the storyboard, not compositions/ or index.html.
 import fs from "node:fs";
 import path from "node:path";
@@ -30,6 +33,7 @@ const read = (f, fallback) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 
 const board = read(path.join(ROOT, "data", "storyboard.json"));
 const lineLen = read(path.join(ROOT, "data", "lines.json"), {});
 const sfxLen = read(path.join(ROOT, "data", "sfx_lengths.json"), {});
+const mixLen = read(path.join(ROOT, "data", "mixkit_lengths.json"), {});
 const FPS = board.fps;
 const PAUSE = 1.2; // the "先暫停一下" freeze at the end of a sketch
 const r3 = (n) => Math.round(n * 1000) / 1000;
@@ -205,7 +209,7 @@ for (const s of shots) {
     if (bakeStep(s.take, s.pieces, s.dur, dst, FPS)) console.log(`${s.id}: baked ${s.take.name} ${s.pieces.map((p) => `${p.from}–${p.to}${p.speed > 1 ? `×${p.speed}` : ""}`).join(" ")} → ${s.dur}s`);
     // sound follows what the take did: a click where the cursor clicked, a chime where the result appeared
     for (const m of s.take.marks) {
-      const sound = m.kind === "click" ? "click" : m.kind === "waitFor" ? "chime" : null;
+      const sound = m.kind === "click" ? "click" : m.kind === "waitFor" ? "verdict" : null;
       const t = sound ? stepTime(s.pieces, m.t) : null;
       if (t != null) sfxEvents.push({ sound, t: r3(s.start + t) });
     }
@@ -223,20 +227,21 @@ for (const s of shots) {
     const graph = `${parts.join(";")};${s.pieces.map((p, i) => `[p${i}]`).join("")}concat=n=${s.pieces.length}:v=1:a=0,fps=${FPS},scale=780:-2,format=yuv420p${hold > 0 ? `,tpad=stop_mode=clone:stop_duration=${hold}` : ""}[v]`;
     ffmpeg(["-i", s.vidClip, "-filter_complex", graph, "-map", "[v]", "-t", String(s.dur), "-c:v", "libx264", "-preset", "medium", "-crf", "16", "-an", "-movflags", "+faststart", path.join(FOOTAGE, `live_${s.id}.mp4`)], s.id);
   }
-  for (const e of s.sfx ?? []) sfxEvents.push({ sound: e.sound, t: r3(s.start + e.at) });
+  for (const e of s.sfx ?? []) sfxEvents.push({ sound: e.sound, t: r3(s.start + e.at), vol: e.vol });
+  if (s.pauseAt != null) sfxEvents.push({ sound: "scratch", t: r3(s.start + s.pauseAt) });
 }
 
 // ── 4. shared pieces ─────────────────────────────────────────────────────────────
 const COMMON_CSS = `
-        .sc-chip { position: absolute; left: 56px; top: 40px; padding: 8px 22px 9px; border-radius: 999px; background: rgba(17,17,17,0.82);
-          color: #fff; font-size: 26px; line-height: 34px; font-weight: 700; letter-spacing: 0.04em; z-index: 5; }
+        .sc-chip { position: absolute; left: 56px; top: 40px; padding: 8px 24px 10px; border-radius: 999px; background: rgba(17,17,17,0.82);
+          color: #fff; font-size: 32px; line-height: 40px; font-weight: 700; letter-spacing: 0.04em; z-index: 5; }
         .ph { position: absolute; left: 740px; top: 56px; width: 440px; height: 924px; box-sizing: border-box; border: 12px solid #111111;
           border-radius: 58px; background: #ffffff; overflow: hidden; box-shadow: 0 30px 70px rgba(17,17,17,0.18);
           transform: scale(0.82); transform-origin: 50% 0; } /* scaled to end above the caption band, which would hide the bottom of the screen */
         .ph-screen { position: absolute; inset: 0; overflow: hidden; }
         .ph video { position: absolute; left: 0; top: 0; width: 416px; height: 900px; object-fit: cover; object-position: top; }
-        .tag { position: absolute; padding: 8px 20px 9px; border-radius: 999px; background: #111111; color: #fff;
-          font-size: 24px; line-height: 32px; font-weight: 700; white-space: nowrap; z-index: 6; }
+        .tag { position: absolute; padding: 8px 22px 10px; border-radius: 999px; background: #111111; color: #fff;
+          font-size: 30px; line-height: 38px; font-weight: 700; white-space: nowrap; z-index: 6; }
         .tag-soft { background: #ffffff; color: #111111; box-shadow: 0 0 0 2px #d4d4d8; }
         .stp { position: absolute; left: 110px; top: 236px; width: 580px; }
         .stp-h { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 18px; letter-spacing: 0.1em; }
@@ -256,7 +261,11 @@ const COMMON_CSS = `
         .chip { padding: 14px 28px 15px; border-radius: 18px; background: #ffffff; color: #111111;
           font-size: 40px; line-height: 50px; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,0.25); opacity: 0; }
         .chip b { display: inline-block; margin-right: 14px; }
-        .chip.bad { background: #111111; color: #ffffff; }`;
+        .chip.bad { background: #111111; color: #ffffff; }
+        .qt { position: absolute; left: 1250px; top: 250px; width: 600px; box-sizing: border-box; padding: 26px 32px 30px; border-radius: 24px;
+          background: #ffffff; box-shadow: 0 16px 40px rgba(17,17,17,0.14); opacity: 0; }
+        .qt-l { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 10px; }
+        .qt-t { font-size: 38px; line-height: 54px; font-weight: 700; color: #111111; }`;
 
 const sceneChip = (s) => (s.scene ? `<div class="sc-chip" id="${s.id}-chip">${esc(s.scene)}</div>` : "");
 const sceneChipJs = (s) => (s.scene ? `tl.fromTo($("#${s.id}-chip"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.05);` : "");
@@ -279,6 +288,14 @@ function notesHtml(s) {
   return {
     html: `<div class="nts">${s.notes.map((n, i) => `<div class="nt" id="${s.id}-n${i}">${esc(n.text)}</div>`).join("")}</div>`,
     js: s.notes.map((n, i) => `tl.fromTo($("#${s.id}-n${i}"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, ${when(s, n.at)});`).join("\n          "),
+  };
+}
+// the message being checked, large enough to read next to the phone
+function quoteHtml(s) {
+  if (!s.quote) return { html: "", js: "" };
+  return {
+    html: `<div class="qt" id="${s.id}-qt"><div class="qt-l">${esc(s.quote.label)}</div><div class="qt-t">${esc(s.quote.text)}</div></div>`,
+    js: `tl.fromTo($("#${s.id}-qt"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, ${when(s, s.quote.at ?? 0.6)});`,
   };
 }
 function chipsHtml(s) {
@@ -400,7 +417,7 @@ const KIND = {
           ${s.copy ? `<div class="ch-toast" id="${s.id}-toast">已複製</div>` : ""}
         </div></div>`,
       js: js.join("\n          "),
-      sfx: s.shown ? [] : s.messages.map((m) => ({ sound: m.self ? "pop" : "ding", at: m.at })),
+      sfx: s.shown ? [] : s.messages.map((m) => ({ sound: m.self ? "pop" : "message", at: m.at })),
     };
   },
 
@@ -418,7 +435,7 @@ const KIND = {
           <div class="sm-top"><div class="sm-av"></div><div class="sm-from">${esc(s.from)}</div></div>
           <div class="sm-list"><div class="sm-time">簡訊・今天 下午 3:12</div><div class="sm-b" id="${s.id}-b">${esc(s.text)}</div></div>
         </div></div>
-        <div class="tag tag-soft" style="left: 1250px; top: 470px">電話號碼已遮蔽</div>`,
+        <div class="tag tag-soft" style="left: 1250px; top: 120px">電話號碼已遮蔽</div>`,
       js: `tl.fromTo($("#${s.id}-b"), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.6)" }, 0.4);`,
       sfx: [{ sound: "buzz", at: 0.3 }],
     };
@@ -464,9 +481,9 @@ const KIND = {
     if (stage === 1) js.push(`tl.fromTo($("#${s.id}-mn"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 0.8);`);
     if (stage === 2) js.push(`tl.fromTo($("#${s.id}-wt"), { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.3);`);
     if (stage === 3) js.push(`tl.fromTo($("#${s.id}-rp"), { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(1.4)" }, 0.4);`);
-    const sfx = stage === 0 ? mock.comments.map((c, i) => ({ sound: "pop", at: r3(1.0 + i * 1.2) }))
+    const sfx = stage === 0 ? mock.comments.map((c, i) => ({ sound: "pop", at: r3(1.0 + i * 1.2), vol: 1 - i * 0.15 }))
       : stage === 1 ? [{ sound: "click", at: 0.8 }]
-      : stage === 3 ? [{ sound: "ding", at: 0.4 }] : [];
+      : stage === 3 ? [{ sound: "message", at: 0.4 }] : [];
     return {
       css: `
         #root { background: #f7f7f8; }
@@ -577,12 +594,12 @@ const CARD = {
         .en-u { position: absolute; left: 0; right: 0; top: 300px; text-align: center; font-size: 48px; line-height: 60px; font-weight: 700; }
         .en-qr { position: absolute; top: 420px; width: 300px; text-align: center; font-size: 30px; line-height: 40px; }
         .en-qr img { display: block; width: 240px; height: 240px; margin: 0 auto 16px; padding: 18px; background: #fff; border-radius: 18px; }
-        .en-m { position: absolute; left: 0; right: 0; top: 860px; text-align: center; font-size: 28px; line-height: 44px; color: #d4d4d8; }`,
+        .en-m { position: absolute; left: 0; right: 0; top: 820px; text-align: center; font-size: 32px; line-height: 48px; color: #d4d4d8; }`,
     html: `<div class="en-h" id="${s.id}-h">轉傳之前，先查一下！</div>
         <div class="en-u" id="${s.id}-u">fakenewsverify.vercel.app</div>
         <div class="en-qr" id="${s.id}-q1" style="left: 600px"><img src="assets/qr_site.svg" alt="" />網站</div>
         <div class="en-qr" id="${s.id}-q2" style="left: 1020px"><img src="assets/qr_threads.svg" alt="" />Threads 查核機器人</div>
-        <div class="en-m" id="${s.id}-m">長庚大學資訊工程學系　軟硬體專題「AI 為核心的假訊息驗證系統」<br />組員：廖晢勛、石岱勳、姚睿、張宇宏、廖育翔　｜　指導教授：黃崇源</div>`,
+        <div class="en-m" id="${s.id}-m">長庚大學資訊工程學系　軟硬體專題「AI 為核心的假訊息驗證系統」<br />組員：廖晢勛、石岱勳、姚睿、張宇宏、廖育翔　｜　指導教授：黃崇源<br />配樂與音效：Mixkit</div>`,
     js: `tl.fromTo($("#${s.id}-h"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.2);
           tl.fromTo($("#${s.id}-u"), { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0.8);
           tl.fromTo([$("#${s.id}-q1"), $("#${s.id}-q2")], { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.2, ease: "power3.out" }, 1.2);
@@ -631,8 +648,8 @@ fs.rmSync(COMPO_DIR, { recursive: true, force: true });
 fs.mkdirSync(COMPO_DIR, { recursive: true });
 for (const s of shots) {
   const k = KIND[s.kind](s);
-  fs.writeFileSync(path.join(COMPO_DIR, `${s.id}.html`), compo(s, k, [stepsHtml(s), notesHtml(s), chipsHtml(s)]), "utf8");
-  for (const e of k.sfx ?? []) sfxEvents.push({ sound: e.sound, t: r3(s.start + e.at) });
+  fs.writeFileSync(path.join(COMPO_DIR, `${s.id}.html`), compo(s, k, [stepsHtml(s), notesHtml(s), chipsHtml(s), quoteHtml(s)]), "utf8");
+  for (const e of k.sfx ?? []) sfxEvents.push({ sound: e.sound, t: r3(s.start + e.at), vol: e.vol });
 }
 
 // ── 6. captions: one cue per caption chunk ─────────────────────────────────────────
@@ -663,10 +680,10 @@ const captions = `<!doctype html>
     <template>
       <style>
         #root { position: absolute; inset: 0; pointer-events: none; }
-        .cap-g { position: absolute; left: 0; top: 846px; width: 1920px; height: 150px; display: flex; align-items: flex-end; justify-content: center; opacity: 0; }
-        .cap-t { display: block; max-width: 1500px; padding: 11px 34px 13px; border-radius: 18px; background: rgba(17,17,17,0.9); color: #ffffff;
-          font-size: 44px; line-height: 56px; font-weight: 700; text-align: center; text-wrap: balance; }
-        .cap-who { display: inline-block; margin-right: 18px; padding: 0 14px; border-radius: 10px; background: #ffffff; color: #111111; font-size: 34px; line-height: 46px; vertical-align: 3px; }
+        .cap-g { position: absolute; left: 0; top: 820px; width: 1920px; height: 194px; display: flex; align-items: flex-end; justify-content: center; opacity: 0; }
+        .cap-t { display: block; max-width: 1640px; padding: 12px 36px 14px; border-radius: 20px; background: rgba(17,17,17,0.9); color: #ffffff;
+          font-size: 54px; line-height: 68px; font-weight: 700; text-align: center; text-wrap: balance; }
+        .cap-who { display: inline-block; margin-right: 20px; padding: 0 16px; border-radius: 12px; background: #ffffff; color: #111111; font-size: 40px; line-height: 54px; vertical-align: 4px; }
       </style>
       <div id="root" class="fnv-root" data-composition-id="captions" data-width="1920" data-height="1080" data-duration="${TOTAL}" data-layout-allow-overlap>
 ${cues.map((c, i) => `        <div class="cap-g" id="cap-${i}"><span class="cap-t">${label(c)}${esc(c.text)}</span></div>`).join("\n")}
@@ -733,11 +750,76 @@ for (const s of shots) {
     voices.push(`      <audio id="live-${s.id}" src="assets/audio/live/${s.id}.wav" data-start="${s.start}" data-duration="${r3(s.live.tout - s.live.tin)}" data-track-index="18" data-volume="1"></audio>`);
   }
 }
-const SFX_TRACK = { click: 21, tick: 22, chime: 23, whoosh: 24, ding: 25, pop: 26, buzz: 27 };
-const SFX_GAIN = { click: 0.5, tick: 0.4, chime: 0.5, whoosh: 0.5, ding: 0.6, pop: 0.5, buzz: 0.6 };
+// Effects: Mixkit (tools/mixkit.py, peak -1 dBFS) except the phone buzz (tools/sfx.py). Each sound has two tracks so
+// that quick repeats never overlap on one track; repeats get their own "vol" steps (video-shotcraft S2).
+const SOUND = {
+  message: { src: "assets/audio/mixkit/message.wav", len: mixLen.message, track: 21, gain: 0.5 },
+  pop: { src: "assets/audio/mixkit/pop.wav", len: mixLen.pop, track: 22, gain: 0.35 },
+  click: { src: "assets/audio/mixkit/click.wav", len: mixLen.click, track: 23, gain: 0.3 },
+  verdict: { src: "assets/audio/mixkit/verdict.wav", len: mixLen.verdict, track: 24, gain: 0.45 },
+  sparkle: { src: "assets/audio/mixkit/sparkle.wav", len: mixLen.sparkle, track: 25, gain: 0.35 },
+  scratch: { src: "assets/audio/mixkit/scratch.wav", len: mixLen.scratch, track: 26, gain: 0.55 },
+  whoosh: { src: "assets/audio/mixkit/whoosh.wav", len: mixLen.whoosh, track: 27, gain: 0.45 },
+  buzz: { src: "assets/audio/sfx/buzz.wav", len: sfxLen["buzz.wav"], track: 28, gain: 0.6 },
+};
+for (const [name, snd] of Object.entries(SOUND)) if (!snd.len) throw new Error(`sound ${name} missing: run tools/mixkit.py and tools/sfx.py`);
 sfxEvents.sort((a, b) => a.t - b.t);
-const sfxEls = sfxEvents.map((e, i) => `      <audio id="sfx-${String(i).padStart(3, "0")}" src="assets/audio/sfx/${e.sound}.wav" data-start="${e.t}"
-        data-duration="${sfxLen[e.sound + ".wav"] ?? 0.4}" data-track-index="${SFX_TRACK[e.sound]}" data-volume="${SFX_GAIN[e.sound]}"></audio>`);
+const busyUntil = {};
+const sfxEls = sfxEvents.map((e, i) => {
+  const snd = SOUND[e.sound];
+  if (!snd) throw new Error(`unknown sound "${e.sound}"`);
+  const track = (busyUntil[snd.track] ?? -1) > e.t ? snd.track + 10 : snd.track;
+  const len = r3(Math.min(snd.len, TOTAL - e.t));
+  busyUntil[track] = e.t + len;
+  return `      <audio id="sfx-${String(i).padStart(3, "0")}" src="${snd.src}" data-start="${e.t}"
+        data-duration="${len}" data-track-index="${track}" data-volume="${r3(snd.gain * (e.vol ?? 1))}"></audio>`;
+});
+
+// Music: one Mixkit track under the film, (re)started at the storyboard's chapter cards. It sits at "gap" between
+// lines and dips to "under" 0.35 s before every line, back up 0.7 s after it (lines closer than that stay ducked).
+const music = [];
+if (board.music) {
+  const M = board.music;
+  const bgmLen = mixLen[M.sound ?? "bgm"];
+  if (!bgmLen) throw new Error("music missing: run tools/mixkit.py");
+  const startOf = (id) => {
+    const shot = shots.find((x) => x.id === id);
+    if (!shot) throw new Error(`music: no shot ${id}`);
+    return shot.start;
+  };
+  const speech = shots.flatMap((s) => s.lines.map((l) => [s.start + l.at, s.start + l.at + l.len])).sort((a, b) => a[0] - b[0]);
+  const groups = [];
+  for (const [a, b] of speech) {
+    const g = groups.at(-1);
+    if (g && a - 0.35 < g[1] + 0.7) g[1] = Math.max(g[1], b);
+    else groups.push([a, b]);
+  }
+  const duck = [];
+  for (const [a, b] of groups) duck.push([a - 0.35, M.gap], [a - 0.05, M.under], [b + 0.1, M.under], [b + 0.7, M.gap]);
+  const lerp = (pts, t, outside) => {
+    if (!pts.length || t <= pts[0][0]) return pts.length ? pts[0][1] : outside;
+    for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) return pts[i - 1][1] + ((pts[i][1] - pts[i - 1][1]) * (t - pts[i - 1][0])) / (pts[i][0] - pts[i - 1][0]);
+    return pts.at(-1)[1];
+  };
+  const bounds = [M.from ? startOf(M.from) : 0, ...(M.restartAt ?? []).map(startOf), TOTAL];
+  bounds.forEach((a, k) => {
+    if (k === bounds.length - 1) return;
+    const last = k === bounds.length - 2;
+    let b = bounds[k + 1];
+    if (b - a > bgmLen) {
+      console.warn(`! music: ${r3(b - a)}s from ${r3(a)}s is longer than the ${bgmLen}s track; it stops early. Add a restart in storyboard.music.restartAt.`);
+      b = a + bgmLen;
+    }
+    const fin = k === 0 ? M.fadeIn : 0.3;
+    const fout = last ? M.fadeOut : 0.4;
+    const env = [[a, 0], [a + fin, 1], [b - fout, 1], [b, 0]];
+    const ts = [...new Set([a, a + fin, b - fout, b, ...duck.map((p) => p[0]).filter((t) => t > a && t < b)].map(r3))].sort((x, y) => x - y);
+    const points = ts.map((t) => ({ t: r3(t - a), v: r3(lerp(duck, t, M.gap) * lerp(env, t, 0)) }));
+    const automation = esc(JSON.stringify({ version: 1, lanes: [{ target: "volume", points }] }));
+    music.push(`      <audio id="bgm-${k}" src="assets/audio/mixkit/${M.sound ?? "bgm"}.wav" data-start="${r3(a)}" data-duration="${r3(b - a)}"
+        data-track-index="${40 + (k % 2)}" data-volume="1" data-automation="${automation}"></audio>`);
+  });
+}
 
 const filmCss = fs.readFileSync(path.join(ROOT, "assets", "film.css"), "utf8").trimEnd().split(/\r?\n/).map((l) => (l ? "      " + l : l)).join("\n");
 const index = `<!doctype html>
@@ -767,8 +849,11 @@ ${host("captions", 0, TOTAL, 6, "captions")}
       <!-- voices: the team's voice-overs (track 20), AI stand-ins (19), the sound of the team's clips (18) -->
 ${voices.join("\n")}
 
-      <!-- sound effects (tracks 21-27), synthesised by tools/sfx.py -->
+      <!-- sound effects (tracks 21-28, 31-38 for quick repeats): Mixkit via tools/mixkit.py, phone buzz from tools/sfx.py -->
 ${sfxEls.join("\n")}
+
+      <!-- music bed (tracks 40-41): Mixkit, ducked under speech -->
+${music.join("\n")}
     </div>
     <script>
       window.__timelines["main"] = gsap.timeline({ paused: true });
