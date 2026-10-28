@@ -477,3 +477,59 @@ def test_report_table_and_mcnemar(sandbox):
     s = mb.summarize(mb.load_results(mb.RUNS / "gpt-5.6-luna__medium.csv"))
     assert s["fn"] == 1 and s["unverifiable"] == 1 and s["correct"] == 4
     assert "完整系統：還沒有" in text                # 沒有語料向量時不硬算
+
+
+# ── 一鍵執行（research_run.py） ──────────────────────────────
+
+rr = _load("research_run")
+
+
+def test_model_specs_allow_colons_in_model_names():
+    specs = rr.parse_models("gpt-5.6-luna/medium/responses, gpt-oss:20b/low/chat/500")
+    assert specs[1] == {"model": "gpt-oss:20b", "effort": "low", "api": "chat", "max_items": 500}
+    with pytest.raises(SystemExit):
+        rr.parse_models("gpt-5.6-luna")
+
+
+def test_update_skips_when_data_is_fresh(sandbox, monkeypatch):
+    calls = []
+    monkeypatch.setattr(rr.cv, "cmd_fetch", lambda args: calls.append(args.refresh))
+    assert rr.ensure_corpus(3) is True and calls == [False]        # 沒有語料：第一次抓
+    rc.CORPUS.write_bytes(b"x")
+    assert rr.ensure_corpus(3) is False and calls == [False]       # 剛抓過：略過
+    assert rr.ensure_corpus(0) is True and calls == [False, True]  # 過期：重抓（忽略舊快取）
+
+
+def test_benchmark_runs_trial_then_full_within_cap(sandbox, monkeypatch):
+    _items(4).to_csv(mb.ITEMS, index=False)
+    rc.CORPUS.write_bytes(b"x")
+    monkeypatch.setattr("app.services.ai_service.gateway_models", lambda: ["gpt-5.6-luna", "gpt-6-luna"])
+    runs, answered = [], {"gpt-5.6-luna": 0, "gpt-6-luna": 0}
+
+    def fake_run(args):
+        runs.append((args.model, args.limit, args.max_usd))
+        answered[args.model] += args.limit
+        rc.update_status(f"benchmark_{mb.slug(args.model, args.effort)}",
+                         {"usd_per_item": 0.001 if args.model == "gpt-5.6-luna" else 5.0})
+
+    monkeypatch.setattr(rr.mb, "cmd_run", fake_run)
+    monkeypatch.setattr(rr.mb, "cmd_report", lambda args: runs.append("report"))
+    monkeypatch.setattr(rr, "answered", lambda model, effort: min(answered[model], 4))
+    monkeypatch.setattr(rc, "TRIAL_ITEMS", 2)
+    rr.run_benchmark(Namespace(models="gpt-5.6-luna/medium/responses,gpt-6-luna/high/responses,nope/none/chat",
+                               refresh_days=3, embed_cap=None, model_cap=4.0, max_minutes=1))
+    assert runs == [("gpt-5.6-luna", 2, 0.3), ("gpt-5.6-luna", 2, 4.0),   # 試跑 → 推估便宜 → 全跑
+                    ("gpt-6-luna", 2, 0.3),                                 # 推估太貴：只試跑
+                    "report"]                                               # nope 不在閘道清單：略過
+
+
+def test_commit_only_on_the_research_branch(sandbox, monkeypatch):
+    calls = []
+
+    def fake_git(*cmd):
+        calls.append(cmd)
+        return type("P", (), {"stdout": "main\n", "returncode": 0, "stderr": ""})()
+
+    monkeypatch.setattr(rr, "git", fake_git)
+    rr.commit_results("confidence")
+    assert calls == [("rev-parse", "--abbrev-ref", "HEAD")]

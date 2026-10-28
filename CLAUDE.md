@@ -254,6 +254,7 @@ code/backend/
 │   │                            原文與向量在 data/research/，gitignored）→ docs/test/results/confidence_validation_*.md
 │   ├── model_benchmark.py      純模型比較：freeze（2,000 題凍結題庫）／run（每個模型）／report → docs/test/results/model_benchmark*
 │   ├── research_common.py      上面兩支共用：額度護欄 Budget（保留 USD 3、每 100 題讀 /me/usage、週日不跑）、時間切分最近鄰、分群
+│   ├── research_run.py         一鍵執行（負責人電腦）：confidence／benchmark／update（每三天重抓查核資料＋補向量）；--commit 推回研究分支
 │   ├── research_env_check.py   研究批次的環境檢查（只用標準函式庫）：secret 有沒有設、四個網域、CGU 剩餘額度與模型清單
 │   ├── audit_cofacts_sources.py  盤點以 Cofacts 當 Tier 1 來源的已證實列（有無判定、方向是否一致；預設只讀）
 │   ├── llm_second_opinion.py / fix_factcheck_labels.py   清洗審閱輔助（CGU 本地模型）／2026-07 一次性標籤修復
@@ -263,7 +264,7 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **881 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **885 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -350,7 +351,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 881 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 885 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -470,7 +471,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       同時比較 `text-embedding-3-small`／`-large`／`bge-m3`；接著做純模型比較（計畫 `docs/test/模型比較計畫.md`：2,000 題凍結題庫，
       `gpt-5.6-luna`、`gpt-6-luna`＋high、Spark 的開源模型，最後一列是「完整系統」），目標 2026-12-03 期末成果展。
       **2026-10-28 腳本已寫好（研究分支 `claude/github-project-relevance-gunvht`，票 O-37）**：負責人決定不在 GitHub 設
-      `CGU_API_KEY`，改在自己電腦上跑（本機 `.env`），指令見 `docs/test/研究批次_本機執行.md`；實作細節見兩份計畫的第 7 節。
+      `CGU_API_KEY`，改在自己電腦上跑（本機 `.env`），指令見 `docs/test/研究批次_本機執行.md`（`research_run.py` 一行跑完；
+      `update` 每三天更新一次資料，可設 Windows 工作排程器）；隨時可以跑，不必等週四重置。實作細節見兩份計畫的第 7 節。
       GitHub Actions 的 `research` workflow 保留（沒有 secret 時只有不花錢的步驟能跑；不必放 main，以 API 對分支觸發即可）
 - [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），

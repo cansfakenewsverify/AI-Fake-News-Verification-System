@@ -126,8 +126,6 @@ def main() -> int:
               f"- 台灣時間 {now:%Y-%m-%d %H:%M}（星期{weekday}）"]
     if now.weekday() == 6:
         lines.append("- 週日有每週評測（21:17）：**今天不跑花錢的批次**")
-    elif now.weekday() in (2, 3):
-        lines.append("- 額度在週四重置（台灣時間週四 03:00～週五 03:00 之間）：花錢的批次等剩餘額度回到滿額再跑")
     else:
         lines.append("- 可以跑花錢的批次（照 AGENTS.md 第 4 節：先試跑 50 題、保留 USD 3）")
 

@@ -7,7 +7,9 @@
 # - 結果（報告、逐題 CSV、docs/test/results/research_status.json；只有網址、雜湊、判定與數字）commit 回觸發的分支。
 # - 花錢的步驟（embed 的 OpenAI 模型、benchmark-run 的 OpenAI 模型）照 AGENTS.md 第 4 節：
 #   開始前與每 100 題讀 /me/usage、保留 USD 3 給網站使用者、本次上限 max_usd；trial（預設打勾）只跑 50 題並估全部的花費；
-#   台灣時間週日不跑（週日 21:17 有每週評測）。額度週四重置，重置後再跑。
+#   台灣時間週日不跑（週日 21:17 有每週評測）。
+# - 負責人 2026-10-28 決定不在 GitHub 設 CGU_API_KEY，改在自己電腦上跑（docs/test/研究批次_本機執行.md）；
+#   沒有 secret 時這裡只有不花錢的 corpus-fetch 能跑。
 # - 不在 main 上跑：觸發時「Use workflow from」選研究分支。
 # - 不必放在 main：推到研究分支時的 push 只讓 GitHub 認得這個 workflow（job 直接略過、不做任何事），
 #   之後就能以 API 對研究分支觸發（2026-10-28 實測）。要在 GitHub 網頁上按「Run workflow」才需要放 main。

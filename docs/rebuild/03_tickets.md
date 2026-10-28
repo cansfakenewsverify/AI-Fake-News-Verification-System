@@ -2916,12 +2916,14 @@ flowchart LR
 ### O-37 信心程度驗證與模型比較的批次（GitHub Actions）
 - 優先級：P0（負責人 2026-10-28：信心程度是這一輪最重要的項目，驗證沒過關就拿掉信心標示）
 - 對應：`docs/test/信心程度驗證計畫.md`、`docs/test/模型比較計畫.md`；AGENTS.md 第 2、4 節（雲端 session 沒有金鑰，批次在 GitHub Actions 跑）
-- 範圍：`code/backend/scripts/research_common.py`、`confidence_validation.py`、`model_benchmark.py`、`research_env_check.py`；
-  `.github/workflows/research.yml`、`research-env-check.yml`；`tests/test_research_scripts.py`（28）；`.gitignore`（`data/research/`）
+- 範圍：`code/backend/scripts/research_common.py`、`confidence_validation.py`、`model_benchmark.py`、`research_run.py`、`research_env_check.py`；
+  `.github/workflows/research.yml`、`research-env-check.yml`；`tests/test_research_scripts.py`（32）；`.gitignore`（`data/research/`）
 - 做什麼：每週評測已判讀的題目對回原文 → 時間切分最近鄰 → 依群分開發組／測試組 → 開發組定門檻與話術原型 → 測試組套
   `evidence.assess` 算四項過關標準與可靠度；三種 embedding 各跑一次。模型比較凍結 2,000 題、各模型答同一批、最後一列完整系統。
   花錢的步驟都有額度護欄（保留 USD 3、每 100 題讀 /me/usage、試跑 50 題、週日不跑）；報告與逐題 CSV 不含訊息原文。
-- 驗收：pytest 881；依 `docs/test/研究批次_本機執行.md` 的順序執行，報告 commit 回研究分支
+- 驗收：pytest 885；依 `docs/test/研究批次_本機執行.md` 的順序執行，報告 commit 回研究分支
 - 狀態：程式與 workflow 完成（2026-10-28，研究分支 `claude/github-project-relevance-gunvht`）。負責人決定不在 GitHub 設
-  `CGU_API_KEY`，改在自己電腦上跑（`docs/test/研究批次_本機執行.md`）；待週四額度重置後執行
+  `CGU_API_KEY`，改在自己電腦上跑（`docs/test/研究批次_本機執行.md`；`research_run.py` 一行跑完信心驗證、模型比較，
+  `update` 每三天更新一次資料）；隨時可以跑，不必等週四重置。GitHub 上的 corpus-fetch 已用真實資料驗證：
+  語料 20,507 筆、4,880 題全部對回原文
 

@@ -87,6 +87,13 @@ def update_status(section: str, data: Dict[str, Any], path: Optional[Path] = Non
     path.write_text(json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def read_status(section: str) -> Dict[str, Any]:
+    """research_status.json 裡某個步驟的摘要；沒有就回空 dict。"""
+    if not STATUS.exists():
+        return {}
+    return json.loads(STATUS.read_text(encoding="utf-8")).get(section, {})
+
+
 def step_summary(text: str) -> None:
     """GitHub Actions 執行頁的摘要；本機執行時只印出來。"""
     log(text)

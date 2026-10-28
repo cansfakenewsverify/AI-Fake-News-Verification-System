@@ -636,11 +636,7 @@ def cmd_analyze(args) -> int:
 
 
 def rc_status(section: str) -> Dict[str, Any]:
-    import json
-
-    if not rc.STATUS.exists():
-        return {}
-    return json.loads(rc.STATUS.read_text(encoding="utf-8")).get(section, {})
+    return rc.read_status(section)
 
 
 # ── 報告 ─────────────────────────────────────────────────────
