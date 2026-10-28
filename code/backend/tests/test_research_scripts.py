@@ -76,6 +76,15 @@ def test_budget_refuses_when_usage_is_unreadable_or_reserve_reached():
         rc.Budget(1.0, usage_fn=lambda: _usage(2.5))
 
 
+def test_usage_lookup_retries_a_transient_error(monkeypatch):
+    monkeypatch.setattr(rc.time, "sleep", lambda s: None)
+    values = iter([_usage(-1.0), _usage(6.0)])
+    assert rc.usage_with_retry(usage_fn=lambda: next(values))["remaining_usd"] == 6.0
+    calls = []
+    assert rc.usage_with_retry(usage_fn=lambda: calls.append(1) or _usage(-1.0))["remaining_usd"] == -1.0
+    assert len(calls) == 3                          # 連續讀不到才當成讀不到
+
+
 def test_budget_rereads_usage_every_100_items():
     calls = []
     values = iter([_usage(9.0), _usage(3.05)])

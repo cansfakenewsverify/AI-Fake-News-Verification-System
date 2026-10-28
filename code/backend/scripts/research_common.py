@@ -109,6 +109,20 @@ class BudgetError(RuntimeError):
     pass
 
 
+def usage_with_retry(tries: int = 3, wait: float = 10.0,
+                     usage_fn: Optional[Callable[[], Dict[str, float]]] = None) -> Dict[str, float]:
+    """/me/usage 偶爾回一次 HTTP 錯誤（2026-10-28 算向量到 8,700 筆時遇到一次就整批停了），
+    隔 10、20 秒再讀；連續讀不到才回傳 remaining_usd = -1（呼叫端照樣停下）。"""
+    usage_fn = usage_fn or fc.cgu_usage
+    usage = usage_fn()
+    for attempt in range(1, tries):
+        if usage["remaining_usd"] >= 0:
+            break
+        time.sleep(wait * attempt)
+        usage = usage_fn()
+    return usage
+
+
 class Budget:
     """
     CGU 額度護欄：可用額 = min(max_usd, 剩餘 − 保留額)。
@@ -118,7 +132,7 @@ class Budget:
 
     def __init__(self, max_usd: float, *, free: bool = False, price_known: bool = True,
                  reserve: float = RESERVE_USD, usage_fn: Optional[Callable[[], Dict[str, float]]] = None):
-        self.usage_fn = usage_fn or fc.cgu_usage
+        self.usage_fn = usage_fn or usage_with_retry
         self.free, self.price_known, self.reserve = free, price_known, reserve
         self.before = self.usage_fn()
         remaining = self.before["remaining_usd"]
