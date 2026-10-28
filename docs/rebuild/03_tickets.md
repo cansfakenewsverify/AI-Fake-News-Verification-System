@@ -2895,7 +2895,8 @@ flowchart LR
     （`_refresh_evidence`；與查核結果回補共用同一次 embedding；不改存下的資料、不呼叫判讀模型）；
   - `factcheck_sync.embed_check()`：每次同步實際算一次短句，`STATUS["embed_check"]`；`factcheck-sync.yml` 看到 `ok=false` 變紅寄信
 - 驗收：pytest 881（`tests/test_stale_evidence.py` +5、`tests/test_health.py` +1、`tests/test_factcheck_sync.py` +1）
-- 狀態：已完成程式與測試（2026-10-29，分支 `fix/stale-evidence-health`）；待負責人說「推」才上線
+- 狀態：已完成（2026-10-29 上線，commit 791da0d）；正式站重查軍人退休金那句：hash 命中、信心「中」（similar_case）、
+  相似查證列出台灣事實查核中心那篇（0.6997），沒有呼叫判讀模型；`/health` 的 `embedding` 為 `ok: true`
 
 ### O-32 專題介紹海報（兩張 A1）
 - 優先級：P1
