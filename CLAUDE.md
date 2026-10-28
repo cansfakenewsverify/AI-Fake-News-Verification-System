@@ -139,6 +139,9 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   `pandas_store.PandasStore`（Parquet、numpy 矩陣化 cosine），雲端 `pg_store.PgKnowledgeStore.find_similar_by_vector`（pgvector）。
 - **文字輸入永不爬取、永不送搜尋引擎（FR-01）**：AI 分析的與向量層比對的都是使用者原文
   （2026-07 教訓：拿爬完的網頁全文比對，長文對短句過不了門檻，向量層形同虛設——勿改回）。
+  向量層與證據信心的近鄰查詢在算向量前先去掉「網傳」「聽說」「請問」這類開頭詞與「是真的嗎？」這類結尾
+  （`app/utils/claim_text.matching_text`，票 B-45；2026-10-28 實測「網傳吃香蕉配優格會中毒」0.597 → 0.663）；
+  AI 判讀、hash 層與存進知識庫的 raw_content 仍是原文。
 - **向量層只比對 `verified=true` 的列（FR-17）**；URL／Hash 層不過濾。知識庫頁 `/api/knowledge` 也只回 verified 列。
   寫入門檻見第 9 節。非 1536 維的向量不參與比對（本機只比同維度；雲端存成 NULL）。
 - Layer 2 門檻 `SIMILARITY_THRESHOLD=0.75`：**實測校準**（text-embedding-3-small、繁中）
@@ -225,6 +228,7 @@ code/backend/
 │   │   └── threads_sim.py / threads_state.py / threads_reply.py   模擬模式／狀態與回覆紀錄（本機原子寫入；雲端 live 轉存 threads_pg）／回覆模板
 │   ├── utils/
 │   │   ├── verdict.py          ★紅黃綠單一權威 frame_of（8 列規則）＋ is_fallback（fallback 唯一判斷點）
+│   │   ├── claim_text.py       語意比對用的文字：去掉「網傳／聽說／請問」開頭詞與「是真的嗎？」結尾（只影響算向量的文字）
 │   │   ├── source_tier.py      ★來源分級 Tier 1/2/3（tier_of、grade_sources；offline 時不發請求）
 │   │   ├── safe_url.py         SSRF 防護（check_url／safe_get）；url_validator.py 經它過濾 AI 幻覺出的死連結
 │   │   ├── admin_auth.py       require_admin（X-Admin-Token；ADMIN_TOKEN 空字串 = 403 停用）
@@ -253,7 +257,7 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **853 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **874 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -337,7 +341,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 853 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 874 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）

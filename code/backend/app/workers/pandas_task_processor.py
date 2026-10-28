@@ -30,6 +30,7 @@ from app.services.ai_budget import ai_budget
 from app.services.ai_service import AIService, _default_fallback_result
 from app.services.cache_service import CacheService
 from app.services.vector_service import VectorService
+from app.utils.claim_text import matching_text
 from app.utils.labels import category_label
 from app.utils.source_tier import TIER_LABELS, grade_sources, tier_of
 from app.utils.url_validator import filter_valid_sources
@@ -429,7 +430,7 @@ async def cache_would_hit(input_data: str, input_type: str) -> bool:
     if _usable(await asyncio.to_thread(pandas_store.find_by_hash, content_hash)):
         return True
     if not is_url:
-        query_vector = await asyncio.to_thread(VectorService().vectorize_content, input_data)
+        query_vector = await asyncio.to_thread(VectorService().vectorize_content, matching_text(input_data))
         if _usable(await asyncio.to_thread(pandas_store.find_similar_by_vector, query_vector)):
             return True
     return False
@@ -502,7 +503,7 @@ async def process_analysis_task_async(
                 text = _safe_str(row.get("raw_content"))
                 if not text:
                     return None
-                vector = await asyncio.to_thread(vector_service.vectorize_content, text)
+                vector = await asyncio.to_thread(vector_service.vectorize_content, matching_text(text))
             if not vector:
                 return None
             found = await asyncio.to_thread(
@@ -554,10 +555,11 @@ async def process_analysis_task_async(
         # ── Layer 2（文字輸入）：向量快取 ──────────────────────────────
         # 知識庫存的是「謠言主張」的向量，必須拿使用者原文比對才會命中
         # 「換句話說的同一謠言」。命中即回，AI 呼叫就省下。勿改回拿網頁全文比對。
+        # 比對前去掉「網傳」「是真的嗎？」這類開頭詞與結尾問句（matching_text；AI 判讀的仍是原文）
         query_vector: list = []
         if not is_url:
             query_vector = await asyncio.to_thread(
-                vector_service.vectorize_content, input_data
+                vector_service.vectorize_content, matching_text(input_data)
             )
             vector_cached = await asyncio.to_thread(
                 pandas_store.find_similar_by_vector, query_vector
@@ -596,7 +598,7 @@ async def process_analysis_task_async(
                 # 輸入網址與轉址後的最終網址都要剔除
                 return await _finish_cached(vector_cached, "vector", (input_data, url))
         else:
-            # 文字輸入沿用原文向量（上面已比對過、未命中），存檔用
+            # 文字輸入沿用上面的查詢向量（已比對過、未命中），存檔用
             content_vector = query_vector
 
         # ── Layer 3: AI 分析（全流程）─────────────────────────────────
