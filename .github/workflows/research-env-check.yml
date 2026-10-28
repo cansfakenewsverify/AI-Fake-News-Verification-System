@@ -1,0 +1,29 @@
+# 研究批次的環境檢查（docs/test/信心程度驗證計畫.md、docs/test/模型比較計畫.md 開跑前）：
+# secret CGU_API_KEY 有沒有設（只印有／沒有）、連不連得到 CGU 閘道與三個查核來源、CGU 本週剩餘額度與模型清單。
+# 不花額度（/me/usage、/models 都是唯讀）；結果在執行頁的摘要（Summary）。
+# 有網域連不到或沒有金鑰時變紅。
+#
+# 觸發：手動（要先放在 main），或推到研究分支時這個檔或檢查腳本有變動。
+name: research-env-check
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/github-project-relevance-gunvht]
+    paths:
+      - .github/workflows/research-env-check.yml
+      - code/backend/scripts/research_env_check.py
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check secret, network and CGU quota
+        env:
+          CGU_API_KEY: ${{ secrets.CGU_API_KEY }}
+        run: python3 code/backend/scripts/research_env_check.py
