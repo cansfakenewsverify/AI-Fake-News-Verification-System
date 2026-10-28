@@ -3,6 +3,9 @@
 > **這份檔案是給 AI 助理（Claude Code）看的專案地圖。**
 > **⚠️ 重要規則：每次對專案做出有意義的變更（新功能、改架構、換 API、調設定），都要同步更新這份檔案。**
 > 讓任何一台機器上的 Claude Code 打開專案就能快速進入狀況。
+> **規矩（跟負責人怎麼說話、機密、上線、AI 額度）在 `AGENTS.md`，所有 agent 共用；下一行把它載入：**
+
+@AGENTS.md
 
 **現況（2026-10-03）**
 - 系統已經是**線上網站**：<https://fakenewsverify.vercel.app>。Vercel（React 靜態檔）把 `/api/*` 同源代理到 Render 後端

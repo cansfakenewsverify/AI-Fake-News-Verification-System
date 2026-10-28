@@ -113,6 +113,7 @@ GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ 
 ```
 AI-Fake-News-Verification-System/
 ├── README.md                    ← 本檔
+├── AGENTS.md                    ← 所有 AI 助理共用的規矩（溝通方式、機密、上線、AI 額度）
 ├── CLAUDE.md                    ← 專案完整技術地圖（給 AI 助理與接手的人）
 ├── render.yaml                  ← Render Blueprint：後端雲端部署設定（只有變數名稱，沒有金鑰）
 ├── start.bat / start.sh         ← 本機開發用一鍵啟動（後端 + React dev server）
@@ -322,6 +323,7 @@ chmod +x start.sh
 | [`presentations/2026-09_進度報告/`](presentations/2026-09_進度報告/) | 2026-09 進度報告的全部資料：投影片、報告內容說明、demo 影片網址、測試計畫書 PDF、分工表 |
 | [`docs/rebuild/runbook_cloud_deploy.md`](docs/rebuild/runbook_cloud_deploy.md) | 上雲操作手冊（Render + Supabase + Vercel） |
 | [`docs/test/TP-FNV-2026-01.md`](docs/test/TP-FNV-2026-01.md) | 測試計畫書 v1.5：2026-09-16 第一輪實測與 2026-09-19～20 第二輪重測 |
+| [`AGENTS.md`](AGENTS.md) | 所有 AI 助理共用的規矩：怎麼跟負責人溝通、機密、上線、AI 額度 |
 | [`CLAUDE.md`](CLAUDE.md) | 專案完整技術地圖：AI 引擎、三層快取、標記規則、雲端部署、待辦 |
 | [`docs/rebuild/`](docs/rebuild/) | 2026-09 重做的共識、規格（`01_spec.md` v1.3）、mockup、實作票 |
 | [`code/backend/README.md`](code/backend/README.md)、[`code/frontend/README.md`](code/frontend/README.md) | 後端與前端各自的說明 |
