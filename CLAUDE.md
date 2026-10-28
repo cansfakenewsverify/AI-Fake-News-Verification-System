@@ -454,7 +454,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 ### 未完成（現況）
 - [ ] **信心程度驗證（負責人 2026-10-28：這一輪最重要；驗證沒過關就拿掉信心標示）**：計畫與過關標準草案在
       `docs/test/信心程度驗證計畫.md`（過關標準待負責人確認）。已知：AI 自評分數 `confidence_score` 沒有鑑別力（AUROC 0.53），
-      綠燈條件 `GREEN_MIN_CONFIDENCE=0.7` 擋不到任何 SAFE 判定。下一步以每週評測已判讀的題目＋時間切分驗證證據信心，
+      綠燈條件 `GREEN_MIN_CONFIDENCE=0.7` 擋不到任何 SAFE 判定；同一則內容兩週重查，AI 判定 17% 不同。
+      下一步以每週評測已判讀的題目＋時間切分＋重複內容分群驗證證據信心（含可靠度圖、ECE、Brier），
       同時比較 `text-embedding-3-small`／`-large`／`bge-m3`；需要雲端 session 設 `CGU_API_KEY` 與網路白名單（見該文件第 6 節）。
       之後做純模型比較（`gpt-5.6-luna`、`gpt-6-luna`＋high、Spark 的開源模型），目標 2026-12-03 期末成果展
 - [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
@@ -484,7 +485,6 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 - [ ] `/bot` 機器人狀態頁（票 S-11）：已上線（2026-09-30；模式徽章、上次輪詢、錯誤、最近回覆、2 秒刷新；fixture 可看三種狀態）；截圖檢核未做
 - [ ] 上線後準確率量測（計畫已寫：`docs/test/上線後準確率驗證計畫.md`）：先建 90 題的不公開新題庫（M1，約 USD 0.6），
       再開始每週 20 筆的線上抽樣雙人獨立覆核（M2）。現有 150 筆已飽和且公開，不能用來宣稱上線準確率（第 6 節）
-- [ ] （選）信心分數校準：可靠度圖、ECE、Brier，並檢驗 `GREEN_MIN_CONFIDENCE=0.7` 實際擋掉多少錯誤（同上計畫第 4 節）
 - [ ] （選）前端加「評測數據」分頁顯示混淆矩陣/accuracy
 - [ ] 第三方實測（陳仁暉教授 2026-09-21 審查意見；HANDOFF 待辦第 4 項）：作業包 2026-10-15 已備妥（`docs/test/第三方實測_說明.md`、題卡、
       記錄表與問卷 CSV；達成＝3 分鐘內查完訊息並說出判定與查核來源）。待組員找 5～8 位非團隊受測者，收齊後由 Claude 計分
