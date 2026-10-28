@@ -293,6 +293,18 @@ class FakeThreadsService(TwoStepPublishing):
             self._raise_if(m, "get_mentions")
         return copy.deepcopy(out)
 
+    def get_quoted_post_id(self, media_id: str) -> Optional[str]:
+        """貼文或提及的 JSON 裡有 "quoted_post"（被引用貼文 id）就回傳，沒有就 None（對應 live 的引用貼文）。"""
+        data = self._load()
+        mid = str(media_id)
+        node = (data.get("posts") or {}).get(mid)
+        if not isinstance(node, dict):
+            node = next((m for m in self._mention_list(data) if str(m.get("id")) == mid), None)
+        quoted = node.get("quoted_post") if isinstance(node, dict) else None
+        if isinstance(quoted, dict):
+            quoted = quoted.get("id")
+        return str(quoted) if quoted else None
+
     def get_post(self, media_id: str) -> Dict[str, Any]:
         data = self._load()
         mid = str(media_id)

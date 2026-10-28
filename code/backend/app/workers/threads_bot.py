@@ -8,7 +8,9 @@ Threads 查核機器人 — 輪詢 mentions → 三層快取＋AI 分析 → 自
        IMAGE／VIDEO／CAROUSEL_ALBUM 且文字 <8 字 → media_only；其餘文字太短 → too_short；
        HTTP 401／403／404 → unreadable；其他未列入的 4xx（400 等）→ failed；
        429／5xx／連線失敗 → transient（不標記，下輪重試；429 另設 backoff 並中止本輪）
-     - 沒有 replied_to：用 mention 本文，≥8 字 → text，否則 too_short
+       原貼文文字 <8 字且是引用貼文（quoted_post）→ 改讀被引用的那一則照上面規則判斷；
+       讀不到被引用貼文（401／403／404）→ unreadable_quoted；查不到引用欄位 → 照原本流程
+     - 沒有 replied_to：用 mention 本文，≥8 字 → text，否則先看提及本身是不是引用貼文（同上），再 too_short
        （replied_to 讀取失敗、標了 replied_to_unknown 的提及：本文太短 → unreadable，見 threads_service）
      - text 去掉網址後 <8 字且含 http(s) → input_type="url"（走 FR-02）
      永不以 media_type == "TEXT" 判斷；絕不把「@bot 幫我查」這種請求句送進 AI。
@@ -76,6 +78,7 @@ from app.services.task_store import TaskStore
 from app.services.threads_reply import (
     format_verdict_reply,
     reply_cannot_read,
+    reply_cannot_read_quoted,
     reply_media_only,
     reply_too_short,
 )
@@ -115,6 +118,7 @@ KIND_SELF = "self"
 KIND_TEXT = "text"
 KIND_MEDIA_ONLY = "media_only"
 KIND_UNREADABLE = "unreadable"
+KIND_UNREADABLE_QUOTED = "unreadable_quoted"   # 原貼文是引用貼文，但讀不到被引用的那一則
 KIND_TOO_SHORT = "too_short"
 KIND_TRANSIENT = "transient"      # 讀原貼文遇 429／5xx／連線失敗：不標記，下輪重試
 KIND_FAILED = "failed"            # 讀原貼文遇未列入的 4xx（400 等）：標 failed、不回覆、不重試
@@ -148,6 +152,7 @@ LAST_ERROR_TRANSIENT = "transient_error"
 _FIXED_REPLIES = {
     KIND_MEDIA_ONLY: reply_media_only,
     KIND_UNREADABLE: reply_cannot_read,
+    KIND_UNREADABLE_QUOTED: reply_cannot_read_quoted,
     KIND_TOO_SHORT: reply_too_short,
 }
 
@@ -227,6 +232,56 @@ def classify_api_error(exc: BaseException) -> str:
     return classify_status(getattr(exc, "status", None))
 
 
+async def _resolve_quoted(
+    client: Any, post_id: str, bot: str,
+) -> Optional[Tuple[str, Optional[str], str, Dict[str, Any]]]:
+    """post_id 這則貼文若是引用貼文（「.」＋引用別人的貼文再 @機器人，是常見用法），改查被引用的那一則，
+    回傳與 resolve_target 同形狀的結果。不是引用貼文、client 不支援、或查引用欄位失敗 → None，
+    呼叫端照原本流程處理（欄位失敗不能擋住原本就讀得到的貼文）；只有 429 要往外讓它進 backoff。"""
+    getter = getattr(client, "get_quoted_post_id", None)
+    if getter is None:
+        return None
+    try:
+        quoted_id = await asyncio.to_thread(getter, post_id)
+    except ThreadsApiError as e:
+        if e.status == 429:
+            return KIND_TRANSIENT, None, "text", {"id": post_id, "error_status": 429}
+        logger.warning("get_quoted_post_id failed post=%s status=%s", _esc(post_id), e.status)
+        return None
+    except Exception as e:
+        logger.warning("get_quoted_post_id error post=%s: %s", _esc(post_id), _esc(e))
+        return None
+    if not quoted_id:
+        return None
+
+    try:
+        post = await asyncio.to_thread(client.get_post, quoted_id)
+    except ThreadsApiError as e:
+        status = e.status
+        logger.warning("get_post(quoted) failed post=%s quoted=%s status=%s body=%s",
+                       _esc(post_id), _esc(quoted_id), status, _esc(e.body))
+        if status in UNREADABLE_STATUSES:
+            return KIND_UNREADABLE_QUOTED, None, "text", {"id": quoted_id}
+        if classify_status(status) == ERR_CLIENT:
+            return KIND_FAILED, None, "text", {"id": quoted_id, "error_status": status}
+        return KIND_TRANSIENT, None, "text", {"id": quoted_id, "error_status": status}
+    except Exception as e:
+        logger.warning("get_post(quoted) error post=%s quoted=%s: %s", _esc(post_id), _esc(quoted_id), _esc(e))
+        return KIND_TRANSIENT, None, "text", {"id": quoted_id, "error_status": None}
+
+    post = post if isinstance(post, dict) else {}
+    target = _post_ref(post, quoted_id)
+    if bot and str(post.get("username") or "").lower() == bot:
+        return KIND_SELF, None, "text", target
+    text = strip_mentions(post.get("text"))
+    if len(text) >= MIN_TEXT_LEN:
+        input_type, data = _input_of(text)
+        return KIND_TEXT, data, input_type, target
+    if str(post.get("media_type") or "").upper() in MEDIA_TYPES:
+        return KIND_MEDIA_ONLY, None, "text", target
+    return KIND_TOO_SHORT, None, "text", target
+
+
 async def resolve_target(
     client: Any,
     m: Dict[str, Any],
@@ -278,6 +333,10 @@ async def resolve_target(
         if len(text) >= MIN_TEXT_LEN:
             input_type, data = _input_of(text)
             return KIND_TEXT, data, input_type, target
+        # 原貼文文字太短：可能是「.」＋引用別人的貼文，改查被引用的那一則
+        quoted = await _resolve_quoted(client, parent_id, bot)
+        if quoted:
+            return quoted
         if str(post.get("media_type") or "").upper() in MEDIA_TYPES:
             return KIND_MEDIA_ONLY, None, "text", target
         # 原貼文可讀但沒有可用文字：不退回用 mention 本文（那通常只是「@bot 幫我查」）
@@ -288,6 +347,11 @@ async def resolve_target(
     if len(text) >= MIN_TEXT_LEN:
         input_type, data = _input_of(text)
         return KIND_TEXT, data, input_type, target
+    # 提及本身是引用貼文（引用別人的貼文再 @機器人）：改查被引用的那一則
+    if m.get("id"):
+        quoted = await _resolve_quoted(client, str(m["id"]), bot)
+        if quoted:
+            return quoted
     if m.get("replied_to_unknown"):
         # 讀不到「被回覆的原貼文」是哪一則（Threads 開發模式的限制，見 threads_service.MENTION_NODE_FIELDS），
         # 本文又太短：多半是在別人貼文底下 @機器人，回「讀不到原貼文」比「文字太短」準確

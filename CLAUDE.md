@@ -262,7 +262,7 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **881 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **891 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -346,7 +346,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 881 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 891 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -695,6 +695,11 @@ Supabase 的 `threads_kv`／`threads_replies`（`app/services/threads_pg.py`）�
 **端點**：`GET /api/threads/status`、`GET /api/threads/replies`（公開唯讀、不含 token）；`POST /api/threads/poll`（需 `X-Admin-Token`；
 202 背景執行，已有一輪在跑回 409）。排程間隔 `THREADS_POLL_MINUTES`（預設 5）；上限 `THREADS_MAX_REPLIES_PER_POLL=5`、
 `THREADS_MAX_REPLIES_PER_DAY=50`；Threads 的 24 小時回覆配額剩不到 10 則時本輪不回覆（`last_error=reply_quota_near_limit`，T-14）。
+
+**引用貼文（2026-10-29）**：常見用法是第 1 則「.」引用別人的貼文、第 2 則回覆它並 @機器人，原貼文文字只有「.」。
+原貼文或提及本身文字 <8 字時，`threads_bot._resolve_quoted` 以 `ThreadsService.get_quoted_post_id`（另開一次查詢取 `quoted_post`，
+不併進 `get_post`，欄位失敗不影響原流程）找出被引用的貼文並改查它；讀不到（401／403／404，開發模式下原作者不是測試人員就會這樣）
+回 `reply_cannot_read_quoted` 固定文案。**尚未對真的 Threads API 驗證**：`quoted_post` 的回傳形狀依官方文件（media id，也容許物件形狀）。
 
 **防呆設計（改 code 前先看 `app/workers/threads_bot.py` 檔頭的 docstring）**：回覆成功後先原子寫 state 再寫 jsonl，不重複回；
 不回機器人自己的貼文；只有圖片／影片、讀不到、太短 → 回固定文案、不經 AI；**AI 不可用（fallback）時不回覆、不標記**，下輪自動補回；

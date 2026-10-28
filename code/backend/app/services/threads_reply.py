@@ -183,6 +183,14 @@ def reply_cannot_read() -> str:
     )
 
 
+def reply_cannot_read_quoted() -> str:
+    return (
+        f"{LIGHT_YELLOW} 這則貼文引用了別人的貼文，但我讀不到被引用的內容"
+        f"（可能是原作者是私人帳號、或尚未加入測試名單）。"
+        f"請把要查證的文字複製後貼在你的貼文裡再 @我，或貼到 {_base_url()} 查證。"
+    )
+
+
 def reply_media_only() -> str:
     return (
         f"{LIGHT_YELLOW} 這則貼文只有圖片或影片，我目前只能查文字。"
