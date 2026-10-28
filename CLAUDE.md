@@ -66,6 +66,11 @@
   fallback 卻沒有人發現。現在 `_cgu_analyze` 遇到 404 會自動改用 `CGU_FALLBACK_MODEL`；`factcheck-sync` 每次執行都讀模型清單
   （`ai_service.gateway_models()` = `GET {CGU_BASE_URL}/models`，不花額度），設定的模型不在清單上時 workflow 變紅並寄信。
   換模型要重跑評測（第 6 節），選型比較見 `docs/test/results/model_switch_2026-09-30.md`；模型名稱寫在 `render.yaml`。
+- **閘道模型清單（2026-10-28 負責人截圖的閘道頁面）**：OpenAI 相容的對話模型有 `gpt-5.6-luna`／`-sol`／`-terra`、`gpt-6-luna`／`-sol`、
+  `gpt-6.1-sol`，embedding 有 `text-embedding-3-small`／`-large`；本地 Ollama 有 `bge-m3:latest`、`gpt-oss:20b`；學校算力池（Spark）有
+  `gemma-4-26b-a4b-it`、`gpt-oss-120b`、`nemotron-3-super-120b-a12b`、`nemotron-3.5-bolt-74b-a9b`（後兩類不花 OpenAI 額度）。
+  閘道標示「測試階段」鎖定較貴的模型，並建議改用 `gpt-6-luna`＋reasoning effort `high`（費率是 `gpt-5.6-luna` 的一半）。
+  2026-09-30 只比過 `gpt-6-luna`＋`medium`（本週新查核漏判 10 則，`gpt-5.6-luna` 5 則），`high` 還沒測，**換之前要重跑評測**。
 - **額度**：OpenAI 成本額度**每週 USD 10**（負責人確認），用不完不累積；**週四重置**（2026-10-08 那次落在台灣時間週四 03:00～週五 03:00 之間，由每次同步的 embedding 用量反推）。閘道 `/me/usage` 的 `quota_usd` 在 2026-10-15 也是 10；10-04～10-14 那兩週曾顯示 20（原因不明，不是先前推測的「扣款是牌價 2 倍」）。程式裡的護欄一律讀閘道帳上的剩餘額度。另有本地模型的 token 額度（目前沒用到）。用量查 `GET {CGU_BASE_URL}/me/usage`
   （寫法見 `scripts/batch_verify_pending.py` 的 `cgu_cost_usd()`）。閘道教學頁：`https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html`。
 - **myai168（OpenAI／Claude 中繼）已停用**：`.env.example` 把它註解在「已停用」區，雲端只設 CGU 金鑰。舊碼留著供日後切回
@@ -447,6 +452,11 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 ## 8. 待辦 / 進行中（更新時請維護這段）
 
 ### 未完成（現況）
+- [ ] **信心程度驗證（負責人 2026-10-28：這一輪最重要；驗證沒過關就拿掉信心標示）**：計畫與過關標準草案在
+      `docs/test/信心程度驗證計畫.md`（過關標準待負責人確認）。已知：AI 自評分數 `confidence_score` 沒有鑑別力（AUROC 0.53），
+      綠燈條件 `GREEN_MIN_CONFIDENCE=0.7` 擋不到任何 SAFE 判定。下一步以每週評測已判讀的題目＋時間切分驗證證據信心，
+      同時比較 `text-embedding-3-small`／`-large`／`bge-m3`；需要雲端 session 設 `CGU_API_KEY` 與網路白名單（見該文件第 6 節）。
+      之後做純模型比較（`gpt-5.6-luna`、`gpt-6-luna`＋high、Spark 的開源模型），目標 2026-12-03 期末成果展
 - [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
