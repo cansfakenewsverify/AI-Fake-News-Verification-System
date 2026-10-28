@@ -1,0 +1,36 @@
+{
+  "confidence_fetch": {
+    "corpus_by": {
+      "Cofacts:MISINFO:kb": 7138,
+      "Cofacts:SAFE:analysis": 1758,
+      "MyGoPen:MISINFO:kb": 4176,
+      "MyGoPen:SAFE:analysis": 61,
+      "MyGoPen:SCAM:kb": 165,
+      "TFC:MISINFO:kb": 7205,
+      "TFC:SAFE:analysis": 4
+    },
+    "corpus_rows": 20507,
+    "dedupe": {
+      "conflicting_gold": 0,
+      "correctness_changed": 24,
+      "fallback_rows": 19,
+      "repeated": 341,
+      "rows": 5240,
+      "unique": 4880,
+      "verdict_changed": 58,
+      "weeks": [
+        "2026-10-19",
+        "2026-10-26"
+      ]
+    },
+    "matching": {
+      "Cofacts:cofacts_article": 26,
+      "Cofacts:corpus": 2412,
+      "MyGoPen:corpus": 912,
+      "TFC:corpus": 1530,
+      "no_date": 0
+    },
+    "since": "2026-10-19",
+    "updated_at": "2026-10-28T22:37:40+08:00"
+  }
+}
