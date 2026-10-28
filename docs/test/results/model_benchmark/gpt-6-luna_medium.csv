@@ -1,0 +1,21 @@
+item_id,content_hash,url,source,gold,model,effort,api,predicted,format_error,detail,error,sec,input_tokens,output_tokens,usd,run_date
+1,fd38a156e51209097d27a11d61be4bcd005f95c80fc2cc985e3daf53479a3825,https://cofacts.tw/article/2dkoc66v3u3h8,Cofacts,SAFE,gpt-6-luna,medium,responses,,False,,HTTP 401,0.7,,,,2026-10-29
+2,09bef082abf23ac03fee3254a5db65c3d337dd5fbc14796dacee67b2a8877709,https://tfc-taiwan.org.tw/fact-check-reports/migration-8141/,TFC,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.78,,,,2026-10-29
+3,b3a1e2149eff2b7680a9bedadf109a122890fac583cbbb673fb4ba6f53c757d9,https://cofacts.tw/article/r00y8bnkzlyw,Cofacts,SAFE,gpt-6-luna,medium,responses,,False,,HTTP 401,0.78,,,,2026-10-29
+4,a088cdabe6784cc02090932fd2ed0fe4d8613ee1f23245ba9c1ea5c6edabffa6,https://www.mygopen.com/2026/10/PXPayPlus.html,MyGoPen,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.81,,,,2026-10-29
+5,c35d30485ac20c581830d3019d3eebfdf7f1316c635ef8bea5786ef03fe2f38e,https://www.mygopen.com/2022/05/chiang-covid.html,MyGoPen,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.72,,,,2026-10-29
+6,c2a937fb8ca6a9b3dd5b962433edd987f4df3082bb27b7555b707d878b1c817f,https://cofacts.tw/article/1koayafvzg8fq,Cofacts,SAFE,gpt-6-luna,medium,responses,,False,,HTTP 401,0.77,,,,2026-10-29
+7,37e6644c161d11b5e10f06b767e56f6ca7ef31b842ea082d0cdf92477767f3eb,https://tfc-taiwan.org.tw/fact-check-reports/migration-1481/,TFC,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.64,,,,2026-10-29
+8,916ed75aac84ad930166c21a2cdd60fca48bc4bbf6b0c790f6111c328a59ee3e,https://www.mygopen.com/2026/10/threads999.html,MyGoPen,SCAM,gpt-6-luna,medium,responses,,False,,HTTP 401,0.72,,,,2026-10-29
+9,4f57d7daca4787498d6ed8f96b04d5d5faa636fbc054b7fe908f6c5c2d6378a4,https://cofacts.tw/article/1ztcmpxwqi4or,Cofacts,SAFE,gpt-6-luna,medium,responses,,False,,HTTP 401,0.73,,,,2026-10-29
+10,ddfdc0e8a1e1b311b89c062dc5f3277660a8beac7738eaf3cc4eb5919d526a89,https://cofacts.tw/article/387vz6twyghql,Cofacts,SAFE,gpt-6-luna,medium,responses,,False,,HTTP 401,0.69,,,,2026-10-29
+11,05a93d675f681e557762782efcc14bb9c13cf6cb2b1c4078f84dbeee8a7686f3,https://tfc-taiwan.org.tw/fact-check-reports/migration-6061/,TFC,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.89,,,,2026-10-29
+12,86cb159bab6209023073d5a12aa3df1474998a9e4e5b1ac10101428cbad24729,https://tfc-taiwan.org.tw/fact-check-reports/mazu-patrol-mistaken-china-coast-guard-anping/,TFC,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.67,,,,2026-10-29
+13,a577135a89753898a51a9fe5cae6acbf97b2ab325337d596fc798337d6e85e6d,https://cofacts.tw/article/25aiwpuratmtp,Cofacts,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.7,,,,2026-10-29
+14,679440369f27041fbf72a41dca59fe209d905bfb1f180734a706f4f3c3546cdc,https://cofacts.tw/article/2l6ay79ep1nyt,Cofacts,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.72,,,,2026-10-29
+15,7bfd016da46cbdf27b7c3238429d8fd3842ddb1e6e1206a5adda7c6244cd5aa6,https://cofacts.tw/article/2v8y3es44o8nh,Cofacts,SAFE,gpt-6-luna,medium,responses,,False,,HTTP 401,0.66,,,,2026-10-29
+16,625726af2752811ccc389ea5463257ff9a8d9becbf5f5407d1182b4c46bc240a,https://www.mygopen.com/2023/02/vaccine-1500.html,MyGoPen,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.66,,,,2026-10-29
+17,3a4adc06f2e18c44efd26b1564cf4005a6a05e9a3a782c223d51345977c43bea,https://cofacts.tw/article/3i5i321h1e6wa,Cofacts,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.64,,,,2026-10-29
+18,5eecba5ea8992ce53941936c9363875551dee6953d54313ff62d89fafa15fd77,https://www.mygopen.com/2021/09/Biden-israel.html,MyGoPen,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.89,,,,2026-10-29
+19,59bcbbd71b8da10db777625a9d6d3e4440124bce56cb53e206984b5852ef2e60,https://cofacts.tw/article/2h5at9tb2h6qo,Cofacts,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.89,,,,2026-10-29
+20,5ecd3bcd70e8c15cf519a9ca06c6114fa24fa7f7e68fadf0f84bdf2be4f5659f,https://cofacts.tw/article/1k1xajg6uzry6,Cofacts,MISINFO,gpt-6-luna,medium,responses,,False,,HTTP 401,0.73,,,,2026-10-29

@@ -1,4 +1,171 @@
 {
+  "benchmark_freeze": {
+    "by": {
+      "MISINFO:Cofacts": 379,
+      "MISINFO:MyGoPen": 246,
+      "MISINFO:TFC": 364,
+      "SAFE:Cofacts": 964,
+      "SAFE:MyGoPen": 34,
+      "SAFE:TFC": 2,
+      "SCAM:MyGoPen": 11
+    },
+    "items": 2000,
+    "no_vector_dropped": {
+      "risky": 0,
+      "safe": 0
+    },
+    "recent": 65,
+    "updated_at": "2026-10-28T23:36:29+08:00"
+  },
+  "benchmark_gpt-5.6-luna_medium": {
+    "answered_total": 50,
+    "api": "responses",
+    "budget": {
+      "allowed_usd": 0.3,
+      "estimated_usd": 0.1134,
+      "items": 50,
+      "stop_reason": null,
+      "usage_after": {
+        "cost_usd": 3.174257,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.825743
+      },
+      "usage_before": {
+        "cost_usd": 3.117705,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.882295
+      },
+      "usage_delta_usd": 0.0566
+    },
+    "effort": "medium",
+    "estimated_usd_for_rest": 4.421,
+    "items": 2000,
+    "missing_text": 0,
+    "model": "gpt-5.6-luna",
+    "sec_p50": 6.7,
+    "this_run": {
+      "answered": 50,
+      "errors": 0,
+      "todo": 50
+    },
+    "trial": true,
+    "updated_at": "2026-10-28T23:38:04+08:00",
+    "usd_per_item": 0.002267
+  },
+  "benchmark_gpt-6-luna_high": {
+    "answered_total": 532,
+    "api": "responses",
+    "budget": {
+      "allowed_usd": 3.7892,
+      "estimated_usd": 0.6714,
+      "items": 520,
+      "stop_reason": "all_failed",
+      "usage_after": {
+        "cost_usd": 3.580098,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.419902
+      },
+      "usage_before": {
+        "cost_usd": 3.210751,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.789249
+      },
+      "usage_delta_usd": 0.3693
+    },
+    "effort": "high",
+    "estimated_usd_for_rest": 2.152,
+    "items": 2000,
+    "missing_text": 0,
+    "model": "gpt-6-luna",
+    "sec_p50": 11.71,
+    "this_run": {
+      "answered": 483,
+      "errors": 37,
+      "todo": 1951
+    },
+    "trial": true,
+    "updated_at": "2026-10-29T00:08:56+08:00",
+    "usd_per_item": 0.001466
+  },
+  "benchmark_gpt-6-luna_medium": {
+    "answered_total": 0,
+    "api": "responses",
+    "budget": {
+      "allowed_usd": 0.3,
+      "estimated_usd": 0.0,
+      "items": 20,
+      "stop_reason": "all_failed",
+      "usage_after": {
+        "cost_usd": 3.580098,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.419902
+      },
+      "usage_before": {
+        "cost_usd": 3.580098,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.419902
+      },
+      "usage_delta_usd": 0.0
+    },
+    "effort": "medium",
+    "estimated_usd_for_rest": null,
+    "items": 2000,
+    "missing_text": 0,
+    "model": "gpt-6-luna",
+    "sec_p50": null,
+    "this_run": {
+      "answered": 0,
+      "errors": 20,
+      "todo": 50
+    },
+    "trial": true,
+    "updated_at": "2026-10-29T00:09:01+08:00",
+    "usd_per_item": null
+  },
+  "benchmark_gpt-oss-120b_medium": {
+    "answered_total": 1855,
+    "api": "chat",
+    "budget": {
+      "allowed_usd": null,
+      "estimated_usd": 0.0,
+      "items": 1840,
+      "stop_reason": "all_failed",
+      "usage_after": {
+        "cost_usd": -1.0,
+        "quota_usd": -1.0,
+        "remaining_usd": -1.0
+      },
+      "usage_before": {
+        "cost_usd": 3.580098,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.419902
+      },
+      "usage_delta_usd": null
+    },
+    "effort": "medium",
+    "estimated_usd_for_rest": 0.0,
+    "items": 2000,
+    "missing_text": 0,
+    "model": "gpt-oss-120b",
+    "sec_p50": 11.33,
+    "this_run": {
+      "answered": 1805,
+      "errors": 35,
+      "todo": 1950
+    },
+    "trial": true,
+    "updated_at": "2026-10-29T04:19:09+08:00",
+    "usd_per_item": 0.0
+  },
+  "benchmark_report": {
+    "models": [
+      "gpt-5.6-luna medium",
+      "gpt-6-luna high",
+      "gpt-oss-120b medium"
+    ],
+    "report": "docs\\test\\results\\model_benchmark_2026-10-29.md",
+    "updated_at": "2026-10-29T04:21:28+08:00"
+  },
   "confidence_analyze": {
     "per_question": "docs\\test\\results\\confidence_validation_2026-10-28.csv",
     "report": "docs\\test\\results\\confidence_validation_2026-10-28.md",
