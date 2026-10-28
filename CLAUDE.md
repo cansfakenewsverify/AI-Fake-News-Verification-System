@@ -250,6 +250,11 @@ code/backend/
 │   ├── ingest_factchecks.py    查核機構已證實資料批次入庫：fetch／embed／stats／apply／rollback（apply 預設 dry-run）
 │   ├── fix_title_claims.py     2026-10 一次性：標籤標題的舊主張（只取第一個問號前）改成新規則；預設 dry-run、--apply 前自動備份、--restore
 │   ├── evidence_confidence_study.py  證據信心研究（夾角 vs 判定、誤命中檢查、話術原型）→ docs/test/results/evidence_confidence_*.md
+│   ├── confidence_validation.py  信心程度驗證＋嵌入模型比較：fetch／embed／analyze（在 GitHub Actions research workflow 跑；
+│   │                            原文與向量在 data/research/，gitignored）→ docs/test/results/confidence_validation_*.md
+│   ├── model_benchmark.py      純模型比較：freeze（2,000 題凍結題庫）／run（每個模型）／report → docs/test/results/model_benchmark*
+│   ├── research_common.py      上面兩支共用：額度護欄 Budget（保留 USD 3、每 100 題讀 /me/usage、週日不跑）、時間切分最近鄰、分群
+│   ├── research_env_check.py   研究批次的環境檢查（只用標準函式庫）：secret 有沒有設、四個網域、CGU 剩餘額度與模型清單
 │   ├── audit_cofacts_sources.py  盤點以 Cofacts 當 Tier 1 來源的已證實列（有無判定、方向是否一致；預設只讀）
 │   ├── llm_second_opinion.py / fix_factcheck_labels.py   清洗審閱輔助（CGU 本地模型）／2026-07 一次性標籤修復
 │   ├── ensure_admin_token.py   啟動腳本每次呼叫：.env 的 ADMIN_TOKEN 空就補亂數（不印出）
@@ -258,7 +263,7 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **853 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **880 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -297,6 +302,9 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 .github/workflows/cgu-reachability.yml   手動觸發：確認校外雲端主機連不連得到 CGU 閘道（不帶金鑰）
 .github/workflows/factcheck-sync.yml     查核結論同步（每天兩次 recent、每週 full）＋更新熱門牆；需 secret ADMIN_TOKEN
 .github/workflows/weekly-eval.yml        每週新查核自動評測，報告 commit 到 docs/test/results/weekly/；需 secret ADMIN_TOKEN
+.github/workflows/research.yml           信心驗證與模型比較的批次（手動、選研究分支；task 選步驟；原文只在 actions/cache；
+                                         結果 commit 回該分支）；需 secret CGU_API_KEY。不在 main 上跑
+.github/workflows/research-env-check.yml 研究批次的環境檢查（零成本；推到研究分支時自動跑）
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
@@ -342,7 +350,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 853 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 880 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -455,13 +463,15 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
 ## 8. 待辦 / 進行中（更新時請維護這段）
 
 ### 未完成（現況）
-- [ ] **信心程度驗證（負責人 2026-10-28：這一輪最重要；驗證沒過關就拿掉信心標示）**：計畫與過關標準草案在
-      `docs/test/信心程度驗證計畫.md`（過關標準待負責人確認）。已知：AI 自評分數 `confidence_score` 沒有鑑別力（AUROC 0.53），
+- [ ] **信心程度驗證（負責人 2026-10-28：這一輪最重要；驗證沒過關就拿掉信心標示）**：計畫在
+      `docs/test/信心程度驗證計畫.md`（過關標準 2026-10-28 負責人確認：照草案）。已知：AI 自評分數 `confidence_score` 沒有鑑別力（AUROC 0.53），
       綠燈條件 `GREEN_MIN_CONFIDENCE=0.7` 擋不到任何 SAFE 判定；同一則內容兩週重查，AI 判定 17% 不同。
-      下一步以每週評測已判讀的題目＋時間切分＋重複內容分群驗證證據信心（含可靠度圖、ECE、Brier），
-      同時比較 `text-embedding-3-small`／`-large`／`bge-m3`；需要雲端 session 設 `CGU_API_KEY` 與網路白名單（見該文件第 6 節）。
-      接著做純模型比較（計畫 `docs/test/模型比較計畫.md`：2,000 題凍結題庫，`gpt-5.6-luna`、`gpt-6-luna`＋high、Spark 的開源模型，
-      最後一列是「完整系統」），目標 2026-12-03 期末成果展
+      以每週評測已判讀的題目＋時間切分＋重複內容分群驗證證據信心（含可靠度圖、ECE、Brier），
+      同時比較 `text-embedding-3-small`／`-large`／`bge-m3`；接著做純模型比較（計畫 `docs/test/模型比較計畫.md`：2,000 題凍結題庫，
+      `gpt-5.6-luna`、`gpt-6-luna`＋high、Spark 的開源模型，最後一列是「完整系統」），目標 2026-12-03 期末成果展。
+      **2026-10-28 腳本與 workflow 已寫好（研究分支 `claude/github-project-relevance-gunvht`，票 O-37）**：在 GitHub Actions 跑，
+      步驟與實作細節見兩份計畫的第 7 節。環境檢查：四個網域都連得到，**repository secret `CGU_API_KEY` 還沒設**。
+      workflow 不必放 main：以 API 對研究分支觸發即可（2026-10-28 實測）；要在 GitHub 網頁上按按鈕才需要放 main
 - [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
