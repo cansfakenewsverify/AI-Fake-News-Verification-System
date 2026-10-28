@@ -9,6 +9,8 @@
 #   開始前與每 100 題讀 /me/usage、保留 USD 3 給網站使用者、本次上限 max_usd；trial（預設打勾）只跑 50 題並估全部的花費；
 #   台灣時間週日不跑（週日 21:17 有每週評測）。額度週四重置，重置後再跑。
 # - 不在 main 上跑：觸發時「Use workflow from」選研究分支。
+# - 不必放在 main：推到研究分支時的 push 只讓 GitHub 認得這個 workflow（job 直接略過、不做任何事），
+#   之後就能以 API 對研究分支觸發（2026-10-28 實測）。要在 GitHub 網頁上按「Run workflow」才需要放 main。
 #
 # 順序：corpus-fetch → embed（text-embedding-3-small 先試跑、再全部）→ confidence-analyze
 #       benchmark-freeze（要 small 向量）→ benchmark-run（每個模型先試跑）→ benchmark-report
@@ -47,6 +49,9 @@ on:
       max_usd:
         description: "本次最多花多少 USD（另外一律保留 USD 3 給網站使用者）"
         default: "1"
+  push:
+    branches: [claude/github-project-relevance-gunvht]
+    paths: [.github/workflows/research.yml]
 
 permissions:
   contents: write
@@ -57,6 +62,7 @@ concurrency:
 
 jobs:
   run:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 350
     defaults:
