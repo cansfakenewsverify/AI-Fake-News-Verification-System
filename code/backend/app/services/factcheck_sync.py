@@ -14,7 +14,8 @@
   輪詢它，順便讓 Render 免費主機在同步期間保持清醒（沒有流量 15 分鐘會休眠）。
 - 每次執行先讀 CGU 閘道的模型清單（GET /models，不花額度）：CGU_MODEL、CGU_FALLBACK_MODEL、EMBED_MODEL 有任何一個
   不在清單上就記在 STATUS["model_check"]["missing"]，workflow 會標為失敗並寄信（2026-09-30 閘道無預警下架 gpt-5.4-mini，
-  網站的新內容判讀全部變成 fallback，沒有人發現）。
+  網站的新內容判讀全部變成 fallback，沒有人發現）。同時實際算一次 embedding，失敗記在 STATUS["embed_check"]
+  （2026-10-28 EMBED_API_KEY 失效，語意快取與證據信心停用約 11 小時，也沒有人發現）。
 - 三個來源依序處理，原始回應轉成語料列後就釋放（免費主機只有 512 MB 記憶體）。某個來源抓取失敗時照樣寫入其他來源，
   錯誤記在 STATUS["source_errors"]（workflow 看到它就標為失敗，GitHub 會寄信通知）；三個都失敗才算整輪失敗。
 """
@@ -40,7 +41,7 @@ STATUS: Dict[str, Any] = {
     "state": "idle", "mode": None, "phase": None, "started_at": None, "finished_at": None,
     "candidates": 0, "already_present": 0, "to_write": 0, "written": 0, "tokens": 0,
     "written_by_source": {}, "skipped": {}, "source_errors": {}, "upgraded_from": None, "model_check": None,
-    "error": None,
+    "embed_check": None, "error": None,
 }
 
 
@@ -59,6 +60,18 @@ def model_check() -> Dict[str, Any]:
     if (settings.EMBED_RELAY_URL or "").rstrip("/") == (settings.CGU_BASE_URL or "").rstrip("/"):
         wanted.append(settings.EMBED_MODEL)
     return {"checked": True, "missing": [m for m in wanted if m and m not in models]}
+
+
+def embed_check() -> Dict[str, Any]:
+    """
+    embedding 還能不能用：{ok, error}，實際算一次短句（約 10 tokens）。2026-10-28 Render 的 EMBED_API_KEY 失效（HTTP 401），
+    網站的語意快取與證據信心默默停用約 11 小時；當天沒有新的查核要寫入時，同步本身不會碰到 embedding。
+    """
+    from app.services.ai_service import AIService, embedding_status
+
+    if AIService().generate_embedding("查核結論同步檢查"):
+        return {"ok": True, "error": None}
+    return {"ok": False, "error": embedding_status().get("error")}
 
 
 def is_running() -> bool:
@@ -117,7 +130,7 @@ def _reset(mode: str) -> None:
     STATUS.update(state="queued", mode=mode, phase=None, started_at=_now(), finished_at=None,
                   candidates=0, already_present=0, to_write=0, written=0, tokens=0,
                   written_by_source={}, skipped={}, source_errors={}, upgraded_from=None, model_check=None,
-                  error=None)
+                  embed_check=None, error=None)
 
 
 def try_start(mode: str, background_tasks: Optional[Any] = None) -> bool:
@@ -150,7 +163,7 @@ def run_sync(mode: str = "recent", store: Any = None) -> Dict[str, Any]:
 def _run_locked(mode: str, store: Any = None) -> Dict[str, Any]:
     """呼叫前必須已持有 _lock；結束時釋放。"""
     try:
-        STATUS.update(state="running", phase="model_check", model_check=model_check())
+        STATUS.update(state="running", phase="model_check", model_check=model_check(), embed_check=embed_check())
         STATUS["phase"] = "fetch"
         store = store or get_knowledge_store()
         if mode == "recent" and store.verified_origin_count(fc.ORIGIN) == 0:

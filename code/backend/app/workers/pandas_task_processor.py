@@ -235,7 +235,8 @@ def _build_result(
         "verified": status != "unverified",
         "verification_status": status,
         "source_tier": source_tier,
-        # FR-02：知識庫中的相似查證（向量近鄰，只在 AI 判讀時計算；快取命中為 []）
+        # FR-02：知識庫中的相似查證（向量近鄰，只在 AI 判讀時計算；快取命中為 []，
+        # 除非命中的列當初算不出向量、這次重新比對了，見 _refresh_evidence）
         "similar_news": list(similar or []),
         "cached": cached,
         # 哪一層快取命中（url / hash / vector；None = 走了完整 AI 分析）。
@@ -244,6 +245,16 @@ def _build_result(
         "kb_id": kb_id,
         "analyzed_at": _now_taipei_iso(),
     }
+
+
+def _evidence_lacks_vector(row: Dict[str, Any]) -> bool:
+    """
+    存下的證據是在算不出向量時產生的：最近相似度與話術差距都是空的（有向量時話術差距一定算得出來）。
+    2026-10-28 Render 的 EMBED_API_KEY 失效約 11 小時，這段時間的新結果信心一律「低」、沒有相似查證。
+    """
+    analysis = row.get("ai_analysis") if isinstance(row.get("ai_analysis"), dict) else {}
+    stored = analysis.get("evidence")
+    return isinstance(stored, dict) and stored.get("nearest_similarity") is None and stored.get("pattern_margin") is None
 
 
 def _stored_evidence(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -471,12 +482,19 @@ async def process_analysis_task_async(
             tiered = _drop_same_domain_sources(tiered, input_url)
             related = _drop_same_domain_sources(related, input_url)
         label_source = _safe_str(row.get("label_source")) or "ai"
+        evidence, similar = None, []
+        if label_source not in DETERMINISTIC_LABEL_SOURCES:
+            evidence = _stored_evidence(row)
+            if _evidence_lacks_vector(row):
+                refreshed = await _refresh_evidence(row, label_source, tiered)
+                if refreshed is not None:
+                    evidence, similar = refreshed
         result = _build_result(
             row.get("ai_analysis"), cached=True, cache_layer=layer, result_id=task_id,
             label_source=label_source,
             sources=tiered, related_discussions=related,
             kb_id=_safe_str(row.get("id")) or None,
-            evidence=None if label_source in DETERMINISTIC_LABEL_SOURCES else _stored_evidence(row),
+            evidence=evidence, similar=similar,
         )
         await asyncio.to_thread(_complete, task_store, task_id, result)
         _log_verification(result, origin, started, None, None, None)
@@ -484,6 +502,44 @@ async def process_analysis_task_async(
 
     def _usable(row: Optional[Dict[str, Any]]) -> bool:
         return bool(row) and not is_fallback(row.get("ai_analysis"))
+
+    row_vectors: Dict[str, Optional[List[float]]] = {}
+
+    async def _row_vector(row: Dict[str, Any]) -> Optional[List[float]]:
+        """快取列的向量：存著就用；沒有（Postgres 版不載入、或當初沒算出來）就以原文算一次。同一列只算一次。"""
+        key = _safe_str(row.get("id")) or str(id(row))
+        if key not in row_vectors:
+            vector = _stored_vector(row.get("content_vector"))
+            if vector is None:
+                text = _safe_str(row.get("raw_content"))
+                if text:
+                    vector = await asyncio.to_thread(vector_service.vectorize_content, matching_text(text))
+            row_vectors[key] = vector or None
+        return row_vectors[key]
+
+    async def _refresh_evidence(
+        row: Dict[str, Any], label_source: str, tiered: List[Dict[str, Any]],
+    ) -> Optional[Tuple[Dict[str, Any], List[Dict[str, Any]]]]:
+        """
+        存下的證據是在算不出向量時產生的（_evidence_lacks_vector）：快取命中時重新比對知識庫，
+        回傳（現在的證據, 相似查證）。仍然算不出向量 → None，照舊用存下的。
+        不呼叫判讀模型、不改存下的資料（這類列不多，每次命中多一次 embedding 與一次近鄰查詢，約 1 秒）。
+        """
+        try:
+            vector = await _row_vector(row)
+        except Exception as e:
+            logger.warning("evidence refresh failed for task %s: %s", task_id, e)
+            return None
+        if not vector:
+            return None
+        neighbours, margin = await _evidence_inputs(pandas_store, vector)
+        analysis = row.get("ai_analysis") if isinstance(row.get("ai_analysis"), dict) else {}
+        evidence = evidence_mod.assess(
+            _safe_str(analysis.get("risk_type")) or "SAFE", label_source=label_source,
+            verification_status=_verification_status(label_source, tiered, analysis, False),
+            neighbours=neighbours, margin=margin, ai_checked=True,
+        )
+        return evidence, evidence_mod.similar_news(neighbours)
 
     async def _newer_factcheck(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -498,12 +554,7 @@ async def process_analysis_task_async(
         if _is_verified_row(row):
             return None
         try:
-            vector = _stored_vector(row.get("content_vector"))
-            if vector is None:
-                text = _safe_str(row.get("raw_content"))
-                if not text:
-                    return None
-                vector = await asyncio.to_thread(vector_service.vectorize_content, matching_text(text))
+            vector = await _row_vector(row)
             if not vector:
                 return None
             found = await asyncio.to_thread(

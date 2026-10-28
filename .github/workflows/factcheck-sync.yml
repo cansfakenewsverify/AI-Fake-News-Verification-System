@@ -8,7 +8,8 @@
 # 做完後再更新熱門牆「查核機構最新」（POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false，不呼叫判讀模型；
 # 取代原本的 factcheck-daily workflow）。
 # 做完後有下列情況就標為失敗（GitHub 會寄信通知）：同步失敗、某個來源抓不到、
-# CGU 閘道已經沒有設定的模型（model_check.missing；2026-09-30 閘道無預警下架 gpt-5.4-mini）。
+# CGU 閘道已經沒有設定的模型（model_check.missing；2026-09-30 閘道無預警下架 gpt-5.4-mini）、
+# 後端算不出 embedding（embed_check.ok=false；2026-10-28 Render 的 EMBED_API_KEY 失效，語意快取停用約 11 小時）。
 #
 # 需要兩個設定（沒設好時本 workflow 印出說明後正常結束，不會變紅）：
 # - repository variable BACKEND_BASE_URL（keepalive 已在用）
@@ -103,7 +104,8 @@ jobs:
 
           s = json.load(open("status.json"))
           keys = ("state", "mode", "upgraded_from", "candidates", "already_present", "to_write", "written",
-                  "written_by_source", "tokens", "source_errors", "model_check", "error", "started_at", "finished_at")
+                  "written_by_source", "tokens", "source_errors", "model_check", "embed_check", "error",
+                  "started_at", "finished_at")
           print(json.dumps({k: s.get(k) for k in keys}, ensure_ascii=False, indent=2))
           problems = []
           if s.get("state") == "idle":
@@ -115,6 +117,10 @@ jobs:
               problems.append("the CGU gateway no longer lists " + ", ".join(missing)
                               + ": new AI verdicts on the site will fail. Pick an available model "
                               "(GET {CGU_BASE_URL}/models) and change CGU_MODEL / CGU_FALLBACK_MODEL in render.yaml.")
+          embed = s.get("embed_check") or {}
+          if embed.get("ok") is False:
+              problems.append(f"embedding failed on the server ({embed.get('error')}): the semantic cache and evidence "
+                              "confidence are off. HTTP 401 = EMBED_API_KEY on Render is wrong or was reset.")
           if s.get("source_errors"):
               problems.append("some sources could not be fetched: " + json.dumps(s["source_errors"], ensure_ascii=False))
           for p in problems:

@@ -2880,7 +2880,22 @@ flowchart LR
   結尾「是真的嗎？／真的假的」、成對引號；去完不到 4 字就用原文）；`pandas_task_processor` 的文字輸入向量層、
   `cache_would_hit`、查核結果回補改用它算向量。AI 判讀、hash 層、知識庫的 raw_content 不變（FR-01）；門檻不變
 - 驗收：pytest 874（`tests/test_claim_text.py` +20、`tests/test_processor_flow.py` +1）
-- 狀態：已完成程式與測試（2026-10-28，分支 `fix/strip-claim-lead-in`）；待負責人說「推」才上線
+- 狀態：已完成（2026-10-29 上線，commit 3610006）；正式站「網傳：吃香蕉配優格會中毒？」信心「中」、列出 3 篇 MyGoPen 相似查證
+  （最近相似度 0.6633，與本機量測相同）
+
+### B-46 embedding 失效：舊結果重新比對、/health 顯示向量狀態、同步時檢查
+- 優先級：P0
+- 對應：2026-10-28 負責人在 CGU 換了金鑰，Render 的 `EMBED_API_KEY` 沒跟著改，embedding 回 HTTP 401 約 11 小時
+  （約 13:30～00:40）：語意快取、相似查證、信心「中」全部停用，`/health` 的 `ai_available` 仍是 true，沒有人發現。
+  這段時間存下的 AI 結果（例：「台灣軍人若效忠中共取消退休金…」）證據是空的，同一段文字之後每次命中都是「信心 低」
+- 範圍：
+  - `ai_service.generate_embedding` 記下每次呼叫的結果，`embedding_status()`；`/health` 加 `embedding: {ok, checked_at, error}`
+    （error 只有狀態碼或例外類別；不另外發請求，維持 spec §5.1）；
+  - `pandas_task_processor`：URL／hash 命中的非確定性列，存下的證據沒有最近相似度也沒有話術差距時重新比對知識庫
+    （`_refresh_evidence`；與查核結果回補共用同一次 embedding；不改存下的資料、不呼叫判讀模型）；
+  - `factcheck_sync.embed_check()`：每次同步實際算一次短句，`STATUS["embed_check"]`；`factcheck-sync.yml` 看到 `ok=false` 變紅寄信
+- 驗收：pytest 881（`tests/test_stale_evidence.py` +5、`tests/test_health.py` +1、`tests/test_factcheck_sync.py` +1）
+- 狀態：已完成程式與測試（2026-10-29，分支 `fix/stale-evidence-health`）；待負責人說「推」才上線
 
 ### O-32 專題介紹海報（兩張 A1）
 - 優先級：P1

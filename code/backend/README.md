@@ -305,7 +305,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | POST／GET | `/api/admin/weekly-eval` | 每週新查核自動評測（管理端點）：POST `?max_usd=&plan_only=&days=`（202；409），GET 看進度與統計；做完後 `GET /api/admin/weekly-eval/report.md`、`/results.csv` 取報告（不含訊息原文） |
 | GET | `/api/threads/status`、`/api/threads/replies` | Threads 機器人狀態與回覆紀錄（公開唯讀，不含 token） |
 | POST | `/api/threads/poll` | 手動跑一輪輪詢（管理端點；`THREADS_MODE=off` 時回 `threads_disabled`） |
-| GET | `/health`、`/api/health` | 健康檢查：`ai_available`、`threads_mode`、`scheduler`、`daily_ai_calls`、`storage_backend`。不呼叫任何付費 API |
+| GET | `/health`、`/api/health` | 健康檢查：`ai_available`、`embedding`（最近一次 embedding 呼叫的結果）、`threads_mode`、`scheduler`、`daily_ai_calls`、`storage_backend`。不呼叫任何付費 API |
 
 管理端點都需要 `X-Admin-Token` 標頭。
 
@@ -381,7 +381,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q; Remove-Item Env:RUN_PG_TESTS
 ```
 
-- **874 個通過**；另有 **34 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
+- **881 個通過**；另有 **34 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
 - `tests/conftest.py` 在測試中預設關閉限速與每日上限，要測護欄的測試再自己打開。
 - GitHub Actions（`.github/workflows/ci.yml` 的 `test` job）在每次 push／PR 到 `main` 時用 Python 3.12 跑 `python -m pytest tests -q`。
 

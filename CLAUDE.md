@@ -106,6 +106,9 @@
 1. `curl.exe -s https://fakenewsverify.vercel.app/api/health`（本機：`http://localhost:8000/api/health`）：
    - `"ai_available": false` → 後端沒讀到 `CGU_API_KEY`（雲端：Render 後台 Environment 頁；本機：`code/backend/.env`）。
      `true` 只代表金鑰有設，**不代表金鑰有效或額度還夠**。
+   - `"embedding": {"ok": false, "error": "HTTP 401"}` → `EMBED_API_KEY` 錯了或被重置（判讀照常，但語意快取、相似查證、
+     信心「中」全部停用）。這是**最近一次實際呼叫**的結果，重啟後還沒人查過時 `ok` 是 `null`。2026-10-28 負責人在 CGU 換了金鑰、
+     Render 沒跟著改，停用約 11 小時沒人發現；之後 `factcheck-sync` 每次都實際算一次，失敗就變紅寄信（票 B-46）。
    - `"daily_ai_calls": {"used": N, "cap": 300}`：`used` 到頂是每日上限用完（429 `daily_cap_reached`，不是 AI 壞掉），隔日自動恢復。
    - 逾時或 502／504 → Render 免費主機正在喚醒（約 1 分鐘）或部署中。
 2. 後端 log 找 `[AI] cgu HTTP <碼>`（雲端：Render 服務頁的 Logs；本機：後端視窗）。401 = 金鑰錯或被重置；
@@ -151,7 +154,9 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   快取命中不呼叫 AI、不耗每日 AI 次數。
 - 實測：L1 命中 p50 213 ms、L2 向量命中 p50 3.06 s（2026-09-16 本機，測試計畫書 6.4）；
   線上新內容 AI 判讀 9–27 秒、語意快取命中約 3 秒（2026-09-19）。
-- embedding 沒有可用金鑰或呼叫失敗時 Layer 2 自動停用，URL/Hash 仍正常。
+- embedding 沒有可用金鑰或呼叫失敗時 Layer 2 自動停用，URL/Hash 仍正常（`/health` 的 `embedding` 看得出來）。
+  那段時間存下的 AI 結果沒有向量證據（最近相似度與話術差距都是空的）；之後 URL／hash 命中這種列時重新比對知識庫，
+  回傳現在的信心與相似查證（`_refresh_evidence`，不改存下的資料、不呼叫判讀模型；票 B-46）。
 - **查核結果回補（FR-20，2026-09-22）**：URL／Hash 層不過濾 verified，一字不差的重複查詢原本會一直拿到當初「尚無查核機構證實」。
   命中未證實列時，處理器以該列向量（Postgres 版沒載入向量時以原文算一次 embedding）呼叫
   `find_similar_by_vector(..., label_sources=DETERMINISTIC_LABEL_SOURCES)`，**只讓 rule／gold／admin 列取代舊結果**
@@ -257,7 +262,7 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **874 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **881 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -332,7 +337,7 @@ PowerShell 5.1 寫法；venv 一律用 `python -m ...`（理由見第 7 節）�
 ```powershell
 # ── 線上網站 ──（PowerShell 5.1 的 curl 是 Invoke-WebRequest 的別名，要打 curl.exe）
 curl.exe -s https://fakenewsverify.vercel.app/api/health
-#   正常："storage_backend":"supabase"、"ai_available":true、"daily_ai_calls":{"used":N,"cap":300}
+#   正常："storage_backend":"supabase"、"ai_available":true、"embedding":{"ok":true,...}、"daily_ai_calls":{"used":N,"cap":300}
 #   逾時或 502／504：Render 免費主機正在喚醒，等 1 分鐘再試
 
 # ── 本機開發一鍵啟動（專案根目錄）：後端 8000 + React 5173，用的是本機資料 ──
@@ -341,7 +346,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 874 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 881 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
