@@ -31,6 +31,40 @@
       "no_date": 0
     },
     "since": "2026-10-19",
-    "updated_at": "2026-10-28T22:37:40+08:00"
+    "updated_at": "2026-10-28T22:59:38+08:00"
+  },
+  "embed_small": {
+    "budget": {
+      "allowed_usd": 0.5,
+      "estimated_usd": 0.0714,
+      "items": 8700,
+      "stop_reason": "usage_unreadable",
+      "usage_after": {
+        "cost_usd": 3.028326,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.971674
+      },
+      "usage_before": {
+        "cost_usd": 2.992617,
+        "quota_usd": 10.0,
+        "remaining_usd": 7.007383
+      },
+      "usage_delta_usd": 0.0357
+    },
+    "embedded_total": 8750,
+    "estimated_remaining_tokens": 4454264,
+    "estimated_remaining_usd": 0.1782,
+    "model": "text-embedding-3-small",
+    "remaining": 11831,
+    "single_text_seconds": null,
+    "this_run": {
+      "batch_seconds_p50": 3.421,
+      "chars": 1357675,
+      "rejected": 0,
+      "tokens": 1784838
+    },
+    "trial": false,
+    "updated_at": "2026-10-28T23:11:12+08:00",
+    "wanted": 20581
   }
 }
