@@ -58,11 +58,12 @@ DEFAULT_EMBED = "text-embedding-3-small"
 
 
 def log(msg: str) -> None:
-    """Windows 主控台是 cp950：印不出的字元換成 ?，不讓腳本崩潰。"""
+    """Windows 主控台是 cp950：中文照印，cp950 沒有的字元（≥、– 等）換成 ?，不讓腳本崩潰。"""
     try:
         print(msg, flush=True)
     except UnicodeEncodeError:
-        print(msg.encode("ascii", "replace").decode("ascii"), flush=True)
+        enc = getattr(sys.stdout, "encoding", None) or "ascii"
+        print(msg.encode(enc, "replace").decode(enc, "replace"), flush=True)
 
 
 def now_taipei() -> datetime:

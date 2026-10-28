@@ -20,11 +20,12 @@
 
 - `code/backend/.env` 只給程式讀：要用某個設定時透過 `app.config.settings` 讀，回報時只說「有／沒有」。
   這個檔不打開、不 cat、不印出來。
-- 金鑰只存在三個地方：本機 `.env`、Render 的 Environment 頁、GitHub repository secrets（`ADMIN_TOKEN`；
-  驗證與比較計畫用的 `CGU_API_KEY`）。聊天、commit、issue、截圖、log 裡一律只寫鍵名。
+- 金鑰只存在三個地方：本機 `.env`、Render 的 Environment 頁、GitHub repository secrets（只有 `ADMIN_TOKEN`；
+  負責人 2026-10-28 決定不在 GitHub 放 `CGU_API_KEY`）。聊天、commit、issue、截圖、log 裡一律只寫鍵名。
   需要新金鑰時，請負責人自己貼進 `.env`、Render 或 GitHub。
-- **雲端 session 只有 GitHub**：沒有金鑰，也連不到 CGU 與查核網站。要連網或呼叫 CGU 的批次寫成 GitHub Actions workflow，
-  在 GitHub 的機器上用 repository secret 跑，結果（不含訊息原文）由 workflow commit 回分支。
+- **雲端 session 只有 GitHub**：沒有金鑰，也連不到 CGU 與查核網站。要呼叫 CGU 的批次在**負責人電腦上**跑
+  （那台電腦上的 Claude Code session，或負責人照指令自己跑；程式從本機 `.env` 讀金鑰）：雲端 session 寫程式、離線測試，
+  再把步驟寫成一份指令檔（例：`docs/test/研究批次_本機執行.md`）。結果（不含訊息原文）commit 回分支。
   這類批次不放在 Render 跑，那是正式站。
 - 這些東西不進 git：訊息原文（Cofacts 訊息可能含個資；報告只存查核網址、雜湊與判定）、Mixkit 原始音檔
   （授權不允許單獨散布原檔）、`docs/demo/*.mp4` 母片、runtime 資料。

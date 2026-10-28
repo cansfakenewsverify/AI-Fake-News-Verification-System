@@ -263,7 +263,7 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **880 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **881 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -303,7 +303,7 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 .github/workflows/factcheck-sync.yml     查核結論同步（每天兩次 recent、每週 full）＋更新熱門牆；需 secret ADMIN_TOKEN
 .github/workflows/weekly-eval.yml        每週新查核自動評測，報告 commit 到 docs/test/results/weekly/；需 secret ADMIN_TOKEN
 .github/workflows/research.yml           信心驗證與模型比較的批次（手動、選研究分支；task 選步驟；原文只在 actions/cache；
-                                         結果 commit 回該分支）；需 secret CGU_API_KEY。不在 main 上跑
+                                         結果 commit 回該分支）；花錢的步驟需 secret CGU_API_KEY（目前沒設，改在負責人電腦上跑）
 .github/workflows/research-env-check.yml 研究批次的環境檢查（零成本；推到研究分支時自動跑）
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
@@ -350,7 +350,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 880 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 881 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -469,9 +469,9 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       以每週評測已判讀的題目＋時間切分＋重複內容分群驗證證據信心（含可靠度圖、ECE、Brier），
       同時比較 `text-embedding-3-small`／`-large`／`bge-m3`；接著做純模型比較（計畫 `docs/test/模型比較計畫.md`：2,000 題凍結題庫，
       `gpt-5.6-luna`、`gpt-6-luna`＋high、Spark 的開源模型，最後一列是「完整系統」），目標 2026-12-03 期末成果展。
-      **2026-10-28 腳本與 workflow 已寫好（研究分支 `claude/github-project-relevance-gunvht`，票 O-37）**：在 GitHub Actions 跑，
-      步驟與實作細節見兩份計畫的第 7 節。環境檢查：四個網域都連得到，**repository secret `CGU_API_KEY` 還沒設**。
-      workflow 不必放 main：以 API 對研究分支觸發即可（2026-10-28 實測）；要在 GitHub 網頁上按按鈕才需要放 main
+      **2026-10-28 腳本已寫好（研究分支 `claude/github-project-relevance-gunvht`，票 O-37）**：負責人決定不在 GitHub 設
+      `CGU_API_KEY`，改在自己電腦上跑（本機 `.env`），指令見 `docs/test/研究批次_本機執行.md`；實作細節見兩份計畫的第 7 節。
+      GitHub Actions 的 `research` workflow 保留（沒有 secret 時只有不花錢的步驟能跑；不必放 main，以 API 對分支觸發即可）
 - [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆

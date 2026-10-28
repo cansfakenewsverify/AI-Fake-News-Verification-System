@@ -368,7 +368,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | `correct_kb_row.py` | 人工更正正式知識庫的單一列（判定與說明一起改；預設 dry-run、`--apply` 前自動備份、`--restore`）。管理者覆寫端點只改燈號、不改說明 |
 | `audit_cofacts_sources.py` | 盤點以 Cofacts 文章當 Tier 1 來源的已證實列：文章現在有沒有判定、判定方向是否一致（預設只讀；`--apply` 只處理沒有判定者） |
 | `evidence_confidence_study.py` | 證據信心研究：夾角與判定的關係、入庫後的誤命中檢查、話術原型；輸出報告到 `docs/test/results/` |
-| `confidence_validation.py` | 信心程度驗證＋嵌入模型比較（`docs/test/信心程度驗證計畫.md`）：`fetch` → `embed --model` → `analyze`。在 GitHub Actions 的 `research` workflow 跑；原文與向量只在 `data/research/`（gitignored） |
+| `confidence_validation.py` | 信心程度驗證＋嵌入模型比較（`docs/test/信心程度驗證計畫.md`）：`fetch` → `embed --model` → `analyze`。在負責人電腦上跑（指令：`docs/test/研究批次_本機執行.md`）；原文與向量只在 `data/research/`（gitignored） |
 | `model_benchmark.py` | 純模型比較（`docs/test/模型比較計畫.md`）：`freeze` 凍結 2,000 題 → `run --model --effort --api`（先 `--limit 50` 試跑）→ `report` |
 | `research_common.py` | 上面兩支共用：額度護欄（保留 USD 3、每 100 題讀 /me/usage、台灣時間週日不跑）、語料抓取（多記查核結論日期）、時間切分最近鄰、分群、統計 |
 | `research_env_check.py` | 研究批次的環境檢查：secret 有沒有設、CGU 與三個查核來源連不連得到、CGU 剩餘額度與模型清單（只用標準函式庫、不花額度） |
@@ -385,7 +385,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q; Remove-Item Env:RUN_PG_TESTS
 ```
 
-- **880 個通過**；另有 **34 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
+- **881 個通過**；另有 **34 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
 - `tests/conftest.py` 在測試中預設關閉限速與每日上限，要測護欄的測試再自己打開。
 - GitHub Actions（`.github/workflows/ci.yml` 的 `test` job）在每次 push／PR 到 `main` 時用 Python 3.12 跑 `python -m pytest tests -q`。
 

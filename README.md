@@ -177,7 +177,7 @@ AI-Fake-News-Verification-System/
 
 | 項目 | 數量 | 怎麼跑 |
 |------|------|--------|
-| 後端 pytest | 880 個通過；另有 34 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
+| 後端 pytest | 881 個通過；另有 34 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
 | 前端單元測試 | 409 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
 
 - 兩邊的測試都離線執行，不呼叫 AI、不花額度。
@@ -309,9 +309,10 @@ chmod +x start.sh
 - **查核結論同步**：`factcheck-sync.yml` 每天台灣 08:07、20:07 呼叫 `POST /api/admin/factcheck-sync`（週日 03:37 全部掃過一次），把 MyGoPen、台灣事實查核中心、Cofacts 新發布的判定寫進知識庫，做完再更新熱門牆；閘道下架設定的 AI 模型時 workflow 會變紅並寄信。
 - **每週評測**：`weekly-eval.yml` 每週日 21:17 呼叫 `POST /api/admin/weekly-eval`，用 CGU 每週剩下的額度（保留 USD 3 給使用者）量 AI 判讀準確率，報告存進 `docs/test/results/weekly/`。
 - 這兩個 workflow 需要 repository secret `ADMIN_TOKEN`（與 Render 後台相同）；沒設時會印出說明並略過。
-- **研究批次**：`research.yml`（信心程度驗證與模型比較；手動觸發、在研究分支跑，結果 commit 回該分支）與 `research-env-check.yml`
-  （零成本環境檢查）。需要 repository secret `CGU_API_KEY`；方法與步驟見 [`docs/test/信心程度驗證計畫.md`](docs/test/信心程度驗證計畫.md)、
-  [`docs/test/模型比較計畫.md`](docs/test/模型比較計畫.md) 第 7 節。
+- **研究批次**（信心程度驗證與模型比較）：在負責人電腦上以本機 `.env` 執行，指令見
+  [`docs/test/研究批次_本機執行.md`](docs/test/研究批次_本機執行.md)；方法見 [`docs/test/信心程度驗證計畫.md`](docs/test/信心程度驗證計畫.md)、
+  [`docs/test/模型比較計畫.md`](docs/test/模型比較計畫.md)。`research.yml`／`research-env-check.yml` 是在 GitHub 上跑的版本
+  （花錢的步驟要 repository secret `CGU_API_KEY`，目前沒設）。
 
 完整步驟、免費方案的限制與退回本機的方法：[`docs/rebuild/runbook_cloud_deploy.md`](docs/rebuild/runbook_cloud_deploy.md)。
 

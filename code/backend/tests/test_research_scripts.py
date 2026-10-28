@@ -159,6 +159,17 @@ def test_group_ids_join_same_url_and_near_duplicates():
     assert rc.group_ids(["a", "b", "c"], np.eye(3, dtype=np.float32), 0.9) == [0, 1, 2]
 
 
+def test_log_survives_a_cp950_console(monkeypatch):
+    import io
+
+    raw = io.BytesIO()
+    console = io.TextIOWrapper(raw, encoding="cp950", errors="strict")
+    monkeypatch.setattr(sys, "stdout", console)
+    rc.log("相似度 ≥ 0.75 – 中文照印")
+    console.flush()
+    assert raw.getvalue().decode("cp950").startswith("相似度 ? 0.75")
+
+
 def test_stats_helpers():
     assert rc.mcnemar_exact(5, 0) == pytest.approx(0.0625)     # 同 model_switch_2026-09-30.md
     assert rc.mcnemar_exact(0, 0) == 1.0
