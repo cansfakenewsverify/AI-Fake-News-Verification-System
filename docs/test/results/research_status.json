@@ -1,4 +1,19 @@
 {
+  "confidence_analyze": {
+    "per_question": "docs\\test\\results\\confidence_validation_2026-10-28.csv",
+    "report": "docs\\test\\results\\confidence_validation_2026-10-28.md",
+    "summary": {
+      "text-embedding-3-small": {
+        "pass": false,
+        "thresholds": {
+          "cache": 0.75,
+          "margin": 0.0,
+          "mid": 0.71
+        }
+      }
+    },
+    "updated_at": "2026-10-28T23:32:55+08:00"
+  },
   "confidence_fetch": {
     "corpus_by": {
       "Cofacts:MISINFO:kb": 7138,
@@ -36,35 +51,39 @@
   "embed_small": {
     "budget": {
       "allowed_usd": 0.5,
-      "estimated_usd": 0.0714,
-      "items": 8700,
-      "stop_reason": "usage_unreadable",
+      "estimated_usd": 0.1754,
+      "items": 11851,
+      "stop_reason": null,
       "usage_after": {
+        "cost_usd": 3.116006,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.883994
+      },
+      "usage_before": {
         "cost_usd": 3.028326,
         "quota_usd": 10.0,
         "remaining_usd": 6.971674
       },
-      "usage_before": {
-        "cost_usd": 2.992617,
-        "quota_usd": 10.0,
-        "remaining_usd": 7.007383
-      },
-      "usage_delta_usd": 0.0357
+      "usage_delta_usd": 0.0877
     },
-    "embedded_total": 8750,
-    "estimated_remaining_tokens": 4454264,
-    "estimated_remaining_usd": 0.1782,
+    "embedded_total": 20581,
+    "estimated_remaining_tokens": 0,
+    "estimated_remaining_usd": 0.0,
     "model": "text-embedding-3-small",
-    "remaining": 11831,
-    "single_text_seconds": null,
+    "remaining": 0,
+    "single_text_seconds": {
+      "n": 20,
+      "p50": 0.57,
+      "p90": 1.101
+    },
     "this_run": {
-      "batch_seconds_p50": 3.421,
-      "chars": 1357675,
+      "batch_seconds_p50": 3.625,
+      "chars": 3388231,
       "rejected": 0,
-      "tokens": 1784838
+      "tokens": 4380257
     },
     "trial": false,
-    "updated_at": "2026-10-28T23:11:12+08:00",
+    "updated_at": "2026-10-28T23:32:32+08:00",
     "wanted": 20581
   }
 }
