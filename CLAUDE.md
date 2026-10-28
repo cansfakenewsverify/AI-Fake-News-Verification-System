@@ -457,7 +457,8 @@ npm run build          # 輸出 dist\；CI 的 frontend job 跑 build＋test:uni
       綠燈條件 `GREEN_MIN_CONFIDENCE=0.7` 擋不到任何 SAFE 判定；同一則內容兩週重查，AI 判定 17% 不同。
       下一步以每週評測已判讀的題目＋時間切分＋重複內容分群驗證證據信心（含可靠度圖、ECE、Brier），
       同時比較 `text-embedding-3-small`／`-large`／`bge-m3`；需要雲端 session 設 `CGU_API_KEY` 與網路白名單（見該文件第 6 節）。
-      之後做純模型比較（`gpt-5.6-luna`、`gpt-6-luna`＋high、Spark 的開源模型），目標 2026-12-03 期末成果展
+      接著做純模型比較（計畫 `docs/test/模型比較計畫.md`：2,000 題凍結題庫，`gpt-5.6-luna`、`gpt-6-luna`＋high、Spark 的開源模型，
+      最後一列是「完整系統」），目標 2026-12-03 期末成果展
 - [ ] 雲端知識庫補 demo 用的 gold 列：`scripts/threads_sim_seed.json` 的「健保卡即日起停用」不在搬上雲的資料裡
       （本機測試還原時被蓋掉）；上線驗證時另外產生了 3 筆未證實的測試列（含同 hash 的那一則），
       要先刪掉再以 STORAGE_BACKEND=supabase 執行預熱，否則 hash 層會先命中未證實的那筆
