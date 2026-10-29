@@ -17,6 +17,41 @@
     "recent": 65,
     "updated_at": "2026-10-28T23:36:29+08:00"
   },
+  "benchmark_gemma-4-26b-a4b-it_none": {
+    "answered_total": 1998,
+    "api": "chat",
+    "budget": {
+      "allowed_usd": null,
+      "estimated_usd": 0.0,
+      "items": 1950,
+      "stop_reason": null,
+      "usage_after": {
+        "cost_usd": 0.0,
+        "quota_usd": 10.0,
+        "remaining_usd": 10.0
+      },
+      "usage_before": {
+        "cost_usd": 3.585079,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.414921
+      },
+      "usage_delta_usd": -3.5851
+    },
+    "effort": "none",
+    "estimated_usd_for_rest": 0.0,
+    "items": 2000,
+    "missing_text": 0,
+    "model": "gemma-4-26b-a4b-it",
+    "sec_p50": 4.93,
+    "this_run": {
+      "answered": 1948,
+      "errors": 2,
+      "todo": 1950
+    },
+    "trial": true,
+    "updated_at": "2026-10-29T13:55:02+08:00",
+    "usd_per_item": 0.0
+  },
   "benchmark_gpt-5.6-luna_medium": {
     "answered_total": 50,
     "api": "responses",
@@ -123,48 +158,157 @@
     "usd_per_item": null
   },
   "benchmark_gpt-oss-120b_medium": {
-    "answered_total": 1855,
+    "answered_total": 2000,
     "api": "chat",
     "budget": {
       "allowed_usd": null,
       "estimated_usd": 0.0,
-      "items": 1840,
-      "stop_reason": "all_failed",
+      "items": 145,
+      "stop_reason": null,
       "usage_after": {
-        "cost_usd": -1.0,
-        "quota_usd": -1.0,
-        "remaining_usd": -1.0
+        "cost_usd": 3.585079,
+        "quota_usd": 10.0,
+        "remaining_usd": 6.414921
       },
       "usage_before": {
-        "cost_usd": 3.580098,
+        "cost_usd": 3.584243,
         "quota_usd": 10.0,
-        "remaining_usd": 6.419902
+        "remaining_usd": 6.415757
       },
-      "usage_delta_usd": null
+      "usage_delta_usd": 0.0008
     },
     "effort": "medium",
     "estimated_usd_for_rest": 0.0,
     "items": 2000,
     "missing_text": 0,
     "model": "gpt-oss-120b",
-    "sec_p50": 11.33,
+    "sec_p50": 11.38,
     "this_run": {
-      "answered": 1805,
-      "errors": 35,
+      "answered": 145,
+      "errors": 0,
+      "todo": 145
+    },
+    "trial": true,
+    "updated_at": "2026-10-29T12:21:48+08:00",
+    "usd_per_item": 0.0
+  },
+  "benchmark_gpt-oss_20b_low": {
+    "answered_total": 500,
+    "api": "chat",
+    "budget": {
+      "allowed_usd": null,
+      "estimated_usd": 0.0,
+      "items": 450,
+      "stop_reason": null,
+      "usage_after": {
+        "cost_usd": 0.0,
+        "quota_usd": 10.0,
+        "remaining_usd": 10.0
+      },
+      "usage_before": {
+        "cost_usd": 0.0,
+        "quota_usd": 10.0,
+        "remaining_usd": 10.0
+      },
+      "usage_delta_usd": 0.0
+    },
+    "effort": "low",
+    "estimated_usd_for_rest": 0.0,
+    "items": 2000,
+    "missing_text": 0,
+    "model": "gpt-oss:20b",
+    "sec_p50": 6.39,
+    "this_run": {
+      "answered": 450,
+      "errors": 0,
+      "todo": 450
+    },
+    "trial": true,
+    "updated_at": "2026-10-29T23:52:54+08:00",
+    "usd_per_item": 0.0
+  },
+  "benchmark_nemotron-3-super-120b-a12b_none": {
+    "answered_total": 1050,
+    "api": "chat",
+    "budget": {
+      "allowed_usd": null,
+      "estimated_usd": 0.0,
+      "items": 1000,
+      "stop_reason": "time",
+      "usage_after": {
+        "cost_usd": 0.0,
+        "quota_usd": 10.0,
+        "remaining_usd": 10.0
+      },
+      "usage_before": {
+        "cost_usd": 0.0,
+        "quota_usd": 10.0,
+        "remaining_usd": 10.0
+      },
+      "usage_delta_usd": 0.0
+    },
+    "effort": "none",
+    "estimated_usd_for_rest": 0.0,
+    "items": 2000,
+    "missing_text": 0,
+    "model": "nemotron-3-super-120b-a12b",
+    "sec_p50": 35.31,
+    "this_run": {
+      "answered": 1000,
+      "errors": 0,
       "todo": 1950
     },
     "trial": true,
-    "updated_at": "2026-10-29T04:19:09+08:00",
+    "updated_at": "2026-10-29T23:16:52+08:00",
+    "usd_per_item": 0.0
+  },
+  "benchmark_nemotron-3.5-bolt-74b-a9b_none": {
+    "answered_total": 427,
+    "api": "chat",
+    "budget": {
+      "allowed_usd": null,
+      "estimated_usd": 0.0,
+      "items": 400,
+      "stop_reason": "all_failed",
+      "usage_after": {
+        "cost_usd": 0.0,
+        "quota_usd": 10.0,
+        "remaining_usd": 10.0
+      },
+      "usage_before": {
+        "cost_usd": 0.0,
+        "quota_usd": 10.0,
+        "remaining_usd": 10.0
+      },
+      "usage_delta_usd": 0.0
+    },
+    "effort": "none",
+    "estimated_usd_for_rest": 0.0,
+    "items": 2000,
+    "missing_text": 0,
+    "model": "nemotron-3.5-bolt-74b-a9b",
+    "sec_p50": 66.62,
+    "this_run": {
+      "answered": 377,
+      "errors": 23,
+      "todo": 1950
+    },
+    "trial": true,
+    "updated_at": "2026-10-29T17:35:35+08:00",
     "usd_per_item": 0.0
   },
   "benchmark_report": {
     "models": [
+      "gemma-4-26b-a4b-it none",
       "gpt-5.6-luna medium",
       "gpt-6-luna high",
-      "gpt-oss-120b medium"
+      "gpt-oss-120b medium",
+      "gpt-oss:20b low",
+      "nemotron-3-super-120b-a12b none",
+      "nemotron-3.5-bolt-74b-a9b none"
     ],
     "report": "docs\\test\\results\\model_benchmark_2026-10-29.md",
-    "updated_at": "2026-10-29T04:21:28+08:00"
+    "updated_at": "2026-10-29T23:52:55+08:00"
   },
   "confidence_analyze": {
     "per_question": "docs\\test\\results\\confidence_validation_2026-10-28.csv",
