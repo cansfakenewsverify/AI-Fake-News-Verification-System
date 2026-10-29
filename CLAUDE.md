@@ -121,6 +121,10 @@
 
 **恢復**：金鑰或額度問題要找學校；拿到新值後**本機 `.env` 與 Render 後台兩邊都要更新**（Render：Environment → Save and deploy；
 本機：重啟後端）。更多雲端症狀見 `docs/rebuild/runbook_cloud_deploy.md` 附錄 2。熱門、知識庫、快取命中都不呼叫 AI，不受影響。
+**學校會強制重置金鑰**：2026-10-29 約 04:00 因資安理由重置所有人的金鑰，之後每個請求都回 401，訊息寫「已強制重置所有人的
+API 金鑰，請至 https://air.cgu.edu.tw/workspace4/LLMAPI/index.php 複製新的金鑰」（和週四的額度重置是兩回事）。新金鑰要換掉
+**四個地方**：本機 `.env` 的 `CGU_API_KEY`、`EMBED_API_KEY`，Render 的 `CGU_API_KEY`、`EMBED_API_KEY`；漏換 `EMBED_API_KEY`
+時判讀照常、只有向量停用（2026-10-28 發生過），`/health` 的 `embedding` 會是 `HTTP 401`。GitHub secrets 沒有 CGU 金鑰。
 
 > **fallback 契約（改字樣前先看）**：AI 失敗時端點仍回 **HTTP 200**。唯一產生處是 `ai_service._default_fallback_result()`
 > （`ai_unavailable: true`＋`summary` 前綴「AI 分析暫時無法使用」）；後端唯一判斷點是 `app/utils/verdict.py` 的 `is_fallback()`；
