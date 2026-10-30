@@ -74,7 +74,7 @@
         .tk-bars { display: flex; align-items: center; gap: 7px; height: 40px; }
         .tk-bars i { display: block; width: 8px; height: 40px; border-radius: 4px; background: #ffffff; transform: scaleY(0.3); }
       </style>
-      <div id="root" class="fnv-root" data-composition-id="S11" data-width="1920" data-height="1080" data-duration="13.632">
+      <div id="root" class="fnv-root" data-composition-id="S11" data-width="1920" data-height="1080" data-duration="11.806">
         <div class="tk-h" id="S11-h"><span>在社群上，</span><span>為什麼很難查證？</span></div>
         <div class="tk-v" id="S11-v"><span class="tk-bars"><i></i><i></i><i></i><i></i></span>旁白</div>
         <div class="chips"><div class="chip bad" id="S11-c0"><b>✕</b>查證要先離開 App</div><div class="chip bad" id="S11-c1"><b>✕</b>留言區各說各話</div></div>
@@ -88,14 +88,12 @@
           tl.fromTo($("#S11-chip"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.05);
           tl.fromTo($("#S11-h"), { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 0.15);
           tl.fromTo($("#S11-v"), { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 0.3);
-          tl.to(root.querySelectorAll("#S11-v .tk-bars i"), { scaleY: (i) => [1, 0.55, 0.9, 0.65][i], duration: 0.18, repeat: 5, yoyo: true, ease: "sine.inOut", stagger: 0.05 }, 0.4);
-          tl.to(root.querySelectorAll("#S11-v .tk-bars i"), { scaleY: 0.3, duration: 0.15 }, 2.026);
-          tl.to(root.querySelectorAll("#S11-v .tk-bars i"), { scaleY: (i) => [1, 0.55, 0.9, 0.65][i], duration: 0.18, repeat: 37, yoyo: true, ease: "sine.inOut", stagger: 0.05 }, 2.326);
-          tl.to(root.querySelectorAll("#S11-v .tk-bars i"), { scaleY: 0.3, duration: 0.15 }, 9.649);
-          tl.to(root.querySelectorAll("#S11-v .tk-bars i"), { scaleY: (i) => [1, 0.55, 0.9, 0.65][i], duration: 0.18, repeat: 15, yoyo: true, ease: "sine.inOut", stagger: 0.05 }, 9.949);
-          tl.to(root.querySelectorAll("#S11-v .tk-bars i"), { scaleY: 0.3, duration: 0.15 }, 13.282);
-          tl.fromTo($("#S11-c0"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 2.326);
-          tl.fromTo($("#S11-c1"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 9.949);
+          tl.to(root.querySelectorAll("#S11-v .tk-bars i"), { scaleY: (i) => [1, 0.55, 0.9, 0.65][i], duration: 0.18, repeat: 37, yoyo: true, ease: "sine.inOut", stagger: 0.05 }, 0.5);
+          tl.to(root.querySelectorAll("#S11-v .tk-bars i"), { scaleY: 0.3, duration: 0.15 }, 7.823);
+          tl.to(root.querySelectorAll("#S11-v .tk-bars i"), { scaleY: (i) => [1, 0.55, 0.9, 0.65][i], duration: 0.18, repeat: 15, yoyo: true, ease: "sine.inOut", stagger: 0.05 }, 8.123);
+          tl.to(root.querySelectorAll("#S11-v .tk-bars i"), { scaleY: 0.3, duration: 0.15 }, 11.456);
+          tl.fromTo($("#S11-c0"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 0.5);
+          tl.fromTo($("#S11-c1"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 8.123);
           window.__timelines["S11"] = tl;
         })();
       </script>

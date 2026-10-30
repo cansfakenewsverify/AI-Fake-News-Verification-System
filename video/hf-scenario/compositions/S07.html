@@ -74,7 +74,7 @@
         .tk-bars { display: flex; align-items: center; gap: 7px; height: 40px; }
         .tk-bars i { display: block; width: 8px; height: 40px; border-radius: 4px; background: #ffffff; transform: scaleY(0.3); }
       </style>
-      <div id="root" class="fnv-root" data-composition-id="S07" data-width="1920" data-height="1080" data-duration="13.464">
+      <div id="root" class="fnv-root" data-composition-id="S07" data-width="1920" data-height="1080" data-duration="11.638">
         <div class="tk-h" id="S07-h"><span>這是</span><span>「解除分期」詐騙</span></div>
         <div class="tk-v" id="S07-v"><span class="tk-bars"><i></i><i></i><i></i><i></i></span>旁白</div>
         <div class="chips"><div class="chip bad" id="S07-c0"><b>✕</b>被嚇到就照做</div><div class="chip bad" id="S07-c1"><b>✕</b>打過去就是假客服</div><div class="chip bad" id="S07-c2"><b>✕</b>錢被轉走</div></div>
@@ -88,15 +88,13 @@
           tl.fromTo($("#S07-chip"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.05);
           tl.fromTo($("#S07-h"), { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 0.15);
           tl.fromTo($("#S07-v"), { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 0.3);
-          tl.to(root.querySelectorAll("#S07-v .tk-bars i"), { scaleY: (i) => [1, 0.55, 0.9, 0.65][i], duration: 0.18, repeat: 5, yoyo: true, ease: "sine.inOut", stagger: 0.05 }, 0.4);
-          tl.to(root.querySelectorAll("#S07-v .tk-bars i"), { scaleY: 0.3, duration: 0.15 }, 2.026);
-          tl.to(root.querySelectorAll("#S07-v .tk-bars i"), { scaleY: (i) => [1, 0.55, 0.9, 0.65][i], duration: 0.18, repeat: 13, yoyo: true, ease: "sine.inOut", stagger: 0.05 }, 2.326);
-          tl.to(root.querySelectorAll("#S07-v .tk-bars i"), { scaleY: 0.3, duration: 0.15 }, 5.09);
-          tl.to(root.querySelectorAll("#S07-v .tk-bars i"), { scaleY: (i) => [1, 0.55, 0.9, 0.65][i], duration: 0.18, repeat: 39, yoyo: true, ease: "sine.inOut", stagger: 0.05 }, 5.39);
-          tl.to(root.querySelectorAll("#S07-v .tk-bars i"), { scaleY: 0.3, duration: 0.15 }, 13.114);
-          tl.fromTo($("#S07-c0"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 5.39);
-          tl.fromTo($("#S07-c1"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 8.149);
-          tl.fromTo($("#S07-c2"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 11.955);
+          tl.to(root.querySelectorAll("#S07-v .tk-bars i"), { scaleY: (i) => [1, 0.55, 0.9, 0.65][i], duration: 0.18, repeat: 13, yoyo: true, ease: "sine.inOut", stagger: 0.05 }, 0.5);
+          tl.to(root.querySelectorAll("#S07-v .tk-bars i"), { scaleY: 0.3, duration: 0.15 }, 3.264);
+          tl.to(root.querySelectorAll("#S07-v .tk-bars i"), { scaleY: (i) => [1, 0.55, 0.9, 0.65][i], duration: 0.18, repeat: 39, yoyo: true, ease: "sine.inOut", stagger: 0.05 }, 3.564);
+          tl.to(root.querySelectorAll("#S07-v .tk-bars i"), { scaleY: 0.3, duration: 0.15 }, 11.288);
+          tl.fromTo($("#S07-c0"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 3.564);
+          tl.fromTo($("#S07-c1"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 6.323);
+          tl.fromTo($("#S07-c2"), { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 10.129);
           window.__timelines["S07"] = tl;
         })();
       </script>
