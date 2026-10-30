@@ -53,109 +53,109 @@
     "usd_per_item": 0.0
   },
   "benchmark_gpt-5.6-luna_medium": {
-    "answered_total": 50,
+    "answered_total": 2000,
     "api": "responses",
     "budget": {
-      "allowed_usd": 0.3,
-      "estimated_usd": 0.1134,
-      "items": 50,
+      "allowed_usd": 5.0,
+      "estimated_usd": 4.5738,
+      "items": 1950,
       "stop_reason": null,
       "usage_after": {
-        "cost_usd": 3.174257,
+        "cost_usd": 2.288034,
         "quota_usd": 10.0,
-        "remaining_usd": 6.825743
+        "remaining_usd": 7.711966
       },
       "usage_before": {
-        "cost_usd": 3.117705,
+        "cost_usd": 2e-06,
         "quota_usd": 10.0,
-        "remaining_usd": 6.882295
+        "remaining_usd": 9.999998
       },
-      "usage_delta_usd": 0.0566
+      "usage_delta_usd": 2.288
     },
     "effort": "medium",
-    "estimated_usd_for_rest": 4.421,
+    "estimated_usd_for_rest": 0.0,
     "items": 2000,
     "missing_text": 0,
     "model": "gpt-5.6-luna",
-    "sec_p50": 6.7,
+    "sec_p50": 9.63,
     "this_run": {
-      "answered": 50,
+      "answered": 1950,
       "errors": 0,
-      "todo": 50
+      "todo": 1950
     },
     "trial": true,
-    "updated_at": "2026-10-28T23:38:04+08:00",
-    "usd_per_item": 0.002267
+    "updated_at": "2026-10-30T22:03:19+08:00",
+    "usd_per_item": 0.002345
   },
   "benchmark_gpt-6-luna_high": {
-    "answered_total": 532,
+    "answered_total": 1999,
     "api": "responses",
     "budget": {
-      "allowed_usd": 3.7892,
-      "estimated_usd": 0.6714,
-      "items": 520,
-      "stop_reason": "all_failed",
+      "allowed_usd": 4.712,
+      "estimated_usd": 2.0601,
+      "items": 1468,
+      "stop_reason": null,
       "usage_after": {
-        "cost_usd": 3.580098,
+        "cost_usd": 3.442166,
         "quota_usd": 10.0,
-        "remaining_usd": 6.419902
+        "remaining_usd": 6.557834
       },
       "usage_before": {
-        "cost_usd": 3.210751,
+        "cost_usd": 2.288034,
         "quota_usd": 10.0,
-        "remaining_usd": 6.789249
+        "remaining_usd": 7.711966
       },
-      "usage_delta_usd": 0.3693
+      "usage_delta_usd": 1.1541
     },
     "effort": "high",
-    "estimated_usd_for_rest": 2.152,
+    "estimated_usd_for_rest": 0.001,
     "items": 2000,
     "missing_text": 0,
     "model": "gpt-6-luna",
-    "sec_p50": 11.71,
+    "sec_p50": 13.44,
     "this_run": {
-      "answered": 483,
-      "errors": 37,
-      "todo": 1951
+      "answered": 1467,
+      "errors": 1,
+      "todo": 1468
     },
     "trial": true,
-    "updated_at": "2026-10-29T00:08:56+08:00",
-    "usd_per_item": 0.001466
+    "updated_at": "2026-10-30T23:45:40+08:00",
+    "usd_per_item": 0.001494
   },
   "benchmark_gpt-6-luna_medium": {
-    "answered_total": 0,
+    "answered_total": 1997,
     "api": "responses",
     "budget": {
-      "allowed_usd": 0.3,
-      "estimated_usd": 0.0,
-      "items": 20,
-      "stop_reason": "all_failed",
+      "allowed_usd": 3.5274,
+      "estimated_usd": 2.4146,
+      "items": 1950,
+      "stop_reason": null,
       "usage_after": {
-        "cost_usd": 3.580098,
+        "cost_usd": 4.68606,
         "quota_usd": 10.0,
-        "remaining_usd": 6.419902
+        "remaining_usd": 5.31394
       },
       "usage_before": {
-        "cost_usd": 3.580098,
+        "cost_usd": 3.472573,
         "quota_usd": 10.0,
-        "remaining_usd": 6.419902
+        "remaining_usd": 6.527427
       },
-      "usage_delta_usd": 0.0
+      "usage_delta_usd": 1.2135
     },
     "effort": "medium",
-    "estimated_usd_for_rest": null,
+    "estimated_usd_for_rest": 0.004,
     "items": 2000,
     "missing_text": 0,
     "model": "gpt-6-luna",
-    "sec_p50": null,
+    "sec_p50": 10.02,
     "this_run": {
-      "answered": 0,
-      "errors": 20,
-      "todo": 50
+      "answered": 1947,
+      "errors": 3,
+      "todo": 1950
     },
     "trial": true,
-    "updated_at": "2026-10-29T00:09:01+08:00",
-    "usd_per_item": null
+    "updated_at": "2026-10-31T01:23:20+08:00",
+    "usd_per_item": 0.001243
   },
   "benchmark_gpt-oss-120b_medium": {
     "answered_total": 2000,
@@ -302,13 +302,14 @@
       "gemma-4-26b-a4b-it none",
       "gpt-5.6-luna medium",
       "gpt-6-luna high",
+      "gpt-6-luna medium",
       "gpt-oss-120b medium",
       "gpt-oss:20b low",
       "nemotron-3-super-120b-a12b none",
       "nemotron-3.5-bolt-74b-a9b none"
     ],
-    "report": "docs\\test\\results\\model_benchmark_2026-10-29.md",
-    "updated_at": "2026-10-29T23:52:55+08:00"
+    "report": "docs\\test\\results\\model_benchmark_2026-10-31.md",
+    "updated_at": "2026-10-31T01:23:23+08:00"
   },
   "confidence_analyze": {
     "per_question": "docs\\test\\results\\confidence_validation_2026-10-28.csv",
