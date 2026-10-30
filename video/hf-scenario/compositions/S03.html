@@ -48,17 +48,16 @@
           background: #ffffff; box-shadow: 0 16px 40px rgba(17,17,17,0.14); opacity: 0; }
         .qt-l { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 10px; }
         .qt-t { font-size: 38px; line-height: 54px; font-weight: 700; color: #111111; }
-        #root { background: #23262b; }
-        .lv-video { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: cover; }
-        .lv-card { position: absolute; left: 120px; top: 250px; width: 1180px; height: 470px; box-sizing: border-box; padding: 54px 70px;
-          border: 3px dashed rgba(255,255,255,0.28); border-radius: 36px; color: #fff; }
-        .lv-tag { display: inline-block; padding: 8px 22px; border-radius: 12px; background: #ffffff; color: #111111; font-size: 30px; line-height: 38px; font-weight: 700; }
-        .lv-desc { margin-top: 30px; font-size: 54px; line-height: 76px; font-weight: 700; }
-        .lv-note { margin-top: 26px; font-size: 28px; line-height: 38px; color: rgba(255,255,255,0.55); }
-        .lv-name { position: absolute; left: 56px; top: 750px; padding: 10px 26px 12px; border-radius: 14px; background: #ffffff; color: #111111;
-          font-size: 34px; line-height: 44px; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,0.25); z-index: 5; opacity: 0; }
-        .lv-dim { position: absolute; inset: 0; background: rgba(17,17,17,0.5); z-index: 7; opacity: 0; }
-        .lv-pause { position: absolute; left: 660px; top: 440px; width: 600px; height: 140px; border-radius: 70px; background: #ffffff; color: #111111;
+        .cr { position: absolute; left: 140px; top: 250px; width: 440px; text-align: center; z-index: 5; }
+        .cr-face { position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: #3f3f46; color: #ffffff;
+          font-size: 110px; line-height: 220px; font-weight: 700; opacity: 0; }
+        .cr-ring { position: absolute; left: -16px; top: -16px; width: 252px; height: 252px; box-sizing: border-box; border-radius: 50%;
+          border: 6px solid #111111; opacity: 0; }
+        .cr-name { margin-top: 24px; font-size: 46px; line-height: 58px; font-weight: 700; color: #111111; opacity: 0; }
+        .cr-mood { display: inline-block; margin-top: 16px; padding: 8px 26px 10px; border-radius: 999px; background: #111111; color: #ffffff;
+          font-size: 36px; line-height: 46px; font-weight: 700; opacity: 0; }
+        .pz-dim { position: absolute; inset: 0; background: rgba(17,17,17,0.5); z-index: 7; opacity: 0; }
+        .pz-box { position: absolute; left: 660px; top: 440px; width: 600px; height: 140px; border-radius: 70px; background: #ffffff; color: #111111;
           display: flex; align-items: center; justify-content: center; gap: 28px; font-size: 60px; line-height: 70px; font-weight: 700; z-index: 8; opacity: 0; }
         .pz-bars { display: flex; gap: 12px; }
         .pz-bars i { display: block; width: 16px; height: 56px; border-radius: 4px; background: #111111; }
@@ -66,12 +65,45 @@
           border-radius: 20px; background: #ffffff; color: #111111; box-shadow: 0 12px 34px rgba(0,0,0,0.3); z-index: 5; opacity: 0; }
         .ov-k { font-size: 34px; line-height: 44px; font-weight: 700; }
         .ov-n { display: inline-block; min-width: 40px; text-align: center; font-size: 72px; line-height: 80px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        #root { background: #eceef1; }
+        .ch-top { position: absolute; left: 0; right: 0; top: 0; height: 120px; background: #ffffff; border-bottom: 2px solid #e4e4e7; }
+        .ch-title { position: absolute; left: 30px; right: 30px; top: 58px; font-size: 27px; line-height: 36px; font-weight: 700; text-align: center; }
+        .ch-sub { position: absolute; left: 0; right: 0; top: 92px; font-size: 18px; color: #6b7280; text-align: center; }
+        .ch-list { position: absolute; left: 0; right: 0; top: 120px; bottom: 0; padding: 26px 22px; background: #f2f4f7;
+          display: flex; flex-direction: column; gap: 22px; }
+        .ch-row { display: flex; gap: 14px; align-items: flex-start; opacity: 0; }
+        .ch-row.on { opacity: 1; }
+        .ch-row.self { justify-content: flex-end; }
+        .ch-col { position: relative; }
+        .ch-av { flex: none; width: 54px; height: 54px; border-radius: 50%; background: #3f3f46; color: #fff; font-size: 26px; line-height: 54px;
+          text-align: center; font-weight: 700; }
+        .ch-name { font-size: 19px; line-height: 26px; color: #6b7280; margin-bottom: 4px; }
+        .ch-b { max-width: 300px; padding: 14px 18px; border-radius: 22px; background: #ffffff; font-size: 24px; line-height: 35px; color: #111111;
+          box-shadow: 0 1px 0 rgba(0,0,0,0.06); }
+        .self .ch-b { background: #dcebff; }
+        .ch-menu { position: absolute; left: 0; top: 100%; margin-top: 12px; display: flex; border-radius: 16px; background: #111111; color: #ffffff;
+          overflow: hidden; opacity: 0; box-shadow: 0 10px 26px rgba(0,0,0,0.3); }
+        .ch-menu span { padding: 12px 20px; font-size: 22px; line-height: 30px; font-weight: 700; }
+        .ch-menu .hit { background: #ffffff; color: #111111; }
+        .ch-toast { position: absolute; left: 118px; bottom: 60px; width: 180px; padding: 12px 0; border-radius: 999px; background: rgba(17,17,17,0.88);
+          color: #ffffff; text-align: center; font-size: 22px; line-height: 30px; font-weight: 700; opacity: 0; }
+        .ch-link { width: 300px; border-radius: 20px; background: #ffffff; overflow: hidden; box-shadow: 0 1px 0 rgba(0,0,0,0.06); }
+        .ch-link img { display: block; width: 300px; height: 158px; object-fit: cover; background: #111; }
+        .ch-link-t { padding: 12px 16px 0; font-size: 22px; line-height: 30px; font-weight: 700; }
+        .ch-link-d { padding: 2px 16px 0; font-size: 19px; line-height: 27px; color: #3f3f46; }
+        .ch-link-u { padding: 4px 16px 14px; font-size: 17px; line-height: 24px; color: #6b7280; }
       </style>
       <div id="root" class="fnv-root" data-composition-id="S03" data-width="1920" data-height="1080" data-duration="6.719">
-        <div class="lv-card"><div class="lv-tag">實拍 S03</div><div class="lv-desc">手機特寫：阿嬤的手指一直按「轉傳」。</div><div class="lv-note">組員拍的畫面會放在這裡</div></div>
+        <div class="ph"><div class="ph-screen">
+          <div class="ch-top"><div class="ch-title">相親相愛一家人</div><div class="ch-sub">群組聊天（示意介面）</div></div>
+          <div class="ch-list">
+            <div class="ch-row on" id="S03-m0"><div class="ch-av">姑</div><div class="ch-col"><div class="ch-name">三姑</div><div class="ch-b" id="S03-m0-b">雲林縣從四月六日開始，晚上十點至清晨六點停水，所以晚上早點洗澡，洗衣，儲水備用，早上停水的時間較短，對大家比較不影響。</div><div class="ch-menu" id="S03-menu"><span>回覆</span><span>複製</span><span class="hit">轉傳</span></div></div></div>
+          </div>
+          <div class="ch-toast" id="S03-toast">已轉傳</div>
+        </div></div>
+        <div class="cr"><div class="cr-face" id="S03-chf">嬤<div class="cr-ring" id="S03-chr"></div></div><div class="cr-name" id="S03-chn">阿嬤</div><div class="cr-mood" id="S03-chm">急著轉傳</div></div>
         <div class="ov-counter" id="S03-cnt"><span class="ov-k">已轉傳</span><span class="ov-n" id="S03-cntn">1</span><span class="ov-k">個群組</span></div>
-        <div class="lv-dim" id="S03-dim"></div><div class="lv-pause" id="S03-pz"><span class="pz-bars"><i></i><i></i></span>先暫停一下</div>
-        
+        <div class="pz-dim" id="S03-dim"></div><div class="pz-box" id="S03-pz"><span class="pz-bars"><i></i><i></i></span>先暫停一下</div>
         <div class="sc-chip" id="S03-chip">情境一｜使用前</div>
       </div>
       <script>
@@ -80,6 +112,15 @@
           const $ = (sel) => root.querySelector(sel);
           const tl = gsap.timeline({ paused: true });
           tl.fromTo($("#S03-chip"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.05);
+          tl.to($("#S03-m0-b"), { backgroundColor: "#d4d4d8", duration: 0.25 }, 0.2);
+          tl.fromTo($("#S03-menu"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.25, ease: "power3.out" }, 0.55);
+          tl.to($("#S03-menu"), { opacity: 0, duration: 0.2 }, 1.8);
+          tl.to($("#S03-m0-b"), { backgroundColor: "#ffffff", duration: 0.25 }, 1.8);
+          tl.fromTo($("#S03-toast"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.25 }, 1.9);
+          tl.fromTo($("#S03-chf"), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.8)" }, 0.1);
+          tl.fromTo($("#S03-chn"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 0.3);
+          tl.fromTo($("#S03-chm"), { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 3.1);
+          tl.fromTo($("#S03-chr"), { opacity: 0.85, scale: 0.96 }, { opacity: 0, scale: 1.2, duration: 0.7, repeat: 2, ease: "power1.out" }, 3.2);
           tl.fromTo($("#S03-cnt"), { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 0.3);
           tl.set($("#S03-cntn"), { textContent: "2" }, 0.9); tl.fromTo($("#S03-cntn"), { scale: 1.35 }, { scale: 1, duration: 0.25, ease: "power2.out" }, 0.9);
           tl.set($("#S03-cntn"), { textContent: "3" }, 1.5); tl.fromTo($("#S03-cntn"), { scale: 1.35 }, { scale: 1, duration: 0.25, ease: "power2.out" }, 1.5);
@@ -87,7 +128,6 @@
           tl.set($("#S03-cntn"), { textContent: "5" }, 2.7); tl.fromTo($("#S03-cntn"), { scale: 1.35 }, { scale: 1, duration: 0.25, ease: "power2.out" }, 2.7);
           tl.fromTo($("#S03-dim"), { opacity: 0 }, { opacity: 1, duration: 0.25 }, 5.519);
           tl.fromTo($("#S03-pz"), { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 5.519);
-          
           window.__timelines["S03"] = tl;
         })();
       </script>

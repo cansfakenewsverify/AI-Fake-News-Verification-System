@@ -48,17 +48,16 @@
           background: #ffffff; box-shadow: 0 16px 40px rgba(17,17,17,0.14); opacity: 0; }
         .qt-l { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 10px; }
         .qt-t { font-size: 38px; line-height: 54px; font-weight: 700; color: #111111; }
-        #root { background: #23262b; }
-        .lv-video { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: cover; }
-        .lv-card { position: absolute; left: 120px; top: 250px; width: 1180px; height: 470px; box-sizing: border-box; padding: 54px 70px;
-          border: 3px dashed rgba(255,255,255,0.28); border-radius: 36px; color: #fff; }
-        .lv-tag { display: inline-block; padding: 8px 22px; border-radius: 12px; background: #ffffff; color: #111111; font-size: 30px; line-height: 38px; font-weight: 700; }
-        .lv-desc { margin-top: 30px; font-size: 54px; line-height: 76px; font-weight: 700; }
-        .lv-note { margin-top: 26px; font-size: 28px; line-height: 38px; color: rgba(255,255,255,0.55); }
-        .lv-name { position: absolute; left: 56px; top: 750px; padding: 10px 26px 12px; border-radius: 14px; background: #ffffff; color: #111111;
-          font-size: 34px; line-height: 44px; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,0.25); z-index: 5; opacity: 0; }
-        .lv-dim { position: absolute; inset: 0; background: rgba(17,17,17,0.5); z-index: 7; opacity: 0; }
-        .lv-pause { position: absolute; left: 660px; top: 440px; width: 600px; height: 140px; border-radius: 70px; background: #ffffff; color: #111111;
+        .cr { position: absolute; left: 140px; top: 250px; width: 440px; text-align: center; z-index: 5; }
+        .cr-face { position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: #3f3f46; color: #ffffff;
+          font-size: 110px; line-height: 220px; font-weight: 700; opacity: 0; }
+        .cr-ring { position: absolute; left: -16px; top: -16px; width: 252px; height: 252px; box-sizing: border-box; border-radius: 50%;
+          border: 6px solid #111111; opacity: 0; }
+        .cr-name { margin-top: 24px; font-size: 46px; line-height: 58px; font-weight: 700; color: #111111; opacity: 0; }
+        .cr-mood { display: inline-block; margin-top: 16px; padding: 8px 26px 10px; border-radius: 999px; background: #111111; color: #ffffff;
+          font-size: 36px; line-height: 46px; font-weight: 700; opacity: 0; }
+        .pz-dim { position: absolute; inset: 0; background: rgba(17,17,17,0.5); z-index: 7; opacity: 0; }
+        .pz-box { position: absolute; left: 660px; top: 440px; width: 600px; height: 140px; border-radius: 70px; background: #ffffff; color: #111111;
           display: flex; align-items: center; justify-content: center; gap: 28px; font-size: 60px; line-height: 70px; font-weight: 700; z-index: 8; opacity: 0; }
         .pz-bars { display: flex; gap: 12px; }
         .pz-bars i { display: block; width: 16px; height: 56px; border-radius: 4px; background: #111111; }
@@ -66,11 +65,23 @@
           border-radius: 20px; background: #ffffff; color: #111111; box-shadow: 0 12px 34px rgba(0,0,0,0.3); z-index: 5; opacity: 0; }
         .ov-k { font-size: 34px; line-height: 44px; font-weight: 700; }
         .ov-n { display: inline-block; min-width: 40px; text-align: center; font-size: 72px; line-height: 80px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        #root { background: #eceef1; }
+        .cl { position: absolute; inset: 0; background: #27272a; color: #ffffff; text-align: center; }
+        .cl-state { margin-top: 120px; font-size: 24px; line-height: 32px; color: #d4d4d8; }
+        .cl-av { width: 150px; height: 150px; margin: 40px auto 0; border-radius: 50%; background: #52525b; font-size: 64px; line-height: 150px; font-weight: 700; }
+        .cl-name { margin-top: 30px; font-size: 40px; line-height: 52px; font-weight: 700; }
+        .cl-note { margin-top: 10px; font-size: 24px; line-height: 34px; color: #d4d4d8; }
+        .cl-tm { margin-top: 26px; font-size: 30px; line-height: 40px; font-variant-numeric: tabular-nums; }
+        .cl-end { position: absolute; left: 158px; bottom: 90px; width: 100px; height: 100px; border-radius: 50%; background: #52525b; }
       </style>
       <div id="root" class="fnv-root" data-composition-id="S08" data-width="1920" data-height="1080" data-duration="4.2">
-        <div class="lv-card"><div class="lv-tag">實拍 S08</div><div class="lv-desc">爸爸放下電話，翻到信用卡背面，改撥銀行客服，鬆一口氣。</div><div class="lv-note">組員拍的畫面會放在這裡</div></div>
-        
-        
+        <div class="ph"><div class="ph-screen"><div class="cl" id="S08-cl">
+          <div class="cl-state">通話中</div><div class="cl-av">銀</div>
+          <div class="cl-name">銀行客服</div><div class="cl-note">信用卡背面的電話</div><div class="cl-tm" id="S08-tm">00:00</div>
+          <div class="cl-end"></div>
+        </div></div></div>
+        <div class="nts"><div class="nt" id="S08-n0">改打信用卡背面的客服電話</div></div>
+        <div class="cr"><div class="cr-face" id="S08-chf">爸<div class="cr-ring" id="S08-chr"></div></div><div class="cr-name" id="S08-chn">爸爸</div><div class="cr-mood" id="S08-chm">鬆一口氣</div></div>
         <div class="sc-chip" id="S08-chip">情境二｜使用後</div>
       </div>
       <script>
@@ -79,8 +90,16 @@
           const $ = (sel) => root.querySelector(sel);
           const tl = gsap.timeline({ paused: true });
           tl.fromTo($("#S08-chip"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.05);
-          
-          
+          tl.fromTo($("#S08-cl"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 0.1);
+          tl.set($("#S08-tm"), { textContent: "00:01" }, 1);
+          tl.set($("#S08-tm"), { textContent: "00:02" }, 2);
+          tl.set($("#S08-tm"), { textContent: "00:03" }, 3);
+          tl.set($("#S08-tm"), { textContent: "00:04" }, 4);
+          tl.fromTo($("#S08-n0"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 0.4);
+          tl.fromTo($("#S08-chf"), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.8)" }, 0.1);
+          tl.fromTo($("#S08-chn"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 0.3);
+          tl.fromTo($("#S08-chm"), { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 0.7);
+          tl.fromTo($("#S08-chr"), { opacity: 0.85, scale: 0.96 }, { opacity: 0, scale: 1.2, duration: 0.7, repeat: 2, ease: "power1.out" }, 0.8);
           window.__timelines["S08"] = tl;
         })();
       </script>
