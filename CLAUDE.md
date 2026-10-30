@@ -30,7 +30,7 @@
   情境劇《轉傳之前》是「講解為主＋短劇」；**2026-10-30 起不拍真人**（組員無法拍攝）：旁白全部是負責人用手機錄的 V1～V4
   （配音稿 `04_配音稿.md` 由 `video/hf-scenario/tools/rec_sheet.mjs` 從分鏡產生），講解改成大標題＋重點的講解畫面，短劇改成
   手機畫面旁的角色頭像與情緒，阿嬤、爸爸、網友的台詞用 AI 語音（片頭片尾寫明）。影片專案在 `video/hf-scenario/`：
-  由 `data/storyboard.json` 產生，錄音放進 `raw/` 就換掉 AI 旁白；2026-10-30 新版預覽片 4 分 26 秒，待負責人錄音。
+  由 `data/storyboard.json` 產生，錄音放進 `raw/` 就換掉 AI 旁白；2026-10-30 新版預覽片 4 分 20 秒，待負責人錄音。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
   測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.0 完整版**；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
   **3.6 與 6.10 為第二次簡報輪次**，附錄 A 為需求追溯矩陣；PDF 以 `node presentations/tools/build_testplan_pdf.mjs --full` 產生）。
