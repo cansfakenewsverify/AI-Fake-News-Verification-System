@@ -48,17 +48,16 @@
           background: #ffffff; box-shadow: 0 16px 40px rgba(17,17,17,0.14); opacity: 0; }
         .qt-l { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 10px; }
         .qt-t { font-size: 38px; line-height: 54px; font-weight: 700; color: #111111; }
-        #root { background: #23262b; }
-        .lv-video { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: cover; }
-        .lv-card { position: absolute; left: 120px; top: 250px; width: 1180px; height: 470px; box-sizing: border-box; padding: 54px 70px;
-          border: 3px dashed rgba(255,255,255,0.28); border-radius: 36px; color: #fff; }
-        .lv-tag { display: inline-block; padding: 8px 22px; border-radius: 12px; background: #ffffff; color: #111111; font-size: 30px; line-height: 38px; font-weight: 700; }
-        .lv-desc { margin-top: 30px; font-size: 54px; line-height: 76px; font-weight: 700; }
-        .lv-note { margin-top: 26px; font-size: 28px; line-height: 38px; color: rgba(255,255,255,0.55); }
-        .lv-name { position: absolute; left: 56px; top: 750px; padding: 10px 26px 12px; border-radius: 14px; background: #ffffff; color: #111111;
-          font-size: 34px; line-height: 44px; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,0.25); z-index: 5; opacity: 0; }
-        .lv-dim { position: absolute; inset: 0; background: rgba(17,17,17,0.5); z-index: 7; opacity: 0; }
-        .lv-pause { position: absolute; left: 660px; top: 440px; width: 600px; height: 140px; border-radius: 70px; background: #ffffff; color: #111111;
+        .cr { position: absolute; left: 140px; top: 250px; width: 440px; text-align: center; z-index: 5; }
+        .cr-face { position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: #3f3f46; color: #ffffff;
+          font-size: 110px; line-height: 220px; font-weight: 700; opacity: 0; }
+        .cr-ring { position: absolute; left: -16px; top: -16px; width: 252px; height: 252px; box-sizing: border-box; border-radius: 50%;
+          border: 6px solid #111111; opacity: 0; }
+        .cr-name { margin-top: 24px; font-size: 46px; line-height: 58px; font-weight: 700; color: #111111; opacity: 0; }
+        .cr-mood { display: inline-block; margin-top: 16px; padding: 8px 26px 10px; border-radius: 999px; background: #111111; color: #ffffff;
+          font-size: 36px; line-height: 46px; font-weight: 700; opacity: 0; }
+        .pz-dim { position: absolute; inset: 0; background: rgba(17,17,17,0.5); z-index: 7; opacity: 0; }
+        .pz-box { position: absolute; left: 660px; top: 440px; width: 600px; height: 140px; border-radius: 70px; background: #ffffff; color: #111111;
           display: flex; align-items: center; justify-content: center; gap: 28px; font-size: 60px; line-height: 70px; font-weight: 700; z-index: 8; opacity: 0; }
         .pz-bars { display: flex; gap: 12px; }
         .pz-bars i { display: block; width: 16px; height: 56px; border-radius: 4px; background: #111111; }
@@ -66,9 +65,17 @@
           border-radius: 20px; background: #ffffff; color: #111111; box-shadow: 0 12px 34px rgba(0,0,0,0.3); z-index: 5; opacity: 0; }
         .ov-k { font-size: 34px; line-height: 44px; font-weight: 700; }
         .ov-n { display: inline-block; min-width: 40px; text-align: center; font-size: 72px; line-height: 80px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        #root { background: #f7f7f8; }
+        .tk-h { position: absolute; left: 120px; top: 240px; width: 1000px; color: #111111; font-size: 96px; line-height: 124px; font-weight: 700; }
+        .tk-h span { display: block; }
+        .tk-h.slogan { left: 0; top: 270px; width: 1920px; text-align: center; font-size: 150px; line-height: 190px; letter-spacing: 0.04em; }
+        .tk-v { position: absolute; left: 120px; top: 620px; display: flex; align-items: center; gap: 18px; padding: 12px 30px 14px 24px; border-radius: 999px;
+          background: #111111; color: #ffffff; font-size: 36px; line-height: 46px; font-weight: 700; opacity: 0; }
+        .tk-bars { display: flex; align-items: center; gap: 7px; height: 40px; }
+        .tk-bars i { display: block; width: 8px; height: 40px; border-radius: 4px; background: #ffffff; transform: scaleY(0.3); }
       </style>
-      <div id="root" class="fnv-root" data-composition-id="S13" data-width="1920" data-height="1080" data-duration="3.6">
-        <div class="lv-card"><div class="lv-tag">實拍 S13</div><div class="lv-desc">全員並排，對鏡頭喊口號。</div><div class="lv-note">組員拍的畫面會放在這裡</div></div>
+      <div id="root" class="fnv-root" data-composition-id="S13" data-width="1920" data-height="1080" data-duration="3.375">
+        <div class="tk-h slogan" id="S13-h"><span>轉傳之前，</span><span>先查一下！</span></div>
         
         
         
@@ -79,7 +86,7 @@
           const $ = (sel) => root.querySelector(sel);
           const tl = gsap.timeline({ paused: true });
           
-          
+          tl.fromTo($("#S13-h"), { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.15);
           
           window.__timelines["S13"] = tl;
         })();

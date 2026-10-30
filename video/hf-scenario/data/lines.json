@@ -17,7 +17,7 @@
   "speech_end": 4.263,
   "dur": 4.548
  },
- "S02_0": {
+ "M1_0": {
   "who": "阿嬤",
   "hash": "7ddc957f3495",
   "speech_end": 2.819,
@@ -31,83 +31,83 @@
  },
  "S04_0": {
   "who": "講解一",
-  "hash": "09623cb58cf6",
-  "speech_end": 1.204,
-  "dur": 1.554
+  "hash": "099c1f6cd63b",
+  "speech_end": 1.276,
+  "dur": 1.626
  },
  "S04_1": {
   "who": "講解一",
-  "hash": "e9564b279c17",
-  "speech_end": 4.028,
-  "dur": 4.374
+  "hash": "92c107816465",
+  "speech_end": 3.776,
+  "dur": 4.034
  },
  "S04_2": {
   "who": "講解一",
-  "hash": "a66b19f85fd8",
-  "speech_end": 6.709,
-  "dur": 7.019
+  "hash": "a2994aaa7666",
+  "speech_end": 6.42,
+  "dur": 6.742
  },
  "W1a_0": {
   "who": "講解一",
-  "hash": "effacac21772",
-  "speech_end": 2.622,
-  "dur": 2.9
+  "hash": "bfb49fa8d106",
+  "speech_end": 2.502,
+  "dur": 2.812
  },
  "W1b_0": {
   "who": "講解一",
-  "hash": "24ba7776c3de",
-  "speech_end": 4.509,
-  "dur": 4.811
+  "hash": "e395c5d83a40",
+  "speech_end": 4.329,
+  "dur": 4.639
  },
  "W1c_0": {
   "who": "講解一",
-  "hash": "25e364b8bb51",
-  "speech_end": 2.49,
-  "dur": 2.776
+  "hash": "fea381d1821c",
+  "speech_end": 2.262,
+  "dur": 2.532
  },
  "W1d_0": {
   "who": "講解一",
-  "hash": "019397f23783",
-  "speech_end": 3.896,
-  "dur": 4.222
+  "hash": "c7a763e3ad3e",
+  "speech_end": 3.884,
+  "dur": 4.138
  },
  "W1d_1": {
   "who": "講解一",
-  "hash": "c76dcd0bf3a7",
-  "speech_end": 3.512,
-  "dur": 3.862
+  "hash": "97cfbe636d66",
+  "speech_end": 2.947,
+  "dur": 3.289
  },
  "W1e_0": {
   "who": "講解一",
-  "hash": "706000d0da74",
-  "speech_end": 5.999,
-  "dur": 6.309
+  "hash": "8d6348c3b499",
+  "speech_end": 5.531,
+  "dur": 5.865
  },
  "W1f_0": {
   "who": "講解一",
-  "hash": "95b5b77740c3",
-  "speech_end": 3.391,
-  "dur": 3.741
+  "hash": "f6e3a0760ae3",
+  "speech_end": 3.151,
+  "dur": 3.409
  },
  "S05_0": {
   "who": "講解一",
-  "hash": "1719654b6ee8",
-  "speech_end": 4.75,
-  "dur": 5.087
+  "hash": "6f67c024a57c",
+  "speech_end": 4.762,
+  "dur": 5.104
  },
  "S05_1": {
   "who": "講解一",
-  "hash": "05b6785f6b84",
-  "speech_end": 4.257,
-  "dur": 4.607
+  "hash": "023605d1f8ee",
+  "speech_end": 4.052,
+  "dur": 4.374
  },
- "S06_0": {
+ "M3_0": {
   "who": "爸爸",
   "hash": "9cbaf654cf01",
   "speech_end": 3.341,
   "dur": 3.603
  },
- "S06_1": {
+ "M3_1": {
   "who": "爸爸",
   "hash": "8fc1939c0de7",
   "speech_end": 1.516,
@@ -115,51 +115,51 @@
  },
  "S07_0": {
   "who": "講解二",
-  "hash": "74dc4469844a",
-  "speech_end": 1.1,
-  "dur": 1.45
+  "hash": "099c1f6cd63b",
+  "speech_end": 1.276,
+  "dur": 1.626
  },
  "S07_1": {
   "who": "講解二",
-  "hash": "f320fec9a217",
-  "speech_end": 2.137,
-  "dur": 2.487
+  "hash": "7792780f8a25",
+  "speech_end": 2.478,
+  "dur": 2.764
  },
  "S07_2": {
   "who": "講解二",
-  "hash": "2c04334d3f83",
-  "speech_end": 7.349,
-  "dur": 7.683
+  "hash": "7fbaae357703",
+  "speech_end": 7.418,
+  "dur": 7.724
  },
  "W2a_0": {
   "who": "講解二",
-  "hash": "b0e2408be30f",
-  "speech_end": 4.307,
-  "dur": 4.593
+  "hash": "429c70438c08",
+  "speech_end": 3.968,
+  "dur": 4.242
  },
  "W2b_0": {
   "who": "講解二",
-  "hash": "baa766679c09",
-  "speech_end": 3.647,
-  "dur": 3.985
+  "hash": "7875b1e18bb4",
+  "speech_end": 3.692,
+  "dur": 3.978
  },
  "W2c_0": {
   "who": "講解二",
-  "hash": "4ec5e2822874",
-  "speech_end": 3.316,
-  "dur": 3.618
+  "hash": "5d3fbd46a0fb",
+  "speech_end": 3.391,
+  "dur": 3.689
  },
  "W2d_0": {
   "who": "講解二",
-  "hash": "278a667ec451",
-  "speech_end": 7.149,
-  "dur": 7.467
+  "hash": "4e0d2312fe1b",
+  "speech_end": 7.454,
+  "dur": 7.708
  },
  "W2e_0": {
   "who": "講解二",
-  "hash": "7c09d5779894",
-  "speech_end": 3.682,
-  "dur": 3.944
+  "hash": "e5bac9f7e3cc",
+  "speech_end": 3.632,
+  "dur": 3.97
  },
  "S08_0": {
   "who": "爸爸",
@@ -169,17 +169,17 @@
  },
  "S09_0": {
   "who": "講解二",
-  "hash": "a7fac70eaab7",
-  "speech_end": 4.295,
-  "dur": 4.581
+  "hash": "7313b2f3eb9e",
+  "speech_end": 4.509,
+  "dur": 4.811
  },
  "S09_1": {
   "who": "講解二",
-  "hash": "1151dd6ea64d",
-  "speech_end": 3.871,
-  "dur": 4.125
+  "hash": "f07354bc0cba",
+  "speech_end": 4.052,
+  "dur": 4.398
  },
- "S10_0": {
+ "M4_0": {
   "who": "網友",
   "hash": "1d5233c33ff7",
   "speech_end": 2.609,
@@ -187,51 +187,51 @@
  },
  "S11_0": {
   "who": "講解三",
-  "hash": "3baeaf91aab8",
-  "speech_end": 1.024,
-  "dur": 1.374
+  "hash": "099c1f6cd63b",
+  "speech_end": 1.276,
+  "dur": 1.626
  },
  "S11_1": {
   "who": "講解三",
-  "hash": "e1899d32fe2b",
-  "speech_end": 7.49,
-  "dur": 7.768
+  "hash": "9543e42f2e59",
+  "speech_end": 6.973,
+  "dur": 7.323
  },
  "S11_2": {
   "who": "講解三",
-  "hash": "b4c23106d6d8",
-  "speech_end": 3.127,
-  "dur": 3.437
+  "hash": "d333dfc4d520",
+  "speech_end": 3.019,
+  "dur": 3.333
  },
  "W3a_0": {
   "who": "講解三",
-  "hash": "cd8406573686",
-  "speech_end": 3.548,
-  "dur": 3.89
+  "hash": "41c98778be8b",
+  "speech_end": 3.439,
+  "dur": 3.785
  },
  "W3b_0": {
   "who": "講解三",
-  "hash": "b2ac53c5294b",
-  "speech_end": 4.233,
-  "dur": 4.583
+  "hash": "5ad9621605d7",
+  "speech_end": 4.137,
+  "dur": 4.479
  },
  "W3c_0": {
   "who": "講解三",
-  "hash": "85339f065931",
-  "speech_end": 5.387,
-  "dur": 5.653
+  "hash": "d53c47eee833",
+  "speech_end": 5.242,
+  "dur": 5.588
  },
  "S12_0": {
   "who": "講解三",
-  "hash": "7fb18755112e",
-  "speech_end": 6.168,
-  "dur": 6.426
+  "hash": "05ac908e210e",
+  "speech_end": 6.156,
+  "dur": 6.414
  },
  "S12_1": {
   "who": "講解三",
-  "hash": "a25fde331d1d",
-  "speech_end": 3.548,
-  "dur": 3.898
+  "hash": "42d6806acf1a",
+  "speech_end": 3.355,
+  "dur": 3.705
  },
  "W4a_0": {
   "who": "主持人",
@@ -264,8 +264,8 @@
   "dur": 6.818
  },
  "S13_0": {
-  "who": "全員",
-  "hash": "66f3a8d4559a",
+  "who": "主持人",
+  "hash": "5f1b09f3a4ac",
   "speech_end": 2.075,
   "dur": 2.425
  }

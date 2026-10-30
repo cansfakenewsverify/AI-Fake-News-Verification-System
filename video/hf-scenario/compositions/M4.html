@@ -48,6 +48,23 @@
           background: #ffffff; box-shadow: 0 16px 40px rgba(17,17,17,0.14); opacity: 0; }
         .qt-l { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 10px; }
         .qt-t { font-size: 38px; line-height: 54px; font-weight: 700; color: #111111; }
+        .cr { position: absolute; left: 140px; top: 250px; width: 440px; text-align: center; z-index: 5; }
+        .cr-face { position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: #3f3f46; color: #ffffff;
+          font-size: 110px; line-height: 220px; font-weight: 700; opacity: 0; }
+        .cr-ring { position: absolute; left: -16px; top: -16px; width: 252px; height: 252px; box-sizing: border-box; border-radius: 50%;
+          border: 6px solid #111111; opacity: 0; }
+        .cr-name { margin-top: 24px; font-size: 46px; line-height: 58px; font-weight: 700; color: #111111; opacity: 0; }
+        .cr-mood { display: inline-block; margin-top: 16px; padding: 8px 26px 10px; border-radius: 999px; background: #111111; color: #ffffff;
+          font-size: 36px; line-height: 46px; font-weight: 700; opacity: 0; }
+        .pz-dim { position: absolute; inset: 0; background: rgba(17,17,17,0.5); z-index: 7; opacity: 0; }
+        .pz-box { position: absolute; left: 660px; top: 440px; width: 600px; height: 140px; border-radius: 70px; background: #ffffff; color: #111111;
+          display: flex; align-items: center; justify-content: center; gap: 28px; font-size: 60px; line-height: 70px; font-weight: 700; z-index: 8; opacity: 0; }
+        .pz-bars { display: flex; gap: 12px; }
+        .pz-bars i { display: block; width: 16px; height: 56px; border-radius: 4px; background: #111111; }
+        .ov-counter { position: absolute; right: 60px; top: 40px; display: flex; align-items: baseline; gap: 14px; padding: 14px 30px 16px;
+          border-radius: 20px; background: #ffffff; color: #111111; box-shadow: 0 12px 34px rgba(0,0,0,0.3); z-index: 5; opacity: 0; }
+        .ov-k { font-size: 34px; line-height: 44px; font-weight: 700; }
+        .ov-n { display: inline-block; min-width: 40px; text-align: center; font-size: 72px; line-height: 80px; font-weight: 700; font-variant-numeric: tabular-nums; }
         #root { background: #f7f7f8; }
         .th-top { position: absolute; left: 0; right: 0; top: 0; height: 96px; border-bottom: 2px solid #ececec; text-align: center; font-size: 24px; line-height: 150px; font-weight: 700; }
         .th-list { position: absolute; left: 0; right: 0; top: 96px; bottom: 0; padding: 22px 22px; display: flex; flex-direction: column; gap: 18px; }
@@ -66,7 +83,7 @@
         .th-wait { align-self: center; margin-top: 10px; padding: 10px 22px; border-radius: 999px; background: #f4f4f5; color: #3f3f46;
           font-size: 20px; line-height: 28px; font-weight: 700; opacity: 0; }
       </style>
-      <div id="root" class="fnv-root" data-composition-id="M4" data-width="1920" data-height="1080" data-duration="5.4">
+      <div id="root" class="fnv-root" data-composition-id="M4" data-width="1920" data-height="1080" data-duration="8.341">
         <div class="ph"><div class="ph-screen">
           <div class="th-top">Threads</div>
           <div class="th-list">
@@ -79,9 +96,11 @@
             
           </div>
         </div></div>
-        <div class="tag" style="left: 1250px; top: 120px">示意畫面：正式片換成 Threads 實錄</div>
+        <div class="tag" style="left: 1250px; top: 120px">示意畫面：Threads 介面重繪</div>
         
         <div class="qt" id="M4-qt"><div class="qt-l">Threads 上的貼文</div><div class="qt-t">每天吃香蕉讓骨密度增強50倍，比骨頭湯還補鈣</div></div>
+        <div class="cr"><div class="cr-face" id="M4-chf">網<div class="cr-ring" id="M4-chr"></div></div><div class="cr-name" id="M4-chn">網友</div><div class="cr-mood" id="M4-chm">越看越煩</div></div>
+        <div class="pz-dim" id="M4-dim"></div><div class="pz-box" id="M4-pz"><span class="pz-bars"><i></i><i></i></span>先暫停一下</div>
         <div class="sc-chip" id="M4-chip">情境三｜使用前</div>
       </div>
       <script>
@@ -94,6 +113,12 @@
           tl.fromTo($("#M4-cm1"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 2.2);
           tl.fromTo($("#M4-cm2"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 3.4);
           tl.fromTo($("#M4-qt"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 0.6);
+          tl.fromTo($("#M4-chf"), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.8)" }, 0.1);
+          tl.fromTo($("#M4-chn"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 0.3);
+          tl.fromTo($("#M4-chm"), { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 3.8);
+          tl.fromTo($("#M4-chr"), { opacity: 0.85, scale: 0.96 }, { opacity: 0, scale: 1.2, duration: 0.7, repeat: 3, ease: "power1.out" }, 3.9);
+          tl.fromTo($("#M4-dim"), { opacity: 0 }, { opacity: 1, duration: 0.25 }, 7.141);
+          tl.fromTo($("#M4-pz"), { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 7.141);
           window.__timelines["M4"] = tl;
         })();
       </script>

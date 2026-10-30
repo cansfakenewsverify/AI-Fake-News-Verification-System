@@ -47,11 +47,28 @@
         .qt { position: absolute; left: 1250px; top: 250px; width: 600px; box-sizing: border-box; padding: 26px 32px 30px; border-radius: 24px;
           background: #ffffff; box-shadow: 0 16px 40px rgba(17,17,17,0.14); opacity: 0; }
         .qt-l { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 10px; }
-        .qt-t { font-size: 38px; line-height: 54px; font-weight: 700; color: #111111; }#root { background: #f7f7f8; }
+        .qt-t { font-size: 38px; line-height: 54px; font-weight: 700; color: #111111; }
+        .cr { position: absolute; left: 140px; top: 250px; width: 440px; text-align: center; z-index: 5; }
+        .cr-face { position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: #3f3f46; color: #ffffff;
+          font-size: 110px; line-height: 220px; font-weight: 700; opacity: 0; }
+        .cr-ring { position: absolute; left: -16px; top: -16px; width: 252px; height: 252px; box-sizing: border-box; border-radius: 50%;
+          border: 6px solid #111111; opacity: 0; }
+        .cr-name { margin-top: 24px; font-size: 46px; line-height: 58px; font-weight: 700; color: #111111; opacity: 0; }
+        .cr-mood { display: inline-block; margin-top: 16px; padding: 8px 26px 10px; border-radius: 999px; background: #111111; color: #ffffff;
+          font-size: 36px; line-height: 46px; font-weight: 700; opacity: 0; }
+        .pz-dim { position: absolute; inset: 0; background: rgba(17,17,17,0.5); z-index: 7; opacity: 0; }
+        .pz-box { position: absolute; left: 660px; top: 440px; width: 600px; height: 140px; border-radius: 70px; background: #ffffff; color: #111111;
+          display: flex; align-items: center; justify-content: center; gap: 28px; font-size: 60px; line-height: 70px; font-weight: 700; z-index: 8; opacity: 0; }
+        .pz-bars { display: flex; gap: 12px; }
+        .pz-bars i { display: block; width: 16px; height: 56px; border-radius: 4px; background: #111111; }
+        .ov-counter { position: absolute; right: 60px; top: 40px; display: flex; align-items: baseline; gap: 14px; padding: 14px 30px 16px;
+          border-radius: 20px; background: #ffffff; color: #111111; box-shadow: 0 12px 34px rgba(0,0,0,0.3); z-index: 5; opacity: 0; }
+        .ov-k { font-size: 34px; line-height: 44px; font-weight: 700; }
+        .ov-n { display: inline-block; min-width: 40px; text-align: center; font-size: 72px; line-height: 80px; font-weight: 700; font-variant-numeric: tabular-nums; }#root { background: #f7f7f8; }
       </style>
-      <div id="root" class="fnv-root" data-composition-id="W1b" data-width="1920" data-height="1080" data-duration="5.461">
+      <div id="root" class="fnv-root" data-composition-id="W1b" data-width="1920" data-height="1080" data-duration="5.289">
         <div class="ph"><div class="ph-screen">
-          <video id="W1b-v" src="assets/footage/W1b.mp4" data-start="0" data-duration="5.461" data-track-index="0" muted playsinline></video>
+          <video id="W1b-v" src="assets/footage/W1b.mp4" data-start="0" data-duration="5.289" data-track-index="0" muted playsinline></video>
         </div></div>
         <div class="tag" style="left: 1250px; top: 120px">正式站實錄</div>
         
@@ -68,8 +85,8 @@
           tl.fromTo($("#W1b-chip"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.05);
           
           tl.fromTo($("#W1b-now"), { opacity: 0.35, x: -16 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 0.05);
-          tl.fromTo($("#W1b-n0"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 2.706);
-          tl.fromTo($("#W1b-n1"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 3.908);
+          tl.fromTo($("#W1b-n0"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 2.62);
+          tl.fromTo($("#W1b-n1"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 3.779);
           window.__timelines["W1b"] = tl;
         })();
       </script>

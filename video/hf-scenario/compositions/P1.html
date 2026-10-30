@@ -47,10 +47,27 @@
         .qt { position: absolute; left: 1250px; top: 250px; width: 600px; box-sizing: border-box; padding: 26px 32px 30px; border-radius: 24px;
           background: #ffffff; box-shadow: 0 16px 40px rgba(17,17,17,0.14); opacity: 0; }
         .qt-l { font-size: 30px; line-height: 40px; font-weight: 700; color: #6b7280; margin-bottom: 10px; }
-        .qt-t { font-size: 38px; line-height: 54px; font-weight: 700; color: #111111; }#root { background: #111111; } .dc { position: absolute; left: 0; right: 0; top: 500px; text-align: center; color: #fff; font-size: 44px; line-height: 60px; font-weight: 700; opacity: 0; }
+        .qt-t { font-size: 38px; line-height: 54px; font-weight: 700; color: #111111; }
+        .cr { position: absolute; left: 140px; top: 250px; width: 440px; text-align: center; z-index: 5; }
+        .cr-face { position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: #3f3f46; color: #ffffff;
+          font-size: 110px; line-height: 220px; font-weight: 700; opacity: 0; }
+        .cr-ring { position: absolute; left: -16px; top: -16px; width: 252px; height: 252px; box-sizing: border-box; border-radius: 50%;
+          border: 6px solid #111111; opacity: 0; }
+        .cr-name { margin-top: 24px; font-size: 46px; line-height: 58px; font-weight: 700; color: #111111; opacity: 0; }
+        .cr-mood { display: inline-block; margin-top: 16px; padding: 8px 26px 10px; border-radius: 999px; background: #111111; color: #ffffff;
+          font-size: 36px; line-height: 46px; font-weight: 700; opacity: 0; }
+        .pz-dim { position: absolute; inset: 0; background: rgba(17,17,17,0.5); z-index: 7; opacity: 0; }
+        .pz-box { position: absolute; left: 660px; top: 440px; width: 600px; height: 140px; border-radius: 70px; background: #ffffff; color: #111111;
+          display: flex; align-items: center; justify-content: center; gap: 28px; font-size: 60px; line-height: 70px; font-weight: 700; z-index: 8; opacity: 0; }
+        .pz-bars { display: flex; gap: 12px; }
+        .pz-bars i { display: block; width: 16px; height: 56px; border-radius: 4px; background: #111111; }
+        .ov-counter { position: absolute; right: 60px; top: 40px; display: flex; align-items: baseline; gap: 14px; padding: 14px 30px 16px;
+          border-radius: 20px; background: #ffffff; color: #111111; box-shadow: 0 12px 34px rgba(0,0,0,0.3); z-index: 5; opacity: 0; }
+        .ov-k { font-size: 34px; line-height: 44px; font-weight: 700; }
+        .ov-n { display: inline-block; min-width: 40px; text-align: center; font-size: 72px; line-height: 80px; font-weight: 700; font-variant-numeric: tabular-nums; }#root { background: #111111; } .dc { position: absolute; left: 0; right: 0; top: 440px; text-align: center; color: #fff; font-size: 44px; line-height: 66px; font-weight: 700; opacity: 0; }
       </style>
-      <div id="root" class="fnv-root" data-composition-id="P1" data-width="1920" data-height="1080" data-duration="2.4">
-        <div class="dc" id="P1-t">本片情節虛構；系統畫面皆為正式站實錄。</div>
+      <div id="root" class="fnv-root" data-composition-id="P1" data-width="1920" data-height="1080" data-duration="3.4">
+        <div class="dc" id="P1-t">本片情節虛構。網站畫面為正式站實錄，Threads 畫面為示意。<br />阿嬤、爸爸、網友的台詞為 AI 語音。</div>
         
         
       </div>
@@ -60,7 +77,7 @@
           const $ = (sel) => root.querySelector(sel);
           const tl = gsap.timeline({ paused: true });
           
-          tl.fromTo($("#P1-t"), { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.2); tl.to($("#P1-t"), { opacity: 0, duration: 0.3 }, 2.05);
+          tl.fromTo($("#P1-t"), { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.2); tl.to($("#P1-t"), { opacity: 0, duration: 0.3 }, 3.05);
           
           window.__timelines["P1"] = tl;
         })();
