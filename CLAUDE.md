@@ -324,6 +324,10 @@ presentations/                  簡報與報告資料；`2026-09_進度報告/` 
                                 以 `presentations/tools/build_posters.py` 輸出，會檢查有沒有區塊被切掉）
 assets/                         PlantUML 圖 + confusion_matrix.png（最新評測的混淆矩陣）
 └── 期末專題文件/                OOSE 期末繳交文件(詞彙表/使用案例圖/情節/活動圖/類別圖+README)
+graphify-out/                   `code/` 的程式碼關係圖（graphify，本機 tree-sitter 解析、不花 token）：GRAPH_REPORT.md（模組分群、
+                                最多連線的類別）、graph.json（可用 `graphify query`／`path`／`explain` 查）。只提交這兩個檔，
+                                graph.html 與快取在本機。程式大改後重建：裝了 graphify 的電腦在 Claude Code 打 `/graphify code`
+                                （範圍只選程式碼；docs、圖片的語意分析要派 AI 讀，很花 token）。2026-10-30 以 main 建立，之後不會自動更新
 ```
 
 **設定鍵**都定義在 `app/config.py`（範本 `.env.example`；雲端的值寫在 `render.yaml`）。站台相關：`PUBLIC_BASE_URL`（分享連結、Threads

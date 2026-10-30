@@ -58,6 +58,8 @@ code/backend/data/factcheck_raw/
 code/backend/data/factcheck_corpus*
 code/backend/data/evidence_study_*
 code/backend/data/audit_cofacts_sources_*
+# scripts/confidence_validation.py、model_benchmark.py：語料、題目原文與向量（GitHub Actions 以 actions/cache 保存）
+code/backend/data/research/
 docs/test/op7_legacy/
 # Fallback: stores use Path("data") relative to CWD; running the backend or a
 # script from the repo root would create <root>/data/*.parquet / *.db.
@@ -148,3 +150,9 @@ video/hf-scenario/.hyperframes/
 video/hf-scenario/.hf-tmp/
 video/hf-scenario/.debug/
 video/hf-scenario/.media/
+
+# ── graphify（程式碼關係圖，`/graphify code`）：只提交報告與圖資料，其餘是本機快取與本機路徑 ──
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md
+!graphify-out/graph.json
+code/graphify-out/

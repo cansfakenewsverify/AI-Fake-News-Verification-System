@@ -144,6 +144,7 @@ AI-Fake-News-Verification-System/
 ├── video/hf-presentation/       ← 5 分鐘開箱簡報影片原始碼（presentation_v1.3）
 ├── video/hf-demo/               ← 舊版 demo 影片原始碼（v0.4.0）
 ├── assets/                      ← PlantUML 圖、confusion_matrix.png、期末專題文件/（OOSE 文件）
+├── graphify-out/                ← code/ 的程式碼關係圖（GRAPH_REPORT.md 與 graph.json，graphify 產生）
 └── legacy/                      ← 已封存、不再維護的舊版單檔查核儀
 ```
 
