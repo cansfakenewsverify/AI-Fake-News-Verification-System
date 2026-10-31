@@ -12,6 +12,8 @@ r"""
   report  所有跑過的模型 → docs/test/results/model_benchmark_<日期>.md：準確率、精確率／召回率／F1、漏判、
           無法查證、格式錯誤、耗時、花費、Wilson 信賴區間、與 gpt-5.6-luna（medium）的 McNemar 精確檢定；
           最後一列「完整系統」＝先查知識庫（只用比題目早的查核，相似度 ≥ 0.75 沿用結論），沒命中才用 gpt-5.6-luna。
+          另附參考表：排除 Cofacts 短訊息（少於 --short-cofacts 字，預設 30；0 = 不附）的題目
+          （負責人 2026-10-31 看過結果後加的；只排除題目，完整系統的知識庫不變；需要語料才算得出字數）。
 
 系統提示與正式站相同（ai_service.SYSTEM_PROMPT_V41＋_build_prompt）；不帶 web_search、不經快取。
 閘道的 OpenAI 模型走 Responses API（ai_service._responses_analyze，與正式站相同，逾時同 AI_TIMEOUT_SECONDS）；
@@ -19,7 +21,7 @@ r"""
 
     python scripts/model_benchmark.py freeze
     python scripts/model_benchmark.py run --model gpt-5.6-luna --effort medium --api responses --limit 50 --max-usd 1
-    python scripts/model_benchmark.py report
+    python scripts/model_benchmark.py report [--short-cofacts 30]
 """
 import argparse
 import csv
@@ -355,12 +357,24 @@ def cmd_report(args) -> int:
         runs.append((ok["model"].iloc[0], ok["effort"].iloc[0], ok["api"].iloc[0], ok, int(len(df) - len(ok))))
     base_df = next((ok for m, e, _, ok, _ in runs if (m, e) == BASELINE), pd.DataFrame())
     full = full_system(items, base_df)
+    min_chars = getattr(args, "short_cofacts", rc.SHORT_COFACTS_CHARS)
+    short = short_cofacts_items(items, min_chars)
     day = rc.run_date()
     report = rc.RESULTS / f"model_benchmark_{day}.md"
-    report.write_text(render_report(day, items, runs, base_df, full), encoding="utf-8")
-    rc.update_status("benchmark_report", {"report": str(report.relative_to(rc.REPO)), "models": [f"{m} {e}" for m, e, *_ in runs]})
+    report.write_text(render_report(day, items, runs, base_df, full, short, min_chars), encoding="utf-8")
+    rc.update_status("benchmark_report", {"report": str(report.relative_to(rc.REPO)), "models": [f"{m} {e}" for m, e, *_ in runs],
+                                          "short_cofacts": {"min_chars": min_chars, "removed_items": len(short or ())}})
     rc.step_summary(f"## 模型比較報告\n\n`{report.relative_to(rc.REPO)}`（{len(runs)} 個模型設定）")
     return 0
+
+
+def short_cofacts_items(items: pd.DataFrame, min_chars: int) -> Optional[set]:
+    """題庫中 Cofacts 短訊息的 content_hash；沒啟用或沒有語料（算不出字數）→ None。"""
+    if min_chars <= 0 or not rc.CORPUS.exists():
+        return None
+    texts, _ = item_texts(items)
+    rows = items[["content_hash", "source"]].assign(text=items["content_hash"].map(texts))
+    return rc.short_cofacts_hashes(rows[rows["text"].notna()], min_chars)
 
 
 def _row(name: str, s: Dict[str, Any], base: Optional[Dict[str, Any]], total: int, failed: int = 0) -> str:
@@ -384,7 +398,8 @@ def fmt(x: Optional[float]) -> str:
     return "—" if x is None else f"{x:.3f}"
 
 
-def render_report(day: str, items: pd.DataFrame, runs: list, base_df: pd.DataFrame, full: Optional[pd.DataFrame]) -> str:
+def render_report(day: str, items: pd.DataFrame, runs: list, base_df: pd.DataFrame, full: Optional[pd.DataFrame],
+                  short: Optional[set] = None, min_chars: int = 0) -> str:
     total = len(items)
     counts = items.groupby("gold").size().to_dict()
     header = ["| 模型 | 題數 | 準確率（95% 信賴區間） | 精確率／召回率／F1 | 漏判 | 無法查證 | 格式錯誤 | 秒數 p50／p90 | 每題 USD | 對基準 McNemar p |",
@@ -425,6 +440,11 @@ def render_report(day: str, items: pd.DataFrame, runs: list, base_df: pd.DataFra
     lines += subset_rows(lambda df: df["recent"].astype(str).str.lower() == "true")
     lines += ["", "## Cofacts（同一來源、最難分）", "", *header]
     lines += subset_rows(lambda df: df["source"] == "Cofacts")
+    if short:
+        lines += ["", f"## 參考：排除 Cofacts 短訊息（少於 {min_chars} 字的 {len(short)} 題）", "",
+                  "負責人 2026-10-31 看過上面的結果後加的參考表（對話片段、只有一句話的訊息很難判斷）。"
+                  "模型之間的比較仍以上面的全部題目與近期新查核為準。只排除題目，完整系統的知識庫不變。", "", *header]
+        lines += subset_rows(lambda df: ~df["content_hash"].isin(short))
     if full is None:
         lines += ["", "完整系統：還沒有基準模型的結果或語料向量，這一列之後補上。"]
     lines += ["", "## 解讀注意", "",
@@ -450,7 +470,9 @@ def main() -> int:
     r.add_argument("--limit", type=int, default=0, help=f"trial: only this many items (use {rc.TRIAL_ITEMS})")
     r.add_argument("--max-usd", type=float, default=1.0)
     r.add_argument("--max-minutes", type=float, default=320)
-    sub.add_parser("report")
+    p = sub.add_parser("report")
+    p.add_argument("--short-cofacts", type=int, default=rc.SHORT_COFACTS_CHARS,
+                   help="extra table without Cofacts messages shorter than this many characters (0 = off)")
     args = parser.parse_args()
     return {"freeze": cmd_freeze, "run": cmd_run, "report": cmd_report}[args.cmd](args)
 

@@ -401,6 +401,43 @@ def test_analyze_end_to_end_without_raw_text(sandbox, monkeypatch):
     assert {"level_small", "nn_sim_small"} <= set(df.columns)
     status = json.loads(rc.STATUS.read_text(encoding="utf-8"))
     assert "text-embedding-3-small" in status["confidence_analyze"]["summary"]
+    # 預設門檻 30 字：合成題目全是短的 Cofacts 訊息，參考分析排除後題目不夠，只寫原因
+    assert "參考：排除 Cofacts 短訊息（少於 30 字）" in report and "沒有另外計算" in report
+
+
+def test_short_cofacts_only_counts_cofacts_and_ignores_spaces():
+    rows = pd.DataFrame({"source": ["Cofacts", "Cofacts", "MyGoPen", "Cofacts"],
+                         "text": ["你今天有空嗎", "很長的訊息" * 10, "短", "一 二 三 四 五 六"],
+                         "content_hash": ["a", "b", "c", "d"]})
+    assert rc.short_cofacts_hashes(rows, 10) == {"a", "d"}      # 空白不算字；MyGoPen 的短主張不排除
+    assert rc.short_cofacts_hashes(rows, 0) == set()            # 0 = 不排除
+    assert rc.text_len(None) == 0
+
+
+def test_analyze_reference_run_without_short_cofacts(sandbox, monkeypatch):
+    monkeypatch.setattr(cv, "MIN_N", 5)
+    corpus, questions, vectors = _synthetic()
+    long_tail = "這是一段很長的補充說明讓訊息超過門檻"
+    questions["text"] = [t if i % 3 == 0 else t + long_tail for i, t in enumerate(questions["text"])]
+    corpus.to_parquet(rc.CORPUS, index=False)
+    questions.to_parquet(cv.QUESTIONS, index=False)
+    store = rc.EmbeddingStore("text-embedding-3-small")
+    for h, v in vectors.items():
+        store.add(h, v)
+    store.save()
+    rc.update_status("confidence_fetch", {"dedupe": {"rows": 240, "unique": 240, "weeks": ["2026-10-19"]}, "matching": {}})
+    assert cv.cmd_analyze(Namespace(models="text-embedding-3-small", group_model="text-embedding-3-small",
+                                    since_note="2026-10-19", short_cofacts=20)) == 0
+    day = rc.run_date()
+    report = (rc.RESULTS / f"confidence_validation_{day}.md").read_text(encoding="utf-8")
+    assert "參考：排除 Cofacts 短訊息（少於 20 字）" in report and "排除的題目 80 題" in report
+    assert "過關仍以上面的全部題目為準" in report and "沒有另外計算" not in report
+    assert report.count("| `text-embedding-3-small` |") == 2      # 主表與參考表各一列
+    assert "原文標記" not in report
+    df = pd.read_csv(rc.RESULTS / f"confidence_validation_{day}.csv")
+    assert int(df["short_cofacts"].sum()) == 80
+    status = json.loads(rc.STATUS.read_text(encoding="utf-8"))["confidence_analyze"]["without_short_cofacts"]
+    assert status["removed_questions"] == 80 and "text-embedding-3-small" in status["summary"]
 
 
 # ── 模型比較 ─────────────────────────────────────────────────
@@ -486,6 +523,28 @@ def test_report_table_and_mcnemar(sandbox):
     s = mb.summarize(mb.load_results(mb.RUNS / "gpt-5.6-luna__medium.csv"))
     assert s["fn"] == 1 and s["unverifiable"] == 1 and s["correct"] == 4
     assert "完整系統：還沒有" in text                # 沒有語料向量時不硬算
+    assert "排除 Cofacts 短訊息" not in text          # 沒有語料就算不出字數，不附參考表
+
+
+def test_report_adds_a_table_without_short_cofacts(sandbox):
+    items = _items()                                  # h1、h3、h5 是 Cofacts；h2、h4、h6 是 MyGoPen
+    items.to_csv(mb.ITEMS, index=False)
+    texts = {"h1": "你今天有空嗎", "h2": "短主張", "h3": "很長的轉傳訊息" * 6, "h4": "主張" * 20, "h5": "辦預付卡", "h6": "主張" * 20}
+    pd.DataFrame({"content_hash": list(texts), "text": list(texts.values()), "use": "analysis",
+                  "verdict_date": "2026-10-01"}).to_parquet(rc.CORPUS, index=False)
+    mb.RUNS.mkdir(parents=True)
+    rows = [{**{k: it[k] for k in ("item_id", "content_hash", "url", "source", "gold")}, "model": "gpt-5.6-luna",
+             "effort": "medium", "api": "responses", "predicted": "MISINFO", "format_error": "False", "detail": "",
+             "error": "", "sec": "3.0", "input_tokens": "", "output_tokens": "", "usd": "0.001", "run_date": "x"}
+            for _, it in items.iterrows()]
+    pd.DataFrame(rows, columns=mb.RESULT_COLUMNS).to_csv(mb.RUNS / "gpt-5.6-luna__medium.csv", index=False)
+    assert mb.cmd_report(Namespace(short_cofacts=30)) == 0
+    text = next(rc.RESULTS.glob("model_benchmark_*.md")).read_text(encoding="utf-8")
+    assert "參考：排除 Cofacts 短訊息（少於 30 字的 2 題）" in text
+    reference = text.split("參考：排除 Cofacts 短訊息")[1]
+    assert "| 4／4 |" in reference                    # 只排除 Cofacts 的 h1、h5；MyGoPen 的短主張留著
+    status = json.loads(rc.STATUS.read_text(encoding="utf-8"))["benchmark_report"]
+    assert status["short_cofacts"] == {"min_chars": 30, "removed_items": 2}
 
 
 # ── 一鍵執行（research_run.py） ──────────────────────────────
@@ -530,6 +589,23 @@ def test_benchmark_runs_trial_then_full_within_cap(sandbox, monkeypatch):
     assert runs == [("gpt-5.6-luna", 2, 0.3), ("gpt-5.6-luna", 2, 4.0),   # 試跑 → 推估便宜 → 全跑
                     ("gpt-6-luna", 2, 0.3),                                 # 推估太貴：只試跑
                     "report"]                                               # nope 不在閘道清單：略過
+
+
+def test_report_only_reanalyses_without_spending(sandbox, monkeypatch):
+    calls = []
+    monkeypatch.setattr(rr.cv, "cmd_analyze", lambda args: calls.append(("analyze", args.models, args.short_cofacts)))
+    monkeypatch.setattr(rr.mb, "cmd_report", lambda args: calls.append(("report", args.short_cofacts)))
+    monkeypatch.setattr(rr.cv, "cmd_embed", lambda args: pytest.fail("report must not embed"))
+    monkeypatch.setattr(rr.mb, "cmd_run", lambda args: pytest.fail("report must not call models"))
+    rr.run_report(Namespace(short_cofacts=25))
+    assert calls == []                                                  # 還沒有資料：什麼都不做
+    store = rc.EmbeddingStore("text-embedding-3-small")
+    store.add("h", np.ones(4) / 2)
+    store.save()
+    pd.DataFrame({"content_hash": ["h"]}).to_parquet(cv.QUESTIONS, index=False)
+    _items().to_csv(mb.ITEMS, index=False)
+    rr.run_report(Namespace(short_cofacts=25))
+    assert calls == [("analyze", "text-embedding-3-small", 25), ("report", 25)]
 
 
 def test_commit_only_on_the_research_branch(sandbox, monkeypatch):

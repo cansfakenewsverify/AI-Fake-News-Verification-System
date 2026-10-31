@@ -5,7 +5,10 @@ r"""
               → 分析出報告
   benchmark   模型比較：凍結題庫（第一次）→ 每個模型先試跑 50 題、推估花費不超過上限才全跑 → 報告
   update      每三天更新一次資料：重抓查核機構的新資料，為新文字補算向量（已經算過的 embedding 都補；3 天內更新過就略過）
+  report      只重算兩份報告（不抓資料、不算向量、不呼叫模型，不花額度），例如改了 --short-cofacts 之後
   all         confidence ＋ benchmark
+
+--short-cofacts N：報告另附「排除 Cofacts 短訊息（少於 N 字）」的參考表（預設 30；0 = 不附）。
 
 加 --commit：把結果（docs/test/results/，不含訊息原文）commit 並推到研究分支；目前不在研究分支就不 commit。
 額度護欄都在底層（research_common.Budget）：開始前與每 100 題讀 /me/usage、保留 USD 3、台灣時間週日不跑花錢的步驟。
@@ -14,6 +17,7 @@ r"""
     .\venv\Scripts\python scripts\research_run.py confidence --commit
     .\venv\Scripts\python scripts\research_run.py benchmark --commit
     .\venv\Scripts\python scripts\research_run.py update --commit
+    .\venv\Scripts\python scripts\research_run.py report --commit
 """
 import argparse
 import subprocess
@@ -99,7 +103,8 @@ def run_confidence(args) -> None:
     if rc.DEFAULT_EMBED not in ready:
         rc.step_summary("## 信心驗證沒有分析\n\n`text-embedding-3-small` 的向量還沒算完（分群要用它）。")
         return
-    cv.cmd_analyze(Namespace(models=",".join(ready), group_model=rc.DEFAULT_EMBED, since_note=cv.WEEKLY_SINCE))
+    cv.cmd_analyze(Namespace(models=",".join(ready), group_model=rc.DEFAULT_EMBED, since_note=cv.WEEKLY_SINCE,
+                             short_cofacts=getattr(args, "short_cofacts", rc.SHORT_COFACTS_CHARS)))
 
 
 def parse_models(spec: str) -> List[Dict[str, object]]:
@@ -157,7 +162,21 @@ def run_benchmark(args) -> None:
                 continue
         mb.cmd_run(Namespace(model=model, effort=effort, api=api, limit=target - done,
                              max_usd=args.model_cap, max_minutes=args.max_minutes))
-    mb.cmd_report(Namespace())
+    mb.cmd_report(Namespace(short_cofacts=getattr(args, "short_cofacts", rc.SHORT_COFACTS_CHARS)))
+
+
+def run_report(args) -> None:
+    """只重算報告，不花額度：信心驗證用已經算好的向量重新分析、模型比較用已經有的逐題結果重出報告。"""
+    ready = [m for m in rc.EMBED_MODELS if len(rc.EmbeddingStore(m)) > 0]
+    if rc.DEFAULT_EMBED in ready and cv.QUESTIONS.exists():
+        cv.cmd_analyze(Namespace(models=",".join(ready), group_model=rc.DEFAULT_EMBED, since_note=cv.WEEKLY_SINCE,
+                                 short_cofacts=getattr(args, "short_cofacts", rc.SHORT_COFACTS_CHARS)))
+    else:
+        rc.log("[run] confidence: no questions or text-embedding-3-small vectors yet; run `confidence` first")
+    if mb.ITEMS.exists():
+        mb.cmd_report(Namespace(short_cofacts=getattr(args, "short_cofacts", rc.SHORT_COFACTS_CHARS)))
+    else:
+        rc.log("[run] benchmark: no frozen items yet; run `benchmark` first")
 
 
 def run_update(args) -> None:
@@ -199,7 +218,7 @@ def commit_results(what: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("what", choices=["confidence", "benchmark", "update", "all"])
+    parser.add_argument("what", choices=["confidence", "benchmark", "update", "report", "all"])
     parser.add_argument("--commit", action="store_true", help="commit and push docs/test/results to the research branch")
     parser.add_argument("--refresh-days", type=float, default=REFRESH_DAYS)
     parser.add_argument("--refetch", action="store_true", help="fetch the fact-check data again even if it is fresh")
@@ -209,6 +228,8 @@ def main() -> int:
     parser.add_argument("--models", default=DEFAULT_MODELS, help="model/effort/api[/max_items], comma-separated")
     parser.add_argument("--model-cap", type=float, default=4.0, help="USD cap per benchmark model")
     parser.add_argument("--max-minutes", type=float, default=320, help="time limit per benchmark model run")
+    parser.add_argument("--short-cofacts", type=int, default=rc.SHORT_COFACTS_CHARS,
+                        help="reports add a table without Cofacts messages shorter than this many characters (0 = off)")
     args = parser.parse_args()
     if args.what in ("confidence", "all"):
         run_confidence(args)
@@ -216,6 +237,8 @@ def main() -> int:
         run_benchmark(args)
     if args.what == "update":
         run_update(args)
+    if args.what == "report":
+        run_report(args)
     if args.commit:
         commit_results(args.what)
     return 0

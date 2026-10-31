@@ -9,6 +9,8 @@ r"""
            重複內容只算一次 → 同網址＋相似度 ≥ 0.90 分群 → 依群分開發組／測試組（各半）
            → 時間切分的最近鄰（只比對查核結論早於題目日期的語料）
            → 只用開發組定門檻與話術原型 → 測試組套 evidence.assess → 第 4 節四項過關標準、可靠度圖／ECE／Brier
+           → 參考：題目與模擬知識庫都排除 Cofacts 短訊息（少於 --short-cofacts 字，預設 30；0 = 不算）再算一次
+             （負責人 2026-10-31 看過結果後加的；過關仍以全部題目為準）
            → docs/test/results/confidence_validation_<日期>.md（報告）與 .csv（逐題，不含原文）
 
 題目：每週評測（判定校準 v4 起，--since 2026-10-19）已判讀過的題目；AI 判定沿用 CSV，不再呼叫判讀模型。
@@ -17,6 +19,7 @@ r"""
     python scripts/confidence_validation.py fetch [--since 2026-10-19] [--refresh]
     python scripts/confidence_validation.py embed --model text-embedding-3-small [--limit 50] [--max-usd 1]
     python scripts/confidence_validation.py analyze [--models text-embedding-3-small,text-embedding-3-large,bge-m3:latest]
+                                                    [--short-cofacts 30]
 """
 import argparse
 import contextlib
@@ -51,7 +54,7 @@ GRID_MARGIN = [round(0.01 * i, 2) for i in range(31)]           # 0.00～0.30
 SCORE_BINS = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0001]
 LEVELS = ("高", "中", "低")
 CSV_KEEP = ["content_hash", "url", "source", "part", "run_date", "gold", "predicted", "confidence_score", "q_date",
-            "group", "split"]
+            "group", "split", "short_cofacts"]
 
 
 # ── fetch ────────────────────────────────────────────────────
@@ -550,6 +553,45 @@ def evaluate_model(model: str, q: pd.DataFrame, ev: pd.DataFrame, safe_rows: pd.
     return result
 
 
+def evaluate_without_short_cofacts(q: pd.DataFrame, ev: pd.DataFrame, safe_rows: pd.DataFrame,
+                                   stores: Dict[str, "rc.EmbeddingStore"], results: List[Dict[str, Any]], short: set,
+                                   production_prototypes: Optional[Tuple[np.ndarray, np.ndarray]], min_chars: int
+                                   ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """
+    參考分析（負責人 2026-10-31，看過結果後才加）：題目與模擬知識庫都排除 Cofacts 短訊息，門檻同樣只用開發組重算。
+    分群與開發組／測試組沿用全部題目的分法。過關仍以全部題目為準（計畫第 4 節）。
+    """
+    flag = q["short_cofacts"].to_numpy()
+    lengths = q.loc[q["source"].eq("Cofacts"), "text"].map(rc.text_len)
+    meta: Dict[str, Any] = {
+        "min_chars": min_chars, "removed_questions": int(flag.sum()),
+        "removed_test": int((flag & q["split"].eq("test").to_numpy()).sum()),
+        "removed_evidence": int(ev["content_hash"].isin(short).sum()),
+        "cofacts_len_quartiles": [int(x) for x in lengths.quantile([0.25, 0.5, 0.75])] if len(lengths) else []}
+    kept = q[~flag]
+    if min_chars <= 0:
+        meta["skipped"] = "沒有啟用（--short-cofacts 0）"
+    elif not short:
+        meta["skipped"] = f"沒有少於 {min_chars} 字的 Cofacts 訊息"
+    elif min(int(kept["split"].eq("dev").sum()), int(kept["split"].eq("test").sum())) < MIN_N:
+        meta["skipped"] = f"排除後開發組或測試組少於 {MIN_N} 題"
+    if "skipped" in meta:
+        return [], meta
+    ev_kept = ev[~ev["content_hash"].isin(short)].reset_index(drop=True)
+    safe_kept = safe_rows[~safe_rows["content_hash"].isin(short)].reset_index(drop=True)
+    out = []
+    for r in results:
+        if "skipped" in r:
+            continue
+        store = stores[r["model"]]
+        rc.log(f"[analyze] {r['model']} without short Cofacts messages")
+        rf = evaluate_model(r["model"], kept[kept["content_hash"].isin(store.vectors)], ev_kept, safe_kept, store,
+                            production_prototypes)
+        rf.pop("per_question", None)
+        out.append(rf)
+    return out, meta
+
+
 def level_table(frame: pd.DataFrame, test: np.ndarray) -> List[Dict[str, Any]]:
     """測試組：等級 × AI 判定 → 題數與風險判定正確率。"""
     rows = []
@@ -595,8 +637,12 @@ def cmd_analyze(args) -> int:
     ev = build_evidence(corpus, questions)
     safe_rows = corpus.loc[corpus["label"] == "SAFE", ["content_hash", "url"]]
     protos = load_production_prototypes()
+    min_chars = getattr(args, "short_cofacts", rc.SHORT_COFACTS_CHARS)
+    short = rc.short_cofacts_hashes(pd.concat([corpus[["source", "text", "content_hash"]],
+                                               q[["source", "text", "content_hash"]]], ignore_index=True), min_chars)
+    q["short_cofacts"] = q["content_hash"].isin(short)
 
-    results = []
+    results, stores = [], {}
     for model in [m.strip() for m in args.models.split(",") if m.strip()]:
         store = rc.EmbeddingStore(model)
         has = q["content_hash"].isin(store.vectors)
@@ -609,6 +655,8 @@ def cmd_analyze(args) -> int:
         r["per_question"].index = q.index[has.to_numpy()]
         r["questions_without_vector"] = int((~has).sum())
         results.append(r)
+        stores[model] = store
+    filtered, short_meta = evaluate_without_short_cofacts(q, ev, safe_rows, stores, results, short, protos, min_chars)
     ai = reliability_ai_score(q.reset_index(drop=True), (q["split"] == "test").to_numpy())
 
     day = rc.run_date()
@@ -625,12 +673,15 @@ def cmd_analyze(args) -> int:
     meta = {"since": args.since_note, "questions": int(len(questions)), "used": int(len(q)), "excluded": excluded,
             "groups": gstats, "dev": int((q["split"] == "dev").sum()), "test": int((q["split"] == "test").sum()),
             "test_risky": int((q["split"].eq("test") & q["gold"].map(rc.is_risky)).sum()),
-            "evidence_rows": int(len(ev)), "fetch": rc_status("confidence_fetch")}
-    report.write_text(render_report(day, meta, results, ai), encoding="utf-8")
+            "evidence_rows": int(len(ev)), "fetch": rc_status("confidence_fetch"), "short_cofacts": short_meta}
+    report.write_text(render_report(day, meta, results, ai, filtered), encoding="utf-8")
     rc.update_status("confidence_analyze", {
         "report": str(report.relative_to(rc.REPO)), "per_question": str(per_q.relative_to(rc.REPO)),
         "summary": {r["model"]: (r.get("skipped") or {"pass": r["all"]["all_pass"], "thresholds": r["thresholds"]})
-                    for r in results}})
+                    for r in results},
+        "without_short_cofacts": {
+            **short_meta,
+            "summary": {r["model"]: {"pass": r["all"]["all_pass"], "thresholds": r["thresholds"]} for r in filtered}}})
     rc.step_summary(summary_table(results) + f"\n\n報告：`{report.relative_to(rc.REPO)}`")
     return 0
 
@@ -649,9 +700,9 @@ def _t(x: float) -> str:
     return "停用（開發組找不到合格門檻）" if math.isinf(x) else f"{x:.2f}"
 
 
-def summary_table(results: List[Dict[str, Any]]) -> str:
-    lines = ["## 信心驗證結論（測試組；四項全過才算過關）", "",
-             "| embedding | 1「中」比「低」準 | 2「高」一致率 | 3 衝突提醒 | 4「中」以上比例 | 結果 |", "|---|---|---|---|---|---|"]
+def summary_table(results: List[Dict[str, Any]], title: Optional[str] = "## 信心驗證結論（測試組；四項全過才算過關）") -> str:
+    lines = [title, ""] if title else []
+    lines += ["| embedding | 1「中」比「低」準 | 2「高」一致率 | 3 衝突提醒 | 4「中」以上比例 | 結果 |", "|---|---|---|---|---|---|"]
     for r in results:
         if "skipped" in r:
             lines.append(f"| `{r['model']}` | 略過：{r['skipped']} |  |  |  |  |")
@@ -671,7 +722,33 @@ def rate_short(k: int, n: int) -> str:
     return f"{rc.pct(k / n) if n else '—'}（{k}／{n}）"
 
 
-def render_report(day: str, meta: Dict[str, Any], results: List[Dict[str, Any]], ai: Dict[str, Any]) -> str:
+def short_cofacts_section(meta: Dict[str, Any], filtered: List[Dict[str, Any]]) -> List[str]:
+    s = meta.get("short_cofacts") or {}
+    n = s.get("min_chars", 0)
+    if n <= 0:
+        return []
+    lines = [
+        f"## 參考：排除 Cofacts 短訊息（少於 {n} 字）", "",
+        "負責人 2026-10-31 看過上面的結果後，決定另外看去掉 Cofacts 短訊息（對話片段、只有一句話）的情況。"
+        "這是看過結果才加的分析：依計畫第 4 節，**過關仍以上面的全部題目為準**；要改以這一節為準，"
+        "需要負責人決定，並在計畫裡註明是看過結果才改的。", "",
+        f"- 排除的題目 {s.get('removed_questions', 0)} 題（測試組 {s.get('removed_test', 0)} 題）；"
+        f"模擬知識庫排除 {s.get('removed_evidence', 0)} 列；門檻同樣只用開發組重算，分群與開發組／測試組沿用上面的分法",
+    ]
+    quartiles = s.get("cofacts_len_quartiles") or []
+    if quartiles:
+        lines.append(f"- Cofacts 題目的字數（不算空白）四分位數：{quartiles[0]}／{quartiles[1]}／{quartiles[2]} 字"
+                     f"（一半的題目不超過 {quartiles[1]} 字）")
+    if s.get("skipped"):
+        return lines + [f"- 沒有另外計算：{s['skipped']}", ""]
+    for r in filtered:
+        th = r["thresholds"]
+        lines.append(f"- `{r['model']}` 開發組定出的參數：「高」{_t(th['cache'])}、「中」{_t(th['mid'])}、話術差距 {_t(th['margin'])}")
+    return lines + ["", summary_table(filtered, title=None), ""]
+
+
+def render_report(day: str, meta: Dict[str, Any], results: List[Dict[str, Any]], ai: Dict[str, Any],
+                  filtered: Optional[List[Dict[str, Any]]] = None) -> str:
     f = meta.get("fetch") or {}
     d = f.get("dedupe") or {}
     g = meta["groups"]
@@ -680,6 +757,7 @@ def render_report(day: str, meta: Dict[str, Any], results: List[Dict[str, Any]],
         "（`code/backend/scripts/confidence_validation.py` 由 GitHub Actions 的 research workflow 產生；方法見 "
         "`docs/test/信心程度驗證計畫.md` 第 3 節，過關標準是第 4 節草案。報告與逐題 CSV 不含訊息原文，只有查核網址與雜湊。）", "",
         summary_table(results), "",
+        *short_cofacts_section(meta, filtered or []),
         "## 資料", "",
         f"- 題目：每週評測 {', '.join(d.get('weeks', []))} 的逐題 CSV，共 {d.get('rows', '?')} 列；AI 服務不可用 "
         f"{d.get('fallback_rows', '?')} 列不算；不同內容 {d.get('unique', '?')} 則（真值矛盾剔除 {d.get('conflicting_gold', '?')}）",
@@ -799,6 +877,8 @@ def main() -> int:
     a.add_argument("--models", default=",".join(rc.EMBED_MODELS))
     a.add_argument("--group-model", default=rc.DEFAULT_EMBED)
     a.add_argument("--since-note", default=WEEKLY_SINCE)
+    a.add_argument("--short-cofacts", type=int, default=rc.SHORT_COFACTS_CHARS,
+                   help="reference run without Cofacts messages shorter than this many characters (0 = off)")
     args = parser.parse_args()
     return {"fetch": cmd_fetch, "embed": cmd_embed, "analyze": cmd_analyze}[args.cmd](args)
 

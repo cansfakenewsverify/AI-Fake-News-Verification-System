@@ -47,6 +47,7 @@ RESERVE_USD = 3.0              # AGENTS.md 第 4 節：保留給網站使用者
 USAGE_CHECK_EVERY = 100        # 每幾題重讀一次 /me/usage
 TRIAL_ITEMS = 50               # 先試跑幾題估花費
 RISKY = frozenset({"SCAM", "MISINFO"})
+SHORT_COFACTS_CHARS = 30       # 負責人 2026-10-31：Cofacts 短訊息（對話片段、一句話）另外排除看一次；0 = 不排除
 
 # CGU 閘道的 embedding 模型：每百萬 tokens 的 USD（閘道實扣約牌價 2 倍；bge-m3 是本地模型，不花 OpenAI 額度）
 EMBED_MODELS: Dict[str, Dict[str, Any]] = {
@@ -502,6 +503,19 @@ def run_date() -> str:
 
 def is_risky(label: Any) -> bool:
     return str(label or "").upper() in RISKY
+
+
+def text_len(text: Any) -> int:
+    """不算空白的字數。"""
+    return len("".join(str(text or "").split()))
+
+
+def short_cofacts_hashes(rows: pd.DataFrame, min_chars: int) -> set:
+    """Cofacts 來源、字數（不算空白）少於 min_chars 的列的 content_hash；min_chars <= 0 → 空集合。rows 要有 source、text、content_hash。"""
+    if min_chars <= 0 or rows.empty:
+        return set()
+    mask = rows["source"].eq("Cofacts") & rows["text"].map(text_len).lt(min_chars)
+    return set(rows.loc[mask, "content_hash"])
 
 
 def parse_day(value: Any) -> Optional[date]:
