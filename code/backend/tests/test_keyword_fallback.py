@@ -198,3 +198,31 @@ def test_hit_on_unverified_row_uses_the_stored_vector_not_embedding(env):
     FakeVector.result = _vec(6)
     assert _run(env)["cached"] is True
     assert FakeVector.calls == 0
+
+
+def test_cached_result_without_vector_is_superseded_by_the_fact_check(env):
+    """語意比對停用期間存下的無來源結果：同一句話重查時改回查核資料，不要一直拿舊結果。"""
+    _seed(env, FACTCHECK)
+    _seed(env, USER_TEXT, label_source="ai", verified=False, ai=_ai(sources=()))
+    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"match": 1}]
+    result = _run(env)
+    assert result["cache_layer"] == "keyword" and [s["url"] for s in result["sources"]] == [TFC["url"]]
+    assert FakeAI.analyzed == 0
+
+
+def test_cached_result_keeps_its_answer_when_nothing_matches(env):
+    _seed(env, USER_TEXT, label_source="ai", verified=False, ai=_ai(sources=()))
+    FakeAI.replies = [{"keywords": ["台北捷運", "悠遊卡"]}]
+    assert _run(env)["cache_layer"] == "hash"
+
+
+def test_cached_result_with_a_vector_spends_no_extra_ai(env):
+    _seed(env, USER_TEXT, vector=_vec(7), label_source="ai", verified=False, ai=_ai(sources=()))
+    assert _run(env)["cache_layer"] == "hash"
+    assert FakeAI.prompts == []
+
+
+def test_verified_hash_hit_spends_no_extra_ai(env):
+    _seed(env, USER_TEXT)
+    assert _run(env)["cache_layer"] == "hash"
+    assert FakeAI.prompts == []
