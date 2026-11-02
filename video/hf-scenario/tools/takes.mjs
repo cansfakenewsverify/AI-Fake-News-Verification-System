@@ -1,14 +1,13 @@
 // What to record on the live site for the scenario drama (phone width, light theme).
 //
-// The three messages are from the 10-30 script (deleted 2026-11-02; see git history). The new script,
-// presentations/2026-11_第二次簡報/01_真人劇本.md, uses other messages; update these when the storyboard is redone.
+// The messages are the ones in presentations/2026-11_第二次簡報/01_真人劇本.md, word for word.
 // build.mjs cuts every take into the tutorial's steps at the marks below (home, pasted, submitted, ...).
-// All three were checked on the live site on 2026-10-26 and answer from the cache (hash layer), so the
-// takes spend no AI call and the results on screen are the same ones the actors' phones will show.
+// site_egg (情境一, 2026-11-02) needs the school's AI gateway the first time it is checked (one AI call, about
+// USD 0.0014); after that it answers from the cache. site_unverifiable was checked on 2026-10-26 and has
+// answered from the cache (hash layer) ever since, so it can be recorded even while the gateway is down.
 export const SITE = "https://fakenewsverify.vercel.app";
 
-export const MSG_MISINFO = "雲林縣從四月六日開始，晚上十點至清晨六點停水，所以晚上早點洗澡，洗衣，儲水備用，早上停水的時間較短，對大家比較不影響。";
-export const MSG_SCAM = "您的網購刷卡分期設定錯誤將連續扣款12期，請立即聯繫客服人員協助解除";
+export const MSG_EGG = "你媽從小教你冷水煮蛋？一顆雞蛋就這樣煮成垃圾！冷水下鍋，蛋黃表面會出現一層灰綠色的硫化亞鐵，雞蛋的營養直接流失40%，以後一定要等水滾再放蛋。";
 export const MSG_UNVERIFIABLE = "台中市政府交通局宣布，下個月起市區公車將新增三條夜間路線，行駛到凌晨一點，詳細時刻表將公布在交通局官網。";
 
 const INPUT = { sel: "textarea[aria-label]" };
@@ -39,11 +38,16 @@ const check = (name, text, reading) => ({
 });
 
 export const TAKES = [
-  check("site_misinfo", MSG_MISINFO, [
-    { wait: 1.6 },
+  { ...check("site_egg", MSG_EGG, [
+    { wait: 1.4 },
+    { mark: "scroll_summary" },
+    { scroll: { text: "判讀摘要" }, ms: 1200, offset: 160 },
+    { wait: 2.2 },
+    { mark: "summary" },
+    { wait: 0.8 },
     { mark: "scroll_sources" },
     { scroll: { text: "查核來源" }, ms: 1500, offset: 200 },
-    { wait: 2.4 },
+    { wait: 2.6 },
     { mark: "sources" },
     // Headless Edge has no clipboard to write to, so the page would fall back to printing the URL.
     // Stand in for the OS clipboard (the page and its data are untouched) so the button shows 已複製.
@@ -53,22 +57,7 @@ export const TAKES = [
     { mark: "copied" },
     { wait: 1.8 },
     { mark: "copied_end" },
-  ]),
-  check("site_scam", MSG_SCAM, [
-    { wait: 1.6 },
-    { mark: "scroll_summary" },
-    { scroll: { text: "判讀摘要" }, ms: 1100, offset: 160 },
-    { wait: 1.4 },
-    { mark: "summary" },
-    { click: { text: "詳細說明" }, after: 900 },
-    { wait: 1.2 },
-    { mark: "explanation_open" },
-    { wait: 1.6 },
-    { mark: "scroll_sources" },
-    { scroll: { text: "查核來源" }, ms: 1400, offset: 200 },
-    { wait: 2.2 },
-    { mark: "sources" },
-  ]),
+  ]), aiCalls: 1 },
   check("site_unverifiable", MSG_UNVERIFIABLE, [
     { wait: 1.2 },
     { mark: "scroll_summary" },

@@ -51,6 +51,9 @@
         .cr { position: absolute; left: 140px; top: 250px; width: 440px; text-align: center; z-index: 5; }
         .cr-face { position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: #3f3f46; color: #ffffff;
           font-size: 110px; line-height: 220px; font-weight: 700; opacity: 0; }
+        .cr-face.img { width: 300px; height: 300px; background: #e5e7eb; }
+        .cr-face.img img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .cr-face.img .cr-ring { width: 332px; height: 332px; }
         .cr-ring { position: absolute; left: -16px; top: -16px; width: 252px; height: 252px; box-sizing: border-box; border-radius: 50%;
           border: 6px solid #111111; opacity: 0; }
         .cr-name { margin-top: 24px; font-size: 46px; line-height: 58px; font-weight: 700; color: #111111; opacity: 0; }
@@ -75,14 +78,13 @@
         .cp td.a { font-weight: 700; }
         .cp tr.r { opacity: 0; }
       </style>
-      <div id="root" class="fnv-root" data-composition-id="C1" data-width="1920" data-height="1080" data-duration="15.296">
+      <div id="root" class="fnv-root" data-composition-id="C1" data-width="1920" data-height="1080" data-duration="12.143">
         <div class="cp-h" id="C1-h">用之前 vs. 用之後</div>
         <table class="cp"><tr><th></th><th>使用前</th><th>使用全民查證公社之後</th></tr>
-          <tr class="r" id="C1-r0"><td class="k">判斷真假</td><td class="b">自己上網搜尋，各說各話</td><td class="a">貼上就查：查過的約 2 秒，新訊息約 5～20 秒</td></tr>
-          <tr class="r" id="C1-r1"><td class="k">根據什麼</td><td class="b">「親戚傳的」</td><td class="a">查核機構的結論，附原文連結</td></tr>
-          <tr class="r" id="C1-r2"><td class="k">遇到詐騙</td><td class="b">照著簡訊的電話打過去</td><td class="a">紅燈警告，還告訴你該打給誰</td></tr>
-          <tr class="r" id="C1-r3"><td class="k">在社群上</td><td class="b">留言區各說各話</td><td class="a">標記機器人，大家都看得到結果</td></tr>
-          <tr class="r" id="C1-r4"><td class="k">查不到時</td><td class="b">被說得很肯定的答案誤導</td><td class="a">老實回答「無法查證」</td></tr>
+          <tr class="r" id="C1-r0"><td class="k">收到可疑訊息</td><td class="b">自己上網搜尋，找不到答案</td><td class="a">貼上就查，附查核機構的結論</td></tr>
+          <tr class="r" id="C1-r1"><td class="k">根據什麼</td><td class="b">「家族群組說的」</td><td class="a">查核中心的報告，附原文連結</td></tr>
+          <tr class="r" id="C1-r2"><td class="k">在社群上</td><td class="b">留言區各說各話</td><td class="a">標記機器人，大家都看得到結果</td></tr>
+          <tr class="r" id="C1-r3"><td class="k">查不到的時候</td><td class="b">被說得很肯定的答案誤導</td><td class="a">老實回答「無法查證」</td></tr>
         </table>
         
         
@@ -95,10 +97,9 @@
           
           tl.fromTo($("#C1-h"), { opacity: 0, y: -16 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.2);
           tl.fromTo($("#C1-r0"), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 0.9);
-          tl.fromTo($("#C1-r1"), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 3.359);
-          tl.fromTo($("#C1-r2"), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 5.818);
-          tl.fromTo($("#C1-r3"), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 8.278);
-          tl.fromTo($("#C1-r4"), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 10.737);
+          tl.fromTo($("#C1-r1"), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 3.3);
+          tl.fromTo($("#C1-r2"), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 5.7);
+          tl.fromTo($("#C1-r3"), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 8.1);
           
           window.__timelines["C1"] = tl;
         })();

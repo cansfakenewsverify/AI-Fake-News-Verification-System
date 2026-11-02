@@ -1,211 +1,1034 @@
 {
-  "_doc": "情境劇《轉傳之前》的分鏡（舊劇本 01_情境劇劇本.md 的時間軸版，2026-11-02 已刪；新劇本是 01_真人劇本.md，分鏡待改；2026-10-27 改為「講解為主＋短劇」）。tools/build.mjs 依這份產生 compositions/ 與 index.html。台詞 lines：text 可以是陣列（同一句話分成幾段字幕）；at 是秒數，或 \"+0.3\" 表示前一句講完後 0.3 秒。2026-10-30 起不拍組員畫面：旁白全部是負責人錄的 rec（V1～V4，配音稿由 tools/rec_sheet.mjs 產生），講解畫面是 kind=talk（headline 大標、chips 重點，「旁白」標籤在講話時跳動；slogan＝置中口號），短劇併進手機畫面：char＝角色頭像與情緒（台詞用 AI 語音），counter、pause 可放在任何畫面，kind=call 是通話畫面。kind=live（目前沒有用到）是實拍影片：raw/<clip> 存在時用實拍畫面與聲音，自動剪掉講話前後的空白（lead＝第一句前保留幾秒；要自己指定就設 trim），字幕時間依影片裡的停頓自動對齊；不存在時顯示佔位字卡並用 AI 語音念台詞（分鏡預覽片）。rec 是組員用手機錄的講解配音（raw/V1.m4a…）：一句一段，依停頓切開後照順序對到各句。kind=site 是正式站實錄，依 take 的標記（home、pasted…）切成教學步驟，配音比畫面長時停在最後一格。kind=threads 在組員的 Threads 錄影（raw/T1.mp4）到之前是示意畫面，畫面上標明。音效 sound 的名稱見 tools/build.mjs 的 SOUND（Mixkit，data/mixkit_sources.json）；music 是全片配樂：from 開始、restartAt 的字卡重新開始，台詞之間音量 gap、講話時降到 under。quote 是在手機旁放大顯示的訊息原文；zoom 是網站畫面某一塊的放大截圖（time＝取哪一刻的畫面，box＝[x, y, 寬, 高]，手機畫面的 CSS 像素）。",
-  "fps": 30,
-  "voices": {
-    "主持人": { "voice": "zh-CN-YunjianNeural", "rate": "+0%", "label": false },
-    "講解一": { "voice": "zh-CN-YunjianNeural", "rate": "+4%", "label": false },
-    "講解二": { "voice": "zh-CN-YunjianNeural", "rate": "+4%", "label": false },
-    "講解三": { "voice": "zh-CN-YunjianNeural", "rate": "+4%", "label": false },
-    "阿嬤": { "voice": "zh-TW-HsiaoYuNeural", "rate": "-6%", "pitch": "-14Hz" },
-    "爸爸": { "voice": "zh-CN-YunyangNeural", "rate": "+4%" },
-    "網友": { "voice": "zh-CN-YunxiaNeural", "rate": "+6%" }
+ "_doc": "情境劇《轉傳之前》的分鏡（presentations/2026-11_第二次簡報/01_真人劇本.md 的時間軸版；2026-11-02 改成真人版：兩段情境＋查不到的時候；2026-10-27 改為「講解為主＋短劇」）。tools/build.mjs 依這份產生 compositions/ 與 index.html。kind=live 是負責人和同學拍的鏡頭（raw/<clip>，沒有就用 assets/live/<clip>.mp4）：trim＝[開始秒, 結束秒]，cues＝每句台詞在原檔的 [開始, 結束] 秒（背景有雜音、自動切句不準時用）。kind=site 是正式站實錄，錄影還沒錄（學校 AI 系統維修中）時顯示「網站畫面待補」的替身卡。kind=threads 在 raw/T1.mp4 到之前是示意畫面（threadsMock）。aiNarration＝true 表示旁白定案用 AI 語音（rec 錄音不在時不顯示預覽版字樣）。其餘欄位同前：talk 的 headline、chips；notes；zoom；quote；pause。",
+ "fps": 30,
+ "voices": {
+  "旁白": {
+   "voice": "zh-CN-YunjianNeural",
+   "rate": "+4%",
+   "label": false
   },
-  "chars": { "阿嬤": "assets/chars/grandma.jpg", "朋友": "assets/chars/friend.jpg", "我": "assets/chars/me.jpg" },
-  "music": { "sound": "bgm", "from": "P2", "restartAt": ["X2", "X3"], "gap": 0.5, "under": 0.16, "fadeIn": 1.2, "fadeOut": 2.5 },
-  "stepLists": {
-    "s1": ["複製訊息", "打開網站", "貼上，按開始查證", "看燈號", "看查核來源", "把結果傳回群組"],
-    "s2": ["貼上簡訊查證", "看燈號", "看判讀摘要", "看該怎麼做", "看查核來源"],
-    "s3": ["留言標記機器人", "等機器人回覆", "看回覆"],
-    "s4": ["貼上查證", "看燈號與說明"]
+  "A": {
+   "voice": "zh-TW-YunJheNeural",
+   "rate": "+4%",
+   "label": false
   },
-  "threadsMock": {
-    "post": { "author": "某位網友", "text": "每天吃香蕉讓骨密度增強50倍，比骨頭湯還補鈣" },
-    "comments": ["真的假的", "我阿嬤每天吃", "這沒根據吧"],
-    "mention": { "author": "我", "text": "@factcheck_tw_bot" },
-    "reply": [
-      "🔴 假訊息",
-      "此為已被查核的假訊息：「每天吃香蕉讓骨密度增強50倍，比骨頭湯還補鈣」",
-      "查核來源：https://www.mygopen.com/2026/08/banana.html",
-      "完整判讀：https://fakenewsverify.vercel.app/r/…",
-      "AI 自動判讀，請自行查證。"
-    ]
-  },
-  "shots": [
-    { "id": "P1", "kind": "card", "template": "disclaimer", "dur": 3.4 },
-    { "id": "P2", "kind": "card", "template": "title", "dur": 3.4, "sfx": [{ "sound": "sparkle", "at": 0.1 }] },
-    { "id": "P3", "kind": "card", "template": "burst", "dur": 3.0,
-      "bubbles": ["緊急！快轉給大家！", "不轉不是台灣人", "雲林要停水！", "點連結領補助"],
-      "sfx": [{ "sound": "message", "at": 0.2 }, { "sound": "message", "at": 0.8, "vol": 0.85 }, { "sound": "message", "at": 1.4, "vol": 0.72 }, { "sound": "message", "at": 2.0, "vol": 0.6 }] },
-    { "id": "S01", "kind": "talk", "dur": 4, "headline": ["真的假的，", "很難分？"],
-      "chips": [{ "text": "情境一　家族群組的停水謠言", "at": "line2", "plain": true }, { "text": "情境二　解除分期詐騙簡訊", "at": "line2+0.5", "plain": true }, { "text": "情境三　Threads 上吵成一團", "at": "line2+1.0", "plain": true }],
-      "lines": [
-        { "who": "主持人", "rec": "V1", "text": "你家的群組，是不是也常收到這種訊息？", "at": 0.5 },
-        { "who": "主持人", "rec": "V1", "text": "真的假的，很難分。", "at": "+0.25" },
-        { "who": "主持人", "rec": "V1", "text": "今天用三個情境，示範怎麼用全民查證公社查。", "at": "+0.3" }
-      ] },
-
-    { "id": "X1", "kind": "card", "template": "section", "dur": 2.0, "num": "情境一", "title": "家族群組的停水謠言",
-      "sfx": [{ "sound": "whoosh", "at": 0.05 }] },
-    { "id": "M1", "kind": "chat", "scene": "情境一｜使用前", "dur": 4.6, "group": "相親相愛一家人",
-      "char": { "who": "阿嬤", "face": "嬤", "mood": "嚇一跳" },
-      "lines": [{ "who": "阿嬤", "text": "蛤？雲林要停水？", "at": 1.6 }],
-      "quote": { "label": "三姑傳到家族群組", "text": "雲林縣從四月六日開始，晚上十點至清晨六點停水，所以晚上早點洗澡，洗衣，儲水備用……", "at": 0.8 },
-      "messages": [{ "from": "三姑", "at": 0.4, "text": "雲林縣從四月六日開始，晚上十點至清晨六點停水，所以晚上早點洗澡，洗衣，儲水備用，早上停水的時間較短，對大家比較不影響。" }] },
-    { "id": "S03", "kind": "chat", "scene": "情境一｜使用前", "dur": 4.4, "pause": true, "group": "相親相愛一家人", "shown": true,
-      "messages": [{ "from": "三姑", "at": 0, "text": "雲林縣從四月六日開始，晚上十點至清晨六點停水，所以晚上早點洗澡，洗衣，儲水備用，早上停水的時間較短，對大家比較不影響。" }],
-      "copy": { "msg": 0, "at": 0.2, "hit": "轉傳", "toast": "已轉傳" },
-      "char": { "who": "阿嬤", "face": "嬤", "mood": "急著轉傳" },
-      "counter": { "label": "已轉傳", "unit": "個群組", "from": 1, "to": 5, "at": 0.3, "every": 0.6 },
-      "lines": [{ "who": "阿嬤", "text": "趕快跟大家講！", "at": 3.2 }],
-      "sfx": [{ "sound": "pop", "at": 0.3 }, { "sound": "click", "at": 0.9, "vol": 0.9 }, { "sound": "pop", "at": 1.5, "vol": 0.8 }, { "sound": "click", "at": 2.1, "vol": 0.7 }, { "sound": "pop", "at": 2.7, "vol": 0.6 }] },
-    { "id": "S04", "kind": "talk", "scene": "情境一｜使用前", "dur": 4, "headline": ["這種訊息，", "為什麼麻煩？"],
-      "chips": [{ "text": "看起來很像真的", "at": "line0", "bad": true }, { "text": "查了半天，各說各話", "at": "line1", "bad": true }, { "text": "家人為了真假吵架", "at": "line1.1", "bad": true }],
-      "lines": [
-        { "who": "講解一", "rec": "V1", "text": "這種訊息有日期、有時間，看起來很像真的。", "at": 0.5 },
-        { "who": "講解一", "rec": "V1", "text": ["自己上網查，結果各說各話；", "長輩又相信親戚傳的，家人還會為了真假吵架。"], "at": "+0.3" }
-      ] },
-
-    { "id": "W1a", "kind": "chat", "scene": "情境一｜怎麼查", "steps": "s1", "step": 1, "dur": 3, "group": "相親相愛一家人", "shown": true,
-      "messages": [{ "from": "三姑", "at": 0, "text": "雲林縣從四月六日開始，晚上十點至清晨六點停水，所以晚上早點洗澡，洗衣，儲水備用，早上停水的時間較短，對大家比較不影響。" }],
-      "copy": { "msg": 0, "at": 0.9 },
-      "notes": [{ "text": "長按訊息 → 複製", "at": "line0@0.5" }],
-      "lines": [{ "who": "講解一", "rec": "V1", "text": "先長按這則訊息，按「複製」。", "at": 0.4 }] },
-    { "id": "W1b", "kind": "site", "scene": "情境一｜怎麼查", "steps": "s1", "step": 2, "take": "site_misinfo", "segments": [{ "from": 1.6, "to": "home" }],
-      "notes": [{ "text": "不用註冊", "at": "line0@0.5" }, { "text": "不用下載 App", "at": "line0@0.75" }],
-      "lines": [{ "who": "講解一", "rec": "V1", "text": "打開全民查證公社的網站，不用註冊，也不用下載 App。", "at": 0.3 }] },
-    { "id": "W1c", "kind": "site", "scene": "情境一｜怎麼查", "steps": "s1", "step": 3, "take": "site_misinfo", "segments": [{ "from": "home", "to": "result_top" }],
-      "lines": [{ "who": "講解一", "rec": "V1", "text": "把訊息貼上，按「開始查證」。", "at": 0.2 }] },
-    { "id": "W1d", "kind": "site", "scene": "情境一｜怎麼查", "steps": "s1", "step": 4, "take": "site_misinfo", "segments": [{ "from": "result_top", "to": "scroll_sources" }],
-      "notes": [{ "text": "紅燈＝假訊息", "at": "line0@0.4" }, { "text": "查過的內容，約 2 秒就有答案", "at": "line1" }],
-      "zoom": { "time": "result_top", "box": [0, 44, 390, 104], "at": "line0@0.25" },
-      "lines": [
-        { "who": "講解一", "rec": "V1", "text": "幾秒就有結果：紅燈，假訊息，信心高。", "at": 0.3 },
-        { "who": "講解一", "rec": "V1", "text": "這則之前有人查過，所以馬上就有答案。", "at": "+0.3" }
-      ] },
-    { "id": "W1e", "kind": "site", "scene": "情境一｜怎麼查", "steps": "s1", "step": 5, "take": "site_misinfo", "segments": [{ "from": "scroll_sources", "to": "to_copy" }],
-      "notes": [{ "text": "台灣事實查核中心的查核報告", "at": "line0@0.35" }],
-      "zoom": { "time": "to_copy", "box": [0, 255, 390, 165], "at": "line0@0.45" },
-      "lines": [{ "who": "講解一", "rec": "V1", "text": "往下滑，查核來源是台灣事實查核中心的報告，點進去就能看原文。", "at": 0.3 }] },
-    { "id": "W1f", "kind": "site", "scene": "情境一｜怎麼查", "steps": "s1", "step": 6, "take": "site_misinfo", "segments": [{ "from": "to_copy", "to": "copied_end" }],
-      "notes": [{ "text": "一鍵複製結果連結", "at": "line0@0.4" }],
-      "lines": [{ "who": "講解一", "rec": "V1", "text": "最後按「複製連結」，傳回家族群組。", "at": 0.3 }] },
-    { "id": "M2", "kind": "chat", "scene": "情境一｜使用後", "dur": 5.4, "group": "相親相愛一家人",
-      "messages": [
-        { "from": "我", "self": true, "at": 0.4, "text": "阿嬤，這則是假的，查核中心有說喔" },
-        { "from": "我", "self": true, "at": 1.2, "link": true },
-        { "from": "阿嬤", "at": 3.2, "text": "好啦，下次先查再傳" }
-      ] },
-    { "id": "S05", "kind": "talk", "scene": "情境一｜使用後", "dur": 4, "headline": ["用了以後"],
-      "chips": [{ "text": "十秒就知道真假", "at": "line0" }, { "text": "有查核機構的結論", "at": "line0.1" }, { "text": "傳連結，不用吵", "at": "line1" }],
-      "lines": [
-        { "who": "講解一", "rec": "V1", "text": ["用了以後，十秒就知道真假，", "還有查核機構的結論當根據。"], "at": 0.4 },
-        { "who": "講解一", "rec": "V1", "text": "把連結傳回群組，大家看得到來源，就不用吵了。", "at": "+0.3" }
-      ] },
-
-    { "id": "X2", "kind": "card", "template": "section", "dur": 2.0, "num": "情境二", "title": "解除分期詐騙簡訊",
-      "sfx": [{ "sound": "whoosh", "at": 0.05 }] },
-    { "id": "M3", "kind": "sms", "scene": "情境二｜使用前", "dur": 4.0, "from": "+886 9XX-XXX-XXX",
-      "quote": { "label": "爸爸收到的簡訊", "text": "您的網購刷卡分期設定錯誤將連續扣款12期，請立即聯繫客服人員協助解除", "at": 0.8 },
-      "text": "您的網購刷卡分期設定錯誤將連續扣款12期，請立即聯繫客服人員協助解除",
-      "pause": true,
-      "char": { "who": "爸爸", "face": "爸", "mood": "越看越慌" },
-      "lines": [
-        { "who": "爸爸", "text": "12 期？！我上禮拜才在網路上買東西……", "tts": "十二期？！我上禮拜才在網路上買東西……", "at": 1.4 },
-        { "who": "爸爸", "text": "我現在就打給客服！", "at": "+0.2" }
-      ] },
-    { "id": "S07", "kind": "talk", "scene": "情境二｜使用前", "dur": 4, "headline": ["這是", "「解除分期」詐騙"],
-      "chips": [{ "text": "被嚇到就照做", "at": "line1", "bad": true }, { "text": "打過去就是假客服", "at": "line1.1", "bad": true }, { "text": "錢被轉走", "at": "line1@0.85", "bad": true }],
-      "lines": [
-        { "who": "講解二", "rec": "V2", "text": "這是很常見的「解除分期」詐騙。", "at": 0.5 },
-        { "who": "講解二", "rec": "V2", "text": ["簡訊寫得很急，要你馬上打電話；", "接電話的假客服，會叫你去 ATM 操作，錢就被轉走了。"], "tts": "簡訊寫得很急，要你馬上打電話；接電話的假客服，會叫你去 A T M 操作，錢就被轉走了。", "at": "+0.3" }
-      ] },
-
-    { "id": "W2a", "kind": "site", "scene": "情境二｜怎麼查", "steps": "s2", "step": 1, "take": "site_scam", "segments": [{ "from": 1.6, "to": "result_top" }],
-      "notes": [{ "text": "整段簡訊貼上", "at": "line0@0.3" }],
-      "lines": [{ "who": "講解二", "rec": "V2", "text": "一樣，把整段簡訊複製，貼上，按「開始查證」。", "at": 0.3 }] },
-    { "id": "W2b", "kind": "site", "scene": "情境二｜怎麼查", "steps": "s2", "step": 2, "take": "site_scam", "segments": [{ "from": "result_top", "to": "scroll_summary" }],
-      "notes": [{ "text": "紅燈＝詐騙警告", "at": "line0@0.3" }],
-      "zoom": { "time": "result_top", "box": [0, 44, 390, 104], "at": "line0@0.35" },
-      "lines": [{ "who": "講解二", "rec": "V2", "text": "結果是紅燈：詐騙警告，類型是網購詐騙。", "at": 0.3 }] },
-    { "id": "W2c", "kind": "site", "scene": "情境二｜怎麼查", "steps": "s2", "step": 3, "take": "site_scam", "segments": [{ "from": "scroll_summary", "to": "summary" }],
-      "notes": [{ "text": "說明是哪一種詐騙手法", "at": "line0@0.4" }],
-      "lines": [{ "who": "講解二", "rec": "V2", "text": "判讀摘要說明，這是恐嚇式的釣魚手法。", "at": 0.3 }] },
-    { "id": "W2d", "kind": "site", "scene": "情境二｜怎麼查", "steps": "s2", "step": 4, "take": "site_scam", "segments": [{ "from": "summary", "to": "scroll_sources" }],
-      "notes": [{ "text": "告訴你下一步該怎麼做", "at": "line0.1" }],
-      "zoom": { "time": "scroll_sources", "box": [0, 456, 390, 100], "at": "line0.1+0.3" },
-      "lines": [{ "who": "講解二", "rec": "V2", "text": ["打開「詳細說明」，它會告訴你該怎麼做：", "打信用卡背面的客服電話確認，不要打簡訊裡的號碼。"], "at": 0.3 }] },
-    { "id": "W2e", "kind": "site", "scene": "情境二｜怎麼查", "steps": "s2", "step": 5, "take": "site_scam", "segments": [{ "from": "scroll_sources", "to": "sources" }],
-      "notes": [{ "text": "附金管會、警政署的資料", "at": "line0@0.4" }],
-      "zoom": { "time": "sources", "box": [0, 200, 390, 270], "at": "line0@0.5" },
-      "lines": [{ "who": "講解二", "rec": "V2", "text": "下面還附上金管會、警政署的防詐資料。", "at": 0.3 }] },
-    { "id": "S08", "kind": "call", "scene": "情境二｜使用後", "dur": 4.2, "callee": "銀行客服", "note": "信用卡背面的電話",
-      "notes": [{ "text": "改打信用卡背面的客服電話", "at": 0.4 }],
-      "char": { "who": "爸爸", "face": "爸", "mood": "鬆一口氣" },
-      "lines": [{ "who": "爸爸", "text": "好險，差點就被騙了。", "at": 0.8 }] },
-    { "id": "S09", "kind": "talk", "scene": "情境二｜使用後", "dur": 4, "headline": ["用了以後"],
-      "chips": [{ "text": "打電話前就知道是詐騙", "at": "line0" }, { "text": "告訴你該打給誰", "at": "line0.1" }, { "text": "不用帳號、不用裝 App", "at": "line1" }],
-      "lines": [
-        { "who": "講解二", "rec": "V2", "text": ["用了以後，打電話之前就知道是詐騙，", "也知道該打給誰。"], "at": 0.4 },
-        { "who": "講解二", "rec": "V2", "text": "長輩自己也會用：不用帳號、不用裝 App，貼上就好。", "at": "+0.3" }
-      ] },
-
-    { "id": "X3", "kind": "card", "template": "section", "dur": 2.0, "num": "情境三", "title": "Threads 上吵成一團",
-      "sfx": [{ "sound": "whoosh", "at": 0.05 }] },
-    { "id": "M4", "kind": "threads", "scene": "情境三｜使用前", "part": "post", "dur": 5.4, "pause": true,
-      "quote": { "label": "Threads 上的貼文", "text": "每天吃香蕉讓骨密度增強50倍，比骨頭湯還補鈣", "at": 0.6 },
-      "char": { "who": "網友", "face": "網", "mood": "越看越煩" },
-      "lines": [{ "who": "網友", "text": "留言吵成這樣，到底誰說的對啦？", "at": 3.9 }] },
-    { "id": "S11", "kind": "talk", "scene": "情境三｜使用前", "dur": 4, "headline": ["在社群上，", "為什麼很難查證？"],
-      "chips": [{ "text": "查證要先離開 App", "at": "line0", "bad": true }, { "text": "留言區各說各話", "at": "line1", "bad": true }],
-      "lines": [
-        { "who": "講解三", "rec": "V3", "text": ["在社群上看到可疑貼文，想查證得先離開 App、", "複製、再去搜尋，很多人就懶得查了。"], "at": 0.5 },
-        { "who": "講解三", "rec": "V3", "text": "留言區各說各話，謠言就一直傳下去。", "at": "+0.3" }
-      ] },
-
-    { "id": "W3a", "kind": "threads", "scene": "情境三｜怎麼查", "steps": "s3", "step": 1, "part": "mention", "dur": 3,
-      "notes": [{ "text": "留言 @factcheck_tw_bot", "at": "line0@0.5" }],
-      "lines": [{ "who": "講解三", "rec": "V3", "text": "只要在貼文底下留言，標記我們的查核機器人。", "at": 0.3 }] },
-    { "id": "W3b", "kind": "threads", "scene": "情境三｜怎麼查", "steps": "s3", "step": 2, "part": "wait", "dur": 3,
-      "notes": [{ "text": "每 30 秒檢查一次", "at": "line0@0.15" }],
-      "lines": [{ "who": "講解三", "rec": "V3", "text": "機器人每三十秒檢查一次，大約一分鐘內就會回覆。", "at": 0.3 }] },
-    { "id": "W3c", "kind": "threads", "scene": "情境三｜怎麼查", "steps": "s3", "step": 3, "part": "reply", "dur": 3,
-      "notes": [{ "text": "燈號＋摘要", "at": "line0@0.15" }, { "text": "查核來源＋完整判讀連結", "at": "line0@0.55" }],
-      "lines": [{ "who": "講解三", "rec": "V3", "text": "回覆裡有燈號、摘要、MyGoPen 的查核來源，還有完整判讀的連結。", "at": 0.6 }] },
-    { "id": "S12", "kind": "talk", "scene": "情境三｜使用後", "dur": 4, "headline": ["用了以後"],
-      "chips": [{ "text": "不用離開 Threads", "at": "line0" }, { "text": "大家都看得到結果", "at": "line0.1" }, { "text": "目前是測試版，只回覆測試人員", "at": "line1", "note": true }],
-      "lines": [
-        { "who": "講解三", "rec": "V3", "text": ["用了以後，不用離開 Threads，在討論的地方就能查，", "留言區每個人都看得到結果。"], "at": 0.4 },
-        { "who": "講解三", "rec": "V3", "text": "目前機器人還是測試版，只回覆測試人員。", "at": "+0.3" }
-      ] },
-
-    { "id": "X4", "kind": "card", "template": "section", "dur": 2.0, "num": "最後", "title": "查不到的時候",
-      "sfx": [{ "sound": "whoosh", "at": 0.05 }] },
-    { "id": "W4a", "kind": "site", "scene": "查不到的時候", "steps": "s4", "step": 1, "take": "site_unverifiable",
-      "segments": [{ "from": 1.6, "to": 5.4 }, { "from": 5.4, "to": "result_top-2", "speed": 7, "label": "畫面加速 ×7" }, { "from": "result_top-2", "to": "result_top" }],
-      "notes": [{ "text": "看起來很正常的新聞", "at": "line0@0.3" }],
-      "lines": [{ "who": "主持人", "rec": "V4", "text": "最後一種情況：看起來很正常的新聞，例如市政府說要新增夜間公車。", "at": 0.3 }] },
-    { "id": "W4b", "kind": "site", "scene": "查不到的時候", "steps": "s4", "step": 2, "take": "site_unverifiable", "segments": [{ "from": "result_top", "to": "summary" }],
-      "notes": [{ "text": "黃燈＝無法查證", "at": "line0@0.4" }, { "text": "AI 不硬掰", "at": "line0@0.85" }],
-      "zoom": { "time": "result_top", "box": [0, 44, 390, 104], "at": "line0@0.45" },
-      "lines": [
-        { "who": "主持人", "rec": "V4", "text": "系統查不到能確認的資料，就會老實給黃燈「無法查證」，不會硬掰。", "at": 0.3 },
-        { "who": "主持人", "rec": "V4", "text": "這時候先別轉傳，等官方公告。", "at": "+0.3" }
-      ] },
-
-    { "id": "C1", "kind": "card", "template": "compare", "dur": 4,
-      "rows": [
-        ["判斷真假", "自己上網搜尋，各說各話", "貼上就查：查過的約 2 秒，新訊息約 5～20 秒"],
-        ["根據什麼", "「親戚傳的」", "查核機構的結論，附原文連結"],
-        ["遇到詐騙", "照著簡訊的電話打過去", "紅燈警告，還告訴你該打給誰"],
-        ["在社群上", "留言區各說各話", "標記機器人，大家都看得到結果"],
-        ["查不到時", "被說得很肯定的答案誤導", "老實回答「無法查證」"]
-      ],
-      "lines": [
-        { "who": "主持人", "rec": "V4", "text": ["整理一下：以前要自己搜尋、靠親戚說的，", "遇到詐騙，還差點照著簡訊打電話。"], "at": 0.6 },
-        { "who": "主持人", "rec": "V4", "text": ["現在貼上就查，有查核機構的結論；", "在 Threads 上也能直接查，查不到也會老實說。"], "at": "+0.4" }
-      ] },
-    { "id": "S13", "kind": "talk", "dur": 3.0, "slogan": true, "headline": ["轉傳之前，", "先查一下！"],
-      "lines": [{ "who": "主持人", "rec": "V4", "text": "轉傳之前，先查一下！", "at": 0.6 }] },
-    { "id": "E1", "kind": "card", "template": "end", "dur": 6.0, "sfx": [{ "sound": "sparkle", "at": 0.1 }] }
+  "B": {
+   "voice": "zh-CN-YunxiNeural",
+   "rate": "+4%",
+   "label": false
+  }
+ },
+ "chars": {},
+ "music": {
+  "sound": "bgm",
+  "from": "P2",
+  "restartAt": [
+   "W1a",
+   "X2",
+   "X3"
+  ],
+  "gap": 0.5,
+  "under": 0.16,
+  "fadeIn": 1.2,
+  "fadeOut": 2.5
+ },
+ "stepLists": {
+  "s1": [
+   "複製訊息",
+   "打開網站",
+   "貼上，按開始查證",
+   "看燈號",
+   "看判讀摘要",
+   "看查核來源",
+   "把結果傳回群組"
+  ],
+  "s2": [
+   "留言標記機器人",
+   "等機器人回覆",
+   "看回覆",
+   "打開完整判讀"
+  ],
+  "s3": [
+   "貼上查證",
+   "看燈號與說明"
   ]
+ },
+ "threadsMock": {
+  "post": {
+   "author": "某位網友（帳號遮蔽）",
+   "text": "巴黎多家超市、商店遭洗劫，但不知為何，唯獨豬肉沒有人搶，究竟是為什麼呢"
+  },
+  "comments": [
+   "一定是真的啦",
+   "這張圖是假的吧",
+   "有人查過嗎？"
+  ],
+  "mention": {
+   "author": "我",
+   "text": "（貼上原文）@factcheck_tw_bot"
+  },
+  "reply": [
+   "🔴 假訊息",
+   "圖片為 AI 生成，不是法國暴動的真實照片",
+   "查核來源：台灣事實查核中心",
+   "完整判讀：fakenewsverify.vercel.app/r/…",
+   "AI 自動判讀，請自行查證。"
+  ]
+ },
+ "shots": [
+  {
+   "id": "P1",
+   "kind": "card",
+   "template": "disclaimer",
+   "dur": 3.4,
+   "text": [
+    "本片情節虛構，由組員與同學演出自己。",
+    "網站畫面為正式站實錄；旁白為 AI 語音。"
+   ]
+  },
+  {
+   "id": "P2",
+   "kind": "card",
+   "template": "title",
+   "dur": 3.4,
+   "sfx": [
+    {
+     "sound": "sparkle",
+     "at": 0.1
+    }
+   ]
+  },
+  {
+   "id": "P3",
+   "kind": "card",
+   "template": "burst",
+   "dur": 3.0,
+   "bubbles": [
+    "冷水煮蛋營養流失40%！",
+    "巴黎超市唯獨豬肉沒人搶",
+    "緊急！快轉給大家！",
+    "不轉不是台灣人"
+   ],
+   "sfx": [
+    {
+     "sound": "message",
+     "at": 0.2
+    },
+    {
+     "sound": "message",
+     "at": 0.8,
+     "vol": 0.85
+    },
+    {
+     "sound": "message",
+     "at": 1.4,
+     "vol": 0.72
+    },
+    {
+     "sound": "message",
+     "at": 2.0,
+     "vol": 0.6
+    }
+   ]
+  },
+  {
+   "id": "X1",
+   "kind": "card",
+   "template": "section",
+   "dur": 2.0,
+   "num": "情境一",
+   "title": "家族群組的煮蛋小知識",
+   "sfx": [
+    {
+     "sound": "whoosh",
+     "at": 0.05
+    }
+   ]
+  },
+  {
+   "id": "S02",
+   "kind": "live",
+   "clip": "S02",
+   "scene": "情境一｜使用前",
+   "trim": [
+    0.6,
+    15.8
+   ],
+   "pause": true,
+   "cues": [
+    [
+     1.9,
+     5.9
+    ],
+    [
+     6.2,
+     8.75
+    ],
+    [
+     9.2,
+     12.9
+    ],
+    [
+     13.0,
+     15.35
+    ]
+   ],
+   "desc": "A 拿家族群組的煮蛋訊息問 B，想轉給爸媽，被 B 攔下來",
+   "lines": [
+    {
+     "who": "A",
+     "text": [
+      "欸你看，家族群組說冷水煮蛋，",
+      "營養會流失百分之四十，是真的嗎？"
+     ]
+    },
+    {
+     "who": "B",
+     "text": "不會吧，我家一直都冷水下鍋欸。"
+    },
+    {
+     "who": "A",
+     "text": "那我轉給我爸媽，叫他們以後等水滾再放蛋？"
+    },
+    {
+     "who": "B",
+     "text": "等一下，先查一下再轉。"
+    }
+   ]
+  },
+  {
+   "id": "S04",
+   "kind": "talk",
+   "scene": "情境一｜使用前",
+   "dur": 4,
+   "headline": [
+    "這種訊息，",
+    "為什麼很難分？"
+   ],
+   "chips": [
+    {
+     "text": "聽起來很有道理",
+     "at": "line0",
+     "bad": true
+    },
+    {
+     "text": "有專有名詞，很像真的",
+     "at": "line0.1",
+     "bad": true
+    },
+    {
+     "text": "自己查，各說各話",
+     "at": "line1",
+     "bad": true
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": [
+      "生活小知識最容易被轉，因為聽起來都很有道理，",
+      "還有「硫化亞鐵」這種專有名詞，更像真的。"
+     ],
+     "at": 0.5
+    },
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": [
+      "自己上網查，各說各話；",
+      "長輩又相信家人傳的，一轉就是整個群組。"
+     ],
+     "at": "+0.3"
+    }
+   ]
+  },
+  {
+   "id": "W1a",
+   "kind": "chat",
+   "scene": "情境一｜怎麼查",
+   "steps": "s1",
+   "step": 1,
+   "dur": 3,
+   "group": "相親相愛一家人",
+   "shown": true,
+   "messages": [
+    {
+     "from": "姑姑",
+     "at": 0,
+     "text": "你媽從小教你冷水煮蛋？一顆雞蛋就這樣煮成垃圾！冷水下鍋，蛋黃表面會出現一層灰綠色的硫化亞鐵，雞蛋的營養直接流失40%，以後一定要等水滾再放蛋。"
+    }
+   ],
+   "copy": {
+    "msg": 0,
+    "at": 0.9
+   },
+   "notes": [
+    {
+     "text": "長按訊息 → 複製",
+     "at": "line0@0.5"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": "先長按這則訊息，按「複製」。",
+     "at": 0.4
+    }
+   ]
+  },
+  {
+   "id": "W1b",
+   "kind": "site",
+   "scene": "情境一｜怎麼查",
+   "steps": "s1",
+   "step": 2,
+   "take": "site_egg",
+   "segments": [
+    {
+     "from": 1.6,
+     "to": "home"
+    }
+   ],
+   "notes": [
+    {
+     "text": "不用註冊",
+     "at": "line0@0.5"
+    },
+    {
+     "text": "不用下載 App",
+     "at": "line0@0.75"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": "打開全民查證公社的網站，不用註冊，也不用下載 App。",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "id": "W1c",
+   "kind": "site",
+   "scene": "情境一｜怎麼查",
+   "steps": "s1",
+   "step": 3,
+   "take": "site_egg",
+   "segments": [
+    {
+     "from": "home",
+     "to": "result_top"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": "把訊息貼上，按「開始查證」。",
+     "at": 0.2
+    }
+   ]
+  },
+  {
+   "id": "W1d",
+   "kind": "site",
+   "scene": "情境一｜怎麼查",
+   "steps": "s1",
+   "step": 4,
+   "take": "site_egg",
+   "segments": [
+    {
+     "from": "result_top",
+     "to": "scroll_summary"
+    }
+   ],
+   "notes": [
+    {
+     "text": "紅燈＝假訊息",
+     "at": "line0@0.4"
+    }
+   ],
+   "zoom": {
+    "time": "result_top",
+    "box": [
+     0,
+     44,
+     390,
+     104
+    ],
+    "at": "line0@0.25"
+   },
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": "幾秒就有結果：紅燈，假訊息。",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "id": "W1e",
+   "kind": "site",
+   "scene": "情境一｜怎麼查",
+   "steps": "s1",
+   "step": 5,
+   "take": "site_egg",
+   "segments": [
+    {
+     "from": "scroll_summary",
+     "to": "scroll_sources"
+    }
+   ],
+   "notes": [
+    {
+     "text": "用白話說明哪裡不對",
+     "at": "line0@0.4"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": "判讀摘要用白話說明這則訊息哪裡不對。",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "id": "W1f",
+   "kind": "site",
+   "scene": "情境一｜怎麼查",
+   "steps": "s1",
+   "step": 6,
+   "take": "site_egg",
+   "segments": [
+    {
+     "from": "scroll_sources",
+     "to": "to_copy"
+    }
+   ],
+   "notes": [
+    {
+     "text": "台灣事實查核中心的報告",
+     "at": "line0@0.35"
+    },
+    {
+     "text": "相似查證：查過的類似說法",
+     "at": "line1@0.3"
+    }
+   ],
+   "zoom": {
+    "time": "to_copy",
+    "box": [
+     0,
+     255,
+     390,
+     165
+    ],
+    "at": "line0@0.45"
+   },
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": [
+      "往下滑，有台灣事實查核中心的報告：",
+      "只要蛋殼沒破，用冷水煮蛋營養不會流失。"
+     ],
+     "at": 0.3
+    },
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": [
+      "下面的「相似查證」還列出內容很像、已經查過的說法，",
+      "讓你知道判斷的根據。"
+     ],
+     "at": "+0.3"
+    }
+   ]
+  },
+  {
+   "id": "W1g",
+   "kind": "site",
+   "scene": "情境一｜怎麼查",
+   "steps": "s1",
+   "step": 7,
+   "take": "site_egg",
+   "segments": [
+    {
+     "from": "to_copy",
+     "to": "copied_end"
+    }
+   ],
+   "notes": [
+    {
+     "text": "一鍵複製結果連結",
+     "at": "line0@0.4"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": "最後按「複製連結」，傳回家族群組。",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "id": "S05",
+   "kind": "talk",
+   "scene": "情境一｜使用後",
+   "dur": 4,
+   "headline": [
+    "用了以後"
+   ],
+   "chips": [
+    {
+     "text": "十秒就知道真假",
+     "at": "line0"
+    },
+    {
+     "text": "查核中心說明哪裡不對",
+     "at": "line0.1"
+    },
+    {
+     "text": "傳連結，大家不再轉",
+     "at": "line1"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": [
+      "用了以後，十秒就知道真假，",
+      "還有查核中心的報告說明哪裡不對。"
+     ],
+     "at": 0.4
+    },
+    {
+     "who": "旁白",
+     "rec": "V1",
+     "text": "把連結傳回群組，大家看得到來源，就不會再轉了。",
+     "at": "+0.3"
+    }
+   ]
+  },
+  {
+   "id": "S03",
+   "kind": "live",
+   "clip": "S03",
+   "scene": "情境一｜使用後",
+   "trim": [
+    0.8,
+    12.3
+   ],
+   "cues": [
+    [
+     1.2,
+     2.45
+    ],
+    [
+     2.7,
+     6.9
+    ],
+    [
+     7.3,
+     11.8
+    ]
+   ],
+   "desc": "B 查到是錯的，A 把連結傳回群組",
+   "lines": [
+    {
+     "who": "A",
+     "text": "查到了嗎？是真的嗎？"
+    },
+    {
+     "who": "B",
+     "text": [
+      "是錯的啦，蛋殼沒破，營養就不會流失，",
+      "查核中心有報告。"
+     ]
+    },
+    {
+     "who": "A",
+     "text": [
+      "冷水煮蛋沒問題喔，查核中心有說，",
+      "連結給你們看。"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X2",
+   "kind": "card",
+   "template": "section",
+   "dur": 2.0,
+   "num": "情境二",
+   "title": "Threads 上的「法國暴動」圖",
+   "sfx": [
+    {
+     "sound": "whoosh",
+     "at": 0.05
+    }
+   ]
+  },
+  {
+   "id": "S10",
+   "kind": "live",
+   "clip": "S10",
+   "scene": "情境二｜使用前",
+   "trim": [
+    0.8,
+    15.9
+   ],
+   "pause": true,
+   "cues": [
+    [
+     1.25,
+     5.2
+    ],
+    [
+     6.6,
+     9.2
+    ],
+    [
+     10.5,
+     13.0
+    ],
+    [
+     13.7,
+     15.35
+    ]
+   ],
+   "desc": "A 滑到法國暴動的圖問 B，留言吵成一團",
+   "lines": [
+    {
+     "who": "A",
+     "text": [
+      "欸你看，巴黎超市被洗劫，唯獨豬肉沒人搶，",
+      "七十幾萬人看過欸，是真的嗎？"
+     ]
+    },
+    {
+     "who": "B",
+     "text": "這張圖怪怪的……留言怎麼說？"
+    },
+    {
+     "who": "A",
+     "text": "吵成一團，有人說是真的，有人說是假的。"
+    },
+    {
+     "who": "B",
+     "text": "先別吵，查一下再說。"
+    }
+   ]
+  },
+  {
+   "id": "S11",
+   "kind": "talk",
+   "scene": "情境二｜使用前",
+   "dur": 4,
+   "headline": [
+    "在社群上，",
+    "為什麼很難查證？"
+   ],
+   "chips": [
+    {
+     "text": "一張圖幾天就幾十萬人看",
+     "at": "line0",
+     "bad": true
+    },
+    {
+     "text": "查證要先離開 App",
+     "at": "line1",
+     "bad": true
+    },
+    {
+     "text": "留言區各說各話",
+     "at": "line1.1",
+     "bad": true
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V2",
+     "text": "在社群上，一張 AI 做的圖配一句話，幾天就七十幾萬人看過。",
+     "at": 0.5
+    },
+    {
+     "who": "旁白",
+     "rec": "V2",
+     "text": [
+      "想查證得先離開 App、複製、再去搜尋，很多人就懶得查了；",
+      "留言區各說各話，說法就一直傳下去。"
+     ],
+     "at": "+0.3"
+    }
+   ]
+  },
+  {
+   "id": "W2a",
+   "kind": "threads",
+   "scene": "情境二｜怎麼查",
+   "steps": "s2",
+   "step": 1,
+   "part": "mention",
+   "dur": 3,
+   "notes": [
+    {
+     "text": "留言 @factcheck_tw_bot",
+     "at": "line0@0.5"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V2",
+     "text": "只要在貼文底下留言，標記我們的查核機器人。",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "id": "W2b",
+   "kind": "threads",
+   "scene": "情境二｜怎麼查",
+   "steps": "s2",
+   "step": 2,
+   "part": "wait",
+   "dur": 3,
+   "notes": [
+    {
+     "text": "每 30 秒檢查一次",
+     "at": "line0@0.15"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V2",
+     "text": "機器人每三十秒檢查一次，大約一分鐘內就會回覆。",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "id": "W2c",
+   "kind": "threads",
+   "scene": "情境二｜怎麼查",
+   "steps": "s2",
+   "step": 3,
+   "part": "reply",
+   "dur": 3,
+   "notes": [
+    {
+     "text": "燈號＋摘要",
+     "at": "line0@0.15"
+    },
+    {
+     "text": "查核來源＋完整判讀連結",
+     "at": "line0@0.55"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V2",
+     "text": "回覆裡有燈號、摘要、查核中心的報告，還有完整判讀的連結。",
+     "at": 0.6
+    }
+   ]
+  },
+  {
+   "id": "W2d",
+   "kind": "threads",
+   "scene": "情境二｜怎麼查",
+   "steps": "s2",
+   "step": 4,
+   "part": "reply",
+   "dur": 3,
+   "notes": [
+    {
+     "text": "點連結＝網站上的完整判讀",
+     "at": "line0@0.3"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V2",
+     "text": "點開連結，就是網站上完整的判讀結果，查核來源一樣看得到，也可以再分享給別人。",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "id": "S12",
+   "kind": "talk",
+   "scene": "情境二｜使用後",
+   "dur": 4,
+   "headline": [
+    "用了以後"
+   ],
+   "chips": [
+    {
+     "text": "不用離開 Threads",
+     "at": "line0"
+    },
+    {
+     "text": "大家都看得到結果",
+     "at": "line0.1"
+    },
+    {
+     "text": "目前是測試版，只回覆測試人員",
+     "at": "line1",
+     "note": true
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V2",
+     "text": [
+      "用了以後，不用離開 Threads，在討論的地方就能查，",
+      "留言區每個人都看得到結果。"
+     ],
+     "at": 0.4
+    },
+    {
+     "who": "旁白",
+     "rec": "V2",
+     "text": "目前機器人還是測試版，只回覆測試人員。",
+     "at": "+0.3"
+    }
+   ]
+  },
+  {
+   "id": "S10b",
+   "kind": "live",
+   "clip": "S10b",
+   "scene": "情境二｜使用後",
+   "trim": [
+    0.2,
+    8.1
+   ],
+   "cues": [
+    [
+     0.55,
+     1.7
+    ],
+    [
+     2.3,
+     6.1
+    ],
+    [
+     6.5,
+     7.5
+    ]
+   ],
+   "desc": "機器人回覆是 AI 做的圖，B 也要轉給大家",
+   "lines": [
+    {
+     "who": "B",
+     "text": "機器人回了沒？"
+    },
+    {
+     "who": "A",
+     "text": [
+      "回了，說是 AI 做的圖，",
+      "還附了查核中心的報告。"
+     ]
+    },
+    {
+     "who": "B",
+     "text": "那我轉給大家看。"
+    }
+   ]
+  },
+  {
+   "id": "X3",
+   "kind": "card",
+   "template": "section",
+   "dur": 2.0,
+   "num": "最後",
+   "title": "查不到的時候",
+   "sfx": [
+    {
+     "sound": "whoosh",
+     "at": 0.05
+    }
+   ]
+  },
+  {
+   "id": "W4a",
+   "kind": "site",
+   "scene": "查不到的時候",
+   "steps": "s3",
+   "step": 1,
+   "take": "site_unverifiable",
+   "segments": [
+    {
+     "from": 1.6,
+     "to": 5.4
+    },
+    {
+     "from": 5.4,
+     "to": "result_top-2",
+     "speed": 7,
+     "label": "畫面加速 ×7"
+    },
+    {
+     "from": "result_top-2",
+     "to": "result_top"
+    }
+   ],
+   "notes": [
+    {
+     "text": "看起來很正常的新聞",
+     "at": "line0@0.3"
+    }
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V3",
+     "text": "最後一種情況：看起來很正常的新聞，例如市政府說要新增夜間公車。",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "id": "W4b",
+   "kind": "site",
+   "scene": "查不到的時候",
+   "steps": "s3",
+   "step": 2,
+   "take": "site_unverifiable",
+   "segments": [
+    {
+     "from": "result_top",
+     "to": "summary"
+    }
+   ],
+   "notes": [
+    {
+     "text": "黃燈＝無法查證",
+     "at": "line0@0.4"
+    },
+    {
+     "text": "AI 不硬掰",
+     "at": "line0@0.85"
+    }
+   ],
+   "zoom": {
+    "time": "result_top",
+    "box": [
+     0,
+     44,
+     390,
+     104
+    ],
+    "at": "line0@0.45"
+   },
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V3",
+     "text": "系統查不到能確認的資料，就會老實給黃燈「無法查證」，不會硬掰。",
+     "at": 0.3
+    },
+    {
+     "who": "旁白",
+     "rec": "V3",
+     "text": "這時候先別轉傳，等官方公告。",
+     "at": "+0.3"
+    }
+   ]
+  },
+  {
+   "id": "C1",
+   "kind": "card",
+   "template": "compare",
+   "dur": 4,
+   "rows": [
+    [
+     "收到可疑訊息",
+     "自己上網搜尋，找不到答案",
+     "貼上就查，附查核機構的結論"
+    ],
+    [
+     "根據什麼",
+     "「家族群組說的」",
+     "查核中心的報告，附原文連結"
+    ],
+    [
+     "在社群上",
+     "留言區各說各話",
+     "標記機器人，大家都看得到結果"
+    ],
+    [
+     "查不到的時候",
+     "被說得很肯定的答案誤導",
+     "老實回答「無法查證」"
+    ]
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V3",
+     "text": [
+      "整理一下：訊息和網址貼上就查，",
+      "在 Threads 上標記機器人也能查；"
+     ],
+     "at": 0.6
+    },
+    {
+     "who": "旁白",
+     "rec": "V3",
+     "text": "每個結果都附根據，查不到也會老實說。",
+     "at": "+0.3"
+    }
+   ]
+  },
+  {
+   "id": "S13",
+   "kind": "talk",
+   "dur": 3.0,
+   "slogan": true,
+   "headline": [
+    "轉傳之前，",
+    "先查一下！"
+   ],
+   "lines": [
+    {
+     "who": "旁白",
+     "rec": "V3",
+     "text": "轉傳之前，先查一下！",
+     "at": 0.6
+    }
+   ]
+  },
+  {
+   "id": "E1",
+   "kind": "card",
+   "template": "end",
+   "dur": 6.0,
+   "sfx": [
+    {
+     "sound": "sparkle",
+     "at": 0.1
+    }
+   ],
+   "credits": "演出：廖晢勛與同學　｜　旁白：AI 語音（edge-tts）　｜　配樂與音效：Mixkit"
+  }
+ ],
+ "aiNarration": true
 }

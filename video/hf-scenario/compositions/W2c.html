@@ -51,6 +51,9 @@
         .cr { position: absolute; left: 140px; top: 250px; width: 440px; text-align: center; z-index: 5; }
         .cr-face { position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: #3f3f46; color: #ffffff;
           font-size: 110px; line-height: 220px; font-weight: 700; opacity: 0; }
+        .cr-face.img { width: 300px; height: 300px; background: #e5e7eb; }
+        .cr-face.img img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .cr-face.img .cr-ring { width: 332px; height: 332px; }
         .cr-ring { position: absolute; left: -16px; top: -16px; width: 252px; height: 252px; box-sizing: border-box; border-radius: 50%;
           border: 6px solid #111111; opacity: 0; }
         .cr-name { margin-top: 24px; font-size: 46px; line-height: 58px; font-weight: 700; color: #111111; opacity: 0; }
@@ -64,17 +67,42 @@
         .ov-counter { position: absolute; right: 60px; top: 40px; display: flex; align-items: baseline; gap: 14px; padding: 14px 30px 16px;
           border-radius: 20px; background: #ffffff; color: #111111; box-shadow: 0 12px 34px rgba(0,0,0,0.3); z-index: 5; opacity: 0; }
         .ov-k { font-size: 34px; line-height: 44px; font-weight: 700; }
-        .ov-n { display: inline-block; min-width: 40px; text-align: center; font-size: 72px; line-height: 80px; font-weight: 700; font-variant-numeric: tabular-nums; }#root { background: #f7f7f8; }
+        .ov-n { display: inline-block; min-width: 40px; text-align: center; font-size: 72px; line-height: 80px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        #root { background: #f7f7f8; }
+        .th-top { position: absolute; left: 0; right: 0; top: 0; height: 96px; border-bottom: 2px solid #ececec; text-align: center; font-size: 24px; line-height: 150px; font-weight: 700; }
+        .th-list { position: absolute; left: 0; right: 0; top: 96px; bottom: 0; padding: 22px 22px; display: flex; flex-direction: column; gap: 18px; }
+        .th-post { padding-bottom: 18px; border-bottom: 2px solid #ececec; }
+        .th-c { display: flex; gap: 14px; align-items: flex-start; opacity: 0; }
+        .th-c.on, .th-post .th-c { opacity: 1; }
+        .th-av { flex: none; width: 46px; height: 46px; border-radius: 50%; background: #c4c4c8; }
+        .th-av.dark { background: #3f3f46; }
+        .th-av.bot { background: #111111; color: #fff; font-size: 22px; line-height: 46px; text-align: center; font-weight: 700; }
+        .th-n { font-size: 19px; line-height: 26px; font-weight: 700; }
+        .th-t { font-size: 23px; line-height: 33px; }
+        .th-at { color: #1d4ed8; }
+        .th-bot { padding: 14px; border-radius: 18px; background: #f4f4f5; }
+        .th-r { font-size: 19px; line-height: 28px; word-break: break-all; }
+        .th-r0 { font-size: 23px; line-height: 32px; font-weight: 700; }
+        .th-wait { align-self: center; margin-top: 10px; padding: 10px 22px; border-radius: 999px; background: #f4f4f5; color: #3f3f46;
+          font-size: 20px; line-height: 28px; font-weight: 700; opacity: 0; }
       </style>
-      <div id="root" class="fnv-root" data-composition-id="W2c" data-width="1920" data-height="1080" data-duration="4.339">
+      <div id="root" class="fnv-root" data-composition-id="W2c" data-width="1920" data-height="1080" data-duration="6.685">
         <div class="ph"><div class="ph-screen">
-          <video id="W2c-v" src="assets/footage/W2c.mp4" data-start="0" data-duration="4.339" data-track-index="0" muted playsinline></video>
+          <div class="th-top">Threads</div>
+          <div class="th-list">
+            <div class="th-post"><div class="th-c"><div class="th-av"></div><div><div class="th-n">某位網友（帳號遮蔽）</div><div class="th-t">巴黎多家超市、商店遭洗劫，但不知為何，唯獨豬肉沒有人搶，究竟是為什麼呢</div></div></div></div>
+            <div class="th-c on" id="W2c-cm0"><div class="th-av"></div><div><div class="th-n">網友 A</div><div class="th-t">一定是真的啦</div></div></div>
+            <div class="th-c on" id="W2c-cm1"><div class="th-av"></div><div><div class="th-n">網友 B</div><div class="th-t">這張圖是假的吧</div></div></div>
+            <div class="th-c on" id="W2c-cm2"><div class="th-av"></div><div><div class="th-n">網友 C</div><div class="th-t">有人查過嗎？</div></div></div>
+            <div class="th-c on" id="W2c-mn"><div class="th-av dark"></div><div><div class="th-n">我</div><div class="th-t th-at">（貼上原文）@factcheck_tw_bot</div></div></div>
+            
+            <div class="th-c th-bot" id="W2c-rp"><div class="th-av bot">查</div><div><div class="th-n">factcheck_tw_bot</div><div class="th-r th-r0"><span class="fnv-emoji">🔴</span> 假訊息</div><div class="th-r">圖片為 AI 生成，不是法國暴動的真實照片</div><div class="th-r">查核來源：台灣事實查核中心</div><div class="th-r">完整判讀：fakenewsverify.vercel.app/r/…</div><div class="th-r">AI 自動判讀，請自行查證。</div></div></div>
+          </div>
         </div></div>
-        <div class="tag" style="left: 1250px; top: 120px">正式站實錄</div>
+        <div class="tag" style="left: 1250px; top: 120px">示意畫面：Threads 介面重繪</div>
         
-        
-        <div class="stp"><div class="stp-h">怎麼查</div><div class="stp-i done"><span class="stp-n">✓</span><span class="stp-t">貼上簡訊查證</span></div><div class="stp-i done"><span class="stp-n">✓</span><span class="stp-t">看燈號</span></div><div class="stp-i now" id="W2c-now"><span class="stp-n">3</span><span class="stp-t">看判讀摘要</span></div><div class="stp-i next"><span class="stp-n">4</span><span class="stp-t">看該怎麼做</span></div><div class="stp-i next"><span class="stp-n">5</span><span class="stp-t">看查核來源</span></div></div>
-        <div class="nts"><div class="nt" id="W2c-n0">說明是哪一種詐騙手法</div></div>
+        <div class="stp"><div class="stp-h">怎麼查</div><div class="stp-i done"><span class="stp-n">✓</span><span class="stp-t">留言標記機器人</span></div><div class="stp-i done"><span class="stp-n">✓</span><span class="stp-t">等機器人回覆</span></div><div class="stp-i now" id="W2c-now"><span class="stp-n">3</span><span class="stp-t">看回覆</span></div><div class="stp-i next"><span class="stp-n">4</span><span class="stp-t">打開完整判讀</span></div></div>
+        <div class="nts"><div class="nt" id="W2c-n0">燈號＋摘要</div><div class="nt" id="W2c-n1">查核來源＋完整判讀連結</div></div>
         <div class="sc-chip" id="W2c-chip">情境二｜怎麼查</div>
       </div>
       <script>
@@ -83,9 +111,10 @@
           const $ = (sel) => root.querySelector(sel);
           const tl = gsap.timeline({ paused: true });
           tl.fromTo($("#W2c-chip"), { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.05);
-          
+          tl.fromTo($("#W2c-rp"), { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(1.4)" }, 0.4);
           tl.fromTo($("#W2c-now"), { opacity: 0.35, x: -16 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 0.05);
-          tl.fromTo($("#W2c-n0"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 1.776);
+          tl.fromTo($("#W2c-n0"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 1.46);
+          tl.fromTo($("#W2c-n1"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 3.754);
           window.__timelines["W2c"] = tl;
         })();
       </script>

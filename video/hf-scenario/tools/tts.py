@@ -84,11 +84,24 @@ def wav_seconds(path):
         return round(w.getnframes() / w.getframerate(), 3)
 
 
+def has_clip(shot):
+    """A live shot whose footage exists speaks with its own sound (raw/<clip>.* or the committed assets/live/<clip>.mp4)."""
+    if shot.get("kind") != "live" or not shot.get("clip"):
+        return False
+    stem = shot["clip"].lower()
+    for d in (os.path.join(ROOT, "raw"), os.path.join(ROOT, "assets", "live")):
+        if os.path.isdir(d) and any(os.path.splitext(f)[0].lower() == stem for f in os.listdir(d)):
+            return True
+    return False
+
+
 async def main():
     force = "--force" in sys.argv
     index = json.load(open(INDEX, encoding="utf-8")) if os.path.exists(INDEX) else {}
     fresh = {}
     for shot in BOARD["shots"]:
+        if has_clip(shot):
+            continue
         for n, line in enumerate(shot.get("lines", [])):
             key = f"{shot['id']}_{n}"
             voice = BOARD["voices"][line["who"]]

@@ -51,26 +51,29 @@ const LIVE_AUDIO = path.join(ROOT, "assets", "audio", "live");
 const REC_AUDIO = path.join(ROOT, "assets", "audio", "rec");
 for (const d of [FOOTAGE, LIVE_AUDIO, REC_AUDIO]) fs.mkdirSync(d, { recursive: true });
 
-/** raw/S04.mp4, or the same name with another phone extension, or the last take S04_1, S04_2 … */
-function findRaw(name, exts) {
-  if (!fs.existsSync(RAW)) return null;
+const VIDEO_EXT = [".mp4", ".mov", ".m4v", ".3gp"];
+const AUDIO_EXT = [".m4a", ".mp3", ".wav", ".aac", ".ogg", ".opus", ".amr", ".3gp", ".mp4", ".webm"];
+
+/** raw/S04.mp4, or the same name with another phone extension, or the last take S04_1, S04_2 …;
+ *  video clips fall back to assets/live/ (the team's chosen takes, converted to H.264 and committed, 2026-11-02). */
+const LIVE_CLIPS = path.join(ROOT, "assets", "live");
+function findRaw(name, exts, dir = RAW) {
+  if (!fs.existsSync(dir)) return dir === RAW && exts === VIDEO_EXT ? findRaw(name, exts, LIVE_CLIPS) : null;
   const stem = name.replace(/\.[^.]+$/, "");
-  const files = fs.readdirSync(RAW);
+  const files = fs.readdirSync(dir);
   const ok = (f) => exts.includes(path.extname(f).toLowerCase());
   const exact = files.find((f) => ok(f) && path.basename(f, path.extname(f)).toLowerCase() === stem.toLowerCase());
-  if (exact) return path.join(RAW, exact);
+  if (exact) return path.join(dir, exact);
   const takes = files
     .map((f) => ({ f, m: ok(f) && path.basename(f, path.extname(f)).match(new RegExp(`^${stem}_(\\d+)$`, "i")) }))
     .filter((x) => x.m)
     .sort((a, b) => Number(b.m[1]) - Number(a.m[1]));
   if (takes.length) {
     console.log(`  ${stem}: using the last take ${takes[0].f} (rename the best one to ${stem}${exts[0]} to choose)`);
-    return path.join(RAW, takes[0].f);
+    return path.join(dir, takes[0].f);
   }
-  return null;
+  return dir === RAW && exts === VIDEO_EXT ? findRaw(name, exts, LIVE_CLIPS) : null;
 }
-const VIDEO_EXT = [".mp4", ".mov", ".m4v", ".3gp"];
-const AUDIO_EXT = [".m4a", ".mp3", ".wav", ".aac", ".ogg", ".opus", ".amr", ".3gp", ".mp4", ".webm"];
 
 /** Even split of [start, end] by caption length: the fallback when the pauses do not match the script. */
 function proportional(start, end, weights) {
@@ -128,7 +131,7 @@ const shots = board.shots.map((s) => {
     fs.rmSync(full, { force: true });
     const { speech } = speechSegments(wav);
     const n = (s.lines ?? []).length;
-    let segs = n ? fitSentences(speech, n) : [];
+    let segs = s.cues ? s.cues.map(([a, b]) => ({ start: r3(Math.max(0, a - tin)), end: r3(b - tin) })) : n ? fitSentences(speech, n) : [];
     if (n && !segs) {
       console.warn(`! ${s.id}: ${speech.length} speech stretches for ${n} sentences; captions split by length. Check them.`);
       segs = proportional(speech[0]?.start ?? 0.3, speech.at(-1)?.end ?? tout - tin - 0.3, s.lines.map((l) => chunksOf(l).join("").length));
@@ -169,10 +172,18 @@ const shots = board.shots.map((s) => {
   let natural = 0;
   let pieces = null;
   let take = null;
+  let missingTake = false;
   if (s.kind === "site") {
-    take = loadTake(s.take);
-    pieces = piecesOf(take, s.segments);
-    natural = pieces.at(-1).t1;
+    try {
+      take = loadTake(s.take);
+    } catch {
+      missingTake = true;
+      console.warn(`! ${s.id}: take ${s.take} is not recorded yet; a stand-in card fills the step (node tools/capture.mjs ${s.take})`);
+    }
+    if (take) {
+      pieces = piecesOf(take, s.segments);
+      natural = pieces.at(-1).t1;
+    }
   }
   if (s.kind === "threads" && vidClip) {
     pieces = piecesOf({ name: s.clip, marks: [] }, s.segments);
@@ -183,7 +194,7 @@ const shots = board.shots.map((s) => {
   else dur = Math.max(s.dur ?? 0, natural, cursor + 0.35);
   const pauseAt = s.pause ? r3(dur) : null;
   if (s.pause) dur += PAUSE;
-  const placeholder = (s.kind === "live" && !live) || (s.kind === "threads" && !vidClip);
+  const placeholder = (s.kind === "live" && !live) || (s.kind === "threads" && !vidClip) || missingTake;
   return { ...s, live, vidClip, lines, take, pieces, pauseAt, placeholder, dur: r3(dur) };
 });
 let clock = 0;
@@ -193,7 +204,9 @@ for (const s of shots) {
 }
 const TOTAL = r3(clock);
 // Threads mock-ups say so on screen; the watermark is for stand-ins the viewer could not tell apart
-const preview = shots.some((s) => s.kind === "live" && s.placeholder) || Object.keys(recLines).some((r) => !recCuts[r]);
+const sitePending = shots.some((s) => s.kind === "site" && s.placeholder);
+const voicePending = !board.aiNarration && Object.keys(recLines).some((r) => !recCuts[r]);
+const preview = shots.some((s) => s.kind === "live" && s.placeholder) || sitePending || voicePending;
 
 /** A storyboard time: seconds, or "line2", "line2.1" (its second caption), "line2@0.5", "line2end", with "+0.4". */
 function when(s, ref) {
@@ -212,7 +225,7 @@ function when(s, ref) {
 // ── 3. media: tutorial steps from the takes, the team's clips ───────────────────────────
 const sfxEvents = [];
 for (const s of shots) {
-  if (s.kind === "site") {
+  if (s.kind === "site" && s.take) {
     const dst = path.join(FOOTAGE, `${s.id}.mp4`);
     if (s.zoom) {
       const t = takeTime(s.take, s.zoom.time ?? s.segments.at(-1).to);
@@ -547,6 +560,17 @@ const KIND = {
   },
 
   site(s) {
+    if (!s.take) {
+      return {
+        css: `#root { background: #f7f7f8; }
+        .sp-wait { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+          padding: 40px; background: #f4f4f5; color: #3f3f46; text-align: center; }
+        .sp-wait b { font-size: 34px; line-height: 46px; color: #111111; }
+        .sp-wait span { font-size: 24px; line-height: 34px; }`,
+        html: `<div class="ph"><div class="ph-screen"><div class="sp-wait"><b>網站畫面待補</b><span>學校的 AI 系統維修中，<br />修好後換成正式站實錄</span></div></div></div>`,
+        js: "",
+      };
+    }
     const fast = s.pieces.filter((p) => p.speed > 1);
     // the close-up sits under the notes, as wide as the right column, and stops above the caption band
     let zoom = { html: "", js: "" };
@@ -645,7 +669,7 @@ const KIND = {
 const CARD = {
   disclaimer: (s) => ({
     css: `#root { background: #111111; } .dc { position: absolute; left: 0; right: 0; top: 440px; text-align: center; color: #fff; font-size: 44px; line-height: 66px; font-weight: 700; opacity: 0; }`,
-    html: `<div class="dc" id="${s.id}-t">本片情節虛構。網站畫面為正式站實錄，Threads 畫面為示意。<br />阿嬤、爸爸、網友的台詞為 AI 語音。</div>`,
+    html: `<div class="dc" id="${s.id}-t">${(s.text ?? ["本片情節虛構。網站畫面為正式站實錄，Threads 畫面為示意。", "阿嬤、爸爸、網友的台詞為 AI 語音。"]).map(esc).join("<br />")}</div>`,
     js: `tl.fromTo($("#${s.id}-t"), { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.2); tl.to($("#${s.id}-t"), { opacity: 0, duration: 0.3 }, ${r3(s.dur - 0.35)});`,
   }),
   title: (s) => ({
@@ -716,7 +740,7 @@ const CARD = {
         <div class="en-u" id="${s.id}-u">fakenewsverify.vercel.app</div>
         <div class="en-qr" id="${s.id}-q1" style="left: 600px"><img src="assets/qr_site.svg" alt="" />網站</div>
         <div class="en-qr" id="${s.id}-q2" style="left: 1020px"><img src="assets/qr_threads.svg" alt="" />Threads 查核機器人</div>
-        <div class="en-m" id="${s.id}-m">長庚大學資訊工程學系　軟硬體專題「AI 為核心的假訊息驗證系統」<br />組員：廖晢勛、石岱勳、姚睿、張宇宏、廖育翔　｜　指導教授：黃崇源<br />旁白：廖晢勛　｜　角色配音：AI 語音（edge-tts）　｜　配樂與音效：Mixkit</div>`,
+        <div class="en-m" id="${s.id}-m">長庚大學資訊工程學系　軟硬體專題「AI 為核心的假訊息驗證系統」<br />組員：廖晢勛、石岱勳、姚睿、張宇宏、廖育翔　｜　指導教授：黃崇源<br />${esc(s.credits ?? "旁白：廖晢勛　｜　角色配音：AI 語音（edge-tts）　｜　配樂與音效：Mixkit")}</div>`,
     js: `tl.fromTo($("#${s.id}-h"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.2);
           tl.fromTo($("#${s.id}-u"), { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0.8);
           tl.fromTo([$("#${s.id}-q1"), $("#${s.id}-q2")], { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.2, ease: "power3.out" }, 1.2);
@@ -840,7 +864,7 @@ const chrome = `<!doctype html>
           font-size: 22px; line-height: 30px; font-weight: 700; }
       </style>
       <div id="root" class="fnv-root" data-composition-id="chrome" data-width="1920" data-height="1080" data-duration="${TOTAL}" data-layout-allow-overlap>
-        ${preview ? '<div class="wm">預覽版：旁白暫用 AI 語音，換成負責人的錄音後這行會消失</div>' : ""}
+        ${preview ? `<div class="wm">${sitePending ? "預覽版：部分網站畫面待補（學校 AI 系統維修中）" : "預覽版：旁白暫用 AI 語音，換成負責人的錄音後這行會消失"}</div>` : ""}
       </div>
       <script>
         (function () {
