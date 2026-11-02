@@ -5,9 +5,19 @@
 // site_egg (情境一, 2026-11-02) needs the school's AI gateway the first time it is checked (one AI call, about
 // USD 0.0014); after that it answers from the cache. site_unverifiable was checked on 2026-10-26 and has
 // answered from the cache (hash layer) ever since, so it can be recorded even while the gateway is down.
+//
+// 2026-11-03: the school closed embedding, so a paraphrase cannot reach the fact-check. When raw/site_egg_text.txt
+// exists (not in git) site_egg pastes it instead: the fact-check center's rumour text exactly as the knowledge base
+// stores it, which hits the hash layer with no AI call and no embedding.
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+
 export const SITE = "https://fakenewsverify.vercel.app";
 
-export const MSG_EGG = "你媽從小教你冷水煮蛋？一顆雞蛋就這樣煮成垃圾！冷水下鍋，蛋黃表面會出現一層灰綠色的硫化亞鐵，雞蛋的營養直接流失40%，以後一定要等水滾再放蛋。";
+const EGG_TEXT_FILE = fileURLToPath(new URL("../raw/site_egg_text.txt", import.meta.url));
+export const MSG_EGG = fs.existsSync(EGG_TEXT_FILE)
+  ? fs.readFileSync(EGG_TEXT_FILE, "utf8")
+  : "你媽從小教你冷水煮蛋？一顆雞蛋就這樣煮成垃圾！冷水下鍋，蛋黃表面會出現一層灰綠色的硫化亞鐵，雞蛋的營養直接流失40%，以後一定要等水滾再放蛋。";
 export const MSG_UNVERIFIABLE = "台中市政府交通局宣布，下個月起市區公車將新增三條夜間路線，行駛到凌晨一點，詳細時刻表將公布在交通局官網。";
 
 const INPUT = { sel: "textarea[aria-label]" };

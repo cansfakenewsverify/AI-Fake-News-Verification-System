@@ -13,7 +13,7 @@
           font-size: 54px; line-height: 68px; font-weight: 700; text-align: center; text-wrap: balance; }
         .cap-who { display: inline-block; margin-right: 20px; padding: 0 16px; border-radius: 12px; background: #ffffff; color: #111111; font-size: 40px; line-height: 54px; vertical-align: 4px; }
       </style>
-      <div id="root" class="fnv-root" data-composition-id="captions" data-width="1920" data-height="1080" data-duration="212.965" data-layout-allow-overlap>
+      <div id="root" class="fnv-root" data-composition-id="captions" data-width="1920" data-height="1080" data-duration="215.901" data-layout-allow-overlap>
         <div class="cap-g" id="cap-0"><span class="cap-t">欸，你看，網路上說冷水煮蛋，</span></div>
         <div class="cap-g" id="cap-1"><span class="cap-t">營養會流失 40%，是真的嗎？</span></div>
         <div class="cap-g" id="cap-2"><span class="cap-t">真的假的，我家一直都是用冷水煮的。</span></div>
@@ -28,10 +28,10 @@
         <div class="cap-g" id="cap-11"><span class="cap-t">打開全民查證公社的網站，不用註冊，也不用下載 App。</span></div>
         <div class="cap-g" id="cap-12"><span class="cap-t">把訊息貼上，按「開始查證」。</span></div>
         <div class="cap-g" id="cap-13"><span class="cap-t">幾秒就有結果：紅燈，假訊息。</span></div>
-        <div class="cap-g" id="cap-14"><span class="cap-t">判讀摘要用白話說明這則訊息哪裡不對。</span></div>
+        <div class="cap-g" id="cap-14"><span class="cap-t">判讀摘要直接告訴你：這則已經被查核過，是假訊息。</span></div>
         <div class="cap-g" id="cap-15"><span class="cap-t">往下滑，有台灣事實查核中心的報告：</span></div>
-        <div class="cap-g" id="cap-16"><span class="cap-t">只要蛋殼沒破，用冷水煮蛋營養不會流失。</span></div>
-        <div class="cap-g" id="cap-17"><span class="cap-t">下面的「相似查證」還列出內容很像、已經查過的說法，</span></div>
+        <div class="cap-g" id="cap-16"><span class="cap-t">用冷水煮雞蛋，不會讓雞蛋營養價值流失。</span></div>
+        <div class="cap-g" id="cap-17"><span class="cap-t">報告可以點開看全文，</span></div>
         <div class="cap-g" id="cap-18"><span class="cap-t">讓你知道判斷的根據。</span></div>
         <div class="cap-g" id="cap-19"><span class="cap-t">最後按「複製連結」，傳回家族群組。</span></div>
         <div class="cap-g" id="cap-20"><span class="cap-t">用了以後，十秒就知道真假，</span></div>
@@ -73,7 +73,7 @@
         (function () {
           const root = document.querySelector('[data-composition-id="captions"]');
           const tl = gsap.timeline({ paused: true });
-          const CUES = [[6.24,8.151],[8.171,10.25],[10.54,13.1],[13.54,15.37],[15.39,17.25],[17.34,19.7],[21.84,25.801],[25.821,29.45],[29.74,32.026],[32.046,36.04],[36.78,39.602],[40.242,44.891],[45.431,47.973],[48.613,52.152],[52.792,56.704],[57.344,60.894],[60.914,64.914],[65.204,69.548],[69.568,71.323],[71.963,75.382],[76.122,78.659],[78.679,81.836],[82.126,86.731],[87.471,88.731],[88.971,91.751],[91.771,93.181],[93.571,96.739],[96.759,98.082],[101.021,103.156],[103.176,104.981],[106.371,108.981],[110.271,112.781],[113.471,115.131],[117.371,123.07],[123.36,128.561],[128.581,131.651],[132.291,136.086],[136.726,141.215],[142.155,147.89],[148.53,155.711],[156.451,160.811],[160.831,162.875],[163.165,166.88],[167.57,168.73],[169.32,171.358],[171.378,173.13],[173.52,174.53],[177.42,183.431],[184.071,189.629],[189.919,192.925],[193.865,196.204],[196.224,199.379],[199.669,203.268],[204.208,206.565]];
+          const CUES = [[6.24,8.151],[8.171,10.25],[10.54,13.1],[13.54,15.37],[15.39,17.25],[17.34,19.7],[21.84,25.801],[25.821,29.45],[29.74,32.026],[32.046,36.04],[36.78,39.602],[40.242,44.891],[45.431,47.973],[53.043,56.582],[57.222,62.163],[62.856,66.26],[66.28,70.117],[70.407,72.308],[72.328,74.259],[74.899,78.318],[79.058,81.595],[81.615,84.772],[85.062,89.667],[90.407,91.667],[91.907,94.687],[94.707,96.117],[96.507,99.675],[99.695,101.018],[103.957,106.092],[106.112,107.917],[109.307,111.917],[113.207,115.717],[116.407,118.067],[120.307,126.006],[126.296,131.497],[131.517,134.587],[135.227,139.022],[139.662,144.151],[145.091,150.826],[151.466,158.647],[159.387,163.747],[163.767,165.811],[166.101,169.816],[170.506,171.666],[172.256,174.294],[174.314,176.066],[176.456,177.466],[180.356,186.367],[187.007,192.565],[192.855,195.861],[196.801,199.14],[199.16,202.315],[202.605,206.204],[207.144,209.501]];
           CUES.forEach(([t0, t1], i) => {
             const el = root.querySelector("#cap-" + i);
             tl.fromTo(el, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.2, ease: "power3.out" }, t0);
