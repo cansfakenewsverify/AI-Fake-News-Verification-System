@@ -578,14 +578,16 @@ class AIService:
             "reasoning": {"effort": "low"},
         }
         headers = {"Authorization": f"Bearer {self.cgu_key}", "Content-Type": "application/json"}
-        try:
-            r = requests.post(f"{self.cgu_base}/responses", headers=headers, json=body, timeout=_request_timeout())
-            r.raise_for_status()
-            parsed = self._parse_json_loose(self._openai_output_text(r.json()))
-        except Exception as e:
-            print(f"[AI] complete_json failed: {type(e).__name__}")
-            return None
-        return parsed if isinstance(parsed, dict) else None
+        # 閘道偶爾失敗（2026-11-01 每週評測有近半數不可用）：再試一次，不然這一步等於沒做
+        for attempt in (1, 2):
+            try:
+                r = requests.post(f"{self.cgu_base}/responses", headers=headers, json=body, timeout=_request_timeout())
+                r.raise_for_status()
+                parsed = self._parse_json_loose(self._openai_output_text(r.json()))
+                return parsed if isinstance(parsed, dict) else None
+            except Exception as e:
+                print(f"[AI] complete_json attempt {attempt} failed: {type(e).__name__}")
+        return None
 
     # ── 對外：Embedding（CGU LLM Gateway）────────
     def generate_embedding(self, text: str) -> List[float]:
