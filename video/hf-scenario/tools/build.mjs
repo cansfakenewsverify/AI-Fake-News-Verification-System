@@ -40,6 +40,8 @@ const lineLen = read(path.join(ROOT, "data", "lines.json"), {});
 const sfxLen = read(path.join(ROOT, "data", "sfx_lengths.json"), {});
 const mixLen = read(path.join(ROOT, "data", "mixkit_lengths.json"), {});
 const FPS = board.fps;
+// Character portraits (AI-generated, 2026-11-02): who -> image under assets/. A missing file falls back to the letter avatar.
+const CHAR_IMG = Object.fromEntries(Object.entries(board.chars || {}).filter(([, f]) => fs.existsSync(path.join(ROOT, f))));
 const PAUSE = 1.2; // the "先暫停一下" freeze at the end of a sketch
 const r3 = (n) => Math.round(n * 1000) / 1000;
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -282,6 +284,9 @@ const COMMON_CSS = `
         .cr { position: absolute; left: 140px; top: 250px; width: 440px; text-align: center; z-index: 5; }
         .cr-face { position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: #3f3f46; color: #ffffff;
           font-size: 110px; line-height: 220px; font-weight: 700; opacity: 0; }
+        .cr-face.img { width: 300px; height: 300px; background: #e5e7eb; }
+        .cr-face.img img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .cr-face.img .cr-ring { width: 332px; height: 332px; }
         .cr-ring { position: absolute; left: -16px; top: -16px; width: 252px; height: 252px; box-sizing: border-box; border-radius: 50%;
           border: 6px solid #111111; opacity: 0; }
         .cr-name { margin-top: 24px; font-size: 46px; line-height: 58px; font-weight: 700; color: #111111; opacity: 0; }
@@ -345,7 +350,8 @@ function stageHtml(s) {
   if (s.char) {
     const c = s.char;
     const said = s.lines.filter((l) => l.who === c.who);
-    html.push(`<div class="cr"><div class="cr-face" id="${s.id}-chf">${esc(c.face)}<div class="cr-ring" id="${s.id}-chr"></div></div>` +
+    const face = CHAR_IMG[c.who] ? `<img src="${CHAR_IMG[c.who]}" alt="" />` : esc(c.face);
+    html.push(`<div class="cr"><div class="cr-face${CHAR_IMG[c.who] ? " img" : ""}" id="${s.id}-chf">${face}<div class="cr-ring" id="${s.id}-chr"></div></div>` +
       `<div class="cr-name" id="${s.id}-chn">${esc(c.who)}</div>${c.mood ? `<div class="cr-mood" id="${s.id}-chm">${esc(c.mood)}</div>` : ""}</div>`);
     js.push(`tl.fromTo($("#${s.id}-chf"), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.8)" }, 0.1);`);
     js.push(`tl.fromTo($("#${s.id}-chn"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 0.3);`);
@@ -456,7 +462,7 @@ const KIND = {
   },
 
   chat(s) {
-    const avatar = (who) => esc(who.slice(-1));
+    const avatar = (who) => (CHAR_IMG[who] ? `<img src="${CHAR_IMG[who]}" alt="" />` : esc(who.slice(-1)));
     const on = s.shown ? " on" : "";
     const msgs = s.messages.map((m, i) => {
       const id = `${s.id}-m${i}`;
@@ -491,7 +497,8 @@ const KIND = {
         .ch-row.self { justify-content: flex-end; }
         .ch-col { position: relative; }
         .ch-av { flex: none; width: 54px; height: 54px; border-radius: 50%; background: #3f3f46; color: #fff; font-size: 26px; line-height: 54px;
-          text-align: center; font-weight: 700; }
+          text-align: center; font-weight: 700; overflow: hidden; }
+        .ch-av img { display: block; width: 100%; height: 100%; object-fit: cover; }
         .ch-name { font-size: 19px; line-height: 26px; color: #6b7280; margin-bottom: 4px; }
         .ch-b { max-width: 300px; padding: 14px 18px; border-radius: 22px; background: #ffffff; font-size: 24px; line-height: 35px; color: #111111;
           box-shadow: 0 1px 0 rgba(0,0,0,0.06); }

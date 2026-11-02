@@ -10,6 +10,7 @@
     "爸爸": { "voice": "zh-CN-YunyangNeural", "rate": "+4%" },
     "網友": { "voice": "zh-CN-YunxiaNeural", "rate": "+6%" }
   },
+  "chars": { "阿嬤": "assets/chars/grandma.jpg", "朋友": "assets/chars/friend.jpg", "我": "assets/chars/me.jpg" },
   "music": { "sound": "bgm", "from": "P2", "restartAt": ["X2", "X3"], "gap": 0.5, "under": 0.16, "fadeIn": 1.2, "fadeOut": 2.5 },
   "stepLists": {
     "s1": ["複製訊息", "打開網站", "貼上，按開始查證", "看燈號", "看查核來源", "把結果傳回群組"],
