@@ -618,3 +618,35 @@ def test_commit_only_on_the_research_branch(sandbox, monkeypatch):
     monkeypatch.setattr(rr, "git", fake_git)
     rr.commit_results("confidence")
     assert calls == [("rev-parse", "--abbrev-ref", "HEAD")]
+
+
+# ── CGU 閘道診斷（cgu_diagnose.py） ──────────────────────────
+
+cd = _load("cgu_diagnose")
+
+
+def test_cgu_diagnose_prints_codes_and_message_without_the_key(monkeypatch, capsys):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "CGU_API_KEY", "sk-secret-cgu")
+    monkeypatch.setattr(settings, "EMBED_API_KEY", "sk-secret-old")
+
+    class R:
+        def __init__(self, status, body):
+            self.status_code, self._body, self.ok, self.text = status, body, status < 400, json.dumps(body)
+
+        def json(self):
+            return self._body
+
+    def request(method, url, headers, json, timeout):
+        key = headers["Authorization"].split()[-1]
+        if url.endswith("/embeddings") and key == "sk-secret-old":
+            return R(403, {"error": {"message": "key sk-secret-old is not allowed to use embeddings"}})
+        return R(200, {"data": []})
+
+    monkeypatch.setattr(cd.requests, "request", request)
+    monkeypatch.setattr(cd.requests, "get", lambda url, headers, timeout: R(200, {"openai": {"cost_usd": 4.7, "remaining_usd": 5.3, "quota_usd": 10}}))
+    assert cd.main() == 0
+    out = capsys.readouterr().out
+    assert "兩把不同" in out and "HTTP 403" in out and "not allowed to use embeddings" in out
+    assert "sk-secret" not in out

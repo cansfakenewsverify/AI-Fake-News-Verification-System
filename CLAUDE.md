@@ -128,6 +128,8 @@
    `ai_service._classify_upstream_error`（402 → 額度、429／503 → 限流）。額度另查 `/me/usage`。
 3. 本機低成本驗證（一次 AI 呼叫＋一次 embedding，印出 `risk_type` 或 HTTP 錯誤碼）：
    `cd code\backend` 後執行 `.\venv\Scripts\python scripts\test_ai_provider.py --provider cgu`。
+   要分辨 401／403 的原因（金鑰重置、`EMBED_API_KEY` 和 `CGU_API_KEY` 不同、閘道拒絕）：`.\venv\Scripts\python scripts\cgu_diagnose.py`
+   （印出每個端點的狀態碼與閘道的錯誤訊息、兩把金鑰相不相同，不印金鑰；2026-11-02 正式站 embedding 連續回 403 時寫的）。
    懷疑閘道擋校外主機時，手動觸發 GitHub Actions 的 `cgu-reachability`（不帶金鑰；回 401／403 = 連得到）。
 
 **恢復**：金鑰或額度問題要找學校；拿到新值後**本機 `.env` 與 Render 後台兩邊都要更新**（Render：Environment → Save and deploy；
@@ -265,6 +267,7 @@ code/backend/
 │   ├── research_common.py      上面兩支共用：額度護欄 Budget（保留 USD 3、每 100 題讀 /me/usage、週日不跑）、時間切分最近鄰、分群
 │   ├── research_run.py         一鍵執行（負責人電腦）：confidence／benchmark／update（每三天重抓查核資料＋補向量）／report（只重算報告、不花錢）；
 │   │                            --commit 推回研究分支；--short-cofacts 30＝報告另附「排除 Cofacts 短訊息」參考表
+│   ├── cgu_diagnose.py         CGU 閘道診斷：/models、/me/usage、embedding（兩把金鑰各試）、短判讀的狀態碼與閘道訊息（不印金鑰）
 │   ├── research_env_check.py   研究批次的環境檢查（只用標準函式庫）：secret 有沒有設、四個網域、CGU 剩餘額度與模型清單
 │   ├── audit_cofacts_sources.py  盤點以 Cofacts 當 Tier 1 來源的已證實列（有無判定、方向是否一致；預設只讀）
 │   ├── llm_second_opinion.py / fix_factcheck_labels.py   清洗審閱輔助（CGU 本地模型）／2026-07 一次性標籤修復
@@ -274,7 +277,7 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **890 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **891 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -361,7 +364,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 890 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 891 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
