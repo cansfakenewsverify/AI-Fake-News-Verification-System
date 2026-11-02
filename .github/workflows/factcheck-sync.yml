@@ -9,7 +9,8 @@
 # 取代原本的 factcheck-daily workflow）。
 # 做完後有下列情況就標為失敗（GitHub 會寄信通知）：同步失敗、某個來源抓不到、
 # CGU 閘道已經沒有設定的模型（model_check.missing；2026-09-30 閘道無預警下架 gpt-5.4-mini）、
-# 後端算不出 embedding（embed_check.ok=false；2026-10-28 Render 的 EMBED_API_KEY 失效，語意快取停用約 11 小時）。
+# 後端算不出 embedding（embed_check.ok=false；2026-10-28 Render 的 EMBED_API_KEY 失效、語意快取停用約 11 小時；
+# 2026-11-01 學校強制重置金鑰後回 403。換金鑰：本機執行 scripts/rotate_cgu_key.py）。
 #
 # 需要兩個設定（沒設好時本 workflow 印出說明後正常結束，不會變紅）：
 # - repository variable BACKEND_BASE_URL（keepalive 已在用）
@@ -120,7 +121,8 @@ jobs:
           embed = s.get("embed_check") or {}
           if embed.get("ok") is False:
               problems.append(f"embedding failed on the server ({embed.get('error')}): the semantic cache and evidence "
-                              "confidence are off. HTTP 401 = EMBED_API_KEY on Render is wrong or was reset.")
+                              "confidence are off. HTTP 401/403 = the CGU key was reset: copy the new key from the gateway "
+                              "page and run scripts/rotate_cgu_key.py on the owner's computer (updates .env and Render).")
           if s.get("source_errors"):
               problems.append("some sources could not be fetched: " + json.dumps(s["source_errors"], ensure_ascii=False))
           for p in problems:

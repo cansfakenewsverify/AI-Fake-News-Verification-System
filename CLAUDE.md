@@ -120,7 +120,7 @@
 1. `curl.exe -s https://fakenewsverify.vercel.app/api/health`（本機：`http://localhost:8000/api/health`）：
    - `"ai_available": false` → 後端沒讀到 `CGU_API_KEY`（雲端：Render 後台 Environment 頁；本機：`code/backend/.env`）。
      `true` 只代表金鑰有設，**不代表金鑰有效或額度還夠**。
-   - `"embedding": {"ok": false, "error": "HTTP 401"}` → `EMBED_API_KEY` 錯了或被重置（判讀照常，但語意快取、相似查證、
+   - `"embedding": {"ok": false, "error": "HTTP 401"}`（或 403）→ 金鑰被學校重置，或 Render 還留著舊的 `EMBED_API_KEY`（判讀照常，但語意快取、相似查證、
      信心「中」全部停用）。這是**最近一次實際呼叫**的結果，重啟後還沒人查過時 `ok` 是 `null`。2026-10-28 負責人在 CGU 換了金鑰、
      Render 沒跟著改，停用約 11 小時沒人發現；之後 `factcheck-sync` 每次都實際算一次，失敗就變紅寄信（票 B-46）。
    - `"daily_ai_calls": {"used": N, "cap": 300}`：`used` 到頂是每日上限用完（429 `daily_cap_reached`，不是 AI 壞掉），隔日自動恢復。
@@ -138,9 +138,12 @@
 **恢復**：金鑰或額度問題要找學校；拿到新值後**本機 `.env` 與 Render 後台兩邊都要更新**（Render：Environment → Save and deploy；
 本機：重啟後端）。更多雲端症狀見 `docs/rebuild/runbook_cloud_deploy.md` 附錄 2。熱門、知識庫、快取命中都不呼叫 AI，不受影響。
 **學校會強制重置金鑰**：2026-10-29 約 04:00 因資安理由重置所有人的金鑰，之後每個請求都回 401，訊息寫「已強制重置所有人的
-API 金鑰，請至 https://air.cgu.edu.tw/workspace4/LLMAPI/index.php 複製新的金鑰」（和週四的額度重置是兩回事）。新金鑰要換掉
-**四個地方**：本機 `.env` 的 `CGU_API_KEY`、`EMBED_API_KEY`，Render 的 `CGU_API_KEY`、`EMBED_API_KEY`；漏換 `EMBED_API_KEY`
-時判讀照常、只有向量停用（2026-10-28 發生過），`/health` 的 `embedding` 會是 `HTTP 401`。GitHub secrets 沒有 CGU 金鑰。
+API 金鑰，請至 https://air.cgu.edu.tw/workspace4/LLMAPI/index.php 複製新的金鑰」（和週四的額度重置是兩回事）。2026-11-01 又重置一次，
+這次 embedding 回 **403**、判讀時好時壞（factcheck-sync 連續失敗、每週評測 20 題有 11 題 AI 不可用）。
+**2026-11-02 起只剩一把金鑰**：`EMBED_API_KEY` 不設（空的時候 embedding 用 `CGU_API_KEY`），`render.yaml` 也拿掉了這一項。
+換新金鑰只要一行：本機 `code\backend` 執行 `.\venv\Scripts\python scripts\rotate_cgu_key.py`，貼上新金鑰（不顯示）→ 先試新金鑰能不能用，
+再換本機 `.env` 的 `CGU_API_KEY`、清空 `EMBED_API_KEY`；`.env` 有 `RENDER_API_KEY`（Render → Account Settings → API Keys，只放本機）時
+順便用 Render API 換掉正式站的 `CGU_API_KEY`、刪掉 `EMBED_API_KEY` 並重新部署，沒有就印出 Render 手動步驟。GitHub secrets 沒有 CGU 金鑰。
 
 > **fallback 契約（改字樣前先看）**：AI 失敗時端點仍回 **HTTP 200**。唯一產生處是 `ai_service._default_fallback_result()`
 > （`ai_unavailable: true`＋`summary` 前綴「AI 分析暫時無法使用」）；後端唯一判斷點是 `app/utils/verdict.py` 的 `is_fallback()`；
@@ -280,6 +283,7 @@ code/backend/
 │   ├── research_common.py      上面兩支共用：額度護欄 Budget（保留 USD 3、每 100 題讀 /me/usage、週日不跑）、時間切分最近鄰、分群
 │   ├── research_run.py         一鍵執行（負責人電腦）：confidence／benchmark／update（每三天重抓查核資料＋補向量）／report（只重算報告、不花錢）；
 │   │                            --commit 推回研究分支；--short-cofacts 30＝報告另附「排除 Cofacts 短訊息」參考表
+│   ├── rotate_cgu_key.py       學校重置 CGU 金鑰時一行換好：試新金鑰 → 換本機 .env → （有 RENDER_API_KEY 時）換 Render 並重新部署
 │   ├── cgu_diagnose.py         CGU 閘道診斷：/models、/me/usage、embedding（兩把金鑰各試）、短判讀的狀態碼與閘道訊息（不印金鑰）
 │   ├── research_env_check.py   研究批次的環境檢查（只用標準函式庫）：secret 有沒有設、四個網域、CGU 剩餘額度與模型清單
 │   ├── audit_cofacts_sources.py  盤點以 Cofacts 當 Tier 1 來源的已證實列（有無判定、方向是否一致；預設只讀）
@@ -290,7 +294,7 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **929 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **933 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -381,7 +385,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 929 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 933 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -771,7 +775,7 @@ GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ 
 ```
 
 - **金鑰只存在兩個地方**：本機 `code/backend/.env` 與 Render 後台的 Environment 頁
-  （`CGU_API_KEY`、`EMBED_API_KEY`、`SUPABASE_DB_URL`、`ADMIN_TOKEN`）。repo 是公開的，`render.yaml` 只有鍵名。
+  （`CGU_API_KEY`、`SUPABASE_DB_URL`、`ADMIN_TOKEN`；embedding 也用 `CGU_API_KEY`）。repo 是公開的，`render.yaml` 只有鍵名。
   Supabase 只當資料庫用；不把 AI 金鑰放在 Supabase。
 - **操作手冊**：`docs/rebuild/runbook_cloud_deploy.md`（負責人 Part A、驗證 Part B、免費方案限制、退回本機 + tunnel 的方法）。
 - **確認雲端真的接上資料庫**：`/health` 的 `"storage_backend":"supabase"`。`SUPABASE_DB_URL` 沒設時後端會

@@ -67,9 +67,9 @@ services:
         value: "https://fakenewsverify.vercel.app"
 
       # ---- 機密：值由負責人在 Render 後台輸入，不進 git ----
+      # embedding 也用 CGU_API_KEY（EMBED_API_KEY 不設＝退用 CGU_API_KEY）：學校重置金鑰時只要換這一把，
+      # 本機執行 scripts/rotate_cgu_key.py 可一次換好本機 .env 與這裡（2026-11-02）
       - key: CGU_API_KEY
-        sync: false
-      - key: EMBED_API_KEY
         sync: false
       - key: SUPABASE_DB_URL
         sync: false

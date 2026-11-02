@@ -35,11 +35,11 @@ Part A 之前這三件事要成立，否則 Render 會讀不到設定，或部�
 > **金鑰只貼進 Render 的輸入框。不要貼到聊天、不要 commit、不要截圖到金鑰。**
 > 卡住就停在那一步，把畫面截圖給 Claude（先確認截圖裡沒有金鑰）。
 
-### A1. 把四個值準備好（約 2 分鐘）
+### A1. 把三個值準備好（約 2 分鐘）
 
 1. 用記事本打開 `code\backend\.env`。
 2. 找到 `CGU_API_KEY=` 這一行。等一下要複製等號右邊的值。
-3. 找到 `EMBED_API_KEY=` 這一行。（它和 `CGU_API_KEY` 是同一把金鑰；這行是空的就用 `CGU_API_KEY` 的值。）
+3. （2026-11-02 起不用）`EMBED_API_KEY` 留空，embedding 也用 `CGU_API_KEY`。
 4. 找到 `SUPABASE_DB_URL=` 這一行。值很長，開頭是 `postgresql://`，中間有 `pooler.supabase.com`。
 5. 找到 `ADMIN_TOKEN=` 這一行。是 32 個字的亂數。雲端用同一個值最簡單。
 6. 記事本先不要關。
@@ -73,8 +73,8 @@ Part A 之前這三件事要成立，否則 Render 會讀不到設定，或部�
 16. **Blueprint Path** 不要改（預設就是 repo 根目錄的 `render.yaml`）。
 17. 看畫面列出的「即將建立的資源」：應該只有一個 web service，名稱 `fakenewsverify-api`。
     - 如果出現紅色錯誤訊息：截圖給 Claude（這個畫面沒有金鑰，可以截），先不要往下。
-18. 畫面會要你填四個空白的值（位置以畫面為準）。在 `CGU_API_KEY` 那格貼上 A1 第 2 步的值。
-19. 在 `EMBED_API_KEY` 那格貼上 A1 第 3 步的值。
+18. 畫面會要你填三個空白的值（位置以畫面為準）。在 `CGU_API_KEY` 那格貼上 A1 第 2 步的值。
+19. （2026-11-02 起 `render.yaml` 不再有 `EMBED_API_KEY`；舊服務若還有這一格，刪掉它。）
 20. 在 `SUPABASE_DB_URL` 那格貼上 A1 第 4 步的值。
 21. 在 `ADMIN_TOKEN` 那格貼上 A1 第 5 步的值。
 22. 按 **Deploy Blueprint**。
@@ -82,7 +82,7 @@ Part A 之前這三件事要成立，否則 Render 會讀不到設定，或部�
 
 成功長這樣：畫面開始跑建立進度，出現服務 `fakenewsverify-api`。
 
-> 這四個值只有「第一次建立 Blueprint」時會問。之後要改：服務頁左邊 **Environment** → 改值 → **Save and deploy**。
+> 這三個值只有「第一次建立 Blueprint」時會問。之後要改：服務頁左邊 **Environment** → 改值 → **Save and deploy**。
 
 ### A4. 等它變 Live（等待約 3–8 分鐘，可以離開去做別的事）
 
@@ -281,7 +281,7 @@ Render 官方對免費方案的原話是「不要用在 production」。對專�
 | 一切看起來正常，但查過的結果隔一陣子就 404、熱門牆資料倒退回舊的 | `SUPABASE_DB_URL` 是空的，後端默默退回暫時硬碟上的本機檔案（log 有 `SUPABASE_DB_URL is empty: using local files`） | **Environment** 補上 `SUPABASE_DB_URL` → **Save and deploy**；用 Part B 第 7 步驗證 |
 | `/health` 正常，但 `/api/knowledge/stats` 回 500 | 連不上 Supabase（後端設計成資料庫連不上也照常啟動，log 有 `Supabase init failed`） | `SUPABASE_DB_URL` 貼錯或含 `[YOUR-PASSWORD]`；要用 Session pooler 的 URI（主機含 `pooler.supabase.com`、port 5432）。Direct connection 是 IPv6，雲端主機常連不到 |
 | `/health` 顯示 `"ai_available":false` | `CGU_API_KEY` 沒貼到或是空的 | **Environment** 補上 → **Save and deploy** |
-| `/health` 的 `embedding` 是 `"ok":false,"error":"HTTP 401"`；結果頁信心都是「低」、沒有相似查證 | `EMBED_API_KEY` 錯了或在 CGU 被重置（2026-10-28 換金鑰時 Render 沒跟著改） | **Environment** 把 `EMBED_API_KEY` 改成本機 `.env` 裡有效的值 → **Save and deploy** |
+| `/health` 的 `embedding` 是 `"ok":false,"error":"HTTP 401"` 或 `403`；結果頁信心都是「低」、沒有相似查證 | 學校重置了 CGU 金鑰（2026-10-29、11-01），或 Render 還留著舊的 `EMBED_API_KEY` | 到閘道頁面複製新金鑰，本機 `code\backend` 執行 `.\venv\Scripts\python scripts\rotate_cgu_key.py`（換本機 `.env`；`.env` 有 `RENDER_API_KEY` 時也換 Render 並重新部署）；沒有的話 **Environment** 改 `CGU_API_KEY`、刪掉 `EMBED_API_KEY` → **Save and deploy** |
 | 查證回「AI 分析暫時無法使用」 | 金鑰錯、CGU 額度用完，或閘道擋了 Render 的 IP | 看 **Logs** 的 `[AI] cgu HTTP <碼>`；401 = 金鑰錯 |
 | Threads 機器人沒回覆 | 開發模式只收測試人員、公開帳號的提及；或 Render 睡著、token 過期 | 看 `/api/threads/status`：`last_poll_at` 應每 30 秒更新、`configured` 為 true、`last_error`；Supabase 叫醒排程用 `scripts/supabase_keepalive.py` 查（最近幾次 HTTP 應為 200） |
 | 查證回「AI 分析暫時無法使用」，Logs 是 `[AI] cgu HTTP 404` `model_not_found` | 閘道下架了 `CGU_MODEL`（2026-09-30 下架 `gpt-5.4-mini`）；備援 `CGU_FALLBACK_MODEL` 也不在時才會出現 | 查可用模型：本機 `code\backend` 執行 `.\venv\Scripts\python -c "from app.services.ai_service import gateway_models; print(gateway_models())"`；改 `render.yaml` 的 `CGU_MODEL`／`CGU_FALLBACK_MODEL` 後推送（Blueprint 同步），並重跑評測（CLAUDE.md 第 6 節）。GitHub Actions `factcheck-sync` 每次都會檢查，模型不見時 workflow 變紅並寄信 |

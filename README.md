@@ -178,7 +178,7 @@ AI-Fake-News-Verification-System/
 
 | 項目 | 數量 | 怎麼跑 |
 |------|------|--------|
-| 後端 pytest | 929 個通過；另有 34 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
+| 後端 pytest | 933 個通過；另有 34 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
 | 前端單元測試 | 409 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
 
 - 兩邊的測試都離線執行，不呼叫 AI、不花額度。
@@ -263,7 +263,7 @@ chmod +x start.sh
 | 後端 API | http://localhost:8000 |
 | Swagger UI | http://localhost:8000/docs |
 
-- **第一次啟動前**：在 `code/backend/.env` 填入 `CGU_API_KEY` 與 `EMBED_API_KEY`（兩者可以是同一把 CGU 金鑰；`.env.example` 已設好 `AI_PROVIDER=cgu`）。沒有金鑰時，查證會顯示「AI 暫時無法使用」，熱門牆與知識庫仍可瀏覽。
+- **第一次啟動前**：在 `code/backend/.env` 填入 `CGU_API_KEY`（`EMBED_API_KEY` 留空就會用同一把；`.env.example` 已設好 `AI_PROVIDER=cgu`）。學校重置金鑰時執行 `scripts/rotate_cgu_key.py` 一次換好。沒有金鑰時，查證會顯示「AI 暫時無法使用」，熱門牆與知識庫仍可瀏覽。
 - **本機預設的資料層是 SQLite + Parquet**（`STORAGE_BACKEND=local`）：`code/backend/data/factcheck.db` 與 `data/*.parquet`，不需要任何資料庫服務。repo 內附的 `knowledge_base.parquet` 是種子資料（218 筆，其中 128 筆已證實）。
 - 本機的 API 範例把 base URL 換成 `http://localhost:8000` 即可，例如 `http://localhost:8000/api/health`。
 - 分開啟動後端或前端、跑腳本的指令，見 [`code/backend/README.md`](code/backend/README.md) 與 [`code/frontend/README.md`](code/frontend/README.md)。
@@ -281,7 +281,7 @@ chmod +x start.sh
 | `CGU_API_KEY` | 空（機密） | CGU AIR 閘道金鑰 |
 | `CGU_MODEL` | `gpt-5.6-luna` | 分析用模型（閘道會下架舊模型；可用清單 `GET {CGU_BASE_URL}/models`） |
 | `CGU_FALLBACK_MODEL` | `gpt-6-luna` | 主模型被閘道下架（HTTP 404）時改用的模型；空字串＝不備援 |
-| `EMBED_API_KEY` | 空（機密） | embedding 金鑰；空的時候退用 `CGU_API_KEY`，兩者都沒有則向量層自動停用 |
+| `EMBED_API_KEY` | 空（機密） | embedding 金鑰；空的時候退用 `CGU_API_KEY`（建議留空，金鑰重置時只要換一把），兩者都沒有則向量層自動停用 |
 | `SIMILARITY_THRESHOLD` | `0.75` | 向量快取命中門檻（實測校準值，換 embedding 模型要重新量測） |
 | `USE_WEB_SEARCH` | `true` | 分析時是否帶 web_search；每次呼叫貴 3–7 倍，雲端設 `false` |
 | `STORAGE_BACKEND` | `local` | `local`＝SQLite + Parquet；`supabase`＝Supabase Postgres（還要有 `SUPABASE_DB_URL` 才會生效） |

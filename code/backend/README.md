@@ -26,7 +26,7 @@ https://fakenewsverify.vercel.app/api/*  ──(code/frontend/vercel.json rewrit
 | 護欄 | `DAILY_AI_CALL_CAP=300`、`RATE_LIMIT_PER_MINUTE=30`、`RATE_LIMIT_PER_HOUR=200` |
 | 刻意關閉 | `ENABLE_SCHEDULER=false`、`USE_WEB_SEARCH=false` |
 | Threads 機器人 | `THREADS_MODE=live`、`THREADS_POLL_SECONDS=30`；狀態、回覆紀錄、token 與輪詢鎖存在 Supabase（`threads_kv`、`threads_replies`）；Supabase pg_cron 每 5 分鐘呼叫 `/health`，主機不休眠 |
-| 機密 | `CGU_API_KEY`、`EMBED_API_KEY`、`SUPABASE_DB_URL`、`ADMIN_TOKEN` 只在 Render 後台輸入（`render.yaml` 裡是 `sync: false`，沒有值） |
+| 機密 | `CGU_API_KEY`、`SUPABASE_DB_URL`、`ADMIN_TOKEN` 只在 Render 後台輸入（embedding 也用 `CGU_API_KEY`，不設 `EMBED_API_KEY`）（`render.yaml` 裡是 `sync: false`，沒有值） |
 
 確認雲端真的接上資料庫：`/health`（或 `/api/health`）要回 `"storage_backend":"supabase"`。`SUPABASE_DB_URL` 沒設好時，後端會退回主機的暫時硬碟（看起來正常，但主機一休眠資料就消失）。同一個回應裡的 `daily_ai_calls` 是今天的 AI 用量。
 
@@ -48,7 +48,7 @@ https://fakenewsverify.vercel.app/api/*  ──(code/frontend/vercel.json rewrit
 # 第一次：建立虛擬環境、安裝套件、準備 .env
 python -m venv venv
 .\venv\Scripts\python -m pip install -r requirements.txt
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # 已有 .env 就不會覆蓋；之後填入 CGU_API_KEY、EMBED_API_KEY（可以是同一把 CGU 金鑰）
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # 已有 .env 就不會覆蓋；之後填入 CGU_API_KEY（EMBED_API_KEY 留空＝用同一把）
 
 # 啟動
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000
@@ -149,7 +149,7 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 | `CGU_FALLBACK_MODEL` | `gpt-6-luna` | 主模型被閘道下架（HTTP 404 `model_not_found`）時改用的模型；空字串＝不備援 |
 | `CGU_REASONING_EFFORT` | `medium` | 推理強度 |
 | `EMBED_RELAY_URL` | `https://air.cgu.edu.tw/cgullmapi/v1` | embedding 端點 |
-| `EMBED_API_KEY` | 空（機密） | embedding 金鑰；空的時候退用 `CGU_API_KEY`，都沒有則向量層自動停用 |
+| `EMBED_API_KEY` | 空（機密） | embedding 金鑰；空的時候退用 `CGU_API_KEY`（建議留空，金鑰重置時只要換一把），都沒有則向量層自動停用 |
 | `EMBED_MODEL` | `text-embedding-3-small` | 1536 維（`VECTOR_DIMENSION=1536`） |
 | `AI_TIMEOUT_SECONDS` | `60` | 一次分析（含備援鏈）的總時限 |
 | `USE_WEB_SEARCH` | `true` | 分析時是否帶 web_search；每次呼叫貴 3–7 倍，雲端與高量任務設 `false` |
@@ -372,6 +372,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | `model_benchmark.py` | 純模型比較（`docs/test/模型比較計畫.md`）：`freeze` 凍結 2,000 題 → `run --model --effort --api`（先 `--limit 50` 試跑）→ `report` |
 | `research_run.py` | 一鍵執行（負責人電腦上）：`confidence`、`benchmark`、`update`（每三天重抓查核資料並補算向量）、`report`（只重算報告，不花錢）；`--commit` 把結果推回研究分支；`--short-cofacts 30` 讓報告另附排除 Cofacts 短訊息的參考表。步驟：`docs/test/研究批次_本機執行.md` |
 | `research_common.py` | 上面幾支共用：額度護欄（保留 USD 3、每 100 題讀 /me/usage、台灣時間週日不跑）、語料抓取（多記查核結論日期）、時間切分最近鄰、分群、統計 |
+| `rotate_cgu_key.py` | 學校重置 CGU 金鑰時一行換好：先試新金鑰，再換本機 `.env` 的 `CGU_API_KEY`、清空 `EMBED_API_KEY`；`.env` 有 `RENDER_API_KEY` 時順便用 Render API 換掉正式站的金鑰並重新部署（不印金鑰） |
 | `cgu_diagnose.py` | CGU 閘道診斷：分辨金鑰重置（401）、閘道拒絕（403）、額度與限流；印狀態碼與閘道訊息、兩把金鑰相不相同，不印金鑰（花費不到 USD 0.001） |
 | `research_env_check.py` | 研究批次的環境檢查：secret 有沒有設、CGU 與三個查核來源連不連得到、CGU 剩餘額度與模型清單（只用標準函式庫、不花額度） |
 
@@ -387,7 +388,7 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 $env:RUN_PG_TESTS='1'; .\venv\Scripts\python -m pytest tests\test_pg_store.py -q; Remove-Item Env:RUN_PG_TESTS
 ```
 
-- **929 個通過**；另有 **34 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
+- **933 個通過**；另有 **34 個** Postgres 契約測試（`tests/test_pg_store.py`）預設略過。它們會連到真的 Supabase，但每次建立一個拋棄式 schema（`test_<8 位 hex>`），結束時整個刪掉，不碰 `public` 的正式資料，也不呼叫 AI。
 - `tests/conftest.py` 在測試中預設關閉限速與每日上限，要測護欄的測試再自己打開。
 - GitHub Actions（`.github/workflows/ci.yml` 的 `test` job）在每次 push／PR 到 `main` 時用 Python 3.12 跑 `python -m pytest tests -q`。
 

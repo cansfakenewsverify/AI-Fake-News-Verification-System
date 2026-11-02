@@ -22,7 +22,8 @@
   這個檔不打開、不 cat、不印出來。
 - 金鑰只存在三個地方：本機 `.env`、Render 的 Environment 頁、GitHub repository secrets（只有 `ADMIN_TOKEN`；
   負責人 2026-10-28 決定不在 GitHub 放 `CGU_API_KEY`）。聊天、commit、issue、截圖、log 裡一律只寫鍵名。
-  需要新金鑰時，請負責人自己貼進 `.env`、Render 或 GitHub。
+  需要新金鑰時，請負責人自己貼進 `.env`、Render 或 GitHub。學校重置 CGU 金鑰時只有 `CGU_API_KEY` 一把要換：
+  負責人在電腦上執行 `code/backend/scripts/rotate_cgu_key.py`（`CLAUDE.md` 第 2 節）。
 - **雲端 session 只有 GitHub**：沒有金鑰，也連不到 CGU 與查核網站。要呼叫 CGU 的批次在**負責人電腦上**跑
   （那台電腦上的 Claude Code session，或負責人照指令自己跑；程式從本機 `.env` 讀金鑰）：雲端 session 寫程式、離線測試，
   再把步驟寫成一份指令檔（例：`docs/test/研究批次_本機執行.md`）。結果（不含訊息原文）commit 回分支。

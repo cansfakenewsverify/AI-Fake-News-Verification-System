@@ -650,3 +650,98 @@ def test_cgu_diagnose_prints_codes_and_message_without_the_key(monkeypatch, caps
     out = capsys.readouterr().out
     assert "兩把不同" in out and "HTTP 403" in out and "not allowed to use embeddings" in out
     assert "sk-secret" not in out
+
+
+# ── 金鑰重置時一行換好（rotate_cgu_key.py） ──────────────────
+
+rk = _load("rotate_cgu_key")
+
+
+class _Resp:
+    def __init__(self, status, body=None):
+        self.status_code, self._body = status, body if body is not None else {}
+        self.text = json.dumps(self._body)
+
+    def json(self):
+        return self._body
+
+
+class _FakeHttp:
+    """記錄每個請求；回應依 (方法, 網址結尾) 決定。"""
+
+    def __init__(self, replies):
+        self.replies, self.calls = replies, []
+
+    def _reply(self, method, url, **kw):
+        self.calls.append((method, url, kw.get("json")))
+        for (m, suffix), resp in self.replies.items():
+            if m == method and url.endswith(suffix):
+                return resp
+        return _Resp(500, {"error": "unexpected"})
+
+    def get(self, url, **kw):
+        return self._reply("GET", url, **kw)
+
+    def post(self, url, **kw):
+        return self._reply("POST", url, **kw)
+
+    def put(self, url, **kw):
+        return self._reply("PUT", url, **kw)
+
+    def delete(self, url, **kw):
+        return self._reply("DELETE", url, **kw)
+
+
+ENV_TEXT = "# 註解\nCGU_API_KEY=old-key\nEMBED_RELAY_URL=https://air.cgu.edu.tw/cgullmapi/v1\nEMBED_API_KEY=old-embed\nADMIN_TOKEN=abc\n"
+
+
+def test_rewrite_env_replaces_only_the_keys():
+    out = rk.rewrite_env(ENV_TEXT, "new-key")
+    assert "CGU_API_KEY=new-key\n" in out and "EMBED_API_KEY=\n" in out
+    assert "ADMIN_TOKEN=abc\n" in out and out.startswith("# 註解\n") and "old-" not in out
+    assert rk.rewrite_env("ADMIN_TOKEN=abc", "k").endswith("ADMIN_TOKEN=abc\nCGU_API_KEY=k\n")
+
+
+def test_rotate_stops_before_writing_when_the_new_key_fails(tmp_path, capsys):
+    env = tmp_path / ".env"
+    env.write_text(ENV_TEXT, encoding="utf-8")
+    http = _FakeHttp({("GET", "/models"): _Resp(403, {"error": "key bad-key revoked"})})
+    assert rk.main([], ask=lambda prompt: "bad-key", http=http, env_file=env) == 1
+    assert env.read_text(encoding="utf-8") == ENV_TEXT
+    out = capsys.readouterr().out
+    assert "HTTP 403" in out and "bad-key" not in out
+
+
+def test_rotate_updates_env_and_render_in_one_go(tmp_path, capsys):
+    env = tmp_path / ".env"
+    env.write_text(ENV_TEXT + "RENDER_API_KEY=rnd-secret\n", encoding="utf-8")
+    http = _FakeHttp({
+        ("GET", "/models"): _Resp(200, {"data": []}),
+        ("POST", "/embeddings"): _Resp(200, {"data": [{"embedding": [0.1]}]}),
+        ("GET", "/services"): _Resp(200, [{"service": {"id": "srv-1", "name": "fakenewsverify-api"}},
+                                          {"service": {"id": "srv-2", "name": "other"}}]),
+        ("PUT", "/services/srv-1/env-vars/CGU_API_KEY"): _Resp(200, {"key": "CGU_API_KEY"}),
+        ("DELETE", "/services/srv-1/env-vars/EMBED_API_KEY"): _Resp(204),
+        ("POST", "/services/srv-1/deploys"): _Resp(201, {"id": "dep-1"}),
+    })
+    assert rk.main([], ask=lambda prompt: "new-key", http=http, env_file=env) == 0
+    text = env.read_text(encoding="utf-8")
+    assert "CGU_API_KEY=new-key\n" in text and "EMBED_API_KEY=\n" in text and "RENDER_API_KEY=rnd-secret" in text
+    assert [(m, u.rsplit("/v1", 1)[-1]) for m, u, _ in http.calls] == [
+        ("GET", "/models"), ("POST", "/embeddings"), ("GET", "/services"),
+        ("PUT", "/services/srv-1/env-vars/CGU_API_KEY"), ("DELETE", "/services/srv-1/env-vars/EMBED_API_KEY"),
+        ("POST", "/services/srv-1/deploys")]
+    assert http.calls[3][2] == {"value": "new-key"}
+    out = capsys.readouterr().out
+    assert "new-key" not in out and "rnd-secret" not in out and "重新部署" in out
+    assert not (tmp_path / ".env.rotate.local").exists()
+
+
+def test_rotate_without_render_key_prints_manual_steps(tmp_path, capsys):
+    env = tmp_path / ".env"
+    env.write_text(ENV_TEXT, encoding="utf-8")
+    http = _FakeHttp({("GET", "/models"): _Resp(200, {"data": []}), ("POST", "/embeddings"): _Resp(200, {"data": []})})
+    assert rk.main([], ask=lambda prompt: "new-key", http=http, env_file=env) == 0
+    out = capsys.readouterr().out
+    assert "Save and deploy" in out and "EMBED_API_KEY" in out
+    assert all("render.com" not in u for _, u, _ in http.calls)

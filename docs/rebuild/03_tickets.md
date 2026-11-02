@@ -2961,3 +2961,15 @@ flowchart LR
   「排除 Cofacts 短訊息（少於 30 字）」參考分析（負責人看過結果後決定；過關仍以全部題目為準）；pytest 890。
   剩下：嵌入模型比較（bge-m3、large）
 
+### B-47 學校重置 CGU 金鑰時一行換好（只剩一把金鑰）
+- 優先級：P0（2026-11-01 學校第二次強制重置金鑰：embedding 回 403、factcheck-sync 連續失敗、每週評測 20 題有 11 題 AI 不可用）
+- 對應：負責人 2026-11-02「看有什麼地方可以一次改」；B-46（/health 的 embedding 欄位）
+- 範圍：`code/backend/scripts/rotate_cgu_key.py`（新增）、`scripts/cgu_diagnose.py`（新增）、`.env.example`（`EMBED_API_KEY` 留空、
+  選用 `RENDER_API_KEY`）、`render.yaml`（拿掉 `EMBED_API_KEY`）、`.github/workflows/factcheck-sync.yml`（錯誤提示）、
+  `tests/test_research_scripts.py`（+5）、CLAUDE.md、AGENTS.md、README、runbook
+- 做什麼：embedding 本來就會在 `EMBED_API_KEY` 空的時候用 `CGU_API_KEY`，所以拿掉 `EMBED_API_KEY`，要換的從四個地方變成
+  本機與 Render 各一把。`rotate_cgu_key.py`：貼上新金鑰（不顯示）→ 先試模型清單與 embedding → 換本機 `.env` → `.env` 有
+  `RENDER_API_KEY` 時用 Render API 換正式站的 `CGU_API_KEY`、刪 `EMBED_API_KEY`、重新部署；新金鑰不能用就什麼都不改。
+- 驗收：pytest 933；負責人執行一次後 `/api/health` 的 embedding 回 `ok: true`、`factcheck-sync` 轉綠
+- 狀態：程式完成（2026-11-02，研究分支）；待負責人執行、待決定是否推上 main（`render.yaml` 與 workflow 的改動要在 main 才生效）
+
