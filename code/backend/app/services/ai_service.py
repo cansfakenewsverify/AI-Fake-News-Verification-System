@@ -16,6 +16,7 @@ import logging
 import re
 import threading
 import time
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple
 
 import requests
@@ -568,6 +569,7 @@ class AIService:
         產生文字向量供 Layer 2 語義快取使用。
         CGU LLM Gateway（OpenAI 相容 /embeddings）。未設定或失敗時回傳空陣列
         （向量層自動停用）；刻意不做其他模型備援，避免不同維度向量汙染知識庫。
+        每次呼叫的結果記在 _EMBED_STATUS（/health 的 embedding 欄位讀它）。
         """
         base = (settings.EMBED_RELAY_URL or "").rstrip("/")
         key = (settings.EMBED_API_KEY or settings.CGU_API_KEY or "").strip()
@@ -580,7 +582,35 @@ class AIService:
                     timeout=60,
                 )
                 r.raise_for_status()
-                return list(r.json()["data"][0]["embedding"])
+                vector = list(r.json()["data"][0]["embedding"])
+                _EMBED_STATUS.update(ok=True, checked_at=_utc_now_iso(), error=None)
+                return vector
             except Exception as e:
+                _EMBED_STATUS.update(ok=False, checked_at=_utc_now_iso(), error=_embed_error_label(e))
                 print(f"[AI] CGU embedding 失敗（向量層停用）：{e}")
         return []
+
+
+# 最近一次 embedding 呼叫的結果（行程內記憶體，重啟後是 None）。2026-10-28 Render 的 EMBED_API_KEY 失效（HTTP 401），
+# 語意快取與證據信心默默停用約 11 小時，/health 只看得到金鑰「有設」；所以把實際呼叫的結果也放上 /health。
+_EMBED_STATUS: Dict[str, Any] = {"ok": None, "checked_at": None, "error": None}
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _embed_error_label(exc: Exception) -> str:
+    """只留狀態碼或例外類別（例外訊息含網址，不放上公開的 /health）。"""
+    code = getattr(getattr(exc, "response", None), "status_code", None)
+    return f"HTTP {code}" if code else type(exc).__name__
+
+
+def embedding_status() -> Dict[str, Any]:
+    """
+    {ok, checked_at, error}：最近一次 embedding 呼叫成功與否（不發請求）。
+    沒設定網址或金鑰 → ok=False、error=not_configured；重啟後還沒呼叫過 → ok=None。
+    """
+    if not ((settings.EMBED_RELAY_URL or "").strip() and (settings.EMBED_API_KEY or settings.CGU_API_KEY or "").strip()):
+        return {"ok": False, "checked_at": None, "error": "not_configured"}
+    return dict(_EMBED_STATUS)

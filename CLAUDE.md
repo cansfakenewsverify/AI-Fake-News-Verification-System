@@ -120,6 +120,9 @@
 1. `curl.exe -s https://fakenewsverify.vercel.app/api/health`（本機：`http://localhost:8000/api/health`）：
    - `"ai_available": false` → 後端沒讀到 `CGU_API_KEY`（雲端：Render 後台 Environment 頁；本機：`code/backend/.env`）。
      `true` 只代表金鑰有設，**不代表金鑰有效或額度還夠**。
+   - `"embedding": {"ok": false, "error": "HTTP 401"}` → `EMBED_API_KEY` 錯了或被重置（判讀照常，但語意快取、相似查證、
+     信心「中」全部停用）。這是**最近一次實際呼叫**的結果，重啟後還沒人查過時 `ok` 是 `null`。2026-10-28 負責人在 CGU 換了金鑰、
+     Render 沒跟著改，停用約 11 小時沒人發現；之後 `factcheck-sync` 每次都實際算一次，失敗就變紅寄信（票 B-46）。
    - `"daily_ai_calls": {"used": N, "cap": 300}`：`used` 到頂是每日上限用完（429 `daily_cap_reached`，不是 AI 壞掉），隔日自動恢復。
    - 逾時或 502／504 → Render 免費主機正在喚醒（約 1 分鐘）或部署中。
 2. 後端 log 找 `[AI] cgu HTTP <碼>`（雲端：Render 服務頁的 Logs；本機：後端視窗）。401 = 金鑰錯或被重置；
@@ -134,6 +137,10 @@
 
 **恢復**：金鑰或額度問題要找學校；拿到新值後**本機 `.env` 與 Render 後台兩邊都要更新**（Render：Environment → Save and deploy；
 本機：重啟後端）。更多雲端症狀見 `docs/rebuild/runbook_cloud_deploy.md` 附錄 2。熱門、知識庫、快取命中都不呼叫 AI，不受影響。
+**學校會強制重置金鑰**：2026-10-29 約 04:00 因資安理由重置所有人的金鑰，之後每個請求都回 401，訊息寫「已強制重置所有人的
+API 金鑰，請至 https://air.cgu.edu.tw/workspace4/LLMAPI/index.php 複製新的金鑰」（和週四的額度重置是兩回事）。新金鑰要換掉
+**四個地方**：本機 `.env` 的 `CGU_API_KEY`、`EMBED_API_KEY`，Render 的 `CGU_API_KEY`、`EMBED_API_KEY`；漏換 `EMBED_API_KEY`
+時判讀照常、只有向量停用（2026-10-28 發生過），`/health` 的 `embedding` 會是 `HTTP 401`。GitHub secrets 沒有 CGU 金鑰。
 
 > **fallback 契約（改字樣前先看）**：AI 失敗時端點仍回 **HTTP 200**。唯一產生處是 `ai_service._default_fallback_result()`
 > （`ai_unavailable: true`＋`summary` 前綴「AI 分析暫時無法使用」）；後端唯一判斷點是 `app/utils/verdict.py` 的 `is_fallback()`；
@@ -155,6 +162,9 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   `pandas_store.PandasStore`（Parquet、numpy 矩陣化 cosine），雲端 `pg_store.PgKnowledgeStore.find_similar_by_vector`（pgvector）。
 - **文字輸入永不爬取、永不送搜尋引擎（FR-01）**：AI 分析的與向量層比對的都是使用者原文
   （2026-07 教訓：拿爬完的網頁全文比對，長文對短句過不了門檻，向量層形同虛設——勿改回）。
+  向量層與證據信心的近鄰查詢在算向量前先去掉「網傳」「聽說」「請問」這類開頭詞與「是真的嗎？」這類結尾
+  （`app/utils/claim_text.matching_text`，票 B-45；2026-10-28 實測「網傳吃香蕉配優格會中毒」0.597 → 0.663）；
+  AI 判讀、hash 層與存進知識庫的 raw_content 仍是原文。
 - **向量層只比對 `verified=true` 的列（FR-17）**；URL／Hash 層不過濾。知識庫頁 `/api/knowledge` 也只回 verified 列。
   寫入門檻見第 9 節。非 1536 維的向量不參與比對（本機只比同維度；雲端存成 NULL）。
 - Layer 2 門檻 `SIMILARITY_THRESHOLD=0.75`：**實測校準**（text-embedding-3-small、繁中）
@@ -164,7 +174,9 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   快取命中不呼叫 AI、不耗每日 AI 次數。
 - 實測：L1 命中 p50 213 ms、L2 向量命中 p50 3.06 s（2026-09-16 本機，測試計畫書 6.4）；
   線上新內容 AI 判讀 9–27 秒、語意快取命中約 3 秒（2026-09-19）。
-- embedding 沒有可用金鑰或呼叫失敗時 Layer 2 自動停用，URL/Hash 仍正常。
+- embedding 沒有可用金鑰或呼叫失敗時 Layer 2 自動停用，URL/Hash 仍正常（`/health` 的 `embedding` 看得出來）。
+  那段時間存下的 AI 結果沒有向量證據（最近相似度與話術差距都是空的）；之後 URL／hash 命中這種列時重新比對知識庫，
+  回傳現在的信心與相似查證（`_refresh_evidence`，不改存下的資料、不呼叫判讀模型；票 B-46）。
 - **查核結果回補（FR-20，2026-09-22）**：URL／Hash 層不過濾 verified，一字不差的重複查詢原本會一直拿到當初「尚無查核機構證實」。
   命中未證實列時，處理器以該列向量（Postgres 版沒載入向量時以原文算一次 embedding）呼叫
   `find_similar_by_vector(..., label_sources=DETERMINISTIC_LABEL_SOURCES)`，**只讓 rule／gold／admin 列取代舊結果**
@@ -241,6 +253,7 @@ code/backend/
 │   │   └── threads_sim.py / threads_state.py / threads_reply.py   模擬模式／狀態與回覆紀錄（本機原子寫入；雲端 live 轉存 threads_pg）／回覆模板
 │   ├── utils/
 │   │   ├── verdict.py          ★紅黃綠單一權威 frame_of（8 列規則）＋ is_fallback（fallback 唯一判斷點）
+│   │   ├── claim_text.py       語意比對用的文字：去掉「網傳／聽說／請問」開頭詞與「是真的嗎？」結尾（只影響算向量的文字）
 │   │   ├── source_tier.py      ★來源分級 Tier 1/2/3（tier_of、grade_sources；offline 時不發請求）
 │   │   ├── safe_url.py         SSRF 防護（check_url／safe_get）；url_validator.py 經它過濾 AI 幻覺出的死連結
 │   │   ├── admin_auth.py       require_admin（X-Admin-Token；ADMIN_TOKEN 空字串 = 403 停用）
@@ -277,7 +290,7 @@ code/backend/
 │   ├── supabase_keepalive.py   Supabase pg_cron 每 5 分鐘呼叫 Render /health（不加參數只看狀態；--apply 建立、--remove 刪除）
 │   ├── test_threads_bot.py     機器人乾跑／--live／--reset-sim／--poll
 │   └── threads_sim_mentions.example.json、threads_sim_seed.json   模擬模式的範例 mentions 與 gold 種子
-├── tests/                      ★pytest **891 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
+├── tests/                      ★pytest **929 個**離線測試（零 AI 點數，CI 每次 push 跑）＋ test_pg_store.py **34 個** Postgres
 │                                契約測試（要 RUN_PG_TESTS=1，平常略過）；conftest.py 預設關閉上線護欄。
 │                                test_marking_rules 守第 9 節；test_verdict／test_ai_service_contract 守燈號與 fallback 契約
 ├── data/
@@ -338,6 +351,10 @@ presentations/                  簡報與報告資料；`2026-09_進度報告/` 
                                 以 `presentations/tools/build_posters.py` 輸出，會檢查有沒有區塊被切掉）
 assets/                         PlantUML 圖 + confusion_matrix.png（最新評測的混淆矩陣）
 └── 期末專題文件/                OOSE 期末繳交文件(詞彙表/使用案例圖/情節/活動圖/類別圖+README)
+graphify-out/                   `code/` 的程式碼關係圖（graphify，本機 tree-sitter 解析、不花 token）：GRAPH_REPORT.md（模組分群、
+                                最多連線的類別）、graph.json（可用 `graphify query`／`path`／`explain` 查）。只提交這兩個檔，
+                                graph.html 與快取在本機。程式大改後重建：裝了 graphify 的電腦在 Claude Code 打 `/graphify code`
+                                （範圍只選程式碼；docs、圖片的語意分析要派 AI 讀，很花 token）。2026-10-30 以 main 建立，之後不會自動更新
 ```
 
 **設定鍵**都定義在 `app/config.py`（範本 `.env.example`；雲端的值寫在 `render.yaml`）。站台相關：`PUBLIC_BASE_URL`（分享連結、Threads
@@ -355,7 +372,7 @@ PowerShell 5.1 寫法；venv 一律用 `python -m ...`（理由見第 7 節）�
 ```powershell
 # ── 線上網站 ──（PowerShell 5.1 的 curl 是 Invoke-WebRequest 的別名，要打 curl.exe）
 curl.exe -s https://fakenewsverify.vercel.app/api/health
-#   正常："storage_backend":"supabase"、"ai_available":true、"daily_ai_calls":{"used":N,"cap":300}
+#   正常："storage_backend":"supabase"、"ai_available":true、"embedding":{"ok":true,...}、"daily_ai_calls":{"used":N,"cap":300}
 #   逾時或 502／504：Render 免費主機正在喚醒，等 1 分鐘再試
 
 # ── 本機開發一鍵啟動（專案根目錄）：後端 8000 + React 5173，用的是本機資料 ──
@@ -364,7 +381,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 # ── 後端：以下都先 cd code\backend ──
 .\venv\Scripts\python -m pip install -r requirements.txt
 .\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000    # API 文件 http://localhost:8000/docs
-.\venv\Scripts\python -m pytest tests -q                              # 891 個，離線、零點數
+.\venv\Scripts\python -m pytest tests -q                              # 929 個，離線、零點數
 .\venv\Scripts\python scripts\check_db.py                             # 本機知識庫／熱門的資料分佈（唯讀）
 .\venv\Scripts\python scripts\test_ai_provider.py --provider cgu      # 低成本測 AI＋embedding（各一次呼叫）
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
@@ -729,6 +746,11 @@ Supabase 的 `threads_kv`／`threads_replies`（`app/services/threads_pg.py`）�
 **端點**：`GET /api/threads/status`、`GET /api/threads/replies`（公開唯讀、不含 token）；`POST /api/threads/poll`（需 `X-Admin-Token`；
 202 背景執行，已有一輪在跑回 409）。排程間隔 `THREADS_POLL_MINUTES`（預設 5）；上限 `THREADS_MAX_REPLIES_PER_POLL=5`、
 `THREADS_MAX_REPLIES_PER_DAY=50`；Threads 的 24 小時回覆配額剩不到 10 則時本輪不回覆（`last_error=reply_quota_near_limit`，T-14）。
+
+**引用貼文（2026-10-29）**：常見用法是第 1 則「.」引用別人的貼文、第 2 則回覆它並 @機器人，原貼文文字只有「.」。
+原貼文或提及本身文字 <8 字時，`threads_bot._resolve_quoted` 以 `ThreadsService.get_quoted_post_id`（另開一次查詢取 `quoted_post`，
+不併進 `get_post`，欄位失敗不影響原流程）找出被引用的貼文並改查它；讀不到（401／403／404，開發模式下原作者不是測試人員就會這樣）
+回 `reply_cannot_read_quoted` 固定文案。**尚未對真的 Threads API 驗證**：`quoted_post` 的回傳形狀依官方文件（media id，也容許物件形狀）。
 
 **防呆設計（改 code 前先看 `app/workers/threads_bot.py` 檔頭的 docstring）**：回覆成功後先原子寫 state 再寫 jsonl，不重複回；
 不回機器人自己的貼文；只有圖片／影片、讀不到、太短 → 回固定文案、不經 AI；**AI 不可用（fallback）時不回覆、不標記**，下輪自動補回；

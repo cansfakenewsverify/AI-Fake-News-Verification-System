@@ -281,6 +281,7 @@ Render 官方對免費方案的原話是「不要用在 production」。對專�
 | 一切看起來正常，但查過的結果隔一陣子就 404、熱門牆資料倒退回舊的 | `SUPABASE_DB_URL` 是空的，後端默默退回暫時硬碟上的本機檔案（log 有 `SUPABASE_DB_URL is empty: using local files`） | **Environment** 補上 `SUPABASE_DB_URL` → **Save and deploy**；用 Part B 第 7 步驗證 |
 | `/health` 正常，但 `/api/knowledge/stats` 回 500 | 連不上 Supabase（後端設計成資料庫連不上也照常啟動，log 有 `Supabase init failed`） | `SUPABASE_DB_URL` 貼錯或含 `[YOUR-PASSWORD]`；要用 Session pooler 的 URI（主機含 `pooler.supabase.com`、port 5432）。Direct connection 是 IPv6，雲端主機常連不到 |
 | `/health` 顯示 `"ai_available":false` | `CGU_API_KEY` 沒貼到或是空的 | **Environment** 補上 → **Save and deploy** |
+| `/health` 的 `embedding` 是 `"ok":false,"error":"HTTP 401"`；結果頁信心都是「低」、沒有相似查證 | `EMBED_API_KEY` 錯了或在 CGU 被重置（2026-10-28 換金鑰時 Render 沒跟著改） | **Environment** 把 `EMBED_API_KEY` 改成本機 `.env` 裡有效的值 → **Save and deploy** |
 | 查證回「AI 分析暫時無法使用」 | 金鑰錯、CGU 額度用完，或閘道擋了 Render 的 IP | 看 **Logs** 的 `[AI] cgu HTTP <碼>`；401 = 金鑰錯 |
 | Threads 機器人沒回覆 | 開發模式只收測試人員、公開帳號的提及；或 Render 睡著、token 過期 | 看 `/api/threads/status`：`last_poll_at` 應每 30 秒更新、`configured` 為 true、`last_error`；Supabase 叫醒排程用 `scripts/supabase_keepalive.py` 查（最近幾次 HTTP 應為 200） |
 | 查證回「AI 分析暫時無法使用」，Logs 是 `[AI] cgu HTTP 404` `model_not_found` | 閘道下架了 `CGU_MODEL`（2026-09-30 下架 `gpt-5.4-mini`）；備援 `CGU_FALLBACK_MODEL` 也不在時才會出現 | 查可用模型：本機 `code\backend` 執行 `.\venv\Scripts\python -c "from app.services.ai_service import gateway_models; print(gateway_models())"`；改 `render.yaml` 的 `CGU_MODEL`／`CGU_FALLBACK_MODEL` 後推送（Blueprint 同步），並重跑評測（CLAUDE.md 第 6 節）。GitHub Actions `factcheck-sync` 每次都會檢查，模型不見時 workflow 變紅並寄信 |

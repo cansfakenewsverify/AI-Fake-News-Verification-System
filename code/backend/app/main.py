@@ -22,7 +22,7 @@ from app.api import (
 )
 from app.database_sql import init_sql_db
 from app.services.ai_budget import ai_budget
-from app.services.ai_service import AIService
+from app.services.ai_service import AIService, embedding_status
 from app.services.store_factory import storage_backend
 from app.utils.admin_auth import AdminAuthError, admin_auth_error_handler
 from app.utils.body_limit import BodySizeLimitMiddleware, PayloadTooLarge, payload_too_large_body
@@ -251,6 +251,9 @@ async def health_check():
         "status": "healthy",
         # provider 鏈非空 = 至少一個 provider 設定完整（不代表額度還夠）
         "ai_available": AIService().available,
+        # 最近一次 embedding 呼叫的結果 {ok, checked_at, error}（不另外發請求；重啟後還沒呼叫過時 ok=null）。
+        # ok=false 時語意快取與證據信心都停用（2026-10-28 EMBED_API_KEY 失效，error 是 "HTTP 401"）
+        "embedding": embedding_status(),
         "threads_mode": settings.threads_mode_effective,
         # S3 trending_sub 的 scheduler_on / scheduler_off 文案來源（FR-06 驗收 3）
         "scheduler": {

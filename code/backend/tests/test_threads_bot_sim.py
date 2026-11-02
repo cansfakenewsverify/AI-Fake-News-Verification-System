@@ -701,6 +701,102 @@ def test_resolve_target_table(client, mention, expected, monkeypatch):
         assert "error_status" not in target
 
 
+class QuoteClient:
+    """posts：id → 貼文；quotes：貼文 id → 被引用貼文 id；quote_error：查引用欄位時丟的例外。"""
+
+    def __init__(self, posts, quotes=None, quote_error=None):
+        self.posts, self.quotes, self.quote_error = posts, quotes or {}, quote_error
+        self.calls = []
+
+    def get_quoted_post_id(self, media_id):
+        if self.quote_error is not None:
+            raise self.quote_error
+        return self.quotes.get(media_id)
+
+    def get_post(self, media_id):
+        self.calls.append(media_id)
+        post = self.posts[media_id]
+        if isinstance(post, Exception):
+            raise post
+        return dict(post, id=media_id)
+
+
+def _resolve(client, mention, monkeypatch):
+    monkeypatch.setattr(settings, "BOT_HANDLE", "factcheck_tw_bot")
+    m = dict({"id": "m1", "username": "tester_b"}, **mention)
+    return asyncio.run(threads_bot.resolve_target(client, m, own_ids=set()))
+
+
+def test_quote_post_dot_then_mention_reads_quoted_post(monkeypatch):
+    # 使用者截圖的情境：第 1 則「.」引用別人的貼文，第 2 則回覆它並 @機器人
+    client = QuoteClient(
+        {"p1": _post("."), "q1": _post(LONG, username="someone_else")}, {"p1": "q1"},
+    )
+    kind, text, input_type, target = _resolve(client, {"replied_to": {"id": "p1"}}, monkeypatch)
+    assert (kind, text, input_type) == ("text", LONG, "text")
+    assert target["id"] == "q1" and client.calls == ["p1", "q1"]
+
+
+def test_mention_that_is_itself_a_quote_post_reads_quoted_post(monkeypatch):
+    client = QuoteClient({"q1": _post(LONG)}, {"m1": "q1"})
+    kind, text, _, target = _resolve(client, {"text": "@factcheck_tw_bot"}, monkeypatch)
+    assert (kind, text, target["id"]) == ("text", LONG, "q1")
+
+
+def test_quoted_post_unreadable_gets_specific_kind(monkeypatch):
+    for status in (401, 403, 404):
+        client = QuoteClient({"p1": _post("."), "q1": ThreadsApiError(status)}, {"p1": "q1"})
+        kind, text, _, target = _resolve(client, {"replied_to": {"id": "p1"}}, monkeypatch)
+        assert (kind, text, target["id"]) == ("unreadable_quoted", None, "q1")
+    assert threads_bot._FIXED_REPLIES["unreadable_quoted"]() != threads_bot._FIXED_REPLIES["unreadable"]()
+
+
+def test_quoted_post_read_errors_follow_the_usual_split(monkeypatch):
+    for status, expected in ((429, "transient"), (500, "transient"), (400, "failed")):
+        client = QuoteClient({"p1": _post("."), "q1": ThreadsApiError(status)}, {"p1": "q1"})
+        kind, _, _, target = _resolve(client, {"replied_to": {"id": "p1"}}, monkeypatch)
+        assert kind == expected and target["error_status"] == status
+
+
+def test_quoted_post_short_or_image_or_bot_author(monkeypatch):
+    cases = [
+        (_post("好扯"), "too_short"),
+        (_post("", "IMAGE"), "media_only"),
+        (_post(LONG, username="factcheck_tw_bot"), "self"),
+    ]
+    for quoted, expected in cases:
+        client = QuoteClient({"p1": _post("."), "q1": quoted}, {"p1": "q1"})
+        assert _resolve(client, {"replied_to": {"id": "p1"}}, monkeypatch)[0] == expected
+
+
+def test_quote_lookup_failure_falls_back_to_old_behaviour(monkeypatch):
+    # 查不到引用欄位（例如開發模式不給這個欄位）：不能擋住原本流程，仍回「文字太短」
+    for err in (ThreadsApiError(500), ThreadsApiError(403), RuntimeError("boom")):
+        client = QuoteClient({"p1": _post(".")}, quote_error=err)
+        assert _resolve(client, {"replied_to": {"id": "p1"}}, monkeypatch)[0] == "too_short"
+    # 429 要進 backoff
+    client = QuoteClient({"p1": _post(".")}, quote_error=ThreadsApiError(429))
+    kind, _, _, target = _resolve(client, {"replied_to": {"id": "p1"}}, monkeypatch)
+    assert kind == "transient" and target["error_status"] == 429
+
+
+def test_quote_lookup_skipped_when_post_text_is_long_enough(monkeypatch):
+    client = QuoteClient({"p1": _post(LONG)}, {"p1": "q1"})
+    kind, text, _, target = _resolve(client, {"replied_to": {"id": "p1"}}, monkeypatch)
+    assert (kind, text, target["id"]) == ("text", LONG, "p1") and client.calls == ["p1"]
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ({"id": "p1", "quoted_post": "q1"}, "q1"),
+    ({"id": "p1", "quoted_post": {"id": "q1"}}, "q1"),
+    ({"id": "p1"}, None),
+])
+def test_service_get_quoted_post_id_parses_both_shapes(raw, expected):
+    svc = ts.ThreadsService.__new__(ts.ThreadsService)
+    svc._get = lambda media_id, **kw: raw
+    assert svc.get_quoted_post_id("p1") == expected
+
+
 def test_threads_bot_has_no_print_calls():
     source = Path(threads_bot.__file__).read_text(encoding="utf-8")
     assert re.search(r"print\(", source) is None

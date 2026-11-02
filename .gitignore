@@ -150,3 +150,9 @@ video/hf-scenario/.hyperframes/
 video/hf-scenario/.hf-tmp/
 video/hf-scenario/.debug/
 video/hf-scenario/.media/
+
+# ── graphify（程式碼關係圖，`/graphify code`）：只提交報告與圖資料，其餘是本機快取與本機路徑 ──
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md
+!graphify-out/graph.json
+code/graphify-out/

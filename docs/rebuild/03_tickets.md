@@ -2871,6 +2871,33 @@ flowchart LR
 - 驗收：pytest 853；正式站舊結果頁（雲林停水那則）燈號下方顯示「已查核假訊息」
 - 狀態：已完成（2026-10-26 上線；正式站舊結果頁也改顯示「已查核假訊息」，海報圖 2 已重拍）
 
+### B-45 語意比對前去掉「網傳」等開頭詞
+- 優先級：P1
+- 對應：2026-10-28 負責人在正式站查「網傳吃香蕉配優格會中毒」，結果頁顯示「尚無查核機構證實」、信心低，
+  但 MyGoPen 與台灣事實查核中心查過「吃完柿子／柚子別喝優酪乳、不能吃香蕉」。實測最接近的已證實列 0.597，
+  差一點到「知識庫中的相似查證」的 0.60；去掉「網傳」後 0.663（≥ 0.65，有風險時信心「中」並列出相似查證）
+- 範圍：`app/utils/claim_text.py`（`matching_text`：開頭詞「網傳／聽說／據說／請問／有人說／LINE群組在傳…」、
+  結尾「是真的嗎？／真的假的」、成對引號；去完不到 4 字就用原文）；`pandas_task_processor` 的文字輸入向量層、
+  `cache_would_hit`、查核結果回補改用它算向量。AI 判讀、hash 層、知識庫的 raw_content 不變（FR-01）；門檻不變
+- 驗收：pytest 874（`tests/test_claim_text.py` +20、`tests/test_processor_flow.py` +1）
+- 狀態：已完成（2026-10-29 上線，commit 3610006）；正式站「網傳：吃香蕉配優格會中毒？」信心「中」、列出 3 篇 MyGoPen 相似查證
+  （最近相似度 0.6633，與本機量測相同）
+
+### B-46 embedding 失效：舊結果重新比對、/health 顯示向量狀態、同步時檢查
+- 優先級：P0
+- 對應：2026-10-28 負責人在 CGU 換了金鑰，Render 的 `EMBED_API_KEY` 沒跟著改，embedding 回 HTTP 401 約 11 小時
+  （約 13:30～00:40）：語意快取、相似查證、信心「中」全部停用，`/health` 的 `ai_available` 仍是 true，沒有人發現。
+  這段時間存下的 AI 結果（例：「台灣軍人若效忠中共取消退休金…」）證據是空的，同一段文字之後每次命中都是「信心 低」
+- 範圍：
+  - `ai_service.generate_embedding` 記下每次呼叫的結果，`embedding_status()`；`/health` 加 `embedding: {ok, checked_at, error}`
+    （error 只有狀態碼或例外類別；不另外發請求，維持 spec §5.1）；
+  - `pandas_task_processor`：URL／hash 命中的非確定性列，存下的證據沒有最近相似度也沒有話術差距時重新比對知識庫
+    （`_refresh_evidence`；與查核結果回補共用同一次 embedding；不改存下的資料、不呼叫判讀模型）；
+  - `factcheck_sync.embed_check()`：每次同步實際算一次短句，`STATUS["embed_check"]`；`factcheck-sync.yml` 看到 `ok=false` 變紅寄信
+- 驗收：pytest 881（`tests/test_stale_evidence.py` +5、`tests/test_health.py` +1、`tests/test_factcheck_sync.py` +1）
+- 狀態：已完成（2026-10-29 上線，commit 791da0d）；正式站重查軍人退休金那句：hash 命中、信心「中」（similar_case）、
+  相似查證列出台灣事實查核中心那篇（0.6997），沒有呼叫判讀模型；`/health` 的 `embedding` 為 `ok: true`
+
 ### O-32 專題介紹海報（兩張 A1）
 - 優先級：P1
 - 對應：課程規定每組兩張 A1、300 dpi 以上，由學校影印店輸出；負責人 2026-10-18 定案：第 1 張給一般人、第 2 張講技術與成果，

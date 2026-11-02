@@ -101,3 +101,28 @@ def test_text_input_never_calls_crawler(tmp_path, monkeypatch):
     assert CountingCrawler.calls == 0
     assert fake_ai.seen_content == USER_TEXT
     assert result["risk_type"] == "SCAM"
+
+
+class RecordingVector:
+    seen = []
+
+    def vectorize_content(self, text):
+        RecordingVector.seen.append(text)
+        return []
+
+
+def test_vector_lookup_uses_text_without_lead_in(tmp_path, monkeypatch):
+    """向量比對去掉「網傳」與「是真的嗎？」；AI 判讀與知識庫存的仍是使用者原文。"""
+    fake_ai = FakeAI()
+    _patch(monkeypatch, tmp_path, fake_ai)
+    RecordingVector.seen = []
+    monkeypatch.setattr(proc, "VectorService", RecordingVector)
+    text = "網傳「喝溫水可以殺死新冠病毒」是真的嗎？"
+    ts = TaskStore(data_dir=str(tmp_path))
+    tid = ts.create_task("analyze_text", text)
+    asyncio.run(proc.process_analysis_task_async(tid, text, "text"))
+
+    assert RecordingVector.seen == ["喝溫水可以殺死新冠病毒"]
+    assert fake_ai.seen_content == text
+    df = PandasStore(data_dir=str(tmp_path)).get_all_records()
+    assert df.iloc[0]["raw_content"] == text

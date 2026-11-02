@@ -329,7 +329,7 @@
 
 | 端點 | 說明 | 備註 |
 |------|------|------|
-| `GET /health` | 健康檢查 | 加 `ai_available: bool`（`AIService._available`）、`threads_mode`、`scheduler: {enabled: bool, interval_hours: int}`（讀 `ENABLE_SCHEDULER`／`TRENDING_FETCH_INTERVAL_HOURS` config.py:81，供 S3 `scheduler_on/off` 文案；FN-3 斷言欄位存在）、`daily_ai_calls:{used,cap}`（`DAILY_AI_CALL_CAP=0` 時回 `null`）、`storage_backend: "local"|"supabase"`（2026-09-19 新增：雲端沒接上資料庫時後端會退回本機檔案，這個欄位看得出來）；不呼叫付費 API |
+| `GET /health` | 健康檢查 | 加 `ai_available: bool`（`AIService._available`）、`threads_mode`、`scheduler: {enabled: bool, interval_hours: int}`（讀 `ENABLE_SCHEDULER`／`TRENDING_FETCH_INTERVAL_HOURS` config.py:81，供 S3 `scheduler_on/off` 文案；FN-3 斷言欄位存在）、`daily_ai_calls:{used,cap}`（`DAILY_AI_CALL_CAP=0` 時回 `null`）、`storage_backend: "local"|"supabase"`（2026-09-19 新增：雲端沒接上資料庫時後端會退回本機檔案，這個欄位看得出來）、`embedding: {ok, checked_at, error}`（2026-10-29 新增：最近一次 embedding 呼叫的結果，不另外發請求；沒設定時 `error="not_configured"`）；不呼叫付費 API |
 | `GET /` | `{message, version:"0.3.0", docs}` | 版本號升 |
 | `GET /api/analyze/task/{id}/status` | 任務狀態 | 不變（analyze.py:275-292） |
 | `GET /api/analyze/task/{id}` | 舊結果端點 | 保留相容；pending／processing 改回 **202** `{task_id, status}`（不再回 200 SAFE 佔位，backend_api tech_debt 第 3 條）；前端改用 `/api/result/{id}` |

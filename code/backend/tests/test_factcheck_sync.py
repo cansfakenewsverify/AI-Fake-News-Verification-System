@@ -89,6 +89,8 @@ def sources(monkeypatch):
     monkeypatch.setattr(fc, "cofacts_nodes", cofacts_nodes)
     monkeypatch.setattr(fc, "embed_batch", embed_batch)
     monkeypatch.setattr(ai_service, "gateway_models", lambda timeout=15.0: GATEWAY_MODELS)
+    # embed_check 的探測呼叫（不發請求）
+    monkeypatch.setattr(ai_service.AIService, "generate_embedding", lambda self, text: list(_vector(text)))
     return calls, missing
 
 
@@ -326,6 +328,23 @@ def test_model_check_reports_models_missing_from_the_gateway(sources, store, mon
     assert result["state"] == "done" and result["written"] == 4
     assert result["model_check"] == {"checked": True,
                                      "missing": [settings.CGU_MODEL, settings.CGU_FALLBACK_MODEL]}
+
+
+def test_embed_check_reports_a_failing_embedding(sources, store, monkeypatch):
+    assert sync.run_sync("recent", store)["embed_check"] == {"ok": True, "error": None}
+
+    def unauthorized(self, text):
+        monkeypatch.setitem(ai_service._EMBED_STATUS, "ok", False)
+        monkeypatch.setitem(ai_service._EMBED_STATUS, "error", "HTTP 401")
+        return []
+
+    monkeypatch.setattr(ai_service.AIService, "generate_embedding", unauthorized)
+    monkeypatch.setattr(settings, "EMBED_API_KEY", "dummy-key")
+    result = sync.run_sync("recent", store)
+
+    # 同步照做（寫入用的是 embed_batch），但狀態裡記下網站算不出向量；workflow 看到就變紅
+    assert result["state"] == "done"
+    assert result["embed_check"] == {"ok": False, "error": "HTTP 401"}
 
 
 def test_model_check_is_skipped_when_the_list_cannot_be_read(sources, store, monkeypatch):

@@ -144,6 +144,7 @@ AI-Fake-News-Verification-System/
 ├── video/hf-presentation/       ← 5 分鐘開箱簡報影片原始碼（presentation_v1.3）
 ├── video/hf-demo/               ← 舊版 demo 影片原始碼（v0.4.0）
 ├── assets/                      ← PlantUML 圖、confusion_matrix.png、期末專題文件/（OOSE 文件）
+├── graphify-out/                ← code/ 的程式碼關係圖（GRAPH_REPORT.md 與 graph.json，graphify 產生）
 └── legacy/                      ← 已封存、不再維護的舊版單檔查核儀
 ```
 
@@ -177,7 +178,7 @@ AI-Fake-News-Verification-System/
 
 | 項目 | 數量 | 怎麼跑 |
 |------|------|--------|
-| 後端 pytest | 891 個通過；另有 34 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
+| 後端 pytest | 929 個通過；另有 34 個 Postgres 契約測試預設略過（需要 `RUN_PG_TESTS=1` 與 `SUPABASE_DB_URL`） | 在 `code\backend` 執行 `.\venv\Scripts\python -m pytest tests -q` |
 | 前端單元測試 | 409 個通過 | 在 `code\frontend` 執行 `npm run test:unit` |
 
 - 兩邊的測試都離線執行，不呼叫 AI、不花額度。

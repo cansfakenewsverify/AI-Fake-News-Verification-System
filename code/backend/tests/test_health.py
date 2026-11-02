@@ -13,7 +13,7 @@ from app.config import settings
 from app.main import APP_VERSION, app
 from app.services.ai_service import AIService
 
-HEALTH_KEYS = {"status", "ai_available", "threads_mode", "scheduler", "daily_ai_calls", "storage_backend"}
+HEALTH_KEYS = {"status", "ai_available", "embedding", "threads_mode", "scheduler", "daily_ai_calls", "storage_backend"}
 _LOOPBACK = ("127.0.0.1", "::1", "localhost")
 
 
@@ -125,6 +125,24 @@ def test_api_health_alias_same_payload(client, monkeypatch, base_settings, enabl
     assert plain.status_code == alias.status_code == 200
     assert alias.json() == plain.json()
     assert set(alias.json()) == HEALTH_KEYS
+
+
+def test_health_embedding_shows_the_last_call(client, monkeypatch, base_settings):
+    """/health 的 embedding = 最近一次實際呼叫的結果（2026-10-28 EMBED_API_KEY 失效時只看得到金鑰「有設」）。"""
+    import app.services.ai_service as ai_service
+
+    monkeypatch.setattr(settings, "EMBED_RELAY_URL", "https://example.invalid/v1")
+    monkeypatch.setattr(settings, "EMBED_API_KEY", "dummy-key")
+    monkeypatch.setattr(ai_service, "_EMBED_STATUS", {"ok": None, "checked_at": None, "error": None})
+    assert client.get("/health").json()["embedding"] == {"ok": None, "checked_at": None, "error": None}
+
+    monkeypatch.setattr(ai_service, "_EMBED_STATUS",
+                        {"ok": False, "checked_at": "2026-10-28T15:35:10+00:00", "error": "HTTP 401"})
+    assert client.get("/api/health").json()["embedding"]["error"] == "HTTP 401"
+
+    monkeypatch.setattr(settings, "EMBED_API_KEY", "")
+    monkeypatch.setattr(settings, "CGU_API_KEY", "")
+    assert client.get("/health").json()["embedding"] == {"ok": False, "checked_at": None, "error": "not_configured"}
 
 
 def test_health_no_network(client, base_settings, network_calls):

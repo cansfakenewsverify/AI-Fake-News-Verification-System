@@ -177,6 +177,8 @@ class ThreadsClient(Protocol):
 
     def get_post(self, media_id: str) -> Dict[str, Any]: ...
 
+    def get_quoted_post_id(self, media_id: str) -> Optional[str]: ...
+
     def reply_to(self, media_id: str, text: str) -> Optional[str]: ...
 
     def publish_text(self, text: str) -> Optional[str]: ...
@@ -549,6 +551,16 @@ class ThreadsService(TwoStepPublishing):
     def get_post(self, media_id: str) -> Dict[str, Any]:
         """抓單則貼文內容（用來取得「被查核的原貼文」文字）。"""
         return self._get(media_id, fields="id,text,username,permalink,media_type")
+
+    def get_quoted_post_id(self, media_id: str) -> Optional[str]:
+        """這則貼文若是「引用貼文」，回傳被引用貼文的 id，否則 None。
+        另開一次查詢、不併進 get_post 的欄位：萬一開發模式不給 quoted_post 欄位（像 replied_to 會回 500），
+        不會連帶讓原本讀得到的貼文也讀不到。官方文件：quoted_post 只出現在引用貼文上，值是被引用貼文的 media id。"""
+        node = self._get(media_id, fields="id,quoted_post")
+        quoted = node.get("quoted_post")
+        if isinstance(quoted, dict):
+            quoted = quoted.get("id")
+        return str(quoted) if quoted not in (None, "") else None
 
     def get_publishing_limit(self) -> Dict[str, Any]:
         """回覆配額（spec 7.10 護欄）：reply_quota_usage 與 reply_config。"""
