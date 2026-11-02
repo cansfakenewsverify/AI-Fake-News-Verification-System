@@ -2973,3 +2973,58 @@ flowchart LR
 - 驗收：pytest 933；負責人執行一次後 `/api/health` 的 embedding 回 `ok: true`、`factcheck-sync` 轉綠
 - 狀態：程式完成（2026-11-02，研究分支）；待負責人執行、待決定是否推上 main（`render.yaml` 與 workflow 的改動要在 main 才生效）
 
+## 14. 2026-11-03 新增票（學校關閉 embedding 後的改進，之後做）
+
+學校因資安考量關閉 API 與外部模型，閘道 `/embeddings` 回 404，模型清單沒有 embedding，語意比對不會自己恢復（測試計畫書 DEF-13，
+`docs/test/results/embedding_closed_2026-11-03.md`）。負責人 2026-11-03 決定：週三（11-04）簡報前只把這件事照實寫進測試文件，下面的票簡報後再做。
+
+### B-48 語意比對停用時的備援比對（不靠 embedding）
+- 優先級：P0
+- 對應：DEF-13；負責人 2026-11-03 選這個方案，並要求**不要刪掉 embedding**
+- 範圍：只在 `generate_embedding` 回空陣列時才走備援：AI 從訊息抽 3～5 個關鍵字 → 以知識庫字面搜尋（`list_verified` 的 `q`）取候選 →
+  AI 判斷候選是不是同一則主張 → 是就回該列與它的查核來源，不是就照舊由 AI 判讀。`generate_embedding`、向量層、`find_similar_by_vector`
+  都不動，embedding 恢復後自動走原路。多出來的 AI 呼叫走 `_call_ai_within_budget`，計入每日上限
+- 驗收：離線測試涵蓋 embedding 失敗時命中、沒有候選、AI 判斷不是同一則、embedding 正常時完全不呼叫備援；`pytest` 全過；
+  以 PF-2 的 20 句題組量命中率並照實記錄，不為了過關調門檻；記下每次查證多花的 AI 費用；
+  正式站改寫句（冷水煮蛋）查到查核中心報告
+- 狀態：未開始。動到正式站程式，上線要負責人說「推」
+
+### B-49 查核同步在 embedding 失效時仍能寫入
+- 優先級：P0
+- 對應：DEF-13、OP-11：`factcheck-sync` 2026-10-31 17:13 UTC 起連續失敗，因為算不出向量整輪就失敗，新查核進不了知識庫
+  （查核中心的[豬肉報告](https://tfc-taiwan.org.tw/fact-check-reports/ai-generated-image-frozen-pork-not-looted-during-france-riots/)就不在知識庫）
+- 範圍：算不出向量時仍寫入已證實列（`content_vector` 留空），這類列可被 hash 層與 B-48 命中；embedding 恢復後用 `scripts/reembed_vectors.py` 補算；
+  `factcheck-sync.yml` 分清楚「已寫入、向量待補」和真的失敗
+- 依賴：B-48
+- 驗收：離線測試；會寫正式資料庫，先 dry-run 並經負責人同意；同步一次後豬肉報告出現在 `GET /api/knowledge`，知識庫筆數不減少；
+  OP-11 最近 30 次成功率回到 90% 以上
+- 狀態：未開始
+
+### B-50 DEF-11：命中未證實列時不要重新算 embedding
+- 優先級：P1
+- 對應：DEF-11、PF-7（未證實列 p50 14.28 s，準則 5 s）：Postgres 版讀取時不載入 `content_vector`（`_KB_READ_COLUMNS`），
+  `pandas_task_processor._row_vector` 每次都重新呼叫 embedding
+- 範圍：回補與證據重新比對時讀資料庫存的向量；需要時才載入，不要讓所有查詢都多讀 1536 維
+- 驗收：`pytest` 全過；重測 PF-7，兩類 p50 都 ≤ 5 s，並回填測試計畫書 6.10
+- 狀態：未開始
+
+### O-38 決定 embedding 的長期來源
+- 優先級：P1
+- 對應：DEF-13；B-48 是備援，比對效果預期不如語意比對，長期仍要決定向量從哪裡來
+- 範圍：先問學校會不會提供 embedding（公告只開放 Codex 與本地模型）；不會的話比較兩個做法：
+  1. `EMBED_RELAY_URL`、`EMBED_API_KEY` 改接 OpenAI 的同一個 `text-embedding-3-small`：預期不用重算 18,806 筆，也不用改程式，要實際驗證；負責人要自己申請金鑰與付費；
+  2. 改用其他模型：向量維度可能不同，全部要重算。
+  選定後要一起改：`AGENTS.md`「CGU 是唯一的 AI」、`scripts/rotate_cgu_key.py`（目前會清空 `EMBED_API_KEY`）、`scripts/cgu_diagnose.py` 對 404 的提示（目前寫「閘道沒有這個模型」，這次其實是整條路徑被關）
+- 狀態：待負責人決定。負責人 2026-11-03 先選 B-48
+
+### O-39 補完第二次簡報留下的測試與真畫面
+- 優先級：P1
+- 對應：測試計畫書 v2.1 6.10 整體判定未達成（P0 3／4、P1 8／12）；項目見 `docs/test/TP-FNV-2026-01_v2.1_報告版.md`
+- 範圍：
+  - OP-10、UX-2：B-48、B-49 完成後，到正式站查證情境劇兩則訊息，並錄 Threads 回覆（T1），同時換掉情境劇的 Threads 示意畫面；
+  - UX-1：5～8 位非組員實測（`docs/test/第三方實測_說明.md`，石岱勳主持、姚睿記錄）；
+  - UI-1、UI-6：深色全套截圖、非實作組員勾核、英文字允許清單；
+  - 審查者裁定 QA-1b 的準則與 DEF-08；處理 DEF-03、DEF-04；
+  - 情境劇的段落卡「家族群組的煮蛋小知識」和實拍台詞「網路上說」要不要統一。
+- 驗收：結果回填測試計畫書與短版報告書，重出兩份 PDF
+- 狀態：未開始

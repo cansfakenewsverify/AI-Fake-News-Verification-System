@@ -32,7 +32,7 @@
   開頭與收尾（4 個鏡頭 S02／S03、S10／S10b；11-02 拿掉貼網址那段）；講解是動畫＋旁白（預設 AI 語音）；網站畫面由
   `video/hf-scenario/tools/capture.mjs` 到正式站自動錄。情境一貼文字＝冷水煮蛋、情境二 Threads＝法國暴動「唯獨豬肉沒人搶」的 AI 圖（用 Threads 上真的在流傳的那則貼文，負責人在底下貼上原文＋@機器人錄 T1；兩則都是台灣事實查核中心查過的謠言，命中要靠語意比對，錄之前先試查；豬肉那段台詞刻意不說好笑、不提宗教），每段都是負責人（A）與同學（B）一問一答。4 個鏡頭 2026-11-02 拍好（轉成 H.264 放在 `video/hf-scenario/assets/live/`，進 git），分鏡（`data/storyboard.json`）已照新劇本改好
   （28 個鏡頭約 3 分半，2026-11-03 拿掉片名卡與「本片情節虛構」說明卡、字幕照實拍實際說的話改；網站錄影還沒錄的步驟顯示「網站畫面待補」替身卡；旁白定案 AI 語音）。出片指令在 `presentations/2026-11_第二次簡報/04_出片步驟.md`；
-  **2026-11-03 查明學校因資安考量關閉 API 與外部模型，不是維修**：閘道 `/embeddings` 回 404「目前的上游模式（codex）不支援」，模型清單沒有 embedding，語意比對不會自己恢復。負責人決定改接 OpenAI 的同一個 `text-embedding-3-small`（還沒接好），煮蛋的網站畫面 `site_egg` 與 Threads 錄螢幕 T1 等接好再錄。
+  **2026-11-03 查明學校因資安考量關閉 API 與外部模型，不是維修**：閘道 `/embeddings` 回 404「目前的上游模式（codex）不支援」，模型清單沒有 embedding，語意比對不會自己恢復。負責人決定先在測試文件記明（DEF-13），簡報後開發不靠 embedding 的備援比對，原有 embedding 程式保留（票 B-48、B-49；embedding 長期來源見 O-38）。煮蛋的網站畫面 `site_egg` 已改貼知識庫原文錄好（hash 命中，`video/hf-scenario/raw/site_egg_text.txt` 不進 git）；Threads 錄螢幕 T1 等語意比對有替代做法再錄。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
   測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.1 完整版**，2026-11-03 回填，6.10 整體判定未達成、DEF-13 語意比對停用；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
   **3.6 與 6.10 為第二次簡報輪次**，附錄 A 為需求追溯矩陣；PDF 以 `node presentations/tools/build_testplan_pdf.mjs --full` 產生）。
