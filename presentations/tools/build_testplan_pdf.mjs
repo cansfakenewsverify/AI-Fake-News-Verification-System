@@ -108,7 +108,7 @@ const md = fs.readFileSync(SRC, "utf8");
 const body = classifyTables(marked.parse(md, { gfm: true }));
 const html = `<!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><title>${REPORT ? "測試報告書 v2.1" : FULL ? "測試計畫書（完整版 v2.1）" : "測試計畫書（精簡版）"} TP-FNV-2026-01</title>
-<style>${CSS}${FULL ? FULL_CSS : ""}</style></head><body>
+<style>${CSS}${FULL ? FULL_CSS : ""}${REPORT ? "h2 { break-before: auto; margin-top: 5mm; }" : ""}</style></head><body>
 ${body}
 </body></html>`;
 
