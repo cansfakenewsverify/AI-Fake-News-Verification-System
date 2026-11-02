@@ -1,7 +1,7 @@
 // Builds the scenario film 《轉傳之前》 from data/storyboard.json.
 //
 // Usage (from video/hf-scenario):  node tools/build.mjs
-// Reads:  data/storyboard.json   the shot list (presentations/2026-11_第二次簡報/01_情境劇劇本.md on a time line)
+// Reads:  data/storyboard.json   the shot list (presentations/2026-11_第二次簡報/01_真人劇本.md on a time line)
 //         data/lines.json        length of every AI voice clip (tools/tts.py)
 //         data/mixkit_lengths.json  music and sound effects from Mixkit (tools/mixkit.py)
 //         data/sfx_lengths.json  the synthesised phone buzz (tools/sfx.py)

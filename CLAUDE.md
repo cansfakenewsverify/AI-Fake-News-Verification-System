@@ -26,19 +26,14 @@
   規格 `docs/demo/presentation_video_brief.md`，製作紀錄 `docs/demo/footage_log.md`）。
   舊的 demo 影片 v0.4.0：<https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4>（`video/hf-demo/`）。
 - **第二次簡報（2026-11-02～11-04；平均及格才能參加 12-03 期末成果展）**：老師要「使用情境文」——5 分鐘內的情境劇影片，
-  加完整且詳盡的測試計畫書。資料在 `presentations/2026-11_第二次簡報/`（劇本、配音稿、時程、分工；先看 README）。
-  情境劇《轉傳之前》是「講解為主＋短劇」；**2026-10-30 起不拍真人**（組員無法拍攝）：旁白全部是負責人用手機錄的 V1～V4
-  （配音稿 `04_配音稿.md` 由 `video/hf-scenario/tools/rec_sheet.mjs` 從分鏡產生），講解改成大標題＋重點的講解畫面，短劇改成
-  手機畫面旁的角色頭像與情緒，阿嬤、爸爸、網友的台詞用 AI 語音（片頭片尾寫明）。影片專案在 `video/hf-scenario/`：
-  由 `data/storyboard.json` 產生，錄音放進 `raw/` 就換掉 AI 旁白；2026-10-30 新版預覽片 4 分 20 秒，待負責人錄音。
-  **2026-11-01 定案：真人只演三段情境（貼文字＝停水訊息、貼網址＝網址待負責人找、Threads＝香蕉補鈣）**，每段 1～2 人演自己、
-  不扮演角色、不拍主持人；要演的部分在 `presentations/2026-11_第二次簡報/05_真人拍攝劇本.md`（七個鏡頭 S02／S03、S06／S08a／S08b、
-  S10／S10b，放進 `raw/`）。講解仍是動畫講解畫面＋負責人旁白；情境二改成貼網址：台詞不提網址內容、收尾拍紅燈與黃燈兩個版本，
-  網址要負責人找一個轉傳某說法的網頁並在正式站試查（「出國換 SIM 卡」搜不到轉傳的網頁），分鏡與配音稿再照結果改。
-  **2026-11-02 再改成 AI 短劇（不拍真人）**：劇本 `presentations/2026-11_第二次簡報/06_AI短劇劇本.md`（貼文字＝萬聖節糖果藏針、貼網址、
-  Threads＝煮蛋冷水下鍋；兩則都是台灣事實查核中心 2026-10 的查核、已同步進知識庫，貼網傳原文會直接命中；原文待負責人從查核報告複製），
-  角色不取名、台詞 AI 語音；情境二的旁白不講燈號顏色，用哪個讀得到的網址都能用。正式站讀不到自由時報（「網頁無法存取」，
-  連 `/amp` 拿掉也一樣），網址錄螢幕 R2 要用讀得到的網站；待負責人錄 R2、T1 並決定旁白是誰的聲音，之後改 storyboard.json。
+  加完整且詳盡的測試計畫書。資料在 `presentations/2026-11_第二次簡報/`（先看 README）。情境劇《轉傳之前》改過幾版
+  （10-30 不拍真人、11-01 真人演情境、11-02 上午 AI 短劇），**2026-11-02 定案改回真人，舊劇本、拍攝清單、配音稿全部刪除**
+  （在 git 歷史），唯一的劇本是 `presentations/2026-11_第二次簡報/01_真人劇本.md`：真人演自己、不拍主持人，只演三段情境的
+  開頭與收尾（7 個鏡頭 S02／S03、S06／S08a／S08b、S10／S10b）；講解是動畫＋旁白（預設 AI 語音）；網站畫面由
+  `video/hf-scenario/tools/capture.mjs` 到正式站自動錄。情境一貼文字＝萬聖節糖果藏針、情境三 Threads＝冷水煮蛋（台灣事實查核中心
+  2026-10 判定錯誤的兩支影片謠言；轉傳文字是照影片字幕寫的，知識庫存的是查核中心的謠言原文，命中要靠語意比對，錄之前先試查），
+  情境二貼網址（待負責人找讀得到的網址；正式站讀不到自由時報）。影片專案 `video/hf-scenario/` 的分鏡（`data/storyboard.json`）
+  還是 10-30 的版本，等演員的鏡頭（`raw/`）與 Threads 錄螢幕 T1 到了再改。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
   測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.0 完整版**；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
   **3.6 與 6.10 為第二次簡報輪次**，附錄 A 為需求追溯矩陣；PDF 以 `node presentations/tools/build_testplan_pdf.mjs --full` 產生）。
@@ -344,7 +339,7 @@ docs/test/                      測試計畫書 TP-FNV-2026-01.md（v2.0）、re
                                 上線後準確率驗證計畫.md（上線後怎麼量準確率與信心校準）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
 video/hf-demo/                  demo 影片 v0.4.0 的 HyperFrames 專案原始碼（有自己的 CLAUDE.md；只在本機 render）。
-video/hf-scenario/              第二次簡報的情境劇《轉傳之前》（storyboard.json → build.mjs；raw/ 放負責人的旁白錄音 V1～V4 與選做的 Threads 錄影 T1，不進 git；見其 README）。
+video/hf-scenario/              第二次簡報的情境劇《轉傳之前》（storyboard.json → build.mjs；劇本 `presentations/2026-11_第二次簡報/01_真人劇本.md`；raw/ 放演員的 7 個鏡頭、Threads 錄影 T1 與選做的旁白錄音，不進 git；見其 README）。
                                 配樂與音效取自 Mixkit（`tools/mixkit.py` 從使用者層級的 video-shotcraft skill 轉檔；授權不准單獨散布原檔，所以不進 git）
                                 video/ 其餘是未採用的 Remotion 試作，不進 git
 presentations/                  簡報與報告資料；`2026-09_進度報告/` = 這次進度報告的全部檔案（投影片、報告內容說明、demo 影片網址、

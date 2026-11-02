@@ -1,6 +1,7 @@
 // What to record on the live site for the scenario drama (phone width, light theme).
 //
-// The three messages are the ones in presentations/2026-11_第二次簡報/01_情境劇劇本.md, word for word.
+// The three messages are from the 10-30 script (deleted 2026-11-02; see git history). The new script,
+// presentations/2026-11_第二次簡報/01_真人劇本.md, uses other messages; update these when the storyboard is redone.
 // build.mjs cuts every take into the tutorial's steps at the marks below (home, pasted, submitted, ...).
 // All three were checked on the live site on 2026-10-26 and answer from the cache (hash layer), so the
 // takes spend no AI call and the results on screen are the same ones the actors' phones will show.
