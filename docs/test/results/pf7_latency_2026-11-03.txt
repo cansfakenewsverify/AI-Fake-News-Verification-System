@@ -1,0 +1,14 @@
+verified    1.19s  layer=hash
+verified    1.22s  layer=hash
+verified    1.21s  layer=hash
+verified    1.20s  layer=hash
+verified    1.23s  layer=hash
+verified    1.20s  layer=hash
+verified    1.26s  layer=hash
+verified    1.22s  layer=hash
+verified    1.23s  layer=hash
+verified    1.21s  layer=hash
+unverified  18.01s  layer=hash
+unverified  12.09s  layer=hash
+unverified  12.61s  layer=hash
+p50 verified 1.22s max 1.26s (n=10); p50 unverified 12.61s max 18.01s (n=3)
