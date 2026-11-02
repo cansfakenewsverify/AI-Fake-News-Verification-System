@@ -54,6 +54,7 @@ const cases = [
   ["cache url", () => cacheChipKey("url"), "chip_cache_url"],
   ["cache hash", () => cacheChipKey("hash"), "chip_cache_hash"],
   ["cache vector", () => cacheChipKey("vector"), "chip_cache_vector"],
+  ["cache keyword", () => cacheChipKey("keyword"), "chip_cache_keyword"],
   ["cache null -> live", () => cacheChipKey(null), "chip_live"],
   ["label_source ai", () => labelSourceKey("ai"), "label_source_ai"],
   ["label_source admin", () => labelSourceKey("admin"), "label_source_admin"],
@@ -83,7 +84,7 @@ test("verdict: all i18n keys used exist", () => {
   const keys = [
     "chip_pending", "dot_scam", "dot_misinfo", "dot_safe", "frame_red_other", "frame_yellow",
     "frame_yellow_unverifiable", "frame_grey", "chip_live", "chip_cache_url", "chip_cache_hash",
-    "chip_cache_vector", "label_source_ai", "label_source_rule", "label_source_gold",
+    "chip_cache_vector", "chip_cache_keyword", "label_source_ai", "label_source_rule", "label_source_gold",
     "label_source_admin", "tier_1_chip", "tier_2_chip",
     "confidence_chip_high", "confidence_chip_mid", "confidence_chip_low",
   ];

@@ -592,6 +592,62 @@ class PgKnowledgeStore(_PgStoreBase):
             row = conn.execute(statement, params).mappings().first()
         return _kb_row(row) if row is not None else None
 
+    def keyword_candidates(
+        self, keywords: Iterable[str], min_hits: int = 2, limit: int = 8,
+        label_sources: Optional[Iterable[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        語意比對的備援（票 B-48）：已證實列中內容或摘要對上最多關鍵字的前 limit 筆，至少對上 min_hits 個。
+        只讀、不更新 hit_count，與本機版相同。
+        """
+        words = [str(k).strip() for k in keywords if str(k).strip()]
+        if not words:
+            return []
+        hits = " + ".join(
+            f"(CASE WHEN raw_content ILIKE :k{i} ESCAPE '\\' OR summary ILIKE :k{i} ESCAPE '\\' THEN 1 ELSE 0 END)"
+            for i in range(len(words))
+        )
+        label_filter = "" if label_sources is None else " AND label_source = ANY(:labels)"
+        statement = text(
+            f"SELECT * FROM (SELECT {_KB_READ_SQL}, {hits} AS keyword_hits FROM knowledge_base"
+            f" WHERE verified{label_filter}) AS scored"
+            " WHERE keyword_hits >= :min_hits"
+            " ORDER BY keyword_hits DESC, created_at DESC NULLS LAST, id ASC LIMIT :limit"
+        )
+        params: Dict[str, Any] = {f"k{i}": f"%{_like_literal(w)}%" for i, w in enumerate(words)}
+        params.update(min_hits=int(min_hits), limit=int(limit))
+        if label_sources is not None:
+            params["labels"] = [str(label) for label in label_sources]
+        with self._connect() as conn:
+            rows = conn.execute(statement, params).mappings().all()
+        return [_kb_row(row) for row in rows]
+
+    def stored_vector(self, row_id: str) -> Optional[List[float]]:
+        """這一列存著的向量（find_* 不載入向量）；沒有就回 None。不呼叫 embedding（DEF-11，票 B-50）。"""
+        statement = text("SELECT CAST(content_vector AS text) FROM knowledge_base WHERE id = :id")
+        with self._connect() as conn:
+            value = conn.execute(statement, {"id": str(row_id)}).scalar()
+        return json.loads(value) if isinstance(value, str) else None
+
+    def rows_missing_vector(self, origin: str, limit: int = 500) -> List[Dict[str, Any]]:
+        """embedding 停用期間寫入、還沒有向量的列（票 B-49）：[{id, raw_content}]，先寫入的在前。"""
+        statement = text(
+            "SELECT id, raw_content FROM knowledge_base"
+            " WHERE verified AND origin = :origin AND content_vector IS NULL ORDER BY seq LIMIT :limit"
+        )
+        with self._connect() as conn:
+            return [dict(r) for r in conn.execute(statement, {"origin": origin, "limit": int(limit)}).mappings().all()]
+
+    def set_vectors(self, vectors: Dict[str, Iterable[float]]) -> int:
+        """補上向量（票 B-49）：{id: 向量}，回傳更新筆數。"""
+        params = [{"id": str(k), "v": vector_literal(v)} for k, v in vectors.items()]
+        if not params:
+            return 0
+        statement = text("UPDATE knowledge_base SET content_vector = CAST(:v AS vector) WHERE id = :id")
+        with self._connect() as conn:
+            conn.execute(statement, params)
+        return len(params)
+
     def nearest_verified(
         self,
         query_vector: List[float],

@@ -563,6 +563,30 @@ class AIService:
         # 圖片分析不開 web_search（穩定優先）
         return self._run_analysis(full_prompt, image={"b64": b64, "mime": mime}, use_web_search=False)
 
+    # ── 對外：判讀以外的小任務（語意比對備援，票 B-48）──────
+    def complete_json(self, prompt_text: str, max_output_tokens: int = 800) -> Optional[Dict[str, Any]]:
+        """
+        送一段提示、回一個 JSON 物件；不套判讀的系統提示，也不驗判讀欄位。
+        只走 CGU（AGENTS.md：學校閘道是唯一的 AI）。任何失敗都回 None，呼叫端照舊走 AI 判讀。
+        """
+        if not (self.cgu_base and self.cgu_key):
+            return None
+        body = {
+            "model": self.cgu_model,
+            "input": prompt_text,
+            "max_output_tokens": max_output_tokens,
+            "reasoning": {"effort": "low"},
+        }
+        headers = {"Authorization": f"Bearer {self.cgu_key}", "Content-Type": "application/json"}
+        try:
+            r = requests.post(f"{self.cgu_base}/responses", headers=headers, json=body, timeout=_request_timeout())
+            r.raise_for_status()
+            parsed = self._parse_json_loose(self._openai_output_text(r.json()))
+        except Exception as e:
+            print(f"[AI] complete_json failed: {type(e).__name__}")
+            return None
+        return parsed if isinstance(parsed, dict) else None
+
     # ── 對外：Embedding（CGU LLM Gateway）────────
     def generate_embedding(self, text: str) -> List[float]:
         """

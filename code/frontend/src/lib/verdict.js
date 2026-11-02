@@ -75,7 +75,7 @@ export function canShare(res) {
 
 /** cache_layer → i18n key。 */
 export function cacheChipKey(cache_layer) {
-  return ["url", "hash", "vector"].includes(cache_layer) ? `chip_cache_${cache_layer}` : "chip_live";
+  return ["url", "hash", "vector", "keyword"].includes(cache_layer) ? `chip_cache_${cache_layer}` : "chip_live";
 }
 
 /** confidence_level（後端 高／中／低，spec §5.3）→ confidence_chip_* key；缺值或未知回 null（不渲染信心 chip）。 */

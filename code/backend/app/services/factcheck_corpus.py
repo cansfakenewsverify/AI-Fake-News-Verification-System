@@ -331,7 +331,8 @@ def kb_item(row: Dict[str, Any], vector: Iterable[float], now) -> Dict[str, Any]
             explanation = f"Cofacts 查核回應判定此訊息含有不實資訊：「{str(row['extra'])[:200]}」詳見下方查核來源。"
     return {
         "data_type": "TEXT", "raw_content": text, "content_hash": row["content_hash"],
-        "content_vector": [float(x) for x in vector],
+        # vector=None：embedding 停用時先寫入，之後的同步再補向量（票 B-49）
+        "content_vector": None if vector is None else [float(x) for x in vector],
         "ai_result": {"is_risk": True, "risk_type": row["label"], "category": category, "confidence_score": 0.95,
                       "summary": summary, "explanation": explanation, "sources": [source]},
         "source_url": row["url"], "label_source": "rule", "origin": ORIGIN, "now": now,

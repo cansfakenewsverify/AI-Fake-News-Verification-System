@@ -256,7 +256,7 @@ class AnalysisResult(BaseModel):
     explanation: str
     sources: list
     cached: bool | None = None                # 是否命中快取（未呼叫 AI）
-    cache_layer: str | None = None            # 命中哪一層：url / hash / vector
+    cache_layer: str | None = None            # 命中哪一層：url / hash / vector / keyword
     # ── v2 欄位（spec §5.4）──
     # 必填、非 null：處理器任何路徑漏填都會在 response_model 驗證時被抓到
     result_id: str
