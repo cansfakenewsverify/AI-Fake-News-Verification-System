@@ -333,7 +333,7 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
-docs/test/                      測試計畫書 TP-FNV-2026-01.md（v2.1）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
+docs/test/                      測試計畫書 TP-FNV-2026-01.md（v2.1）、短版測試報告書 TP-FNV-2026-01_v2.1_報告版.md（改了結果兩份一起改）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
                                 pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）、
                                 上線後準確率驗證計畫.md（上線後怎麼量準確率與信心校準）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
