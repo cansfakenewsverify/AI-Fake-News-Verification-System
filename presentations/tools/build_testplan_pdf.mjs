@@ -2,7 +2,7 @@
 //   default  docs/test/TP-FNV-2026-01_精簡版.md
 //              → presentations/2026-09_進度報告/04_測試計畫書_TP-FNV-2026-01_v1.6_精簡版.pdf
 //   --full   docs/test/TP-FNV-2026-01.md（完整版，第二次簡報要交的版本）
-//              → presentations/2026-11_第二次簡報/03_測試計畫書_TP-FNV-2026-01_v2.0_完整版.pdf
+//              → presentations/2026-11_第二次簡報/03_測試計畫書_TP-FNV-2026-01_v2.1_完整版.pdf
 //
 // Usage (from the repo root):
 //   npm install --prefix "%TEMP%\fnv-md" marked@15      (once; kept out of the repo, like pptxgenjs)
@@ -19,13 +19,19 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+// --report: the short test report (docs/test/TP-FNV-2026-01_v2.1_報告版.md) for the second presentation.
+const REPORT = process.argv.includes("--report");
 const FULL = process.argv.includes("--full");
-const SRC = FULL
-  ? path.join(REPO, "docs", "test", "TP-FNV-2026-01.md")
-  : path.join(REPO, "docs", "test", "TP-FNV-2026-01_精簡版.md");
-const OUT = FULL
-  ? path.join(REPO, "presentations", "2026-11_第二次簡報", "03_測試計畫書_TP-FNV-2026-01_v2.0_完整版.pdf")
-  : path.join(REPO, "presentations", "2026-09_進度報告", "04_測試計畫書_TP-FNV-2026-01_v1.6_精簡版.pdf");
+const SRC = REPORT
+  ? path.join(REPO, "docs", "test", "TP-FNV-2026-01_v2.1_報告版.md")
+  : FULL
+    ? path.join(REPO, "docs", "test", "TP-FNV-2026-01.md")
+    : path.join(REPO, "docs", "test", "TP-FNV-2026-01_精簡版.md");
+const OUT = REPORT
+  ? path.join(REPO, "presentations", "2026-11_第二次簡報", "03_測試報告書_TP-FNV-2026-01_v2.1.pdf")
+  : FULL
+    ? path.join(REPO, "presentations", "2026-11_第二次簡報", "03_測試計畫書_TP-FNV-2026-01_v2.1_完整版.pdf")
+    : path.join(REPO, "presentations", "2026-09_進度報告", "04_測試計畫書_TP-FNV-2026-01_v1.6_精簡版.pdf");
 const MAX_PAGES = FULL ? 120 : 15;
 
 const markedPath = path.join(os.tmpdir(), "fnv-md", "node_modules", "marked", "lib", "marked.esm.js");
@@ -101,12 +107,12 @@ const FULL_CSS = `
 const md = fs.readFileSync(SRC, "utf8");
 const body = classifyTables(marked.parse(md, { gfm: true }));
 const html = `<!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><title>${FULL ? "測試計畫書（完整版 v2.0）" : "測試計畫書（精簡版）"} TP-FNV-2026-01</title>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>${REPORT ? "測試報告書 v2.1" : FULL ? "測試計畫書（完整版 v2.1）" : "測試計畫書（精簡版）"} TP-FNV-2026-01</title>
 <style>${CSS}${FULL ? FULL_CSS : ""}</style></head><body>
 ${body}
 </body></html>`;
 
-const staged = path.join(os.tmpdir(), "fnv-md", FULL ? "testplan_full.html" : "testplan_short.html");
+const staged = path.join(os.tmpdir(), "fnv-md", REPORT ? "testreport.html" : FULL ? "testplan_full.html" : "testplan_short.html");
 fs.writeFileSync(staged, html, "utf8");
 
 const tool = path.join(REPO, "code", "frontend", "tools", "html_to_pdf.mjs");

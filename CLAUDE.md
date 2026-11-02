@@ -36,7 +36,7 @@
   S10／S10b，放進 `raw/`）。講解仍是動畫講解畫面＋負責人旁白；情境二改成貼網址：台詞不提網址內容、收尾拍紅燈與黃燈兩個版本，
   網址要負責人找一個轉傳某說法的網頁並在正式站試查（「出國換 SIM 卡」搜不到轉傳的網頁），分鏡與配音稿再照結果改。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
-  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.0 完整版**；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
+  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.1 完整版**，2026-11-03 回填，6.10 整體判定未達成、DEF-13 語意比對停用：學校因資安考量關閉 API 與外部模型，閘道沒有 embedding；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
   **3.6 與 6.10 為第二次簡報輪次**，附錄 A 為需求追溯矩陣；PDF 以 `node presentations/tools/build_testplan_pdf.mjs --full` 產生）。
 
 ---
@@ -313,7 +313,7 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
-docs/test/                      測試計畫書 TP-FNV-2026-01.md（v2.0）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
+docs/test/                      測試計畫書 TP-FNV-2026-01.md（v2.1）、短版測試報告書 TP-FNV-2026-01_v2.1_報告版.md（改了結果兩份一起改）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
                                 pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）、
                                 上線後準確率驗證計畫.md（上線後怎麼量準確率與信心校準）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git

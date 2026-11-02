@@ -1,0 +1,35 @@
+# QA-7 regression, 2026-11-03, owner's computer
+commit: 8aa2aca on claude/github-project-relevance-gunvht. code/backend/app is identical to origin/main (8b8adcb), which is what production runs.
+
+## pytest tests -q
+tests/test_threads_api.py: 34 warnings
+  C:\Users\user\Desktop\AI-Fake-News-Verification-System\code\backend\venv\Lib\site-packages\starlette\testclient.py:453: DeprecationWarning: You should not use the 'timeout' argument with the TestCli
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+933 passed, 34 skipped, 830 warnings in 60.65s (0:01:00)
+
+## npm run test:unit
+✔ trendingTitle prefers news_title and falls back to ai_summary (0.1294ms)
+ℹ tests 409
+ℹ suites 0
+ℹ pass 409
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 536.0386
+
+## npm run lint
+
+> fake-news-frontend@0.0.0 lint
+> eslint .
+
+lint exit=0
+
+## npm run build
+dist/assets/index-CFEVfY4G.css   14.81 kB │ gzip:   4.20 kB
+dist/assets/index-vo7kQfd9.js   385.15 kB │ gzip: 120.33 kB
+
+[32m✓ built in 1.70s[39m
+build exit=0
