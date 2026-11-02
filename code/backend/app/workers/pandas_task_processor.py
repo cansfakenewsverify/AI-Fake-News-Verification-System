@@ -598,6 +598,23 @@ async def process_analysis_task_async(
             return None
         return None if index is None else candidates[index]
 
+    async def _keyword_supersede(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        查核結果回補的備援：embedding 停用期間存下的未證實結果沒有向量，向量層比對不了，
+        同一句話重查會一直拿到當初「尚無查核機構證實」的舊結果。改用關鍵字比對一次。
+        存著向量的列不走這裡（_newer_factcheck 比得了），所以多花的 AI 只限停用期間存下的列。
+        """
+        if _is_verified_row(row) or not settings.KEYWORD_FALLBACK_ENABLED:
+            return None
+        try:
+            if await _row_vector(row):
+                return None
+        except Exception as e:
+            logger.warning("keyword supersede failed for task %s: %s", task_id, e)
+            return None
+        text = _safe_str(row.get("raw_content"))
+        return await _keyword_fallback(text) if text else None
+
     try:
         is_url = input_data.startswith("http://") or input_data.startswith("https://")
 
@@ -619,6 +636,10 @@ async def process_analysis_task_async(
             newer = await _newer_factcheck(hash_cached)
             if newer is not None:
                 return await _finish_cached(newer, "vector", input_urls)
+            if not is_url:
+                newer = await _keyword_supersede(hash_cached)
+                if newer is not None:
+                    return await _finish_cached(newer, "keyword")
             return await _finish_cached(hash_cached, "hash", input_urls)
 
         # ── 圖片分析路徑（無快取層、不寫知識庫）──────────────────────
