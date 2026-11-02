@@ -1037,3 +1037,49 @@ def test_ai_budget_counts_atomically_on_postgres(pg, monkeypatch):
             "WHERE c.relname = :t AND n.nspname = :s"
         ), {"t": TABLE, "s": pg["schema"]}).one()
     assert in_schema == pg["schema"] and rls is True       # 建在拋棄式 schema、RLS 已啟用
+
+
+def test_keyword_candidates_matches_local_store(kb, tmp_path):
+    """語意比對的備援（票 B-48）：只回已證實、限定 label_source、至少對上 min_hits 個關鍵字，對上多的在前，不更新 hit_count。"""
+    from app.services.pandas_store import PandasStore
+
+    src = [{"title": "MyGoPen", "url": "https://www.mygopen.com/a", "tier": 1}]
+    local = PandasStore(data_dir=str(tmp_path))
+    for store in (kb, local):
+        _save(store, "冷水煮蛋會讓營養流失", vector=_vec(70), ai_result=_ai(src, "MISINFO"), label_source="rule")
+        _save(store, "冷水洗臉有益健康", vector=None, ai_result=_ai(src, "MISINFO"), label_source="rule")
+        _save(store, "冷水煮蛋的 AI 判定列", vector=_vec(71), ai_result=_ai(src, "MISINFO"))
+        _save(store, "冷水煮蛋 100% 流失", vector=_vec(72), ai_result=_ai([{"title": "部落格", "url": "https://blog.example.com/p"}]))
+
+    for store in (kb, local):
+        found = store.keyword_candidates(["冷水", "煮蛋", "營養流失"], 2, 8, ("rule",))
+        assert [row["raw_content"] for row in found] == ["冷水煮蛋會讓營養流失"]
+        assert found[0]["sources"][0]["url"] == src[0]["url"]
+        again = store.keyword_candidates(["冷水", "煮蛋", "營養流失"], 2, 8, ("rule",))
+        assert again[0]["hit_count"] == found[0]["hit_count"], "只讀，不更新 hit_count"
+        found = store.keyword_candidates(["冷水", "健康", "營養"], 1, 8, ("rule",))
+        assert {row["raw_content"] for row in found} == {"冷水煮蛋會讓營養流失", "冷水洗臉有益健康"}
+        assert found[0]["raw_content"] == "冷水洗臉有益健康"
+        assert store.keyword_candidates(["100%", "煮蛋"], 2, 8, ("rule",)) == []
+        assert store.keyword_candidates([], 2, 8, ("rule",)) == []
+
+
+def test_stored_vector_and_backfill_match_local_store(kb, tmp_path):
+    """DEF-11（票 B-50）讀存著的向量；embedding 停用期間寫入的列之後補向量（票 B-49）。"""
+    from app.services.pandas_store import PandasStore
+
+    src = [{"title": "MyGoPen", "url": "https://www.mygopen.com/a", "tier": 1}]
+    local = PandasStore(data_dir=str(tmp_path))
+    for store in (kb, local):
+        has, _ = _save(store, "有向量的查核", vector=_vec(73), ai_result=_ai(src, "MISINFO"), label_source="rule", origin="factcheck_batch")
+        missing, _ = _save(store, "沒向量的查核", vector=None, ai_result=_ai(src, "MISINFO"), label_source="rule", origin="factcheck_batch")
+        _save(store, "別的來源沒向量", vector=None, ai_result=_ai(src, "MISINFO"), label_source="rule")
+        assert store.stored_vector(has["id"]) == pytest.approx(_vec(73), abs=1e-6)
+        assert store.stored_vector(missing["id"]) is None
+        assert store.stored_vector("00000000-0000-0000-0000-000000000000") is None
+        rows = store.rows_missing_vector("factcheck_batch")
+        assert [(r["id"], r["raw_content"]) for r in rows] == [(missing["id"], "沒向量的查核")]
+        assert store.set_vectors({missing["id"]: _vec(74)}) == 1
+        assert store.rows_missing_vector("factcheck_batch") == []
+        assert store.stored_vector(missing["id"]) == pytest.approx(_vec(74), abs=1e-6)
+        assert store.set_vectors({}) == 0

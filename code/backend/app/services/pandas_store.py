@@ -93,6 +93,13 @@ def compute_write_gate(
     return graded, source_tier, bool(verified)
 
 
+def _vector_is_empty(value: Any) -> bool:
+    """None、NaN、空陣列都算沒有向量（Parquet 讀回來的型別不一定）。"""
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return True
+    return len(value) == 0
+
+
 class PandasStore:
     """使用 Pandas + Parquet 檔案儲存假訊息知識庫"""
 
@@ -189,6 +196,72 @@ class PandasStore:
             return df.loc[best_idx].to_dict()
 
         return None
+
+    def keyword_candidates(
+        self, keywords: Iterable[str], min_hits: int = 2, limit: int = 8,
+        label_sources: Optional[Iterable[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        語意比對的備援（票 B-48）：已證實列中內容或摘要對上最多關鍵字的前 limit 筆，至少對上 min_hits 個。
+        字面比對、不分大小寫；只讀、不更新 hit_count。
+        """
+        words = [str(k).strip() for k in keywords if str(k).strip()]
+        df = self._load_knowledge_base()
+        if df.empty or not words:
+            return []
+        df = df[df["verified"]]
+        if label_sources is not None:
+            df = df[df["label_source"].isin([str(label) for label in label_sources])]
+        if df.empty:
+            return []
+        haystack = df["raw_content"].fillna("").astype(str) + "\n" + df["summary"].fillna("").astype(str)
+        hits = pd.Series(0, index=df.index)
+        for word in words:
+            hits += haystack.str.contains(word, case=False, regex=False, na=False).astype(int)
+        df = df.assign(_hits=hits)
+        df = df[df["_hits"] >= int(min_hits)]
+        df = newest_first(df).sort_values("_hits", ascending=False, kind="stable").head(int(limit))
+        return [row.drop(labels="_hits").to_dict() for _, row in df.iterrows()]
+
+    def stored_vector(self, row_id: str) -> Optional[List[float]]:
+        """這一列存著的向量；沒有就回 None。不呼叫 embedding（與 Postgres 版同介面，票 B-50）。"""
+        df = self._load_knowledge_base()
+        if df.empty:
+            return None
+        rows = df[df["id"].astype(str) == str(row_id)]
+        if rows.empty or _vector_is_empty(rows.iloc[0].get("content_vector")):
+            return None
+        return [float(x) for x in rows.iloc[0]["content_vector"]]
+
+    def rows_missing_vector(self, origin: str, limit: int = 500) -> List[Dict[str, Any]]:
+        """embedding 停用期間寫入、還沒有向量的列（票 B-49）：[{id, raw_content}]，先寫入的在前。"""
+        df = self._load_knowledge_base()
+        if df.empty:
+            return []
+        out: List[Dict[str, Any]] = []
+        for _, row in df[df["verified"] & (df["origin"] == origin)].iterrows():
+            if _vector_is_empty(row.get("content_vector")):
+                out.append({"id": row["id"], "raw_content": row["raw_content"]})
+                if len(out) >= int(limit):
+                    break
+        return out
+
+    def set_vectors(self, vectors: Dict[str, Iterable[float]]) -> int:
+        """補上向量（票 B-49）：{id: 向量}，回傳更新筆數。"""
+        df = self._load_knowledge_base()
+        if df.empty or not vectors:
+            return 0
+        wanted = {str(k): v for k, v in vectors.items()}
+        # Parquet 的同一欄不能混 float32 與 float64，整欄統一
+        column = [None if _vector_is_empty(v) else np.asarray(v, dtype=np.float64) for v in df["content_vector"].tolist()]
+        updated = 0
+        for position, row_id in enumerate(df["id"].astype(str)):
+            if row_id in wanted:
+                column[position] = np.asarray(list(wanted[row_id]), dtype=np.float64)
+                updated += 1
+        df["content_vector"] = pd.Series(column, index=df.index, dtype=object)
+        self._save_knowledge_base(df)
+        return updated
 
     def nearest_verified(
         self,

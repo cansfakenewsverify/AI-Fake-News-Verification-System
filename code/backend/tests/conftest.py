@@ -15,3 +15,5 @@ def _launch_guards_off(monkeypatch):
     monkeypatch.setattr(settings, "RATE_LIMIT_PER_MINUTE", 0)
     monkeypatch.setattr(settings, "RATE_LIMIT_PER_HOUR", 0)
     monkeypatch.setattr(settings, "DAILY_AI_CALL_CAP", 0)
+    # 語意比對的備援會呼叫 AI：只有測它的測試才打開（test_keyword_fallback.py）
+    monkeypatch.setattr(settings, "KEYWORD_FALLBACK_ENABLED", False)

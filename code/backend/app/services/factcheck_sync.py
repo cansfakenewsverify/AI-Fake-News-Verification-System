@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 MODES = ("recent", "full")
 WRITE_CHUNK = 256
+BACKFILL_LIMIT = 500   # 每輪最多補幾筆 embedding 停用期間寫入的列（票 B-49）
 RECENT = {"mygopen_pages": 1, "tfc_report_pages": 1, "tfc_rumor_pages": 3, "cofacts_limit": 300}
 FULL = {"cofacts_limit": 9000}
 COFACTS_MIN_REQUESTS = fc.COFACTS_MIN_REQUESTS
@@ -40,6 +41,7 @@ _lock = threading.Lock()
 STATUS: Dict[str, Any] = {
     "state": "idle", "mode": None, "phase": None, "started_at": None, "finished_at": None,
     "candidates": 0, "already_present": 0, "to_write": 0, "written": 0, "tokens": 0,
+    "written_without_vector": 0, "vectors_backfilled": 0,
     "written_by_source": {}, "skipped": {}, "source_errors": {}, "upgraded_from": None, "model_check": None,
     "embed_check": None, "error": None,
 }
@@ -56,9 +58,8 @@ def model_check() -> Dict[str, Any]:
     models = gateway_models()
     if models is None:
         return {"checked": False, "missing": []}
+    # 只看判讀模型。embedding 能不能用看 embed_check：閘道 2026-11-03 起清單裡沒有 embedding 模型，但判讀仍正常
     wanted = [settings.CGU_MODEL, settings.CGU_FALLBACK_MODEL]
-    if (settings.EMBED_RELAY_URL or "").rstrip("/") == (settings.CGU_BASE_URL or "").rstrip("/"):
-        wanted.append(settings.EMBED_MODEL)
     return {"checked": True, "missing": [m for m in wanted if m and m not in models]}
 
 
@@ -129,6 +130,7 @@ def collect(mode: str) -> Tuple[List[dict], dict, dict]:
 def _reset(mode: str) -> None:
     STATUS.update(state="queued", mode=mode, phase=None, started_at=_now(), finished_at=None,
                   candidates=0, already_present=0, to_write=0, written=0, tokens=0,
+                  written_without_vector=0, vectors_backfilled=0,
                   written_by_source={}, skipped={}, source_errors={}, upgraded_from=None, model_check=None,
                   embed_check=None, error=None)
 
@@ -160,10 +162,26 @@ def run_sync(mode: str = "recent", store: Any = None) -> Dict[str, Any]:
     return _run_locked(mode, store)
 
 
+def _backfill_vectors(store: Any) -> None:
+    """補上 embedding 停用期間寫入的列的向量（票 B-49）。每輪最多 BACKFILL_LIMIT 筆；出錯只記 log，下一輪再補。"""
+    STATUS["phase"] = "backfill"
+    try:
+        rows = store.rows_missing_vector(fc.ORIGIN, BACKFILL_LIMIT)
+        for b in range(0, len(rows), fc.EMBED_BATCH):
+            batch = rows[b:b + fc.EMBED_BATCH]
+            got, used = fc.embed_batch([r["raw_content"] for r in batch])
+            STATUS["tokens"] += used
+            STATUS["vectors_backfilled"] += store.set_vectors(
+                {r["id"]: v for r, v in zip(batch, got) if v is not None})
+    except Exception:
+        logger.exception("vector backfill failed; the next sync retries")
+
+
 def _run_locked(mode: str, store: Any = None) -> Dict[str, Any]:
     """呼叫前必須已持有 _lock；結束時釋放。"""
     try:
         STATUS.update(state="running", phase="model_check", model_check=model_check(), embed_check=embed_check())
+        embedding_works = bool(STATUS["embed_check"].get("ok"))
         STATUS["phase"] = "fetch"
         store = store or get_knowledge_store()
         if mode == "recent" and store.verified_origin_count(fc.ORIGIN) == 0:
@@ -180,6 +198,14 @@ def _run_locked(mode: str, store: Any = None) -> Dict[str, Any]:
         start = datetime.now()
         for offset in range(0, len(todo), WRITE_CHUNK):
             chunk = todo[offset:offset + WRITE_CHUNK]
+            if not embedding_works:
+                # embedding 停用（DEF-13）：先寫入，hash 層與關鍵字比對找得到，向量等恢復後補（票 B-49）
+                STATUS["written"] += store.save_records(
+                    fc.kb_item(r, None, start + timedelta(microseconds=offset + i)) for i, r in enumerate(chunk))
+                STATUS["written_without_vector"] += len(chunk)
+                for r in chunk:
+                    STATUS["written_by_source"][r["source"]] = STATUS["written_by_source"].get(r["source"], 0) + 1
+                continue
             vectors: List[Any] = []
             for b in range(0, len(chunk), fc.EMBED_BATCH):
                 got, used = fc.embed_batch([r["text"] for r in chunk[b:b + fc.EMBED_BATCH]])
@@ -190,6 +216,8 @@ def _run_locked(mode: str, store: Any = None) -> Dict[str, Any]:
                 fc.kb_item(r, v, start + timedelta(microseconds=n)) for n, r, v in pairs)
             for _, r, _ in pairs:
                 STATUS["written_by_source"][r["source"]] = STATUS["written_by_source"].get(r["source"], 0) + 1
+        if embedding_works:
+            _backfill_vectors(store)
         STATUS.update(state="done", phase=None, finished_at=_now())
         logger.info("fact-check sync %s done: %d candidates, %d written, %d tokens",
                     mode, STATUS["candidates"], STATUS["written"], STATUS["tokens"])

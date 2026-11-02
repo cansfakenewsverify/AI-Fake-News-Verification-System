@@ -11,6 +11,8 @@
 # CGU 閘道已經沒有設定的模型（model_check.missing；2026-09-30 閘道無預警下架 gpt-5.4-mini）、
 # 後端算不出 embedding（embed_check.ok=false；2026-10-28 Render 的 EMBED_API_KEY 失效、語意快取停用約 11 小時；
 # 2026-11-01 學校強制重置金鑰後回 403。換金鑰：本機執行 scripts/rotate_cgu_key.py）。
+# 例外：embedding 回 HTTP 404 只標黃色警告。學校 2026-11-03 起關閉 embedding（DEF-13），金鑰沒有問題，
+# 同步照樣把新查核寫進知識庫（沒有向量，恢復後自動補；票 B-49），不該每天寄失敗通知。
 #
 # 需要兩個設定（沒設好時本 workflow 印出說明後正常結束，不會變紅）：
 # - repository variable BACKEND_BASE_URL（keepalive 已在用）
@@ -105,7 +107,7 @@ jobs:
 
           s = json.load(open("status.json"))
           keys = ("state", "mode", "upgraded_from", "candidates", "already_present", "to_write", "written",
-                  "written_by_source", "tokens", "source_errors", "model_check", "embed_check", "error",
+                  "written_by_source", "written_without_vector", "vectors_backfilled", "tokens", "source_errors", "model_check", "embed_check", "error",
                   "started_at", "finished_at")
           print(json.dumps({k: s.get(k) for k in keys}, ensure_ascii=False, indent=2))
           problems = []
@@ -119,7 +121,10 @@ jobs:
                               + ": new AI verdicts on the site will fail. Pick an available model "
                               "(GET {CGU_BASE_URL}/models) and change CGU_MODEL / CGU_FALLBACK_MODEL in render.yaml.")
           embed = s.get("embed_check") or {}
-          if embed.get("ok") is False:
+          if embed.get("ok") is False and embed.get("error") == "HTTP 404":
+              print(f"::warning::The gateway has no embedding (HTTP 404, DEF-13). Wrote {s.get('written_without_vector', 0)} rows "
+                    "without vectors; the keyword fallback and the hash layer can still find them.")
+          elif embed.get("ok") is False:
               problems.append(f"embedding failed on the server ({embed.get('error')}): the semantic cache and evidence "
                               "confidence are off. HTTP 401/403 = the CGU key was reset: copy the new key from the gateway "
                               "page and run scripts/rotate_cgu_key.py on the owner's computer (updates .env and Render).")

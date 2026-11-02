@@ -109,7 +109,7 @@ def store(empty_store):
     """已經同步過一次的知識庫（有一筆 origin=factcheck_batch 列），recent 不會自動改跑 full。"""
     empty_store.save_record(
         data_type="TEXT", raw_content=SEED_TEXT, content_hash=CacheService.generate_hash(SEED_TEXT),
-        content_vector=None, source_url="https://www.mygopen.com/2025/01/seed.html",
+        content_vector=list(_vector(SEED_TEXT)), source_url="https://www.mygopen.com/2025/01/seed.html",
         ai_result={"is_risk": True, "risk_type": "MISINFO", "category": "Test", "confidence_score": 0.95,
                    "summary": "摘要", "explanation": "解釋",
                    "sources": [{"title": "MyGoPen", "url": "https://www.mygopen.com/2025/01/seed.html", "tier": 1}]},
@@ -351,4 +351,51 @@ def test_model_check_is_skipped_when_the_list_cannot_be_read(sources, store, mon
     monkeypatch.setattr(ai_service, "gateway_models", lambda timeout=15.0: None)
     assert sync.run_sync("recent", store)["model_check"] == {"checked": False, "missing": []}
     monkeypatch.setattr(ai_service, "gateway_models", lambda timeout=15.0: GATEWAY_MODELS)
+    assert sync.run_sync("recent", store)["model_check"] == {"checked": True, "missing": []}
+
+
+def _embedding_down(monkeypatch):
+    """embed_check 算不出向量；embed_batch 被呼叫就是錯的（閘道 2026-11-03 起 /embeddings 回 404）。"""
+    def closed(texts):
+        raise AssertionError("embedding 停用時不該呼叫 embed_batch")
+
+    monkeypatch.setattr(fc, "embed_batch", closed)
+    monkeypatch.setattr(ai_service.AIService, "generate_embedding", lambda self, text: [])
+
+
+def test_embedding_down_still_writes_fact_checks_without_vectors(sources, store, monkeypatch):
+    """票 B-49：embedding 停用時新查核照樣寫入，hash 層與關鍵字比對找得到，向量等恢復後補。"""
+    _embedding_down(monkeypatch)
+    before = len(store.get_all_records())
+    result = sync.run_sync("recent", store)
+    assert result["state"] == "done" and result["embed_check"]["ok"] is False
+    assert result["written"] > 0 and result["written_without_vector"] == result["written"]
+    assert len(store.get_all_records()) == before + result["written"]
+    assert len(store.rows_missing_vector(fc.ORIGIN)) == result["written"]
+
+
+def test_vectors_are_backfilled_after_embedding_comes_back(sources, store, monkeypatch):
+    real_embed_batch, real_embedding = fc.embed_batch, ai_service.AIService.generate_embedding
+    _embedding_down(monkeypatch)
+    written = sync.run_sync("recent", store)["written"]
+    assert written > 0
+    monkeypatch.setattr(fc, "embed_batch", real_embed_batch)
+    monkeypatch.setattr(ai_service.AIService, "generate_embedding", real_embedding)
+    result = sync.run_sync("recent", store)
+    assert result["vectors_backfilled"] == written and result["written_without_vector"] == 0
+    assert store.rows_missing_vector(fc.ORIGIN) == []
+
+
+def test_a_failing_backfill_does_not_fail_the_sync(sources, store, monkeypatch):
+    def broken(origin, limit):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(store, "rows_missing_vector", broken)
+    assert sync.run_sync("recent", store)["state"] == "done"
+
+
+def test_model_check_ignores_the_embedding_model(sources, store, monkeypatch):
+    """閘道清單沒有 embedding 模型不算判讀模型下架；embedding 能不能用看 embed_check。"""
+    monkeypatch.setattr(ai_service, "gateway_models",
+                        lambda timeout=15.0: [settings.CGU_MODEL, settings.CGU_FALLBACK_MODEL])
     assert sync.run_sync("recent", store)["model_check"] == {"checked": True, "missing": []}

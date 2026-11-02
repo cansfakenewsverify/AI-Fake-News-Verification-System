@@ -69,6 +69,8 @@ class Settings(BaseSettings):
     # 「同類型但不同支的詐騙」最高 0.68；不同主題 ≤0.52。
     # 0.75 = 噪音帶(≤0.68)之上、改寫帶(≥0.79)之下。換 embedding 模型要重新量測。
     SIMILARITY_THRESHOLD: float = 0.75
+    # embedding 算不出向量時改用關鍵字＋AI 比對查核資料（票 B-48）；出問題時設 false 就回到只有 AI 判讀
+    KEYWORD_FALLBACK_ENABLED: bool = True
     
     # 爬蟲設定
     CRAWLER_TIMEOUT: int = 30

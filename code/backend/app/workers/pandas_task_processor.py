@@ -30,6 +30,7 @@ from app.services.ai_budget import ai_budget
 from app.services.ai_service import AIService, _default_fallback_result
 from app.services.cache_service import CacheService
 from app.services.vector_service import VectorService
+from app.services import keyword_match
 from app.utils.claim_text import matching_text
 from app.utils.labels import category_label
 from app.utils.source_tier import TIER_LABELS, grade_sources, tier_of
@@ -454,7 +455,7 @@ async def process_analysis_task_async(
     非同步處理分析任務。三層快取策略：
       Layer 0: URL 快取（URL 輸入專用）
       Layer 1: Hash 快取（完全重複）
-      Layer 2: 向量快取（語義相似）
+      Layer 2: 向量快取（語義相似）；embedding 算不出向量時改用關鍵字比對（票 B-48）
       Layer 3: AI 分析（全流程）
     """
     started = time.perf_counter()
@@ -510,6 +511,9 @@ async def process_analysis_task_async(
         key = _safe_str(row.get("id")) or str(id(row))
         if key not in row_vectors:
             vector = _stored_vector(row.get("content_vector"))
+            if vector is None and _safe_str(row.get("id")):
+                # Postgres 版讀列時不載入向量：先讀存著的，不要每次重算 embedding（DEF-11，票 B-50）
+                vector = _stored_vector(await asyncio.to_thread(pandas_store.stored_vector, _safe_str(row.get("id"))))
             if vector is None:
                 text = _safe_str(row.get("raw_content"))
                 if text:
@@ -567,6 +571,33 @@ async def process_analysis_task_async(
             return None
         return found if _usable(found) else None
 
+    async def _keyword_fallback(text: str) -> Optional[Dict[str, Any]]:
+        """
+        語意比對的備援（票 B-48，DEF-13）：只在 embedding 算不出向量時呼叫。
+        AI 抽關鍵字 → 字面搜尋查核機構的列 → AI 判斷是不是同一則主張。對上就回那一列；
+        這一步是加分項：沒對上或任何一步出錯都回 None，照舊走 AI 判讀。
+        """
+        if not settings.KEYWORD_FALLBACK_ENABLED:
+            return None
+        try:
+            keywords = keyword_match.parse_keywords(await _call_ai_within_budget(
+                ai_service.complete_json, keyword_match.keywords_prompt(text)))
+            if len(keywords) < keyword_match.MIN_KEYWORD_HITS:
+                return None
+            candidates = await asyncio.to_thread(
+                pandas_store.keyword_candidates, keywords,
+                keyword_match.MIN_KEYWORD_HITS, keyword_match.MAX_CANDIDATES, DETERMINISTIC_LABEL_SOURCES,
+            )
+            candidates = [row for row in candidates if _usable(row)]
+            if not candidates:
+                return None
+            index = keyword_match.parse_match(await _call_ai_within_budget(
+                ai_service.complete_json, keyword_match.match_prompt(text, candidates)), len(candidates))
+        except Exception as e:
+            logger.warning("keyword fallback failed for task %s: %s", task_id, e)
+            return None
+        return None if index is None else candidates[index]
+
     try:
         is_url = input_data.startswith("http://") or input_data.startswith("https://")
 
@@ -617,6 +648,10 @@ async def process_analysis_task_async(
             )
             if _usable(vector_cached):
                 return await _finish_cached(vector_cached, "vector")
+            if not query_vector:
+                keyword_cached = await _keyword_fallback(input_data)
+                if keyword_cached is not None:
+                    return await _finish_cached(keyword_cached, "keyword")
 
         # ── 取得分析內容 ───────────────────────────────────────────────
         # FR-01：文字輸入不爬、不送任何搜尋引擎，分析對象一律是使用者原文。
@@ -648,6 +683,10 @@ async def process_analysis_task_async(
             if _usable(vector_cached):
                 # 輸入網址與轉址後的最終網址都要剔除
                 return await _finish_cached(vector_cached, "vector", (input_data, url))
+            if not content_vector:
+                keyword_cached = await _keyword_fallback(content)
+                if keyword_cached is not None:
+                    return await _finish_cached(keyword_cached, "keyword", (input_data, url))
         else:
             # 文字輸入沿用上面的查詢向量（已比對過、未命中），存檔用
             content_vector = query_vector

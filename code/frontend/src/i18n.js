@@ -44,6 +44,7 @@ export const STRINGS = {
   chip_cache_url: "快取命中・相同網址",
   chip_cache_hash: "快取命中・相同內容",
   chip_cache_vector: "快取命中・語意相似",
+  chip_cache_keyword: "快取命中・關鍵字比對",
   cache_hint: "這筆內容先前已查證過，系統直接沿用結果，沒有再次呼叫 AI。",
   frame_red_scam: "詐騙警告",
   frame_red_misinfo: "假訊息",
