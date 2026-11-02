@@ -2973,32 +2973,32 @@ flowchart LR
 - 驗收：pytest 933；負責人執行一次後 `/api/health` 的 embedding 回 `ok: true`、`factcheck-sync` 轉綠
 - 狀態：程式完成（2026-11-02，研究分支）；待負責人執行、待決定是否推上 main（`render.yaml` 與 workflow 的改動要在 main 才生效）
 
-## 14. 2026-11-03 新增票（學校關閉 embedding 後的改進，之後做）
+## 14. 2026-11-03 新增票（學校關閉 embedding 後的改進）
 
 學校因資安考量關閉 API 與外部模型，閘道 `/embeddings` 回 404，模型清單沒有 embedding，語意比對不會自己恢復（測試計畫書 DEF-13，
-`docs/test/results/embedding_closed_2026-11-03.md`）。負責人 2026-11-03 決定：週三（11-04）簡報前只把這件事照實寫進測試文件，下面的票簡報後再做。
+`docs/test/results/embedding_closed_2026-11-03.md`）。負責人 2026-11-03 決定照實寫進測試文件，同日要求開始做票並同意上線。
 
 ### B-48 語意比對停用時的備援比對（不靠 embedding）
 - 優先級：P0
 - 對應：DEF-13；負責人 2026-11-03 選這個方案，並要求**不要刪掉 embedding**
-- 範圍：只在 `generate_embedding` 回空陣列時才走備援：AI 從訊息抽 3～5 個關鍵字 → 以知識庫字面搜尋（`list_verified` 的 `q`）取候選 →
+- 範圍：只在 `generate_embedding` 回空陣列時才走備援：AI 從訊息抽 5～8 個 2～4 字的單詞 → 以知識庫字面搜尋（`list_verified` 的 `q`）取候選 →
   AI 判斷候選是不是同一則主張 → 是就回該列與它的查核來源，不是就照舊由 AI 判讀。`generate_embedding`、向量層、`find_similar_by_vector`
   都不動，embedding 恢復後自動走原路。多出來的 AI 呼叫走 `_call_ai_within_budget`，計入每日上限
 - 驗收：離線測試涵蓋 embedding 失敗時命中、沒有候選、AI 判斷不是同一則、embedding 正常時完全不呼叫備援；`pytest` 全過；
   以 PF-2 的 20 句題組量命中率並照實記錄，不為了過關調門檻；記下每次查證多花的 AI 費用；
   正式站改寫句（冷水煮蛋）查到查核中心報告
-- 狀態：未開始。動到正式站程式，上線要負責人說「推」
+- 狀態：已上線（2026-11-03，負責人說「能推」；commit 7521729）。`keyword_match.py`、`complete_json`、`keyword_candidates`；cache_layer 與 chip 是 keyword。只差換行與空白的文字直接命中已證實列；訊息有「查核中心」「闢謠」這類字不走備援；停用期間存下的無來源結果重查時也改走備援。結果：PF-2 正確 10 句（50%），未達 70%，誤命中見 B-51；每句多 1～2 次 AI，命中也要 11～35 s。`KEYWORD_FALLBACK_ENABLED=false` 可關
 
 ### B-49 查核同步在 embedding 失效時仍能寫入
 - 優先級：P0
 - 對應：DEF-13、OP-11：`factcheck-sync` 2026-10-31 17:13 UTC 起連續失敗，因為算不出向量整輪就失敗，新查核進不了知識庫
   （查核中心的[豬肉報告](https://tfc-taiwan.org.tw/fact-check-reports/ai-generated-image-frozen-pork-not-looted-during-france-riots/)就不在知識庫）
-- 範圍：算不出向量時仍寫入已證實列（`content_vector` 留空），這類列可被 hash 層與 B-48 命中；embedding 恢復後用 `scripts/reembed_vectors.py` 補算；
+- 範圍：算不出向量時仍寫入已證實列（`content_vector` 留空），這類列可被 hash 層與 B-48 命中；embedding 恢復後由下一輪同步自動補算（`rows_missing_vector`、`set_vectors`，每輪最多 500 筆）；
   `factcheck-sync.yml` 分清楚「已寫入、向量待補」和真的失敗
 - 依賴：B-48
 - 驗收：離線測試；會寫正式資料庫，先 dry-run 並經負責人同意；同步一次後豬肉報告出現在 `GET /api/knowledge`，知識庫筆數不減少；
   OP-11 最近 30 次成功率回到 90% 以上
-- 狀態：未開始
+- 狀態：已上線（2026-11-03）。同步成功、寫入 7 筆含豬肉報告，embed 回 404 只標警告（401／403 仍變紅），`model_check` 不再看 embedding 模型。OP-11 還是 25／30，舊失敗約 2 週才移出窗口，到時再判定
 
 ### B-50 DEF-11：命中未證實列時不要重新算 embedding
 - 優先級：P1
@@ -3006,6 +3006,13 @@ flowchart LR
   `pandas_task_processor._row_vector` 每次都重新呼叫 embedding
 - 範圍：回補與證據重新比對時讀資料庫存的向量；需要時才載入，不要讓所有查詢都多讀 1536 維
 - 驗收：`pytest` 全過；重測 PF-7，兩類 p50 都 ≤ 5 s，並回填測試計畫書 6.10
+- 狀態：**未達驗收**。讀存著的向量已上線（`stored_vector`，2026-11-03），但 PF-7 未證實列 p50 只從 14.28 s 降到 12.61 s，所以 DEF-11 的原因不只重算 embedding。下一步量各步驟耗時，先看向量查詢：`knowledge_base` 目前沒有向量索引的 CREATE 語句，要先確認
+
+### B-51 DEF-14：關鍵字比對的誤命中
+- 優先級：P1
+- 對應：DEF-14：PF-2 的 10 筆關鍵字命中有 2 筆錯誤（#13、#20）、2 筆只是相關（#11、#17），都是短句或通用話術；來源規則要求查核來源必須真的針對這則訊息
+- 範圍：先收集誤命中案例當固定題組；試過濾 Cofacts 的聊天紀錄列、要求對上的關鍵字佔比、太短的訊息不走備援，或請 AI 指出候選裡對應的句子。量精準度和命中率的取捨，再決定。同一批要量關鍵字比對與判讀能不能同時跑，縮短未命中的等待（目前 p50 約 27.7 s，超過 PF-1 準則）
+- 驗收：PF-2 題組與 12 句不該命中的訊息都沒有錯誤命中；結果照實回填，不為了過關調門檻
 - 狀態：未開始
 
 ### O-38 決定 embedding 的長期來源
@@ -3021,7 +3028,7 @@ flowchart LR
 - 優先級：P1
 - 對應：測試計畫書 v2.1 6.10 整體判定未達成（P0 3／4、P1 8／12）；項目見 `docs/test/TP-FNV-2026-01_v2.1_報告版.md`
 - 範圍：
-  - OP-10、UX-2：B-48、B-49 完成後，到正式站查證情境劇兩則訊息，並錄 Threads 回覆（T1），同時換掉情境劇的 Threads 示意畫面；
+  - OP-10、UX-2：B-48、B-49 已完成，原文 1、原文 2 在正式站都查得到查核中心報告；還要負責人錄 Threads 回覆（T1），換掉情境劇的 Threads 示意畫面；煮蛋網站段可改回貼原文 1 重錄；
   - UX-1：5～8 位非組員實測（`docs/test/第三方實測_說明.md`，石岱勳主持、姚睿記錄）；
   - UI-1、UI-6：深色全套截圖、非實作組員勾核、英文字允許清單；
   - 審查者裁定 QA-1b 的準則與 DEF-08；處理 DEF-03、DEF-04；

@@ -33,3 +33,11 @@ dist/assets/index-vo7kQfd9.js   385.15 kB │ gzip: 120.33 kB
 
 [32m✓ built in 1.70s[39m
 build exit=0
+
+# Rerun after tickets B-48, B-49, B-50 (commit 88f61ca; production main 7521729)
+pytest tests -q: 970 passed, 36 skipped
+RUN_PG_TESTS=1 pytest tests/test_pg_store.py -q: 36 passed (disposable schema)
+npm run test:unit: 410 pass; npm run lint: no errors; npm run build: ok
+GitHub Actions ci on 7521729: success
+Note: tests/test_research_scripts.py::test_update_skips_when_data_is_fresh failed in 2 of the runs and passed on rerun:
+the corpus age came out as -0.0 days with TEMP on E:. Timing flake in a research-only test (not on main), not changed here.

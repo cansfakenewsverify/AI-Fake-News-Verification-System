@@ -5,7 +5,7 @@
 網站畫面是正式站實錄（`kind=site`），Threads 是負責人的錄螢幕（`raw/T1.mp4`）。`data/storyboard.json` 已照新劇本改好（28 個鏡頭，約 3 分半）。
 負責人和同學拍的 4 個鏡頭（S02、S03、S10、S10b）已轉成 H.264 放在 `assets/live/`（進 git，約 8 MB；raw/ 有同名檔時優先用 raw/），
 每句台詞在原檔的秒數寫在分鏡的 `cues`（教室背景有雜音，自動切句不準）。旁白定案用 AI 語音（`aiNarration: true`）。
-**網站錄影還沒錄的步驟會顯示「網站畫面待補」的替身卡**，右下角標「預覽版」（2026-11-03 查明學校因資安考量關閉 API 與外部模型，閘道沒有 embedding，語意比對不會自己恢復。所以 `raw/site_egg_text.txt` 存在時，`site_egg` 改貼查核中心那則謠言在知識庫的原文，一字不差走 hash 層，不用 embedding、不花 AI 額度；這份原文不進 git，要向負責人確認後從資料庫唯讀取得）；
+**網站錄影還沒錄的步驟會顯示「網站畫面待補」的替身卡**，右下角標「預覽版」（2026-11-03 查明學校因資安考量關閉 API 與外部模型，閘道沒有 embedding，語意比對不會自己恢復；同日上線關鍵字備援。`raw/site_egg_text.txt` 存在時，`site_egg` 改貼查核中心那則謠言在知識庫的原文，一字不差走 hash 層，不用 embedding、不花 AI 額度；這份原文不進 git，要向負責人確認後從資料庫唯讀取得）；
 錄好再 build 就換成實錄。出片指令見 `presentations/2026-11_第二次簡報/04_出片步驟.md`。下面其餘的說明大多寫於 10-30 的版本。
 
 **只在本機 render。** 不執行 `publish`／`cloud`／`lambda`／`cloudrun`／`auth`／`feedback`，不登入任何服務；
