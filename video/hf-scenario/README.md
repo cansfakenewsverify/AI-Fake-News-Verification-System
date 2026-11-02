@@ -46,8 +46,13 @@ npm run render
 
 PowerShell 沒有 `&&`：上面每一行請分開貼。
 
+**`npm run render` 固定輸出 SDR（`--sdr`）**：`assets/live/` 的 4 支實拍標成 BT.2020／HLG（手機 HDR），不加的話 HyperFrames 會把整部片切到 HDR 模式
+（輸出 HEVC Main10），2026-11-02 實測 render 到第一個實拍鏡頭 S02 就失敗（`ENOENT … S02-v\frame_00002.png`）。實拍關鍵影格太稀的警告可以不管：加 `--sdr` 的成品檢查過沒有卡住，顏色也正常。
+
 **C 槽空間不夠時**：多個 worker 的 render 會先把影格存成暫存檔（約 70 GB）。可以把暫存目錄改到空間夠的磁碟：
-`$env:TEMP='E:\hf-render-tmp'; $env:TMP='E:\hf-render-tmp'`，再加 `--workers 5` render；或用 `npm run render`（單一 worker 串流，不需要暫存空間，但慢很多）。
+`$env:TEMP='E:\hf-render-tmp'; $env:TMP='E:\hf-render-tmp'`，再加 `--workers 5` render；或用 `npm run render`（單一 worker 串流，沒有影格暫存檔，但慢很多，2026-11-02 實測 22 分鐘）。
+單一 worker 仍會在 TEMP 留下抽出來的影格快取 `hyperframes-extract-cache-u`（2026-11-02 實測約 12 GB），render 完可以刪，下次會自己重建。
+改了 TEMP 的視窗如果還要跑 `capture.mjs` 或 `build.mjs`，先設 `$env:FNV_RAW` 指回原本的 `fnv-scenario-raw`，不然會找不到錄好的網站畫面。
 
 ## 聲音（2026-10-28 起）
 

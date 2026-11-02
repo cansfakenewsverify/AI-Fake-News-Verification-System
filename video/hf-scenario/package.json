@@ -10,6 +10,6 @@
     "sfx": "..\\..\\code\\backend\\venv\\Scripts\\python tools\\sfx.py",
     "build": "node tools/build.mjs",
     "check": "npx --yes hyperframes@0.8.50 check",
-    "render": "npx --yes hyperframes@0.8.50 render --quality delivery --video-frame-format png --workers 1 --low-memory-mode --output renders/scenario.mp4"
+    "render": "npx --yes hyperframes@0.8.50 render --quality delivery --video-frame-format png --workers 1 --low-memory-mode --sdr --output renders/scenario.mp4"
   }
 }
