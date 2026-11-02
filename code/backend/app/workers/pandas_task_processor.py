@@ -577,7 +577,7 @@ async def process_analysis_task_async(
         AI 抽關鍵字 → 字面搜尋查核機構的列 → AI 判斷是不是同一則主張。對上就回那一列；
         這一步是加分項：沒對上或任何一步出錯都回 None，照舊走 AI 判讀。
         """
-        if not settings.KEYWORD_FALLBACK_ENABLED:
+        if not settings.KEYWORD_FALLBACK_ENABLED or keyword_match.looks_like_debunk(text):
             return None
         try:
             keywords = keyword_match.parse_keywords(await _call_ai_within_budget(
@@ -626,6 +626,14 @@ async def process_analysis_task_async(
                 if newer is not None:
                     return await _finish_cached(newer, "vector", (input_data,))
                 return await _finish_cached(url_cached, "url", (input_data,))
+
+        # ── Layer 1 之前：只差換行與空白的查核資料（貼文複製下來有換行，知識庫存的是接成一行的原文）
+        if not is_url:
+            squeezed = " ".join(input_data.split())
+            if squeezed and squeezed != input_data:
+                same_text = await asyncio.to_thread(pandas_store.find_by_hash, cache_service.generate_hash(squeezed))
+                if _usable(same_text) and _is_verified_row(same_text):
+                    return await _finish_cached(same_text, "hash")
 
         # ── Layer 1: Hash 快取（對原始輸入做 hash）────────────────────
         content_hash = cache_service.generate_hash(input_data)

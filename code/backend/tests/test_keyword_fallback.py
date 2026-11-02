@@ -85,7 +85,7 @@ def _run(tmp_path, text=USER_TEXT):
 
 def test_embedding_down_finds_the_fact_check_by_keywords(env):
     _seed(env, FACTCHECK)
-    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"match": 1}]
+    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "same", "match": 1}]
     result = _run(env)
     assert result["cached"] is True and result["cache_layer"] == "keyword"
     assert result["risk_type"] == "MISINFO"
@@ -103,14 +103,14 @@ def test_no_candidates_falls_back_to_ai_verdict(env):
 
 def test_ai_saying_not_the_same_claim_falls_back_to_ai_verdict(env):
     _seed(env, FACTCHECK)
-    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"match": None}]
+    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "other", "match": None}]
     result = _run(env)
     assert result["cached"] is False and FakeAI.analyzed == 1
 
 
 def test_broken_ai_reply_falls_back_to_ai_verdict(env):
     _seed(env, FACTCHECK)
-    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"match": 99}]
+    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "same", "match": 99}]
     assert _run(env)["cached"] is False
     FakeAI.replies = [None]
     assert _run(env, USER_TEXT + "。")["cached"] is False
@@ -159,8 +159,11 @@ def test_parse_keywords_drops_bad_items():
 
 
 @pytest.mark.parametrize("reply, expected", [
-    ({"match": 1}, 0), ({"match": 3}, 2), ({"match": 4}, None), ({"match": 0}, None),
-    ({"match": None}, None), ({"match": True}, None), ({"match": "1"}, None), ({}, None), (None, None),
+    ({"relation": "same", "match": 1}, 0), ({"relation": "same", "match": 3}, 2), ({"relation": "same", "match": 4}, None),
+    ({"relation": "same", "match": 0}, None), ({"relation": "same", "match": None}, None),
+    ({"relation": "same", "match": True}, None), ({"relation": "same", "match": "1"}, None),
+    ({"relation": "refute", "match": 1}, None), ({"relation": "other", "match": 1}, None), ({"match": 1}, None),
+    ({}, None), (None, None),
 ])
 def test_parse_match(reply, expected):
     assert keyword_match.parse_match(reply, 3) == expected
@@ -204,7 +207,7 @@ def test_cached_result_without_vector_is_superseded_by_the_fact_check(env):
     """語意比對停用期間存下的無來源結果：同一句話重查時改回查核資料，不要一直拿舊結果。"""
     _seed(env, FACTCHECK)
     _seed(env, USER_TEXT, label_source="ai", verified=False, ai=_ai(sources=()))
-    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"match": 1}]
+    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "same", "match": 1}]
     result = _run(env)
     assert result["cache_layer"] == "keyword" and [s["url"] for s in result["sources"]] == [TFC["url"]]
     assert FakeAI.analyzed == 0
@@ -226,3 +229,66 @@ def test_verified_hash_hit_spends_no_extra_ai(env):
     _seed(env, USER_TEXT)
     assert _run(env)["cache_layer"] == "hash"
     assert FakeAI.prompts == []
+
+
+def test_text_differing_only_in_line_breaks_hits_the_fact_check(env):
+    """貼文複製下來有換行，知識庫存的是接成一行的原文：不用 AI 就要命中。"""
+    _seed(env, "巴黎多家超市遭洗劫 唯獨豬肉沒有人搶")
+    result = _run(env, "巴黎多家超市遭洗劫\n唯獨豬肉沒有人搶")
+    assert result["cache_layer"] == "hash" and [s["url"] for s in result["sources"]] == [TFC["url"]]
+    assert FakeAI.prompts == [] and FakeAI.analyzed == 0
+
+
+def test_line_break_lookup_ignores_unverified_rows(env):
+    _seed(env, "巴黎多家超市遭洗劫 唯獨豬肉沒有人搶", label_source="ai", verified=False, ai=_ai(sources=()))
+    FakeAI.replies = [None]
+    assert _run(env, "巴黎多家超市遭洗劫\n唯獨豬肉沒有人搶")["cached"] is False
+
+
+def test_complete_json_retries_once(monkeypatch):
+    import requests
+    from app.services.ai_service import AIService
+
+    class Reply:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"output": [{"type": "message", "content": [{"type": "output_text", "text": '{"match": 1}'}]}]}
+
+    calls = []
+
+    def flaky(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise requests.exceptions.ConnectionError("boom")
+        return Reply()
+
+    monkeypatch.setattr(requests, "post", flaky)
+    service = AIService()
+    service.cgu_base, service.cgu_key = "https://gateway.example/v1", "dummy"
+    assert service.complete_json("提示") == {"match": 1} and len(calls) == 2
+    calls.clear()
+
+    def down(*args, **kwargs):
+        calls.append(1)
+        raise requests.exceptions.ConnectionError("boom")
+
+    monkeypatch.setattr(requests, "post", down)
+    assert service.complete_json("提示") is None and len(calls) == 2
+
+
+def test_message_refuting_the_rumour_is_not_treated_as_the_rumour(env):
+    """闢謠的訊息用字和謠言幾乎一樣：AI 說 refute 就不能回那一列的「假訊息」。"""
+    _seed(env, FACTCHECK)
+    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "refute", "match": 1}]
+    result = _run(env, "冷水煮蛋不會讓營養流失，查核中心說明過了")
+    assert result["cached"] is False and FakeAI.analyzed == 1
+
+
+def test_message_with_debunk_words_skips_the_fallback(env):
+    """看到「查核中心」這類字就不走備援：闢謠訊息對上謠言列，會把說實話的人標成假訊息。"""
+    _seed(env, FACTCHECK)
+    result = _run(env, "用冷水煮蛋不會讓營養流失，查核中心已經說明過了")
+    assert result["cached"] is False and FakeAI.analyzed == 1
+    assert FakeAI.prompts == [], "不多花 AI"
