@@ -28,12 +28,12 @@
 - **第二次簡報（2026-11-02～11-04；平均及格才能參加 12-03 期末成果展）**：老師要「使用情境文」——5 分鐘內的情境劇影片，
   加完整且詳盡的測試計畫書。資料在 `presentations/2026-11_第二次簡報/`（先看 README）。情境劇《轉傳之前》改過幾版
   （10-30 不拍真人、11-01 真人演情境、11-02 上午 AI 短劇），**2026-11-02 定案改回真人，舊劇本、拍攝清單、配音稿全部刪除**
-  （在 git 歷史），劇本是 `presentations/2026-11_第二次簡報/01_真人劇本.md`（整部片；給演員的只有鏡頭與台詞的版本是 `02_演員拍攝劇本.md`，改台詞兩份一起改）：真人演自己、不拍主持人，只演三段情境的
+  （在 git 歷史），劇本是 `presentations/2026-11_第二次簡報/01_真人劇本.md`（整部片；只有鏡頭與台詞的拍攝版是 `02_拍攝劇本.md`，負責人和同學演自己，改台詞兩份一起改）：真人演自己、不拍主持人，只演三段情境的
   開頭與收尾（7 個鏡頭 S02／S03、S06／S08a／S08b、S10／S10b）；講解是動畫＋旁白（預設 AI 語音）；網站畫面由
   `video/hf-scenario/tools/capture.mjs` 到正式站自動錄。情境一貼文字＝萬聖節糖果藏針、情境三 Threads＝冷水煮蛋（台灣事實查核中心
   2026-10 判定錯誤的兩支影片謠言；轉傳文字是照影片字幕寫的，知識庫存的是查核中心的謠言原文，命中要靠語意比對，錄之前先試查），
   情境二貼網址（待負責人找讀得到的網址；正式站讀不到自由時報）。影片專案 `video/hf-scenario/` 的分鏡（`data/storyboard.json`）
-  還是 10-30 的版本，等演員的鏡頭（`raw/`）與 Threads 錄螢幕 T1 到了再改。
+  還是 10-30 的版本，等拍好的鏡頭（`raw/`）與 Threads 錄螢幕 T1 到了再改。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
   測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.0 完整版**；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
   **3.6 與 6.10 為第二次簡報輪次**，附錄 A 為需求追溯矩陣；PDF 以 `node presentations/tools/build_testplan_pdf.mjs --full` 產生）。
@@ -339,7 +339,7 @@ docs/test/                      測試計畫書 TP-FNV-2026-01.md（v2.0）、re
                                 上線後準確率驗證計畫.md（上線後怎麼量準確率與信心校準）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
 video/hf-demo/                  demo 影片 v0.4.0 的 HyperFrames 專案原始碼（有自己的 CLAUDE.md；只在本機 render）。
-video/hf-scenario/              第二次簡報的情境劇《轉傳之前》（storyboard.json → build.mjs；劇本 `presentations/2026-11_第二次簡報/01_真人劇本.md`；raw/ 放演員的 7 個鏡頭、Threads 錄影 T1 與選做的旁白錄音，不進 git；見其 README）。
+video/hf-scenario/              第二次簡報的情境劇《轉傳之前》（storyboard.json → build.mjs；劇本 `presentations/2026-11_第二次簡報/01_真人劇本.md`；raw/ 放負責人和同學拍的 7 個鏡頭、Threads 錄影 T1 與選做的旁白錄音，不進 git；見其 README）。
                                 配樂與音效取自 Mixkit（`tools/mixkit.py` 從使用者層級的 video-shotcraft skill 轉檔；授權不准單獨散布原檔，所以不進 git）
                                 video/ 其餘是未採用的 Remotion 試作，不進 git
 presentations/                  簡報與報告資料；`2026-09_進度報告/` = 這次進度報告的全部檔案（投影片、報告內容說明、demo 影片網址、
