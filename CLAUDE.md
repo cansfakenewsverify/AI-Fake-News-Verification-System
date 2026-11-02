@@ -31,10 +31,10 @@
   （在 git 歷史），劇本是 `presentations/2026-11_第二次簡報/01_真人劇本.md`（整部片；只有鏡頭與台詞的拍攝版是 `02_拍攝劇本.md`，負責人和同學演自己，改台詞兩份一起改）：真人演自己、不拍主持人，只演兩段情境的
   開頭與收尾（4 個鏡頭 S02／S03、S10／S10b；11-02 拿掉貼網址那段）；講解是動畫＋旁白（預設 AI 語音）；網站畫面由
   `video/hf-scenario/tools/capture.mjs` 到正式站自動錄。情境一貼文字＝冷水煮蛋、情境二 Threads＝法國暴動「唯獨豬肉沒人搶」的 AI 圖（用 Threads 上真的在流傳的那則貼文，負責人在底下貼上原文＋@機器人錄 T1；兩則都是台灣事實查核中心查過的謠言，命中要靠語意比對，錄之前先試查；豬肉那段台詞刻意不說好笑、不提宗教），每段都是負責人（A）與同學（B）一問一答。4 個鏡頭 2026-11-02 拍好（轉成 H.264 放在 `video/hf-scenario/assets/live/`，進 git），分鏡（`data/storyboard.json`）已照新劇本改好
-  （30 個鏡頭約 4 分鐘；網站錄影還沒錄的步驟顯示「網站畫面待補」替身卡；旁白定案 AI 語音）。出片指令在 `presentations/2026-11_第二次簡報/04_出片步驟.md`；
-  學校 AI 閘道 2026-11-02 維修（503），煮蛋的網站畫面 `site_egg` 與 Threads 錄螢幕 T1 等修好再錄。
+  （28 個鏡頭約 3 分半，2026-11-03 拿掉片名卡與「本片情節虛構」說明卡、字幕照實拍實際說的話改；網站錄影還沒錄的步驟顯示「網站畫面待補」替身卡；旁白定案 AI 語音）。出片指令在 `presentations/2026-11_第二次簡報/04_出片步驟.md`；
+  **2026-11-03 查明學校因資安考量關閉 API 與外部模型，不是維修**：閘道 `/embeddings` 回 404「目前的上游模式（codex）不支援」，模型清單沒有 embedding，語意比對不會自己恢復。負責人決定改接 OpenAI 的同一個 `text-embedding-3-small`（還沒接好），煮蛋的網站畫面 `site_egg` 與 Threads 錄螢幕 T1 等接好再錄。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
-  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.0 完整版**；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
+  測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.1 完整版**，2026-11-03 回填，6.10 整體判定未達成、DEF-13 語意比對停用；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
   **3.6 與 6.10 為第二次簡報輪次**，附錄 A 為需求追溯矩陣；PDF 以 `node presentations/tools/build_testplan_pdf.mjs --full` 產生）。
 
 ---
@@ -333,7 +333,7 @@ render.yaml                     Render Blueprint（後端雲端部署設定；�
 start.bat / start.sh            本機開發用一鍵啟動：後端 8000 + React 5173（本機資料）；start-debug.bat 逐步診斷
 docs/rebuild/                   ★2026-09 重做的文件：00_consensus、01_spec（v1.3）、02_mockup_brief＋mockup/（.dc.html 設計畫布）、
                                 03_tickets（109 張票）、owner_decisions_day0、runbook_cloud_deploy、runbook_tunnel（退路）
-docs/test/                      測試計畫書 TP-FNV-2026-01.md（v2.0）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
+docs/test/                      測試計畫書 TP-FNV-2026-01.md（v2.1）、results/（原始紀錄；weekly/ = 每週自動評測）、screens/（截圖）、ui_checklist.csv、
                                 pf2_paraphrases.csv、clean_sources_review.md（清洗審閱紀錄）、
                                 上線後準確率驗證計畫.md（上線後怎麼量準確率與信心校準）
 docs/demo/                      demo 影片的分鏡、素材紀錄、貼文腳本與字幕（.srt）；mp4 原檔不進 git
