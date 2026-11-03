@@ -1,12 +1,13 @@
 r"""
-學校重置 CGU 金鑰時，一行換好（2026-10-29、11-01 兩次被強制重置，之後所有請求回 401／403）。
+學校重置 CGU 金鑰時，一行換好（2026-10-29、11-01 兩次被強制重置，2026-11-03 舊金鑰被刪除，之後所有請求回 401／403）。
 
 在負責人電腦的 code\backend 執行，貼上新金鑰（畫面不會顯示）：
 
     .\venv\Scripts\python scripts\rotate_cgu_key.py
 
 做的事（任何一步失敗就停，前面沒做完的不會留半套）：
-1. 先用新金鑰試一次模型清單與 embedding（不到 USD 0.0001）；不通就停，什麼都不改。
+1. 先用新金鑰試一次模型清單與很短的判讀（不到 USD 0.001）；不通就停，什麼都不改。
+   embedding 也試一次，但學校 2026-11-03 起關閉 embedding，不通只提醒、不擋（查證走關鍵字備援）。
 2. 本機 .env：CGU_API_KEY 換成新金鑰；EMBED_API_KEY 清空。EMBED_API_KEY 空的時候程式一律用 CGU_API_KEY
    （ai_service.generate_embedding、factcheck_corpus.embed_batch），以後只要換一把。
 3. Render：.env 有 RENDER_API_KEY 時，用 Render API 把服務 fakenewsverify-api 的 CGU_API_KEY 換新、刪掉 EMBED_API_KEY、
@@ -26,7 +27,8 @@ ENV_FILE = BACKEND / ".env"
 CGU_BASE = "https://air.cgu.edu.tw/cgullmapi/v1"
 RENDER_API = "https://api.render.com/v1"
 SERVICE_NAME = "fakenewsverify-api"
-GATEWAY_PAGE = "https://air.cgu.edu.tw/workspace4/LLMAPI/index.php"
+GATEWAY_PAGE = "https://air.cgu.edu.tw/mercuryapi/me"
+CHECK_MODEL = "gpt-5.6-luna"
 
 import requests  # noqa: E402
 
@@ -74,20 +76,24 @@ def rewrite_env(text: str, new_key: str) -> str:
     return "".join(lines)
 
 
-def check_key(base: str, key: str, http=requests) -> Tuple[bool, str]:
-    """新金鑰能不能讀模型清單、算 embedding。→ (通不通, 說明)。"""
+def check_key(base: str, key: str, http=requests, model: str = CHECK_MODEL) -> Tuple[bool, str]:
+    """新金鑰能不能讀模型清單、做一次判讀。→ (通不通, 說明)。embedding 不通只寫進說明，不算金鑰不能用。"""
     headers = {"Authorization": f"Bearer {key}"}
     try:
         r = http.get(f"{base}/models", headers=headers, timeout=30)
         if r.status_code != 200:
             return False, f"模型清單 HTTP {r.status_code}：{redact(r.text, [key])}"
+        r = http.post(f"{base}/responses", headers=headers, timeout=90,
+                      json={"model": model, "input": "只回一個字：好", "max_output_tokens": 32})
+        if r.status_code != 200:
+            return False, f"判讀 HTTP {r.status_code}：{redact(r.text, [key])}"
         r = http.post(f"{base}/embeddings", headers=headers, timeout=60,
                       json={"model": "text-embedding-3-small", "input": "key rotation test"})
-        if r.status_code != 200:
-            return False, f"embedding HTTP {r.status_code}：{redact(r.text, [key])}"
     except requests.RequestException as exc:
         return False, f"連不上 CGU 閘道（{type(exc).__name__}）"
-    return True, "模型清單與 embedding 都正常"
+    if r.status_code != 200:
+        return True, f"模型清單與判讀都正常；embedding HTTP {r.status_code}，不影響換金鑰，查證走關鍵字備援"
+    return True, "模型清單、判讀與 embedding 都正常"
 
 
 def update_render(render_key: str, new_key: str, service_id: Optional[str] = None, http=requests) -> List[str]:
@@ -127,7 +133,7 @@ MANUAL_RENDER = [
     "Render 要手動改（一次一步）：",
     "1. 打開 https://dashboard.render.com → 點服務 fakenewsverify-api → 左邊 Environment",
     "2. CGU_API_KEY 那一列按編輯，貼上新金鑰",
-    "3. EMBED_API_KEY 那一列按垃圾桶刪掉（之後程式用 CGU_API_KEY）",
+    "3. 有 EMBED_API_KEY 那一列的話，按垃圾桶刪掉（之後程式用 CGU_API_KEY）",
     "4. 按 Save and deploy，等約 3 分鐘",
     "（想以後連這步都免：在 Render 的 Account Settings → API Keys 建一把，貼進 .env 的 RENDER_API_KEY=，下次這支程式會自動改）",
 ]
@@ -148,7 +154,7 @@ def main(argv: Optional[List[str]] = None, ask: Callable[[str], str] = getpass.g
     if not new_key:
         say("沒有貼上金鑰，什麼都沒改")
         return 1
-    ok, detail = check_key(base, new_key, http)
+    ok, detail = check_key(base, new_key, http, env.get("CGU_MODEL") or CHECK_MODEL)
     say(f"1. 試新金鑰：{detail}")
     if not ok:
         say("新金鑰不能用，什麼都沒改。確認複製的是閘道頁面上最新的那一把。")
@@ -175,7 +181,7 @@ def main(argv: Optional[List[str]] = None, ask: Callable[[str], str] = getpass.g
         for line in MANUAL_RENDER:
             say("   " + line)
         return 1
-    say("完成。約 3 分鐘後打開 https://fakenewsverify.vercel.app 查一則訊息，再看 /api/health 的 embedding 應該是 ok:true。")
+    say("完成。約 3 分鐘後打開 https://fakenewsverify.vercel.app 查一則沒查過的訊息，不再出現「AI 分析暫時無法使用」就是好了。")
     return 0
 
 

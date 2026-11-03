@@ -24,10 +24,10 @@ import requests  # noqa: E402
 from app.config import settings  # noqa: E402
 
 HINTS = {
-    401: "金鑰被重置或打錯：到 https://air.cgu.edu.tw/workspace4/LLMAPI/index.php 複製新金鑰，換掉四個地方",
+    401: "金鑰被重置、刪除或打錯：到 https://air.cgu.edu.tw/mercuryapi/me 領新金鑰，再跑 scripts/rotate_cgu_key.py",
     402: "額度用完：等週四重置",
     403: "閘道拒絕：看上面的閘道訊息",
-    404: "閘道沒有這個模型",
+    404: "閘道沒有這個模型或路徑（2026-11-03 起 /embeddings 整條路徑都關了，看上面的閘道訊息）",
     429: "請求太頻繁：晚點再試",
 }
 

@@ -596,23 +596,27 @@ class AIService:
         CGU LLM Gateway（OpenAI 相容 /embeddings）。未設定或失敗時回傳空陣列
         （向量層自動停用）；刻意不做其他模型備援，避免不同維度向量汙染知識庫。
         每次呼叫的結果記在 _EMBED_STATUS（/health 的 embedding 欄位讀它）。
+        失敗一次後 EMBED_RETRY_AFTER_SECONDS 內直接回空陣列，不再等閘道；過了再試一次，恢復後自動回到語意比對。
         """
+        global _embed_retry_at
         base = (settings.EMBED_RELAY_URL or "").rstrip("/")
         key = (settings.EMBED_API_KEY or settings.CGU_API_KEY or "").strip()
-        if base and key:
+        if base and key and time.monotonic() >= _embed_retry_at:
             try:
                 r = requests.post(
                     f"{base}/embeddings",
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
                     json={"model": settings.EMBED_MODEL, "input": text},
-                    timeout=60,
+                    timeout=settings.EMBED_TIMEOUT_SECONDS,
                 )
                 r.raise_for_status()
                 vector = list(r.json()["data"][0]["embedding"])
                 _EMBED_STATUS.update(ok=True, checked_at=_utc_now_iso(), error=None)
+                _embed_retry_at = 0.0
                 return vector
             except Exception as e:
                 _EMBED_STATUS.update(ok=False, checked_at=_utc_now_iso(), error=_embed_error_label(e))
+                _embed_retry_at = time.monotonic() + settings.EMBED_RETRY_AFTER_SECONDS
                 print(f"[AI] CGU embedding 失敗（向量層停用）：{e}")
         return []
 
@@ -620,6 +624,8 @@ class AIService:
 # 最近一次 embedding 呼叫的結果（行程內記憶體，重啟後是 None）。2026-10-28 Render 的 EMBED_API_KEY 失效（HTTP 401），
 # 語意快取與證據信心默默停用約 11 小時，/health 只看得到金鑰「有設」；所以把實際呼叫的結果也放上 /health。
 _EMBED_STATUS: Dict[str, Any] = {"ok": None, "checked_at": None, "error": None}
+# 這個時間（time.monotonic）之前不呼叫 embedding；0 = 沒有在冷卻
+_embed_retry_at: float = 0.0
 
 
 def _utc_now_iso() -> str:

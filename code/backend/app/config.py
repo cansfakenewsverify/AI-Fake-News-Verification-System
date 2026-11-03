@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     EMBED_RELAY_URL: str = "https://air.cgu.edu.tw/cgullmapi/v1"
     EMBED_API_KEY: str = ""
     EMBED_MODEL: str = "text-embedding-3-small"
+    # 閘道 2026-11-03 起關閉 /embeddings，有時回 404、有時卡到逾時，每則查證都等它（2026-11-04 實測 57～120 秒）。
+    # 失敗一次後這段時間內不再呼叫，過了再試一次；恢復後自動回到語意比對
+    EMBED_TIMEOUT_SECONDS: int = 10
+    EMBED_RETRY_AFTER_SECONDS: int = 300
 
     # AI 呼叫逾時（秒）：spec §9 可靠性 60 s（舊值 150 s 會讓使用者等太久）
     AI_TIMEOUT_SECONDS: int = 60

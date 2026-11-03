@@ -17,3 +17,5 @@ def _launch_guards_off(monkeypatch):
     monkeypatch.setattr(settings, "DAILY_AI_CALL_CAP", 0)
     # 語意比對的備援會呼叫 AI：只有測它的測試才打開（test_keyword_fallback.py）
     monkeypatch.setattr(settings, "KEYWORD_FALLBACK_ENABLED", False)
+    # embedding 失敗後的冷卻是行程內的全域狀態：只有測它的測試才打開（test_stale_evidence.py）
+    monkeypatch.setattr(settings, "EMBED_RETRY_AFTER_SECONDS", 0)

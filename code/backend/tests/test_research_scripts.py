@@ -712,11 +712,34 @@ def test_rotate_stops_before_writing_when_the_new_key_fails(tmp_path, capsys):
     assert "HTTP 403" in out and "bad-key" not in out
 
 
+def test_rotate_stops_when_the_new_key_cannot_judge(tmp_path, capsys):
+    env = tmp_path / ".env"
+    env.write_text(ENV_TEXT, encoding="utf-8")
+    http = _FakeHttp({("GET", "/models"): _Resp(200, {"data": []}),
+                      ("POST", "/responses"): _Resp(401, {"error": "key bad-key deleted"})})
+    assert rk.main([], ask=lambda prompt: "bad-key", http=http, env_file=env) == 1
+    assert env.read_text(encoding="utf-8") == ENV_TEXT
+    out = capsys.readouterr().out
+    assert "判讀 HTTP 401" in out and "bad-key" not in out
+
+
+def test_rotate_goes_on_when_embedding_is_closed(tmp_path, capsys):
+    """學校 2026-11-03 起關閉 embedding（404）：新金鑰還是要換得上去，只提醒。"""
+    env = tmp_path / ".env"
+    env.write_text(ENV_TEXT, encoding="utf-8")
+    http = _FakeHttp({("GET", "/models"): _Resp(200, {"data": []}), ("POST", "/responses"): _Resp(200, {"output": []}),
+                      ("POST", "/embeddings"): _Resp(404, {"error": "closed"})})
+    assert rk.main([], ask=lambda prompt: "new-key", http=http, env_file=env) == 0
+    assert "CGU_API_KEY=new-key\n" in env.read_text(encoding="utf-8")
+    assert "embedding HTTP 404" in capsys.readouterr().out
+
+
 def test_rotate_updates_env_and_render_in_one_go(tmp_path, capsys):
     env = tmp_path / ".env"
     env.write_text(ENV_TEXT + "RENDER_API_KEY=rnd-secret\n", encoding="utf-8")
     http = _FakeHttp({
         ("GET", "/models"): _Resp(200, {"data": []}),
+        ("POST", "/responses"): _Resp(200, {"output": []}),
         ("POST", "/embeddings"): _Resp(200, {"data": [{"embedding": [0.1]}]}),
         ("GET", "/services"): _Resp(200, [{"service": {"id": "srv-1", "name": "fakenewsverify-api"}},
                                           {"service": {"id": "srv-2", "name": "other"}}]),
@@ -728,10 +751,10 @@ def test_rotate_updates_env_and_render_in_one_go(tmp_path, capsys):
     text = env.read_text(encoding="utf-8")
     assert "CGU_API_KEY=new-key\n" in text and "EMBED_API_KEY=\n" in text and "RENDER_API_KEY=rnd-secret" in text
     assert [(m, u.rsplit("/v1", 1)[-1]) for m, u, _ in http.calls] == [
-        ("GET", "/models"), ("POST", "/embeddings"), ("GET", "/services"),
+        ("GET", "/models"), ("POST", "/responses"), ("POST", "/embeddings"), ("GET", "/services"),
         ("PUT", "/services/srv-1/env-vars/CGU_API_KEY"), ("DELETE", "/services/srv-1/env-vars/EMBED_API_KEY"),
         ("POST", "/services/srv-1/deploys")]
-    assert http.calls[3][2] == {"value": "new-key"}
+    assert http.calls[4][2] == {"value": "new-key"}
     out = capsys.readouterr().out
     assert "new-key" not in out and "rnd-secret" not in out and "重新部署" in out
     assert not (tmp_path / ".env.rotate.local").exists()
@@ -740,7 +763,8 @@ def test_rotate_updates_env_and_render_in_one_go(tmp_path, capsys):
 def test_rotate_without_render_key_prints_manual_steps(tmp_path, capsys):
     env = tmp_path / ".env"
     env.write_text(ENV_TEXT, encoding="utf-8")
-    http = _FakeHttp({("GET", "/models"): _Resp(200, {"data": []}), ("POST", "/embeddings"): _Resp(200, {"data": []})})
+    http = _FakeHttp({("GET", "/models"): _Resp(200, {"data": []}), ("POST", "/responses"): _Resp(200, {"output": []}),
+                      ("POST", "/embeddings"): _Resp(200, {"data": []})})
     assert rk.main([], ask=lambda prompt: "new-key", http=http, env_file=env) == 0
     out = capsys.readouterr().out
     assert "Save and deploy" in out and "EMBED_API_KEY" in out

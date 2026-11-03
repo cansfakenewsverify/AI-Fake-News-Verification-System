@@ -169,3 +169,27 @@ def test_embedding_timeout_is_recorded_by_class_name(monkeypatch, embed_settings
     monkeypatch.setattr(ai_service.requests, "post", timeout)
     ai_service.AIService().generate_embedding("測試")
     assert ai_service.embedding_status()["error"] == "Timeout"
+
+
+def test_embedding_failure_skips_calls_during_the_cooldown(monkeypatch, embed_settings):
+    """閘道卡住或關閉時不要每則查證都等：失敗一次後，冷卻時間內不呼叫；過了再試，恢復後自動回到語意比對。"""
+    monkeypatch.setattr(settings, "EMBED_RETRY_AFTER_SECONDS", 300)
+    monkeypatch.setattr(ai_service, "_embed_retry_at", 0.0)
+    calls = []
+
+    def closed(*args, **kwargs):
+        calls.append(kwargs["timeout"])
+        return _Resp(404)
+
+    monkeypatch.setattr(ai_service.requests, "post", closed)
+    service = ai_service.AIService()
+    assert service.generate_embedding("測試") == []
+    assert service.generate_embedding("測試") == []
+    assert calls == [settings.EMBED_TIMEOUT_SECONDS]
+    assert ai_service.embedding_status()["error"] == "HTTP 404"
+
+    monkeypatch.setattr(ai_service, "_embed_retry_at", 0.0)   # 冷卻時間過了
+    monkeypatch.setattr(ai_service.requests, "post", lambda *a, **k: _Resp(200, {"data": [{"embedding": [0.1, 0.2]}]}))
+    assert service.generate_embedding("測試") == [0.1, 0.2]
+    assert ai_service.embedding_status()["ok"] is True
+    assert ai_service._embed_retry_at == 0.0
