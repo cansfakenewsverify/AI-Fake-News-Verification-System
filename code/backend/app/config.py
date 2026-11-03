@@ -75,6 +75,11 @@ class Settings(BaseSettings):
     SIMILARITY_THRESHOLD: float = 0.75
     # embedding 算不出向量時改用關鍵字＋AI 比對查核資料（票 B-48）；出問題時設 false 就回到只有 AI 判讀
     KEYWORD_FALLBACK_ENABLED: bool = True
+    # 備援比對用學校的本地模型：免費、不計額度（2026-11-04 題組比較：gemma 抽關鍵字約 1.5 秒；
+    # gpt-oss 判斷同一則約 5 秒，負例 5 輪都沒配錯，gpt-5.6-luna 約 12 秒且把反駁句配成謠言）
+    KEYWORD_EXTRACT_MODEL: str = "gemma-4-26b-a4b-it"
+    KEYWORD_MATCH_MODEL: str = "gpt-oss-120b"
+    KEYWORD_TIMEOUT_SECONDS: int = 20
     
     # 爬蟲設定
     CRAWLER_TIMEOUT: int = 30

@@ -13,7 +13,7 @@ from app.config import settings
 from app.main import APP_VERSION, app
 from app.services.ai_service import AIService
 
-HEALTH_KEYS = {"status", "ai_available", "embedding", "threads_mode", "scheduler", "daily_ai_calls", "storage_backend"}
+HEALTH_KEYS = {"status", "ai_available", "ai_last_call", "embedding", "threads_mode", "scheduler", "daily_ai_calls", "storage_backend"}
 _LOOPBACK = ("127.0.0.1", "::1", "localhost")
 
 
@@ -143,6 +143,36 @@ def test_health_embedding_shows_the_last_call(client, monkeypatch, base_settings
     monkeypatch.setattr(settings, "EMBED_API_KEY", "")
     monkeypatch.setattr(settings, "CGU_API_KEY", "")
     assert client.get("/health").json()["embedding"] == {"ok": False, "checked_at": None, "error": "not_configured"}
+
+
+def test_health_ai_last_call_shows_the_real_result(client, monkeypatch, base_settings):
+    """金鑰被刪時 ai_available 還是 true（2026-11-03）：/health 要看得出判讀其實失敗。錯誤只留狀態碼。"""
+    import requests
+
+    import app.services.ai_service as ai_service
+
+    monkeypatch.setattr(ai_service, "_AI_STATUS", {"ok": None, "checked_at": None, "error": None})
+    assert client.get("/api/health").json()["ai_last_call"]["ok"] is None
+
+    response = requests.Response()
+    response.status_code = 401
+    service = ai_service.AIService()
+    service.providers = ["cgu"]
+
+    def deleted_key(*args):
+        raise requests.exceptions.HTTPError("key sk-secret deleted", response=response)
+
+    monkeypatch.setattr(service, "_cgu_analyze", deleted_key)
+    service._run_analysis("提示", None, False)
+    body = client.get("/api/health").json()
+    assert body["ai_available"] is True
+    assert body["ai_last_call"]["ok"] is False and body["ai_last_call"]["error"] == "HTTP 401"
+    assert "sk-secret" not in str(body)
+
+    monkeypatch.setattr(service, "_cgu_analyze", lambda *args: {"risk_type": "SAFE"})
+    service._run_analysis("提示", None, False)
+    status = client.get("/api/health").json()["ai_last_call"]
+    assert status["ok"] is True and status["error"] is None and status["checked_at"]
 
 
 def test_health_no_network(client, base_settings, network_calls):

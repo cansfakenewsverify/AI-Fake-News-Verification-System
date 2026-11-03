@@ -466,6 +466,7 @@ class AIService:
 
     def _run_analysis_chain(self, prompt_text: str, image: Optional[dict], use_web_search: bool) -> Dict[str, Any]:
         last_err = ""
+        last_label = None
         for prov in self.providers:
             if not self._budget_left():
                 last_err = last_err or "AI 分析逾時"
@@ -479,12 +480,15 @@ class AIService:
                 }[prov]
                 result = fn(prompt_text, image, use_web_search)
                 result["provider"] = prov  # 實際回應的 provider（fallback 時不是 providers[0]）
+                _AI_STATUS.update(ok=True, checked_at=_utc_now_iso(), error=None)
                 return result
             except requests.exceptions.HTTPError as e:
                 last_err = f"{prov} HTTP {getattr(e.response,'status_code','?')}: {(getattr(e.response,'text','') or '')[:160]}"
+                last_label = _embed_error_label(e)
                 print(f"[AI] {last_err}")
             except Exception as e:
                 last_err = f"{prov}: {e}"
+                last_label = _embed_error_label(e)
                 print(f"[AI] {last_err}")
         # 最後手段：主引擎關閉 web_search 再試（避免搜尋雜訊導致 JSON 解析失敗）
         if use_web_search and self.providers and self._budget_left():
@@ -497,9 +501,12 @@ class AIService:
                 }[prov]
                 result = fn(prompt_text, image, False)
                 result["provider"] = prov
+                _AI_STATUS.update(ok=True, checked_at=_utc_now_iso(), error=None)
                 return result
             except Exception as e:
                 last_err = f"{prov}(no-search): {e}"
+                last_label = _embed_error_label(e)
+        _AI_STATUS.update(ok=False, checked_at=_utc_now_iso(), error=last_label or "unavailable")
         return _default_fallback_result(last_err or "所有 AI 供應商皆失敗")
 
     # ── 對外：文字 / URL 分析 ────────────────────────────────────
@@ -564,27 +571,35 @@ class AIService:
         return self._run_analysis(full_prompt, image={"b64": b64, "mime": mime}, use_web_search=False)
 
     # ── 對外：判讀以外的小任務（語意比對備援，票 B-48）──────
-    def complete_json(self, prompt_text: str, max_output_tokens: int = 800) -> Optional[Dict[str, Any]]:
+    def complete_json(
+        self, prompt_text: str, max_output_tokens: int = 800,
+        model: Optional[str] = None, timeout: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
         """
         送一段提示、回一個 JSON 物件；不套判讀的系統提示，也不驗判讀欄位。
         只走 CGU（AGENTS.md：學校閘道是唯一的 AI）。任何失敗都回 None，呼叫端照舊走 AI 判讀。
+        model 預設判讀用的模型；本地模型 gemma 不帶 reasoning 參數。
         """
         if not (self.cgu_base and self.cgu_key):
             return None
-        body = {
-            "model": self.cgu_model,
-            "input": prompt_text,
-            "max_output_tokens": max_output_tokens,
-            "reasoning": {"effort": "low"},
-        }
+        chosen = model or self.cgu_model
+        body: Dict[str, Any] = {"model": chosen, "input": prompt_text, "max_output_tokens": max_output_tokens}
+        if chosen.startswith("gpt-"):
+            body["reasoning"] = {"effort": "low"}
         headers = {"Authorization": f"Bearer {self.cgu_key}", "Content-Type": "application/json"}
         # 閘道偶爾失敗（2026-11-01 每週評測有近半數不可用）：再試一次，不然這一步等於沒做
         for attempt in (1, 2):
             try:
-                r = requests.post(f"{self.cgu_base}/responses", headers=headers, json=body, timeout=_request_timeout())
+                r = requests.post(
+                    f"{self.cgu_base}/responses", headers=headers, json=body, timeout=timeout or _request_timeout(),
+                )
                 r.raise_for_status()
                 parsed = self._parse_json_loose(self._openai_output_text(r.json()))
                 return parsed if isinstance(parsed, dict) else None
+            except requests.Timeout:
+                # 已經等滿逾時了，再試只會讓使用者多等一輪
+                print(f"[AI] complete_json attempt {attempt} timed out")
+                return None
             except Exception as e:
                 print(f"[AI] complete_json attempt {attempt} failed: {type(e).__name__}")
         return None
@@ -624,6 +639,9 @@ class AIService:
 # 最近一次 embedding 呼叫的結果（行程內記憶體，重啟後是 None）。2026-10-28 Render 的 EMBED_API_KEY 失效（HTTP 401），
 # 語意快取與證據信心默默停用約 11 小時，/health 只看得到金鑰「有設」；所以把實際呼叫的結果也放上 /health。
 _EMBED_STATUS: Dict[str, Any] = {"ok": None, "checked_at": None, "error": None}
+# 最近一次 AI 判讀的結果（行程內記憶體，重啟後是 None）。2026-11-03 學校刪掉舊金鑰，判讀全失敗，
+# 但 ai_available 只看金鑰有沒有設，還是 true；所以把實際呼叫的結果也放上 /health。
+_AI_STATUS: Dict[str, Any] = {"ok": None, "checked_at": None, "error": None}
 # 這個時間（time.monotonic）之前不呼叫 embedding；0 = 沒有在冷卻
 _embed_retry_at: float = 0.0
 
@@ -636,6 +654,11 @@ def _embed_error_label(exc: Exception) -> str:
     """只留狀態碼或例外類別（例外訊息含網址，不放上公開的 /health）。"""
     code = getattr(getattr(exc, "response", None), "status_code", None)
     return f"HTTP {code}" if code else type(exc).__name__
+
+
+def ai_call_status() -> Dict[str, Any]:
+    """{ok, checked_at, error}：最近一次 AI 判讀成功與否（不發請求；error 只有狀態碼或例外類別）。"""
+    return dict(_AI_STATUS)
 
 
 def embedding_status() -> Dict[str, Any]:

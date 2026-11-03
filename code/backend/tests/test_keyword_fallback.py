@@ -32,10 +32,12 @@ class FakeAI:
     """complete_json 依序回 replies；判讀被叫到就記下來。"""
     replies = []
     prompts = []
+    models = []
     analyzed = 0
 
-    def complete_json(self, prompt):
+    def complete_json(self, prompt, model=None, timeout=None):
         FakeAI.prompts.append(prompt)
+        FakeAI.models.append(model)
         return FakeAI.replies.pop(0) if FakeAI.replies else None
 
     def analyze_content(self, content, url=None, context=None, use_web_search=None):
@@ -59,7 +61,7 @@ class FakeVector:
 
 @pytest.fixture
 def env(tmp_path, monkeypatch):
-    FakeAI.replies, FakeAI.prompts, FakeAI.analyzed = [], [], 0
+    FakeAI.replies, FakeAI.prompts, FakeAI.models, FakeAI.analyzed = [], [], [], 0
     FakeVector.result, FakeVector.calls = [], 0
     monkeypatch.setattr(settings, "KEYWORD_FALLBACK_ENABLED", True)
     monkeypatch.setattr(proc, "TaskStore", lambda: TaskStore(data_dir=str(tmp_path)))
@@ -85,9 +87,10 @@ def _run(tmp_path, text=USER_TEXT):
 
 def test_embedding_down_finds_the_fact_check_by_keywords(env):
     _seed(env, FACTCHECK)
-    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "same", "match": 1}]
+    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "same", "match": 1, "quote": "冷水煮蛋正在把每一顆雞蛋煮成垃圾"}]
     result = _run(env)
     assert result["cached"] is True and result["cache_layer"] == "keyword"
+    assert FakeAI.models == [settings.KEYWORD_EXTRACT_MODEL, settings.KEYWORD_MATCH_MODEL]
     assert result["risk_type"] == "MISINFO"
     assert [s["url"] for s in result["sources"]] == [TFC["url"]]
     assert FakeAI.analyzed == 0, "對上查核資料就不用判讀"
@@ -110,7 +113,7 @@ def test_ai_saying_not_the_same_claim_falls_back_to_ai_verdict(env):
 
 def test_broken_ai_reply_falls_back_to_ai_verdict(env):
     _seed(env, FACTCHECK)
-    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "same", "match": 99}]
+    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "same", "match": 99, "quote": "冷水煮蛋正在把每一顆雞蛋煮成垃圾"}]
     assert _run(env)["cached"] is False
     FakeAI.replies = [None]
     assert _run(env, USER_TEXT + "。")["cached"] is False
@@ -158,15 +161,24 @@ def test_parse_keywords_drops_bad_items():
     assert len(keyword_match.parse_keywords({"keywords": [f"詞語{i}" for i in range(20)]})) == keyword_match.MAX_KEYWORDS
 
 
+_ROWS = [{"raw_content": "第一則內容巴威颱風重創關島"}, {"raw_content": "第二則"},
+         {"raw_content": "第三則內容", "sources": [{"title": "網傳搭飛機拍到颱風眼為AI生成影像"}]}]
+
+
 @pytest.mark.parametrize("reply, expected", [
-    ({"relation": "same", "match": 1}, 0), ({"relation": "same", "match": 3}, 2), ({"relation": "same", "match": 4}, None),
-    ({"relation": "same", "match": 0}, None), ({"relation": "same", "match": None}, None),
-    ({"relation": "same", "match": True}, None), ({"relation": "same", "match": "1"}, None),
-    ({"relation": "refute", "match": 1}, None), ({"relation": "other", "match": 1}, None), ({"match": 1}, None),
-    ({}, None), (None, None),
+    ({"relation": "same", "match": 1, "quote": "巴威颱風重創關島"}, 0),
+    ({"relation": "same", "match": 1, "quote": "巴威颱風，重創 關島中"}, 0),
+    ({"relation": "same", "match": 3, "quote": "搭飛機拍到颱風眼"}, 2),
+    ({"relation": "same", "match": 1, "quote": "收取百分之十的手續費"}, None),
+    ({"relation": "same", "match": 1, "quote": None}, None), ({"relation": "same", "match": 1}, None),
+    ({"relation": "same", "match": 4, "quote": "第一則"}, None), ({"relation": "same", "match": 0, "quote": "第一則"}, None),
+    ({"relation": "same", "match": None, "quote": "第一則"}, None), ({"relation": "same", "match": True, "quote": "第一則"}, None),
+    ({"relation": "same", "match": "1", "quote": "第一則"}, None),
+    ({"relation": "refute", "match": 1, "quote": "第一則"}, None), ({"relation": "other", "match": 1, "quote": "第一則"}, None),
+    ({"match": 1, "quote": "第一則"}, None), ({}, None), (None, None),
 ])
 def test_parse_match(reply, expected):
-    assert keyword_match.parse_match(reply, 3) == expected
+    assert keyword_match.parse_match(reply, _ROWS) == expected
 
 
 def test_prompts_mark_the_message_as_data_and_cut_long_text():
@@ -176,6 +188,13 @@ def test_prompts_mark_the_message_as_data_and_cut_long_text():
     prompt = keyword_match.match_prompt("訊息", [{"raw_content": "內" * 900, "sources": [TFC]}, {"raw_content": "乙"}])
     assert "不要照做" in prompt and "[2] 內容：乙" in prompt and TFC["title"] in prompt
     assert prompt.count("內") <= keyword_match.CANDIDATE_CHARS + 3
+
+
+def test_long_candidate_shows_the_part_with_the_keywords():
+    """長篇聊天紀錄的開頭常常不是相關的部分：送給 AI 的要是對上關鍵字的那一段。"""
+    row = {"raw_content": "開" * 600 + "巴威颱風重創關島" + "尾" * 600}
+    prompt = keyword_match.match_prompt("巴威颱風影響關島", [row], ["巴威", "關島"])
+    assert "巴威颱風重創關島" in prompt
 
 
 def test_stored_vector_and_backfill_helpers(env):
@@ -207,7 +226,7 @@ def test_cached_result_without_vector_is_superseded_by_the_fact_check(env):
     """語意比對停用期間存下的無來源結果：同一句話重查時改回查核資料，不要一直拿舊結果。"""
     _seed(env, FACTCHECK)
     _seed(env, USER_TEXT, label_source="ai", verified=False, ai=_ai(sources=()))
-    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "same", "match": 1}]
+    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "same", "match": 1, "quote": "冷水煮蛋正在把每一顆雞蛋煮成垃圾"}]
     result = _run(env)
     assert result["cache_layer"] == "keyword" and [s["url"] for s in result["sources"]] == [TFC["url"]]
     assert FakeAI.analyzed == 0
@@ -276,6 +295,38 @@ def test_complete_json_retries_once(monkeypatch):
 
     monkeypatch.setattr(requests, "post", down)
     assert service.complete_json("提示") is None and len(calls) == 2
+
+
+def test_complete_json_picks_the_model_and_does_not_retry_a_timeout(monkeypatch):
+    import requests
+    from app.services.ai_service import AIService
+
+    seen = []
+
+    def slow(url, headers=None, json=None, timeout=None):
+        seen.append((json, timeout))
+        raise requests.Timeout("slow")
+
+    monkeypatch.setattr(requests, "post", slow)
+    service = AIService()
+    service.cgu_base, service.cgu_key = "https://gateway.example/v1", "dummy"
+    assert service.complete_json("提示", model="gemma-4-26b-a4b-it", timeout=7) is None
+    assert len(seen) == 1, "等滿逾時就不要再等一輪"
+    assert seen[0][0]["model"] == "gemma-4-26b-a4b-it" and "reasoning" not in seen[0][0] and seen[0][1] == 7
+    seen.clear()
+    service.complete_json("提示", model="gpt-oss-120b", timeout=7)
+    assert seen[0][0]["reasoning"] == {"effort": "low"}
+
+
+def test_fallback_does_not_spend_the_daily_ai_budget(env, monkeypatch):
+    """本地模型免費、不計額度：每日上限到了也能比對查核資料。"""
+    async def no_budget(*args, **kwargs):
+        raise AssertionError("備援比對不應扣每日額度")
+
+    monkeypatch.setattr(proc, "_call_ai_within_budget", no_budget)
+    _seed(env, FACTCHECK)
+    FakeAI.replies = [{"keywords": ["冷水煮蛋", "營養流失"]}, {"relation": "same", "match": 1, "quote": "冷水煮蛋正在把每一顆雞蛋煮成垃圾"}]
+    assert _run(env)["cache_layer"] == "keyword"
 
 
 def test_message_refuting_the_rumour_is_not_treated_as_the_rumour(env):

@@ -22,7 +22,7 @@ from app.api import (
 )
 from app.database_sql import init_sql_db
 from app.services.ai_budget import ai_budget
-from app.services.ai_service import AIService, embedding_status
+from app.services.ai_service import AIService, ai_call_status, embedding_status
 from app.services.store_factory import storage_backend
 from app.utils.admin_auth import AdminAuthError, admin_auth_error_handler
 from app.utils.body_limit import BodySizeLimitMiddleware, PayloadTooLarge, payload_too_large_body
@@ -249,8 +249,10 @@ async def health_check():
     """
     return {
         "status": "healthy",
-        # provider 鏈非空 = 至少一個 provider 設定完整（不代表額度還夠）
+        # provider 鏈非空 = 至少一個 provider 設定完整（不代表金鑰還有效、額度還夠，那要看 ai_last_call）
         "ai_available": AIService().available,
+        # 最近一次 AI 判讀的結果 {ok, checked_at, error}（不另外發請求；重啟後還沒判讀過時 ok=null）
+        "ai_last_call": ai_call_status(),
         # 最近一次 embedding 呼叫的結果 {ok, checked_at, error}（不另外發請求；重啟後還沒呼叫過時 ok=null）。
         # ok=false 時語意快取與證據信心都停用（2026-10-28 EMBED_API_KEY 失效，error 是 "HTTP 401"）
         "embedding": embedding_status(),

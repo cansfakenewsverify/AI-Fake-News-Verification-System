@@ -769,3 +769,79 @@ def test_rotate_without_render_key_prints_manual_steps(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "Save and deploy" in out and "EMBED_API_KEY" in out
     assert all("render.com" not in u for _, u, _ in http.calls)
+
+
+# ── 知識庫向量索引（create_vector_index.py，票 B-50） ──────────────────
+
+vi = _load("create_vector_index")
+
+
+class _FakeCursor:
+    def __init__(self, row):
+        self.row = row
+
+    def fetchone(self):
+        return self.row
+
+    def fetchall(self):
+        return [self.row] if self.row else []
+
+
+class _FakeConn:
+    """記下每條 SQL；索引狀態依序取自 states，建好後的查詢計畫固定有用到索引。"""
+
+    def __init__(self, db_bytes=225 * 1024 * 1024, vectors=18891, states=(None,)):
+        self.sql, self.db_bytes, self.vectors, self.states = [], db_bytes, vectors, list(states)
+
+    def execute(self, sql, params=None):
+        self.sql.append(sql)
+        if "pg_database_size" in sql:
+            return _FakeCursor((self.db_bytes,))
+        if "count(content_vector)" in sql:
+            return _FakeCursor((self.vectors,))
+        if "indisvalid" in sql:
+            state = self.states.pop(0) if len(self.states) > 1 else self.states[0]
+            return _FakeCursor(None if state is None else (state,))
+        if sql.startswith("EXPLAIN"):
+            return _FakeCursor((f"Index Scan using {vi.INDEX_NAME} Execution Time: 12 ms",))
+        if "CAST(content_vector AS text)" in sql:
+            return _FakeCursor(("[0.1]",))
+        return _FakeCursor(None)
+
+    def writes(self):
+        return [s for s in self.sql if s.startswith(("CREATE", "DROP"))]
+
+
+def test_vector_index_default_only_looks(capsys):
+    conn = _FakeConn()
+    assert vi.main([], connect=lambda: conn) == 0
+    assert conn.writes() == []
+    assert "--apply" in capsys.readouterr().out
+
+
+def test_vector_index_apply_is_concurrent_and_reports_the_plan(capsys):
+    conn = _FakeConn(states=(None, True))
+    assert vi.main(["--apply"], connect=lambda: conn) == 0
+    assert conn.writes() == [vi.CREATE_SQL] and "CONCURRENTLY" in vi.CREATE_SQL
+    assert "有用到索引" in capsys.readouterr().out
+
+
+def test_vector_index_refuses_when_too_close_to_the_size_limit(capsys):
+    conn = _FakeConn(db_bytes=400 * 1024 * 1024)
+    assert vi.main(["--apply"], connect=lambda: conn) == 1
+    assert conn.writes() == [] and "什麼都沒改" in capsys.readouterr().out
+
+
+def test_vector_index_half_built_needs_a_drop_first(capsys):
+    conn = _FakeConn(states=(False,))
+    assert vi.main(["--apply"], connect=lambda: conn) == 1
+    assert conn.writes() == [] and "--drop" in capsys.readouterr().out
+    conn = _FakeConn(states=(False,))
+    assert vi.main(["--drop"], connect=lambda: conn) == 0
+    assert conn.writes() == [vi.DROP_SQL]
+
+
+def test_vector_index_already_there_changes_nothing():
+    conn = _FakeConn(states=(True,))
+    assert vi.main(["--apply"], connect=lambda: conn) == 0
+    assert conn.writes() == []

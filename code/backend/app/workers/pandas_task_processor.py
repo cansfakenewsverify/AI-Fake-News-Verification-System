@@ -576,12 +576,15 @@ async def process_analysis_task_async(
         語意比對的備援（票 B-48，DEF-13）：只在 embedding 算不出向量時呼叫。
         AI 抽關鍵字 → 字面搜尋查核機構的列 → AI 判斷是不是同一則主張。對上就回那一列；
         這一步是加分項：沒對上或任何一步出錯都回 None，照舊走 AI 判讀。
+        用學校的本地模型（免費、不計額度），所以不扣每日 AI 上限。
         """
         if not settings.KEYWORD_FALLBACK_ENABLED or keyword_match.looks_like_debunk(text):
             return None
         try:
-            keywords = keyword_match.parse_keywords(await _call_ai_within_budget(
-                ai_service.complete_json, keyword_match.keywords_prompt(text)))
+            keywords = keyword_match.parse_keywords(await asyncio.to_thread(
+                ai_service.complete_json, keyword_match.keywords_prompt(text),
+                model=settings.KEYWORD_EXTRACT_MODEL, timeout=settings.KEYWORD_TIMEOUT_SECONDS,
+            ))
             if len(keywords) < keyword_match.MIN_KEYWORD_HITS:
                 return None
             candidates = await asyncio.to_thread(
@@ -591,8 +594,10 @@ async def process_analysis_task_async(
             candidates = [row for row in candidates if _usable(row)]
             if not candidates:
                 return None
-            index = keyword_match.parse_match(await _call_ai_within_budget(
-                ai_service.complete_json, keyword_match.match_prompt(text, candidates)), len(candidates))
+            index = keyword_match.parse_match(await asyncio.to_thread(
+                ai_service.complete_json, keyword_match.match_prompt(text, candidates, keywords),
+                model=settings.KEYWORD_MATCH_MODEL, timeout=settings.KEYWORD_TIMEOUT_SECONDS,
+            ), candidates)
         except Exception as e:
             logger.warning("keyword fallback failed for task %s: %s", task_id, e)
             return None

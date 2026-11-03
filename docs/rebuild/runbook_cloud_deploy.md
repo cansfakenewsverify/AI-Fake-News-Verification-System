@@ -280,6 +280,7 @@ Render 官方對免費方案的原話是「不要用在 production」。對專�
 | 一直停在部署中，最後失敗 | 程式沒有聽在 Render 指定的 port，或啟動時就崩潰 | 看 **Logs**。Start Command 必須含 `--host 0.0.0.0 --port $PORT` |
 | 一切看起來正常，但查過的結果隔一陣子就 404、熱門牆資料倒退回舊的 | `SUPABASE_DB_URL` 是空的，後端默默退回暫時硬碟上的本機檔案（log 有 `SUPABASE_DB_URL is empty: using local files`） | **Environment** 補上 `SUPABASE_DB_URL` → **Save and deploy**；用 Part B 第 7 步驗證 |
 | `/health` 正常，但 `/api/knowledge/stats` 回 500 | 連不上 Supabase（後端設計成資料庫連不上也照常啟動，log 有 `Supabase init failed`） | `SUPABASE_DB_URL` 貼錯或含 `[YOUR-PASSWORD]`；要用 Session pooler 的 URI（主機含 `pooler.supabase.com`、port 5432）。Direct connection 是 IPv6，雲端主機常連不到 |
+| `/health` 的 `ai_last_call` 是 `"ok":false,"error":"HTTP 401"`；新訊息都是「AI 分析暫時無法使用」 | 學校刪掉或重置了金鑰（2026-11-03 深夜就是這樣），`ai_available` 仍是 true | 到 `https://air.cgu.edu.tw/mercuryapi/me` 領新金鑰，本機 `code\backend` 跑 `.\venv\Scripts\python scripts\rotate_cgu_key.py`，再照它印的步驟改 Render |
 | `/health` 顯示 `"ai_available":false` | `CGU_API_KEY` 沒貼到或是空的 | **Environment** 補上 → **Save and deploy** |
 | `/health` 的 `embedding` 是 `"ok":false,"error":"HTTP 401"` 或 `403`；結果頁信心都是「低」、沒有相似查證 | 學校重置了 CGU 金鑰（2026-10-29、11-01），或 Render 還留著舊的 `EMBED_API_KEY` | 到閘道頁面複製新金鑰，本機 `code\backend` 執行 `.\venv\Scripts\python scripts\rotate_cgu_key.py`（換本機 `.env`；`.env` 有 `RENDER_API_KEY` 時也換 Render 並重新部署）；沒有的話 **Environment** 改 `CGU_API_KEY`、刪掉 `EMBED_API_KEY` → **Save and deploy** |
 | 查證回「AI 分析暫時無法使用」 | 金鑰錯、CGU 額度用完，或閘道擋了 Render 的 IP | 看 **Logs** 的 `[AI] cgu HTTP <碼>`；401 = 金鑰錯 |

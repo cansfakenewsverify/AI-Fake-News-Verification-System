@@ -32,7 +32,7 @@
   開頭與收尾（4 個鏡頭 S02／S03、S10／S10b；11-02 拿掉貼網址那段）；講解是動畫＋旁白（預設 AI 語音）；網站畫面由
   `video/hf-scenario/tools/capture.mjs` 到正式站自動錄。情境一貼文字＝冷水煮蛋、情境二 Threads＝法國暴動「唯獨豬肉沒人搶」的 AI 圖（用 Threads 上真的在流傳的那則貼文，負責人在底下貼上原文＋@機器人錄 T1；兩則都是台灣事實查核中心查過的謠言，命中要靠語意比對，錄之前先試查；豬肉那段台詞刻意不說好笑、不提宗教），每段都是負責人（A）與同學（B）一問一答。4 個鏡頭 2026-11-02 拍好（轉成 H.264 放在 `video/hf-scenario/assets/live/`，進 git），分鏡（`data/storyboard.json`）已照新劇本改好
   （28 個鏡頭約 3 分半，2026-11-03 拿掉片名卡與「本片情節虛構」說明卡、字幕照實拍實際說的話改；網站錄影還沒錄的步驟顯示「網站畫面待補」替身卡；旁白定案 AI 語音）。出片指令在 `presentations/2026-11_第二次簡報/04_出片步驟.md`；
-  **2026-11-03 查明學校因資安考量關閉 API 與外部模型，不是維修**：閘道 `/embeddings` 回 404「目前的上游模式（codex）不支援」，模型清單沒有 embedding，語意比對不會自己恢復。2026-11-03 上線備援（embedding 程式全部保留，恢復後自動回到語意比對）：算不出向量時走關鍵字比對（票 B-48，`app/services/keyword_match.py`，cache_layer=keyword，`KEYWORD_FALLBACK_ENABLED=false` 可關；有誤命中，DEF-14／票 B-51），查核同步照常寫入、向量待補（票 B-49）。長期來源見票 O-38。煮蛋的網站畫面 `site_egg` 是貼知識庫原文錄的（`video/hf-scenario/raw/site_egg_text.txt` 不進 git）；查核中心的豬肉報告已進知識庫，負責人同日決定不錄 Threads 錄螢幕 T1，影片的 Threads 段維持標明的示意畫面，OP-10 維持未執行（票 O-39）。
+  **2026-11-03 查明學校因資安考量關閉 API 與外部模型，不是維修**：閘道 `/embeddings` 回 404「目前的上游模式（codex）不支援」，模型清單沒有 embedding，語意比對不會自己恢復。2026-11-03 上線備援（embedding 程式全部保留，恢復後自動回到語意比對）：算不出向量時走關鍵字比對（票 B-48，`app/services/keyword_match.py`，cache_layer=keyword，`KEYWORD_FALLBACK_ENABLED=false` 可關；有誤命中，DEF-14／票 B-51；2026-11-04 研究分支改用學校本地模型與較嚴的比對提示，待上線），查核同步照常寫入、向量待補（票 B-49）。長期來源見票 O-38。煮蛋的網站畫面 `site_egg` 是貼知識庫原文錄的（`video/hf-scenario/raw/site_egg_text.txt` 不進 git）；查核中心的豬肉報告已進知識庫，負責人同日決定不錄 Threads 錄螢幕 T1，影片的 Threads 段維持標明的示意畫面，OP-10 維持未執行（票 O-39）。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
   測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.1 完整版**，2026-11-03 回填，6.10 整體判定未達成、DEF-13 語意比對停用；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
   **3.6 與 6.10 為第二次簡報輪次**，附錄 A 為需求追溯矩陣；PDF 以 `node presentations/tools/build_testplan_pdf.mjs --full` 產生）。
@@ -114,6 +114,8 @@
 1. `curl.exe -s https://fakenewsverify.vercel.app/api/health`（本機：`http://localhost:8000/api/health`）：
    - `"ai_available": false` → 後端沒讀到 `CGU_API_KEY`（雲端：Render 後台 Environment 頁；本機：`code/backend/.env`）。
      `true` 只代表金鑰有設，**不代表金鑰有效或額度還夠**。
+   - `"ai_last_call": {"ok": false, "error": "HTTP 401"}` → 最近一次判讀真的失敗（金鑰被刪或被重置；2026-11-03 深夜就是這樣，`ai_available` 還是 true）。
+     重啟後還沒判讀過時 `ok` 是 `null`。這個欄位要等 2026-11-04 這批程式上線才有（票 B-52）。
    - `"embedding": {"ok": false, "error": "HTTP 401"}`（或 403）→ 金鑰被學校重置，或 Render 還留著舊的 `EMBED_API_KEY`（判讀照常，但語意快取、相似查證、
      信心「中」全部停用）。這是**最近一次實際呼叫**的結果，重啟後還沒人查過時 `ok` 是 `null`。2026-10-28 負責人在 CGU 換了金鑰、
      Render 沒跟著改，停用約 11 小時沒人發現；之後 `factcheck-sync` 每次都實際算一次，失敗就變紅寄信（票 B-46）。
@@ -134,10 +136,13 @@
 **學校會強制重置金鑰**：2026-10-29 約 04:00 因資安理由重置所有人的金鑰，之後每個請求都回 401，訊息寫「已強制重置所有人的
 API 金鑰，請至 https://air.cgu.edu.tw/workspace4/LLMAPI/index.php 複製新的金鑰」（和週四的額度重置是兩回事）。2026-11-01 又重置一次，
 這次 embedding 回 **403**、判讀時好時壞（factcheck-sync 連續失敗、每週評測 20 題有 11 題 AI 不可用）。
+2026-11-03 深夜舊金鑰被刪除，每個請求回 401「這把金鑰已經刪除」，正式站新訊息都是「AI 分析暫時無法使用」；領新金鑰的頁面改成 `https://air.cgu.edu.tw/mercuryapi/me`。
+閘道限制（負責人 2026-11-04 截圖）：付費模型每週 USD 10、每分鐘 30 次、同時 2 個；本地模型（`gemma-4-26b-a4b-it`、`gpt-oss-120b`、`nemotron-3-super-120b-a12b`）免費、不計額度、不受次數限制。
 **2026-11-02 起只剩一把金鑰**：`EMBED_API_KEY` 不設（空的時候 embedding 用 `CGU_API_KEY`），`render.yaml` 也拿掉了這一項。
-換新金鑰只要一行：本機 `code\backend` 執行 `.\venv\Scripts\python scripts\rotate_cgu_key.py`，貼上新金鑰（不顯示）→ 先試新金鑰能不能用，
+換新金鑰只要一行：本機 `code\backend` 執行 `.\venv\Scripts\python scripts\rotate_cgu_key.py`，貼上新金鑰（不顯示）→ 先試新金鑰能不能用（模型清單與判讀；embedding 不通只提醒，學校關著也換得上去），
 再換本機 `.env` 的 `CGU_API_KEY`、清空 `EMBED_API_KEY`；`.env` 有 `RENDER_API_KEY`（Render → Account Settings → API Keys，只放本機）時
 順便用 Render API 換掉正式站的 `CGU_API_KEY`、刪掉 `EMBED_API_KEY` 並重新部署，沒有就印出 Render 手動步驟。GitHub secrets 沒有 CGU 金鑰。
+負責人 2026-11-04 換金鑰時決定先留著 Render 的 `EMBED_API_KEY` 這一列；學校恢復 embedding 後如果 `/api/health` 的 embedding 還是 401，就是這把舊金鑰，刪掉那一列就好（embedding 會改用 `CGU_API_KEY`，功能不會消失）。
 
 > **fallback 契約（改字樣前先看）**：AI 失敗時端點仍回 **HTTP 200**。唯一產生處是 `ai_service._default_fallback_result()`
 > （`ai_unavailable: true`＋`summary` 前綴「AI 分析暫時無法使用」）；後端唯一判斷點是 `app/utils/verdict.py` 的 `is_fallback()`；
@@ -278,6 +283,7 @@ code/backend/
 │   ├── research_run.py         一鍵執行（負責人電腦）：confidence／benchmark／update（每三天重抓查核資料＋補向量）／report（只重算報告、不花錢）；
 │   │                            --commit 推回研究分支；--short-cofacts 30＝報告另附「排除 Cofacts 短訊息」參考表
 │   ├── rotate_cgu_key.py       學校重置 CGU 金鑰時一行換好：試新金鑰 → 換本機 .env → （有 RENDER_API_KEY 時）換 Render 並重新部署
+│   ├── create_vector_index.py  建知識庫的向量索引（票 B-50）：預設只看，--apply 才建（CONCURRENTLY，約多 150 MB），--drop 拿掉
 │   ├── cgu_diagnose.py         CGU 閘道診斷：/models、/me/usage、embedding（兩把金鑰各試）、短判讀的狀態碼與閘道訊息（不印金鑰）
 │   ├── research_env_check.py   研究批次的環境檢查（只用標準函式庫）：secret 有沒有設、四個網域、CGU 剩餘額度與模型清單
 │   ├── audit_cofacts_sources.py  盤點以 Cofacts 當 Tier 1 來源的已證實列（有無判定、方向是否一致；預設只讀）
@@ -370,7 +376,7 @@ PowerShell 5.1 寫法；venv 一律用 `python -m ...`（理由見第 7 節）�
 ```powershell
 # ── 線上網站 ──（PowerShell 5.1 的 curl 是 Invoke-WebRequest 的別名，要打 curl.exe）
 curl.exe -s https://fakenewsverify.vercel.app/api/health
-#   正常："storage_backend":"supabase"、"ai_available":true、"embedding":{"ok":true,...}、"daily_ai_calls":{"used":N,"cap":300}
+#   正常："storage_backend":"supabase"、"ai_available":true、"daily_ai_calls":{"used":N,"cap":300}；學校關閉 embedding 期間 "embedding" 是 ok:false（HTTP 404 或逾時）
 #   逾時或 502／504：Render 免費主機正在喚醒，等 1 分鐘再試
 
 # ── 本機開發一鍵啟動（專案根目錄）：後端 8000 + React 5173，用的是本機資料 ──
