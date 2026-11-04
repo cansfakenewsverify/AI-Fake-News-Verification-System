@@ -28,6 +28,9 @@
 | 本站熱門查證：最近 7 天大家查最多的已證實內容，越近的查證權重越高 | [`/trending?tab=hot`](https://fakenewsverify.vercel.app/trending?tab=hot) |
 | 知識庫：用關鍵字搜尋、依判定篩選已證實的查證內容 | [`/knowledge`](https://fakenewsverify.vercel.app/knowledge) |
 
+**情境劇《轉傳之前》**（3 分 36 秒，第二次簡報，瀏覽器直接播放）：
+https://fakenewsverify.vercel.app/demo/scenario_v1.mp4
+
 **開箱簡報影片**（4 分 41 秒，旁白＋音效＋字幕，整套功能與操作的完整導覽，瀏覽器直接播放；2026-10-26 改為男聲口語版 v1.2，10-28 起 v1.3 加配樂與真實音效、字幕放大）：
 https://fakenewsverify.vercel.app/demo/presentation_v1.mp4
 
