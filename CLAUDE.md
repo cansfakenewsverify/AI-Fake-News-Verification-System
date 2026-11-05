@@ -134,6 +134,7 @@
 **學校會強制重置金鑰**：2026-10-29 約 04:00 因資安理由重置所有人的金鑰，之後每個請求都回 401，訊息寫「已強制重置所有人的
 API 金鑰，請至 https://air.cgu.edu.tw/workspace4/LLMAPI/index.php 複製新的金鑰」（和週四的額度重置是兩回事）。2026-11-01 又重置一次，
 這次 embedding 回 **403**、判讀時好時壞（factcheck-sync 連續失敗、每週評測 20 題有 11 題 AI 不可用）。
+**2026-11-05 學校說向量回來了，但是換成新的服務 Mercury**（`https://air.cgu.edu.tw/mercuryapi/v1`，另一把金鑰 `MERCURY_API_KEY`，範例用的模型是 `bge-m3`）；同日正式站的 embedding 從 404 變成 401（Render 上舊的 `EMBED_API_KEY`）。Mercury 若有 `text-embedding-3-small` 只要換 `EMBED_RELAY_URL`／`EMBED_API_KEY`；只有 `bge-m3`（1024 維）就要重算知識庫向量、改 pgvector 欄位維度、重新校準 0.75 門檻與信心規則。先跑 `scripts/mercury_check.py` 確認。
 **2026-11-02 起只剩一把金鑰**：`EMBED_API_KEY` 不設（空的時候 embedding 用 `CGU_API_KEY`），`render.yaml` 也拿掉了這一項。
 換新金鑰只要一行：本機 `code\backend` 執行 `.\venv\Scripts\python scripts\rotate_cgu_key.py`，貼上新金鑰（不顯示）→ 先試新金鑰能不能用，
 再換本機 `.env` 的 `CGU_API_KEY`、清空 `EMBED_API_KEY`；`.env` 有 `RENDER_API_KEY`（Render → Account Settings → API Keys，只放本機）時
@@ -278,6 +279,7 @@ code/backend/
 │   ├── research_run.py         一鍵執行（負責人電腦）：confidence／benchmark／update（每三天重抓查核資料＋補向量）／report（只重算報告、不花錢）；
 │   │                            --commit 推回研究分支；--short-cofacts 30＝報告另附「排除 Cofacts 短訊息」參考表
 │   ├── rotate_cgu_key.py       學校重置 CGU 金鑰時一行換好：試新金鑰 → 換本機 .env → （有 RENDER_API_KEY 時）換 Render 並重新部署
+│   ├── mercury_check.py        學校新的向量服務 Mercury（`https://air.cgu.edu.tw/mercuryapi/v1`）能不能直接接上：模型清單、各 embedding 模型的維度（只讀、金鑰不印）
 │   ├── cgu_diagnose.py         CGU 閘道診斷：/models、/me/usage、embedding（兩把金鑰各試）、短判讀的狀態碼與閘道訊息（不印金鑰）
 │   ├── research_env_check.py   研究批次的環境檢查（只用標準函式庫）：secret 有沒有設、四個網域、CGU 剩餘額度與模型清單
 │   ├── audit_cofacts_sources.py  盤點以 Cofacts 當 Tier 1 來源的已證實列（有無判定、方向是否一致；預設只讀）
