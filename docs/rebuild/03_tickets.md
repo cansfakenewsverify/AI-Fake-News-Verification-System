@@ -3023,6 +3023,7 @@ flowchart LR
   2. 改用其他模型：向量維度可能不同，全部要重算。
   選定後要一起改：`AGENTS.md`「CGU 是唯一的 AI」、`scripts/rotate_cgu_key.py`（目前會清空 `EMBED_API_KEY`）、`scripts/cgu_diagnose.py` 對 404 的提示（目前寫「閘道沒有這個模型」，這次其實是整條路徑被關）
 - 狀態：待負責人決定。負責人 2026-11-03 先選 B-48
+  2026-11-05：學校改由新服務 Mercury 提供向量，只有 `bge-m3`（1024 維，本地模型、免費、不計額度）→ 走做法 2，見票 B-52。
 
 ### O-39 補完第二次簡報留下的測試與真畫面
 - 優先級：P1
@@ -3035,3 +3036,15 @@ flowchart LR
   - 情境劇的段落卡「家族群組的煮蛋小知識」和實拍台詞「網路上說」要不要統一。
 - 驗收：結果回填測試計畫書與短版報告書，重出兩份 PDF
 - 狀態：未開始
+
+### B-52 向量改用 Mercury 的 bge-m3
+- 優先級：P0（語意比對、語意快取、相似查證、信心「中」自 2026-11-03 起停用，DEF-13）
+- 對應：O-38 做法 2；交接文件 `docs/rebuild/mercury_bge_m3_交接.md`（在負責人電腦上的 Claude Code 照它做）
+- 範圍：向量維度改由 `VECTOR_DIMENSION` 設定（pg_store、pandas_store、processor、reembed）；Postgres 遷移（舊欄位改名保留、新增 1024 維欄位，
+  預設 dry-run）；`reembed_vectors.py` 支援 bge-m3 批次重算；`rotate_cgu_key.py` 不再清空 `EMBED_API_KEY`（若 Mercury 要另一把金鑰）；
+  bge-m3 的門檻與信心數字重新校準（報告 `docs/test/results/bge_m3_calibration_2026-11-05.md`）；`render.yaml` 改網址、模型、維度、門檻
+- 依賴：B-48、B-49
+- 驗收：pytest 與 Postgres 契約測試全過；校準報告經負責人同意；正式站 `/api/health` 的 `embedding.ok` 為 true、改寫句命中 `vector` 層、
+  `factcheck-sync` 轉綠；舊向量保留可退回
+- 狀態：2026-11-05 開票；`scripts/mercury_check.py`（只讀檢查）已寫好；其餘待負責人電腦上的 session 執行
+
