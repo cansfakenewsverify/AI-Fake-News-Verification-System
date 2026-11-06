@@ -13,7 +13,7 @@ from app.config import settings
 from app.main import APP_VERSION, app
 from app.services.ai_service import AIService
 
-HEALTH_KEYS = {"status", "ai_available", "ai_last_call", "embedding", "threads_mode", "scheduler", "daily_ai_calls", "storage_backend"}
+HEALTH_KEYS = {"status", "ai_available", "ai_last_call", "ai_model_breaker", "embedding", "threads_mode", "scheduler", "daily_ai_calls", "storage_backend"}
 _LOOPBACK = ("127.0.0.1", "::1", "localhost")
 
 

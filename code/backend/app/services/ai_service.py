@@ -22,6 +22,7 @@ from typing import Dict, List, Optional, Any, Tuple
 import requests
 
 from app.config import settings
+from app.services import model_breaker
 
 logger = logging.getLogger(__name__)
 
@@ -416,14 +417,35 @@ class AIService:
                 use_web_search=use_web_search,
             )
 
-        try:
-            return call(self.cgu_model)
-        except requests.exceptions.HTTPError as exc:
-            fallback = self.cgu_fallback_model
-            if not fallback or fallback == self.cgu_model or not _is_model_missing(exc) or not self._budget_left():
-                raise
-            logger.warning("[AI] cgu model %s unavailable on the gateway, retrying with %s", self.cgu_model, fallback)
-            return call(fallback)
+        # 模型順序：主模型、備援。滿載（逾時、429、502／503）太多次的模型先跳過（斷路器），其餘錯誤照原樣往外丟。
+        models = [self.cgu_model]
+        if self.cgu_fallback_model and self.cgu_fallback_model != self.cgu_model:
+            models.append(self.cgu_fallback_model)
+        candidates = [m for m in models if model_breaker.allow_request(m)] or models[:1]
+
+        last_exc: Optional[BaseException] = None
+        for idx, model in enumerate(candidates):
+            if idx > 0 and not self._budget_left():
+                break
+            try:
+                result = call(model)
+                model_breaker.record_success(model)
+                return result
+            except requests.exceptions.HTTPError as exc:
+                last_exc = exc
+                if _is_model_missing(exc):
+                    logger.warning("[AI] cgu model %s unavailable on the gateway", model)
+                elif model_breaker.is_overload(exc):
+                    model_breaker.record_failure(model, f"HTTP {getattr(exc.response, 'status_code', '?')}")
+                    logger.warning("[AI] cgu model %s overloaded (HTTP %s)", model, getattr(exc.response, "status_code", "?"))
+                else:
+                    raise
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
+                last_exc = exc
+                model_breaker.record_failure(model, type(exc).__name__)
+                logger.warning("[AI] cgu model %s %s", model, type(exc).__name__)
+        assert last_exc is not None
+        raise last_exc
 
     @staticmethod
     def _openai_output_text(data: dict) -> str:
