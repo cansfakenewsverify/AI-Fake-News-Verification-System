@@ -37,6 +37,8 @@ ROOT = Path(__file__).resolve().parent.parent
 PG_TABLES = ("knowledge_base", "tasks", "admin_overrides", "user_feedback", "fact_check_records",
              "threads_kv", "threads_replies")
 MIGRATED_TABLES = PG_TABLES[:5]      # scripts/migrate_to_supabase.py 搬的表（Threads 兩張不在範圍內）
+# 向量維度跟著設定：預設 1536；$env:VECTOR_DIMENSION='1024' 時整套以 bge-m3 的維度跑（票 B-52）
+DIM = int(settings.VECTOR_DIMENSION)
 
 AI_RESULT = {
     "is_risk": True, "risk_type": "SCAM", "category": "Investment",
@@ -45,7 +47,7 @@ AI_RESULT = {
 }
 
 
-def _vec(seed=7, dim=1536):
+def _vec(seed=7, dim=DIM):
     return list(np.random.default_rng(seed).normal(size=dim).astype(float))
 
 
@@ -159,7 +161,7 @@ def test_schema_tables_extension_and_search_path(clean):
             "SELECT format_type(a.atttypid, a.atttypmod) FROM pg_attribute a "
             "WHERE a.attrelid = to_regclass(:t) AND a.attname = 'content_vector'"
         ), {"t": f'{clean["schema"]}.knowledge_base'}).scalar()
-        assert vector_type.endswith("vector(1536)")
+        assert vector_type.endswith(f"vector({DIM})")
         # RLS 開啟且沒有 policy：Supabase Data API（anon 金鑰）讀不到；後端是表的擁有者，不受影響
         rls = conn.execute(text(
             "SELECT bool_and(c.relrowsecurity) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
@@ -293,18 +295,18 @@ def test_vector_guards_never_raise(kb):
     _save(kb, "守門", ai_result=AI_RESULT, vector=vec)
     assert kb.find_similar_by_vector([], threshold=0.88) is None             # 空向量（層停用）
     assert kb.find_similar_by_vector(None, threshold=0.88) is None
-    assert kb.find_similar_by_vector([0.0] * 1536, threshold=0.88) is None    # 零向量
+    assert kb.find_similar_by_vector([0.0] * DIM, threshold=0.88) is None     # 零向量
     assert kb.find_similar_by_vector([0.1, 0.2], threshold=0.88) is None      # 維度不符
     assert kb.find_similar_by_vector(_vec(1, dim=768), threshold=0.0) is None
-    assert kb.find_similar_by_vector([float("nan")] * 1536, threshold=0.0) is None
+    assert kb.find_similar_by_vector([float("nan")] * DIM, threshold=0.0) is None
 
 
-def test_non_1536_vectors_are_stored_as_null(kb):
+def test_wrong_dimension_vectors_are_stored_as_null(kb):
     rec768, h = _save(kb, "舊的 768 維向量", ai_result=AI_RESULT, vector=_vec(1, dim=768))
     rec3072, _ = _save(kb, "3072 維向量", ai_result=AI_RESULT, vector=_vec(2, dim=3072))
-    ok, _ = _save(kb, "正常 1536 維", ai_result=AI_RESULT, vector=_vec(3))
+    ok, _ = _save(kb, "正常維度", ai_result=AI_RESULT, vector=_vec(3))
     assert rec768["content_vector"] is None and rec3072["content_vector"] is None
-    assert len(ok["content_vector"]) == 1536
+    assert len(ok["content_vector"]) == DIM
     pg_ = kb_pg(kb)
     assert _scalar(pg_, "SELECT count(*) FROM knowledge_base WHERE content_vector IS NULL") == 2
     assert _scalar(pg_, "SELECT count(*) FROM knowledge_base WHERE content_vector IS NOT NULL") == 1
@@ -408,7 +410,7 @@ def test_get_all_records_shape_matches_local(kb, tmp_path):
 
     with_vectors = kb.get_all_records(include_vectors=True)
     vector = with_vectors.iloc[0]["content_vector"]
-    assert isinstance(vector, np.ndarray) and vector.shape == (1536,)
+    assert isinstance(vector, np.ndarray) and vector.shape == (DIM,)
     assert np.allclose(vector, np.asarray(_vec(1), dtype=np.float32), atol=1e-6)
     assert with_vectors.iloc[1]["content_vector"] is None
 
@@ -905,7 +907,7 @@ def _build_local_data(data_dir: Path):
     from app.services.task_store import TaskStore
 
     store = PandasStore(data_dir=str(data_dir))
-    _save(store, "有 1536 維向量的已證實列", ai_result=AI_RESULT, vector=_vec(1))
+    _save(store, "有向量的已證實列", ai_result=AI_RESULT, vector=_vec(1))
     _save(store, "舊的 768 維向量", ai_result=AI_RESULT, vector=_vec(2, dim=768))
     _save(store, "未證實、沒有向量", [{"title": "部落格", "url": "https://blog.example.com/p"}],
           related_discussions=[{"url": "https://www.ptt.cc/x", "tier": 3}])
@@ -947,7 +949,7 @@ def test_migration_script_is_idempotent(clean, tmp_path, monkeypatch, capsys):
     assert migrate.main(args) == 0                                        # dry-run：不寫入
     assert counts() == {t: 0 for t in MIGRATED_TABLES}
     dry = capsys.readouterr().out
-    assert "DRY-RUN" in dry and "non-1536-dim stored as NULL=1" in dry and "dim768=1" in dry
+    assert "DRY-RUN" in dry and f"non-{DIM}-dim stored as NULL=1" in dry and "dim768=1" in dry
 
     assert migrate.main(args + ["--apply"]) == 0
     first = capsys.readouterr().out
@@ -981,7 +983,7 @@ def test_migration_script_is_idempotent(clean, tmp_path, monkeypatch, capsys):
     # 遷移進來的資料可被 store 正常讀取（型別轉換正確）
     from app.services.pg_store import PgKnowledgeStore, PgTaskStore
     migrated = PgKnowledgeStore(engine=clean["engine"])
-    assert migrated.find_similar_by_vector(_vec(1), threshold=0.99)["raw_content"] == "有 1536 維向量的已證實列"
+    assert migrated.find_similar_by_vector(_vec(1), threshold=0.99)["raw_content"] == "有向量的已證實列"
     assert migrated.find_by_hash(CacheService.generate_hash("舊的 768 維向量"))["verified"] is True
     task = PgTaskStore(engine=clean["engine"]).get_task(done_id)
     assert task["status"] == "completed" and task["verified"] is True and task["source_tier"] == 1

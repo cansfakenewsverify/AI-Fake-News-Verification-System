@@ -58,6 +58,8 @@ code/backend/data/factcheck_raw/
 code/backend/data/factcheck_corpus*
 code/backend/data/evidence_study_*
 code/backend/data/audit_cofacts_sources_*
+# scripts/embed_cache.py：換 embedding 模型時的向量快取（只有雜湊與向量；約 80 MB，可隨時重算；票 B-52）
+code/backend/data/embed_cache/
 # scripts/confidence_validation.py、model_benchmark.py：語料、題目原文與向量（GitHub Actions 以 actions/cache 保存）
 code/backend/data/research/
 docs/test/op7_legacy/

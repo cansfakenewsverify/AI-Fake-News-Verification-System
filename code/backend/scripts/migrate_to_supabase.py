@@ -14,7 +14,7 @@ Target: settings.SUPABASE_DB_URL (from .env). STORAGE_BACKEND does not need to b
   their content differs, so a second run reports 0 inserted / 0 updated.
   Note: an upsert also resets cloud-side counters (hit_count, last_accessed_at) and admin overrides
   of rows that exist locally. Use --insert-only to leave every row already in the cloud untouched.
-- Embeddings whose dimension is not 1536 are stored with a NULL vector (the row is kept).
+- Embeddings whose dimension is not settings.VECTOR_DIMENSION are stored with a NULL vector (the row is kept).
 - Console output is ASCII only (cp950 console) and never contains the connection string.
 """
 import argparse
@@ -42,10 +42,11 @@ def say(message: str = "") -> None:
 # -- local sources ---------------------------------------------------------
 def load_knowledge(data_dir: Path) -> Tuple[Optional[List[Dict[str, Any]]], Dict[str, Any]]:
     from app.services.pandas_store import PandasStore
-    from app.services.pg_store import VECTOR_DIM, kb_row_params
+    from app.services.pg_store import kb_row_params, vector_dim
 
     if not (data_dir / "knowledge_base.parquet").exists():
         return None, {}
+    want_dim = vector_dim()
     df = PandasStore(data_dir=str(data_dir)).get_all_records()
     rows, dims = [], Counter()
     for record in df.to_dict("records"):
@@ -54,7 +55,7 @@ def load_knowledge(data_dir: Path) -> Tuple[Optional[List[Dict[str, Any]]], Dict
         if vector is None or not hasattr(vector, "__len__"):
             dims["none"] += 1
         elif params["content_vector"] is None:
-            dims[f"dim{len(vector)}" if len(vector) != VECTOR_DIM else "invalid"] += 1
+            dims[f"dim{len(vector)}" if len(vector) != want_dim else "invalid"] += 1
         else:
             dims["kept"] += 1
         rows.append(params)
@@ -211,9 +212,11 @@ def main(argv=None) -> int:
         rows = local[table]
         say(f"  {table:<20} " + ("(file not present, skipped)" if rows is None else f"{len(rows)} rows"))
     if knowledge is not None:
+        from app.services.pg_store import vector_dim
+        dim = vector_dim()
         say(f"  knowledge_base detail: verified={kb_stats['verified']} "
-            f"vectors kept(1536-dim)={kb_stats['vector_kept']} no_vector={kb_stats['vector_none']} "
-            f"non-1536-dim stored as NULL={kb_stats['vector_dropped']}"
+            f"vectors kept({dim}-dim)={kb_stats['vector_kept']} no_vector={kb_stats['vector_none']} "
+            f"non-{dim}-dim stored as NULL={kb_stats['vector_dropped']}"
             + (f" ({kb_stats['vector_dropped_detail']})" if kb_stats["vector_dropped_detail"] else ""))
     for table, rows in local.items():
         ids = [r["id"] for r in rows or []]

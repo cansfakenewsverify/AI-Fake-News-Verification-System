@@ -7,8 +7,9 @@ app/services/store_factory.py 依 settings.use_supabase 選用；本機版完全
 設計重點
 - 連線延後：建構子不連線，第一次查詢才取 engine（app.database_sql.get_pg_engine）並確保資料表存在。
 - 全部用 SQLAlchemy Core text() + 綁定參數；資料表／欄位名稱只來自本檔常數，使用者內容一律走參數。
-- 向量以 pgvector 文字格式 '[0.1,0.2,...]' 傳入再 CAST(... AS vector)；維度不是 1536（或含 NaN／inf）
-  的向量存 NULL。相似度 = 1 - (content_vector <=> query)（cosine distance）。
+- 向量以 pgvector 文字格式 '[0.1,0.2,...]' 傳入再 CAST(... AS vector)；維度不是 settings.VECTOR_DIMENSION
+  （text-embedding-3-small 1536、bge-m3 1024；或含 NaN／inf）的向量存 NULL。相似度 = 1 - (content_vector <=> query)（cosine distance）。
+  既有資料表的欄位維度不會自動改：換模型時用 scripts/migrate_vector_dim.py（票 B-52）。
 - seq（identity）保存「寫入順序」，對應 Parquet 的列順序：同 hash／同網址取第一筆、任務修剪從最舊砍起。
 - 時間一律 timestamp without time zone（naive）：與本機版存的值相同
   （知識庫 datetime.now()、任務／稽核 datetime.utcnow()）。
@@ -18,7 +19,9 @@ app/services/store_factory.py 依 settings.use_supabase 選用；本機版完全
 from __future__ import annotations
 
 import json
+import logging
 import math
+import re
 import threading
 import uuid
 import weakref
@@ -33,9 +36,16 @@ from sqlalchemy.engine import Connection, Engine
 from app.services import task_store as _ts
 from app.services.pandas_store import KB_COLUMNS, NEIGHBOR_COLUMNS, build_kb_record
 
-VECTOR_DIM = 1536
+logger = logging.getLogger(__name__)
 
-# ── 資料表定義（全部 idempotent）───────────────────────────────────────────
+
+def vector_dim() -> int:
+    """知識庫向量的維度（settings.VECTOR_DIMENSION；每次讀，測試與腳本可以用環境變數改）。"""
+    from app.config import settings
+    return int(settings.VECTOR_DIMENSION)
+
+
+# ── 資料表定義（全部 idempotent；{vector_dim} 在 ensure_pg_schema 換成 vector_dim()）─────────
 _DDL_STATEMENTS = (
     """
     CREATE TABLE IF NOT EXISTS knowledge_base (
@@ -45,7 +55,7 @@ _DDL_STATEMENTS = (
         source_url          TEXT,
         raw_content         TEXT,
         data_hash           TEXT,
-        content_vector      vector(1536),
+        content_vector      vector({vector_dim}),
         is_risk             BOOLEAN NOT NULL DEFAULT FALSE,
         risk_type           TEXT,
         category            TEXT,
@@ -171,10 +181,14 @@ THREADS_TABLES = ("threads_kv", "threads_replies")
 
 # 讀知識庫列時的欄位（向量另外處理：每筆約 19 KB，沒有呼叫端需要就不傳）
 _KB_READ_COLUMNS = [c for c in KB_COLUMNS if c != "content_vector"]
+# scripts/migrate_vector_dim.py 把換模型前的向量改名留在這一欄（可以退回）；程式不讀它
+OLD_VECTOR_COLUMN = "content_vector_te3s"
 _KB_READ_SQL = ", ".join(_KB_READ_COLUMNS)
 
 _ENSURED: "weakref.WeakSet[Engine]" = weakref.WeakSet()
 _ENSURE_LOCK = threading.Lock()
+# ensure_pg_schema 當時讀到的 content_vector 維度；和設定不同時向量查詢與寫入直接略過（不送進資料庫報錯）
+_COLUMN_DIM: "weakref.WeakKeyDictionary[Engine, Optional[int]]" = weakref.WeakKeyDictionary()
 
 
 def ensure_pg_schema(engine: Engine, force: bool = False) -> None:
@@ -202,8 +216,16 @@ def ensure_pg_schema(engine: Engine, force: bool = False) -> None:
                 "CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA "
                 + ("extensions" if has_extensions_schema else "public")
             )
+            dim = vector_dim()
             for statement in _DDL_STATEMENTS:
-                conn.exec_driver_sql(statement)
+                conn.exec_driver_sql(statement.replace("{vector_dim}", str(dim)))
+            column_dim = _content_vector_dim(conn)
+            _COLUMN_DIM[engine] = column_dim
+            if column_dim is not None and column_dim != dim:
+                # 既有表不會自動改維度：這段期間所有新向量都存成 NULL、語意比對停用（先跑 scripts/migrate_vector_dim.py）
+                logger.warning("knowledge_base.content_vector is vector(%s) but VECTOR_DIMENSION=%s", column_dim, dim)
+                print(f"[DB] 警告：知識庫向量欄位是 {column_dim} 維，設定是 {dim} 維；語意比對停用，"
+                      "先跑 scripts/migrate_vector_dim.py", flush=True)
             has_fact_check = conn.exec_driver_sql(
                 "SELECT to_regclass(quote_ident(current_schema()) || '.fact_check_records') IS NOT NULL"
             ).scalar()
@@ -219,6 +241,17 @@ def ensure_pg_schema(engine: Engine, force: bool = False) -> None:
                 if table in ALL_TABLES or table in THREADS_TABLES:
                     conn.exec_driver_sql(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
         _ENSURED.add(engine)
+
+
+def _content_vector_dim(conn: Any) -> Optional[int]:
+    """目前 schema 的 knowledge_base.content_vector 是幾維（vector(N) 的 N）；沒有這欄或沒寫維度 → None。"""
+    declared = conn.exec_driver_sql(
+        "SELECT format_type(a.atttypid, a.atttypmod) FROM pg_attribute a"
+        " WHERE a.attrelid = to_regclass(quote_ident(current_schema()) || '.knowledge_base')"
+        " AND a.attname = 'content_vector' AND NOT a.attisdropped"
+    ).scalar()
+    match = re.search(r"vector\((\d+)\)", str(declared or ""))
+    return int(match.group(1)) if match else None
 
 
 # ── 值的正規化（numpy／pandas → Python 原生型別；Postgres 不收 NUL 與 NaN）──────────
@@ -316,7 +349,7 @@ def _drop_none_keys(sources: Any) -> List[Any]:
 
 
 def vector_literal(vector: Any) -> Optional[str]:
-    """pgvector 文字格式；None／空／維度不是 1536／含 NaN、inf → None（存 NULL、不參與比對）。"""
+    """pgvector 文字格式；None／空／維度不是 VECTOR_DIMENSION／含 NaN、inf → None（存 NULL、不參與比對）。"""
     if vector is None:
         return None
     try:
@@ -324,7 +357,7 @@ def vector_literal(vector: Any) -> Optional[str]:
             arr = np.asarray(vector, dtype=np.float32)   # pgvector 以 float4 儲存；本機版也用 float32 比對
     except (TypeError, ValueError):
         return None
-    if arr.ndim != 1 or arr.shape[0] != VECTOR_DIM or not np.isfinite(arr).all():
+    if arr.ndim != 1 or arr.shape[0] != vector_dim() or not np.isfinite(arr).all():
         return None
     return "[" + ",".join(format(x, ".9g") for x in arr.tolist()) + "]"
 
@@ -481,6 +514,11 @@ class _PgStoreBase:
                     self._autocommit_engine = engine.execution_options(isolation_level="AUTOCOMMIT")
         return self._autocommit_engine.connect()
 
+    def _vector_column_matches(self) -> bool:
+        """資料庫的向量欄位維度和 VECTOR_DIMENSION 一樣（或還不知道）→ True。要先 _connect() 過才準。"""
+        column_dim = _COLUMN_DIM.get(self._engine) if self._engine is not None else None
+        return column_dim is None or column_dim == vector_dim()
+
 
 # ── 知識庫（三層快取）─────────────────────────────────────────────────────
 def _like_literal(value: str) -> str:
@@ -589,6 +627,8 @@ class PgKnowledgeStore(_PgStoreBase):
         if label_sources is not None:
             params["labels"] = [str(label) for label in label_sources]
         with self._connect() as conn:
+            if not self._vector_column_matches():
+                return None
             row = conn.execute(statement, params).mappings().first()
         return _kb_row(row) if row is not None else None
 
@@ -645,6 +685,8 @@ class PgKnowledgeStore(_PgStoreBase):
             return 0
         statement = text("UPDATE knowledge_base SET content_vector = CAST(:v AS vector) WHERE id = :id")
         with self._connect() as conn:
+            if not self._vector_column_matches():
+                return 0
             conn.execute(statement, params)
         return len(params)
 
@@ -671,6 +713,8 @@ class PgKnowledgeStore(_PgStoreBase):
         if label_sources is not None:
             params["labels"] = [str(label) for label in label_sources]
         with self._connect() as conn:
+            if not self._vector_column_matches():
+                return []
             rows = conn.execute(statement, params).mappings().all()
         neighbours = []
         for row in rows:
@@ -705,15 +749,20 @@ class PgKnowledgeStore(_PgStoreBase):
         )
         params = self._row_params(record)
         with self._connect() as conn:
+            if not self._vector_column_matches():
+                params["content_vector"] = None   # 欄位還是舊維度：照樣寫入、向量待補
             conn.execute(insert_statement("knowledge_base"), params)
         if params["content_vector"] is None:
-            record["content_vector"] = None   # 維度不是 1536：實際存的是 NULL
+            record["content_vector"] = None   # 維度不是 VECTOR_DIMENSION：實際存的是 NULL
         return record
 
     def save_records(self, items: Iterable[Dict[str, Any]], batch_size: int = 200) -> int:
         """批次寫入（scripts/ingest_factchecks.py 用）：與 save_record 同一套內容，每批一次 executemany。"""
         params = [self._row_params(build_kb_record(**item)) for item in items]
         with self._connect() as conn:
+            if not self._vector_column_matches():
+                for p in params:
+                    p["content_vector"] = None
             for start in range(0, len(params), batch_size):
                 conn.execute(insert_statement("knowledge_base"), params[start:start + batch_size])
         return len(params)

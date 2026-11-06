@@ -66,13 +66,21 @@ class Settings(BaseSettings):
     # CORS 設定（逗號分隔；空字串項目會被濾掉）
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 
-    # 向量資料庫設定（text-embedding-3-small 原生維度 1536）
+    # 向量維度：text-embedding-3-small 是 1536；學校 Mercury 的 bge-m3 是 1024（票 B-52）。
+    # 要和 EMBED_MODEL、Postgres 的 knowledge_base.content_vector 欄位（scripts/migrate_vector_dim.py）一致；
+    # 維度不符的向量不參與比對、存成 NULL。預設暫留 1536，上線時由 render.yaml 設定。
     VECTOR_DIMENSION: int = 1536
     # 0.75：2026-07 實測校準（text-embedding-3-small、繁中謠言文本）——
     # 「換句話說的同一謠言」相似度實測 0.79~0.82（舊值 0.88 全部擋掉，向量層形同虛設）；
     # 「同類型但不同支的詐騙」最高 0.68；不同主題 ≤0.52。
     # 0.75 = 噪音帶(≤0.68)之上、改寫帶(≥0.79)之下。換 embedding 模型要重新量測。
     SIMILARITY_THRESHOLD: float = 0.75
+    # 證據信心（app/services/evidence.py）的數字，一樣是 text-embedding-3-small 量出來的，換模型要重量：
+    # 最近已證實不實內容的相似度、話術差距、「相似查證」列出的下限、話術原型檔（data/ 底下，維度要和向量一樣）
+    EVIDENCE_MID_SIMILARITY: float = 0.65
+    EVIDENCE_PATTERN_MARGIN: float = 0.10
+    SIMILAR_NEWS_MIN: float = 0.60
+    CLAIM_PROTOTYPES_FILE: str = "claim_prototypes.npz"
     # embedding 算不出向量時改用關鍵字＋AI 比對查核資料（票 B-48）；出問題時設 false 就回到只有 AI 判讀
     KEYWORD_FALLBACK_ENABLED: bool = True
     # 備援比對用學校的本地模型：免費、不計額度（2026-11-04 題組比較：gemma 抽關鍵字約 1.5 秒；

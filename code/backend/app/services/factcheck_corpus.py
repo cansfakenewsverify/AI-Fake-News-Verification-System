@@ -342,7 +342,8 @@ def kb_item(row: Dict[str, Any], vector: Iterable[float], now) -> Dict[str, Any]
 # ── CGU：embedding 與用量 ─────────────────────────────────────
 
 def embed_batch(texts: List[str]) -> Tuple[list, int]:
-    """一批文字 → (向量 list[np.ndarray float32], tokens)。CGU /embeddings（OpenAI 相容，一次可送多筆）。"""
+    """一批文字 → (向量 list[np.ndarray float32], tokens)。EMBED_RELAY_URL 的 /embeddings（OpenAI 相容，一次可送多筆；
+    舊閘道 text-embedding-3-small 或 Mercury 的 bge-m3，票 B-52）。"""
     import numpy as np
     from app.config import settings
 
@@ -365,8 +366,9 @@ def embed_batch(texts: List[str]) -> Tuple[list, int]:
             logger.warning("embedding retry %d after %s", attempt + 1, type(exc).__name__)
             time.sleep(5 * (attempt + 1))
     vectors = [None] * len(texts)
-    for item in body["data"]:
-        vectors[item["index"]] = np.asarray(item["embedding"], dtype=np.float32)
+    for position, item in enumerate(body["data"]):
+        # OpenAI 規格每筆都帶 index；沒帶的服務照回傳順序
+        vectors[int(item.get("index", position))] = np.asarray(item["embedding"], dtype=np.float32)
     return vectors, int((body.get("usage") or {}).get("total_tokens") or 0)
 
 

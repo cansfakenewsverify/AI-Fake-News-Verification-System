@@ -14,7 +14,7 @@
   b. 最新的查核文章：MyGoPen、TFC 的 RSS 與 Cofacts 已有回覆的文章，
      以 news_fetcher._extract_claim_from_title 取出被查核的主張後計算向量；
   c. 該列本身引用過、當時還沒有回覆的 Cofacts 文章，現在是否已有 RUMOR／NOT_RUMOR 回覆。
-取樣與相似度算法與 find_similar_by_vector 相同（1536 維、cosine）。
+取樣與相似度算法與 find_similar_by_vector 相同（settings.VECTOR_DIMENSION 維、cosine）。
 
 不呼叫判讀模型、不寫入任何資料：只呼叫 embedding（每篇查核文章一次）與 Cofacts 公開 API。
 --cloud 連線時會照常確認資料表存在（CREATE ... IF NOT EXISTS，與後端啟動時相同），不修改任何列。
@@ -48,7 +48,7 @@ from app.services.search_service import SearchService                 # noqa: E4
 from app.services.vector_service import VectorService                 # noqa: E402
 from app.utils.source_tier import cofacts_article_id, cofacts_has_verdict  # noqa: E402
 
-DIM = 1536
+DIM = int(settings.VECTOR_DIMENSION)
 DETERMINISTIC = ("rule", "gold", "admin")
 _TAG_RE = re.compile(r"^【([^】]+)】")
 _COFACTS_RE = re.compile(r"cofacts\.tw/article/[^\s\"'<>]+")

@@ -15,9 +15,10 @@
      無法查證：AI 判讀後無法確認（2026-10，票 B-43）           → 低  ai_unverifiable（規則 3 或 4 的條件成立時 conflict）
   9. 其他                                                   → 低  ai_only
 
-相似度一律是 cosine（text-embedding-3-small）；夾角 = arccos(相似度)。
+相似度一律是 cosine（模型見 settings.EMBED_MODEL）；夾角 = arccos(相似度)。
 「話術差距」= 與最接近的話術原型（已證實的不實內容分群）的相似度 − 與最接近的正常訊息原型的相似度，
-原型由 scripts/evidence_confidence_study.py 產生、存在 data/claim_prototypes.npz。
+原型由 scripts/evidence_confidence_study.py 產生、存在 data/ 底下（settings.CLAIM_PROTOTYPES_FILE）。
+0.65／0.10／0.60 與原型檔都讀 settings（EVIDENCE_MID_SIMILARITY 等），換 embedding 模型時改設定即可（票 B-52）。
 """
 import logging
 import math
@@ -27,19 +28,22 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
+from app.config import settings
 from app.services.pandas_store import DETERMINISTIC_LABEL_SOURCES
 from app.utils.source_tier import _host_matches, _host_of
 from app.utils.verdict import frame_of
 
 logger = logging.getLogger(__name__)
 
-MID_SIMILARITY = 0.65        # 規則 3／6：評測題庫中 ≥0.65 的 30 題有 27 題真的有風險
-PATTERN_MARGIN = 0.10        # 規則 4／6：話術差距 ≥0.10 的 29 題有 27 題真的有風險
+# text-embedding-3-small 的值（2026-09-24）：規則 3／6 評測題庫中 ≥0.65 的 30 題有 27 題真的有風險；
+# 規則 4／6 話術差距 ≥0.10 的 29 題有 27 題真的有風險
+MID_SIMILARITY = float(settings.EVIDENCE_MID_SIMILARITY)
+PATTERN_MARGIN = float(settings.EVIDENCE_PATTERN_MARGIN)
 EVIDENCE_NEIGHBOURS = 5      # 查幾筆最近的已證實列
-SIMILAR_NEWS_MIN = 0.60      # 「知識庫中的相似查證」列出的下限（spec FR-02）
+SIMILAR_NEWS_MIN = float(settings.SIMILAR_NEWS_MIN)      # 「知識庫中的相似查證」列出的下限（spec FR-02）
 SIMILAR_NEWS_MAX = 3
 RISK_TYPES = frozenset({"SCAM", "MISINFO"})
-PROTOTYPES_PATH = Path(__file__).resolve().parents[2] / "data" / "claim_prototypes.npz"
+PROTOTYPES_PATH = Path(__file__).resolve().parents[2] / "data" / Path(settings.CLAIM_PROTOTYPES_FILE).name
 # 「知識庫中的相似查證」顯示的機構名稱（其他網域顯示主機名稱）
 SOURCE_NAMES = (
     (("mygopen.com",), "MyGoPen"),

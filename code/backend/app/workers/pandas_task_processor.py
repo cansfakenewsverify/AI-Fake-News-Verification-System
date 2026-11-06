@@ -99,7 +99,7 @@ def _is_verified_row(row: Dict[str, Any]) -> bool:
 
 
 def _stored_vector(value: Any) -> Optional[List[float]]:
-    """快取列內存的向量（本機版有、Postgres 版的 find_* 不載入）；不是可用的 1536 維就回 None。"""
+    """快取列內存的向量（本機版有、Postgres 版的 find_* 不載入）；不是可用的 VECTOR_DIMENSION 維就回 None。"""
     if value is None:
         return None
     try:

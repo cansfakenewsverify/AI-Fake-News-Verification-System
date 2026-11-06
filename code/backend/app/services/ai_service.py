@@ -612,8 +612,11 @@ class AIService:
         （向量層自動停用）；刻意不做其他模型備援，避免不同維度向量汙染知識庫。
         每次呼叫的結果記在 _EMBED_STATUS（/health 的 embedding 欄位讀它）。
         失敗一次後 EMBED_RETRY_AFTER_SECONDS 內直接回空陣列，不再等閘道；過了再試一次，恢復後自動回到語意比對。
+        文字只送前 EMBED_MAX_CHARS 字（與查核資料同步相同）：爬到的長文超過模型上限會整個被拒，還會讓所有人冷卻 5 分鐘。
         """
         global _embed_retry_at
+        from app.services.factcheck_corpus import EMBED_MAX_CHARS
+
         base = (settings.EMBED_RELAY_URL or "").rstrip("/")
         key = (settings.EMBED_API_KEY or settings.CGU_API_KEY or "").strip()
         if base and key and time.monotonic() >= _embed_retry_at:
@@ -621,7 +624,7 @@ class AIService:
                 r = requests.post(
                     f"{base}/embeddings",
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                    json={"model": settings.EMBED_MODEL, "input": text},
+                    json={"model": settings.EMBED_MODEL, "input": str(text)[:EMBED_MAX_CHARS]},
                     timeout=settings.EMBED_TIMEOUT_SECONDS,
                 )
                 r.raise_for_status()

@@ -8,7 +8,7 @@ from app.services.ai_service import AIService
 
 
 class VectorService:
-    """Text -> embedding vector (dimension follows settings.VECTOR_DIMENSION, 1536)."""
+    """Text -> embedding vector (dimension follows settings.EMBED_MODEL / VECTOR_DIMENSION)."""
 
     def __init__(self):
         self.ai_service = AIService()

@@ -20,7 +20,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-EMBED_DIM = 1536
+from app.config import settings  # noqa: E402
+
+EMBED_DIM = int(settings.VECTOR_DIMENSION)
 KB_FILE = "knowledge_base.parquet"
 
 

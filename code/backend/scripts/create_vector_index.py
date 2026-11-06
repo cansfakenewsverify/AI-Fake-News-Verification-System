@@ -28,7 +28,7 @@ CREATE_SQL = (
 )
 DROP_SQL = f"DROP INDEX CONCURRENTLY IF EXISTS {INDEX_NAME}"
 BUILD_MEMORY = "128MB"          # 預設 32 MB 放不下圖，會改用磁碟、慢很多；正式站 shared_buffers 224 MB，128 MB 還撐得住
-PAGE_BYTES = 8192               # 1536 維向量一筆就佔滿一頁
+PAGE_BYTES = 8192               # 1536 維向量一筆就佔滿一頁；1024 維（bge-m3）約 4.3 KB，兩筆放不進一頁，估法一樣
 DB_LIMIT_BYTES = 500 * 1024 * 1024      # Supabase 免費方案的資料庫上限
 SAFE_RATIO = 0.9
 
