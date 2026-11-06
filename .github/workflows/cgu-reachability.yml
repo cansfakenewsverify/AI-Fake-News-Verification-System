@@ -9,6 +9,12 @@ jobs:
       - name: Probe CGU AIR gateway without credentials
         run: |
           echo "runner public ip: $(curl -s --max-time 10 https://api.ipify.org || echo unknown)"
-          for u in https://air.cgu.edu.tw/cgullmapi/v1/models https://air.cgu.edu.tw/cgullmapi/v1/me/usage https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html; do
+          for u in https://air.cgu.edu.tw/cgullmapi/v1/models https://air.cgu.edu.tw/cgullmapi/v1/me/usage https://air.cgu.edu.tw/workspace4/LLMAPI/api_call.html https://air.cgu.edu.tw/mercuryapi/v1/models; do
             curl -sS -o /dev/null -w "$u -> http %{http_code} in %{time_total}s\n" --max-time 25 "$u" || echo "$u -> CONNECTION FAILED"
+          done
+          # 向量服務 Mercury（票 B-52）：不帶金鑰送 embedding，回 401 代表連得到；正式站 2026-11-06 呼叫時 10 秒逾時
+          u=https://air.cgu.edu.tw/mercuryapi/v1/embeddings
+          for i in 1 2 3; do
+            curl -sS -o /dev/null -w "$u (try $i) -> http %{http_code} connect %{time_connect}s total %{time_total}s\n" --max-time 40 \
+              -H "Content-Type: application/json" -d '{"model":"bge-m3","input":["reachability test"]}' "$u" || echo "$u (try $i) -> CONNECTION FAILED"
           done
