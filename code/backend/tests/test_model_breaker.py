@@ -117,7 +117,9 @@ def test_failures_expire_after_window(monkeypatch):
     for _ in range(3):
         model_breaker.record_failure("primary", "HTTP 503")
     assert model_breaker.is_open("primary")
-    monkeypatch.setattr(settings, "BREAKER_WINDOW_SECONDS", 0)
+    # 直接把時鐘往後撥，不靠兩次呼叫之間時間有走（Windows 的 monotonic 約 15 ms 才跳一次，視窗設 0 會判成還沒過期）
+    later = model_breaker.time.monotonic() + settings.BREAKER_WINDOW_SECONDS + 1
+    monkeypatch.setattr(model_breaker.time, "monotonic", lambda: later)
     assert not model_breaker.is_open("primary")
 
 
