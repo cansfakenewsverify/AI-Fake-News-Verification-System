@@ -35,6 +35,25 @@ services:
         value: "gpt-6-luna"
       - key: STORAGE_BACKEND
         value: "supabase"
+      # 向量改用學校 Mercury 的 bge-m3（票 B-52，2026-11-06）：同一把 CGU_API_KEY 就能用（EMBED_API_KEY 不設）。
+      # 維度要和 Supabase 的 knowledge_base.content_vector 一致（scripts/migrate_vector_dim.py 已換成 1024）。
+      # 門檻與證據信心的數字是 bge-m3 實測校準的（docs/test/results/bge_m3_calibration_2026-11-06.md），換模型要重量
+      - key: EMBED_RELAY_URL
+        value: "https://air.cgu.edu.tw/mercuryapi/v1"
+      - key: EMBED_MODEL
+        value: "bge-m3"
+      - key: VECTOR_DIMENSION
+        value: "1024"
+      - key: SIMILARITY_THRESHOLD
+        value: "0.84"
+      - key: EVIDENCE_MID_SIMILARITY
+        value: "0.74"
+      - key: SIMILAR_NEWS_MIN
+        value: "0.69"
+      - key: EVIDENCE_PATTERN_MARGIN
+        value: "0.055"
+      - key: CLAIM_PROTOTYPES_FILE
+        value: "claim_prototypes_bge-m3.npz"
       # Threads 機器人在雲端執行（2026-10-01）：狀態、回覆紀錄、token、輪詢鎖存在 Supabase（app/services/threads_pg.py）。
       # 第一次要先用 scripts/threads_cloud_setup.py --apply 搬好狀態；沒搬之前機器人只會略過（threads_state_not_initialized）。
       # Render 免費主機靠 Supabase pg_cron 每 5 分鐘叫醒（scripts/supabase_keepalive.py）。

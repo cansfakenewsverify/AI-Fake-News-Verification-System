@@ -40,8 +40,10 @@
 
 ## 4. AI 額度（CGU AIR 閘道是唯一的 AI）
 
+- 判讀走舊閘道 `cgullmapi`；向量 2026-11-06 起走學校的新服務 **Mercury**（`mercuryapi`，`bge-m3`，同一把 `CGU_API_KEY`）。
+  兩邊都是學校的，不接其他 AI 服務。bge-m3 與 `gemma-4-26b-a4b-it`、`gpt-oss-120b` 這類本地模型免費、不計額度。
 - 每週 USD 10、**週四重置**；週日 21:17 會跑每週評測。
-- 會花錢的批次（評測、模型比較、重算 embedding）：開始前與每 100 題讀一次 `GET {CGU_BASE_URL}/me/usage`，
+- 會花錢的批次（評測、模型比較、付費模型的 embedding）：開始前與每 100 題讀一次 `GET {CGU_BASE_URL}/me/usage`，
   保留 USD 3 給網站使用者；先試跑 50 題估花費再決定要不要全跑；避開週日。不必等週四重置，隨時可以跑（負責人 2026-10-28）。
 - `web_search` 保持關閉（每次呼叫貴 3～7 倍）。
 

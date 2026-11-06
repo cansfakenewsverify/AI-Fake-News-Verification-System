@@ -65,7 +65,7 @@ https://fakenewsverify.vercel.app/demo/demo_v0.4.0.mp4
 瀏覽器 → https://fakenewsverify.vercel.app（Vercel：React 靜態檔）
            └─ /api/* 由 code/frontend/vercel.json rewrite 同源代理 → https://fakenewsverify-api.onrender.com（Render 免費 web service，FastAPI，render.yaml）
                                                                    ├─ Supabase Postgres 17 + pgvector（東京；知識庫／任務／回饋／熱門／每日 AI 計數／Threads 機器人狀態）
-                                                                   ├─ 學校 CGU AIR 閘道（AI gpt-5.6-luna、embedding text-embedding-3-small 1536 維）
+                                                                   ├─ 學校 CGU AIR 閘道（AI gpt-5.6-luna）＋ Mercury（embedding bge-m3 1024 維）
                                                                    └─ Threads API（機器人每 30 秒檢查 @提及並回覆）
 Supabase pg_cron（每 5 分鐘）→ Render /health（讓免費主機不休眠，機器人才會一直檢查）
 GitHub Actions keepalive（每 10 分鐘）→ Render /health + /api/knowledge/stats
@@ -83,7 +83,7 @@ GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ 
 | 功能 | 說明 |
 |------|------|
 | **文字／網址查證** | 文字輸入只分析使用者原文：不爬網頁、不送任何搜尋引擎。網址輸入由後端抓取內文後分析；Facebook、Instagram、YouTube、TikTok 這類封閉或影音平台不支援，直接回「無法查證」，不呼叫 AI。 |
-| **三層快取** | L0 相同網址 → L1 相同內容（SHA-256）→ L2 語意相似（embedding 向量，門檻 0.75，只比對已證實的資料列）→ L3 AI。換句話說的同一則謠言也能命中，不再呼叫 AI。 |
+| **三層快取** | L0 相同網址 → L1 相同內容（SHA-256）→ L2 語意相似（embedding 向量，門檻 0.84（bge-m3 實測校準），只比對已證實的資料列）→ L3 AI。換句話說的同一則謠言也能命中，不再呼叫 AI。 |
 | **來源品質規則** | 只有「已經有判定」的來源才算查核來源。Tier 1：查核機構與官方網域（TFC、MyGoPen、`gov.tw`、WHO、CDC；Cofacts 文章必須已有 RUMOR／NOT_RUMOR 回覆）。Tier 2：媒體的查核報導。其餘（Tier 3）只列在「相關討論」，不當作證據。 |
 | **沒有證據就不給綠燈** | 沒有已證實來源的結果顯示「尚無查核機構證實」，不會出現綠燈。 |
 | **可分享的結果頁** | 每筆查證的網址是 `/r/<id>`，任何人打開都看得到同一份結果；可複製連結或分享到 Threads。 |
@@ -101,7 +101,7 @@ GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ 
 
 **後端**：Python 3.12、FastAPI + Uvicorn、SQLAlchemy + psycopg 3、pandas + pyarrow、numpy、APScheduler（排程，預設關閉）、trafilatura + BeautifulSoup4 + requests（網址內文擷取）
 
-**AI**：學校 CGU AIR 閘道（OpenAI 相容 Responses API），模型 `gpt-5.6-luna`（2026-09-30 起；閘道下架主模型時自動改用 `gpt-6-luna`）；embedding `text-embedding-3-small`（1536 維）
+**AI**：學校 CGU AIR 閘道（OpenAI 相容 Responses API），模型 `gpt-5.6-luna`（2026-09-30 起；閘道下架主模型時自動改用 `gpt-6-luna`）；embedding 走學校的新服務 Mercury，`bge-m3`（1024 維，同一把金鑰；2026-11-06 起，之前是 `text-embedding-3-small` 1536 維，票 B-52）
 
 **資料**：雲端用 Supabase Postgres 17 + pgvector；本機開發預設用 SQLite + Parquet（`STORAGE_BACKEND` 切換，兩邊介面相同）
 
@@ -285,7 +285,7 @@ chmod +x start.sh
 | `CGU_MODEL` | `gpt-5.6-luna` | 分析用模型（閘道會下架舊模型；可用清單 `GET {CGU_BASE_URL}/models`） |
 | `CGU_FALLBACK_MODEL` | `gpt-6-luna` | 主模型被閘道下架（HTTP 404）時改用的模型；空字串＝不備援 |
 | `EMBED_API_KEY` | 空（機密） | embedding 金鑰；空的時候退用 `CGU_API_KEY`（建議留空，金鑰重置時只要換一把），兩者都沒有則向量層自動停用 |
-| `SIMILARITY_THRESHOLD` | `0.75` | 向量快取命中門檻（實測校準值，換 embedding 模型要重新量測） |
+| `SIMILARITY_THRESHOLD` | `0.75` | 向量快取命中門檻（實測校準值，換 embedding 模型要重新量測；0.75 是舊模型的值，正式站 bge-m3 用 `0.84`，寫在 `render.yaml`） |
 | `USE_WEB_SEARCH` | `true` | 分析時是否帶 web_search；每次呼叫貴 3–7 倍，雲端設 `false` |
 | `STORAGE_BACKEND` | `local` | `local`＝SQLite + Parquet；`supabase`＝Supabase Postgres（還要有 `SUPABASE_DB_URL` 才會生效） |
 | `SUPABASE_DB_URL` | 空（機密） | Supabase 的 Session pooler 連線字串 |

@@ -27,7 +27,8 @@ HINTS = {
     401: "金鑰被重置、刪除或打錯：到 https://air.cgu.edu.tw/mercuryapi/me 領新金鑰，再跑 scripts/rotate_cgu_key.py",
     402: "額度用完：等週四重置",
     403: "閘道拒絕：看上面的閘道訊息",
-    404: "閘道沒有這個模型或路徑（2026-11-03 起 /embeddings 整條路徑都關了，看上面的閘道訊息）",
+    404: "閘道沒有這個模型或路徑（舊閘道 cgullmapi 2026-11-03 起關了 /embeddings；向量改走 Mercury，"
+         "EMBED_RELAY_URL 要是 https://air.cgu.edu.tw/mercuryapi/v1、EMBED_MODEL 是 bge-m3，票 B-52）",
     429: "請求太頻繁：晚點再試",
 }
 

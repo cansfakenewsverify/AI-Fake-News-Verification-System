@@ -11,7 +11,8 @@
 - 系統已經是**線上網站**：<https://fakenewsverify.vercel.app>。Vercel（React 靜態檔）把 `/api/*` 同源代理到 Render 後端
   `https://fakenewsverify-api.onrender.com`（FastAPI），資料在 Supabase Postgres + pgvector。架構與操作見第 12 節。
 - AI 只用學校 **CGU AIR 閘道**：分析 `gpt-5.6-luna`（2026-09-30 閘道下架 `gpt-5.4-mini` 後改用；主模型被下架時自動改用
-  備援 `gpt-6-luna`）、embedding `text-embedding-3-small`；myai168 已停用（第 2 節）。2026-10 系統提示加判定校準
+  備援 `gpt-6-luna`）；embedding 2026-11-06 起改用學校 **Mercury** 的 `bge-m3`（1024 維，同一把 `CGU_API_KEY`，票 B-52；
+  正式資料庫已換好，程式待上線，之前是 `text-embedding-3-small`）；myai168 已停用（第 2 節）。2026-10 系統提示加判定校準
   （每週評測發現常把真的內容判成假；10-15 起 AI 查不到時回「無法查證」，第 6 節）。
 - **Threads 機器人 `@factcheck_tw_bot` 在雲端執行**（2026-10-01；Render 每 30 秒檢查提及，狀態存在 Supabase，
   Supabase pg_cron 每 5 分鐘叫醒 Render；開發模式只收測試人員的提及；2026-10-03 決定先不送 Meta App Review，第 11 節）。
@@ -32,7 +33,7 @@
   開頭與收尾（4 個鏡頭 S02／S03、S10／S10b；11-02 拿掉貼網址那段）；講解是動畫＋旁白（預設 AI 語音）；網站畫面由
   `video/hf-scenario/tools/capture.mjs` 到正式站自動錄。情境一貼文字＝冷水煮蛋、情境二 Threads＝法國暴動「唯獨豬肉沒人搶」的 AI 圖（用 Threads 上真的在流傳的那則貼文，負責人在底下貼上原文＋@機器人錄 T1；兩則都是台灣事實查核中心查過的謠言，命中要靠語意比對，錄之前先試查；豬肉那段台詞刻意不說好笑、不提宗教），每段都是負責人（A）與同學（B）一問一答。4 個鏡頭 2026-11-02 拍好（轉成 H.264 放在 `video/hf-scenario/assets/live/`，進 git），分鏡（`data/storyboard.json`）已照新劇本改好
   （28 個鏡頭約 3 分半，2026-11-03 拿掉片名卡與「本片情節虛構」說明卡、字幕照實拍實際說的話改；網站錄影還沒錄的步驟顯示「網站畫面待補」替身卡；旁白定案 AI 語音）。出片指令在 `presentations/2026-11_第二次簡報/04_出片步驟.md`；
-  **2026-11-03 查明學校因資安考量關閉 API 與外部模型，不是維修**：閘道 `/embeddings` 回 404「目前的上游模式（codex）不支援」，模型清單沒有 embedding，語意比對不會自己恢復。2026-11-03 上線備援（embedding 程式全部保留，恢復後自動回到語意比對）：算不出向量時走關鍵字比對（票 B-48，`app/services/keyword_match.py`，cache_layer=keyword，`KEYWORD_FALLBACK_ENABLED=false` 可關；有誤命中，DEF-14／票 B-51；2026-11-04 研究分支改用學校本地模型與較嚴的比對提示，待上線），查核同步照常寫入、向量待補（票 B-49）。長期來源見票 O-38。煮蛋的網站畫面 `site_egg` 是貼知識庫原文錄的（`video/hf-scenario/raw/site_egg_text.txt` 不進 git）；查核中心的豬肉報告已進知識庫，負責人同日決定不錄 Threads 錄螢幕 T1，影片的 Threads 段維持標明的示意畫面，OP-10 維持未執行（票 O-39）。
+  **2026-11-03 查明學校因資安考量關閉 API 與外部模型，不是維修**：閘道 `/embeddings` 回 404「目前的上游模式（codex）不支援」，模型清單沒有 embedding，語意比對不會自己恢復。2026-11-03 上線備援（embedding 程式全部保留，恢復後自動回到語意比對）：算不出向量時走關鍵字比對（票 B-48，`app/services/keyword_match.py`，cache_layer=keyword，`KEYWORD_FALLBACK_ENABLED=false` 可關；有誤命中，DEF-14／票 B-51；2026-11-04 研究分支改用學校本地模型與較嚴的比對提示，待上線），查核同步照常寫入、向量待補（票 B-49）。長期來源（O-38）2026-11-05 定案：學校的新服務 Mercury 只有 `bge-m3`，**2026-11-06 正式資料庫 18,922 列已重算成 bge-m3 向量**（舊向量改名保留在 `content_vector_te3s`），門檻依實測校準改成 0.84（票 B-52）；程式上線要等負責人說「推」，之前正式站仍走關鍵字比對。煮蛋的網站畫面 `site_egg` 是貼知識庫原文錄的（`video/hf-scenario/raw/site_egg_text.txt` 不進 git）；查核中心的豬肉報告已進知識庫，負責人同日決定不錄 Threads 錄螢幕 T1，影片的 Threads 段維持標明的示意畫面，OP-10 維持未執行（票 O-39）。
 - **日常實作照 `docs/rebuild/03_tickets.md` 的票做**。上游文件：`00_consensus.md`（共識）→ `01_spec.md`（規格 v1.4）；
   測試項目、實測結果與未結缺陷在 `docs/test/TP-FNV-2026-01.md`（**v2.1 完整版**，2026-11-03 回填，6.10 整體判定未達成、DEF-13 語意比對停用：學校因資安考量關閉 API 與外部模型，閘道沒有 embedding（2026-11-03 上線備援，embedding 程式保留：算不出向量時走關鍵字比對，票 B-48，有誤命中 DEF-14／票 B-51；查核同步照常寫入、向量待補，票 B-49）；6.7 為 2026-09-30 換模型後重測，6.8、6.9 為 2026-10 判定校準後重測，
   **3.6 與 6.10 為第二次簡報輪次**，附錄 A 為需求追溯矩陣；PDF 以 `node presentations/tools/build_testplan_pdf.mjs --full` 產生）。
@@ -66,7 +67,7 @@
 | 用途 | base_url | 模型 | 設定鍵 |
 |------|----------|------|--------|
 | 分析（文字／網址／圖片） | `https://air.cgu.edu.tw/cgullmapi/v1` | `gpt-5.6-luna`（備援 `gpt-6-luna`） | `CGU_API_KEY` / `CGU_BASE_URL` / `CGU_MODEL` / `CGU_FALLBACK_MODEL` / `CGU_REASONING_EFFORT`（預設 `medium`） |
-| 向量 embedding | 同上 | `text-embedding-3-small`（1536 維） | `EMBED_RELAY_URL` / `EMBED_MODEL` / `EMBED_API_KEY`（空時退用 `CGU_API_KEY`） |
+| 向量 embedding | `https://air.cgu.edu.tw/mercuryapi/v1`（Mercury，2026-11-06 起；舊閘道 2026-11-03 關了 `/embeddings`） | `bge-m3`（1024 維；學校本地模型，免費、不計額度；之前是 `text-embedding-3-small` 1536 維） | `EMBED_RELAY_URL` / `EMBED_MODEL` / `VECTOR_DIMENSION` / `EMBED_API_KEY`（空時退用 `CGU_API_KEY`；同一把就能用 Mercury） |
 
 - **閘道會無預警下架模型**：2026-09-30 發現 `gpt-5.4-mini` 已下架（HTTP 404 `model_not_found`），網站新內容的判讀全部變成
   fallback 卻沒有人發現。現在 `_cgu_analyze` 遇到 404 會自動改用 `CGU_FALLBACK_MODEL`；`factcheck-sync` 每次執行都讀模型清單
@@ -138,7 +139,9 @@ API 金鑰，請至 https://air.cgu.edu.tw/workspace4/LLMAPI/index.php 複製新
 這次 embedding 回 **403**、判讀時好時壞（factcheck-sync 連續失敗、每週評測 20 題有 11 題 AI 不可用）。
 2026-11-03 深夜舊金鑰被刪除，每個請求回 401「這把金鑰已經刪除」，正式站新訊息都是「AI 分析暫時無法使用」；領新金鑰的頁面改成 `https://air.cgu.edu.tw/mercuryapi/me`。
 閘道限制（負責人 2026-11-04 截圖）：付費模型每週 USD 10、每分鐘 30 次、同時 2 個；本地模型（`gemma-4-26b-a4b-it`、`gpt-oss-120b`、`nemotron-3-super-120b-a12b`）免費、不計額度、不受次數限制。
-**2026-11-05 學校說向量回來了，但是換成新的服務 Mercury**（`https://air.cgu.edu.tw/mercuryapi/v1`，另一把金鑰 `MERCURY_API_KEY`，範例用的模型是 `bge-m3`）；同日正式站的 embedding 從 404 變成 401（Render 上舊的 `EMBED_API_KEY`）。Mercury 若有 `text-embedding-3-small` 只要換 `EMBED_RELAY_URL`／`EMBED_API_KEY`；只有 `bge-m3`（1024 維）就要重算知識庫向量、改 pgvector 欄位維度、重新校準 0.75 門檻與信心規則。先跑 `scripts/mercury_check.py` 確認。
+**2026-11-05 學校說向量回來了，但是換成新的服務 Mercury**（`https://air.cgu.edu.tw/mercuryapi/v1`）；同日正式站的 embedding 從 404 變成 401（Render 上舊的 `EMBED_API_KEY`）。
+2026-11-06 `scripts/mercury_check.py` 實測：**現在的 `CGU_API_KEY` 就能用 Mercury**（不用另一把），向量模型只有 `bge-m3`（1024 維、已正規化，一句 0.2 秒、一批 8 筆 3 秒），沒有 `text-embedding-3-small`（404）。
+所以整庫重算（票 B-52）：`scripts/migrate_vector_dim.py --dim 1024 --apply`（舊欄位改名 `content_vector_te3s` 保留、新增 1024 維欄位，可 `--rollback`）→ `scripts/reembed_vectors.py --target cloud --apply`（18,922 列，資料庫 225 → 321 MB）。上線時 Render 的 `EMBED_API_KEY` 那一列要刪掉（不然會拿舊金鑰打 Mercury，回 401）。
 **2026-11-02 起只剩一把金鑰**：`EMBED_API_KEY` 不設（空的時候 embedding 用 `CGU_API_KEY`），`render.yaml` 也拿掉了這一項。
 換新金鑰只要一行：本機 `code\backend` 執行 `.\venv\Scripts\python scripts\rotate_cgu_key.py`，貼上新金鑰（不顯示）→ 先試新金鑰能不能用（模型清單與判讀；embedding 不通只提醒，學校關著也換得上去），
 再換本機 `.env` 的 `CGU_API_KEY`、清空 `EMBED_API_KEY`；`.env` 有 `RENDER_API_KEY`（Render → Account Settings → API Keys，只放本機）時
@@ -169,10 +172,14 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   （`app/utils/claim_text.matching_text`，票 B-45；2026-10-28 實測「網傳吃香蕉配優格會中毒」0.597 → 0.663）；
   AI 判讀、hash 層與存進知識庫的 raw_content 仍是原文。
 - **向量層只比對 `verified=true` 的列（FR-17）**；URL／Hash 層不過濾。知識庫頁 `/api/knowledge` 也只回 verified 列。
-  寫入門檻見第 9 節。非 1536 維的向量不參與比對（本機只比同維度；雲端存成 NULL）。
-- Layer 2 門檻 `SIMILARITY_THRESHOLD=0.75`：**實測校準**（text-embedding-3-small、繁中）
-  改寫版同一謠言 0.79~0.82、不同支謠言 ≤0.68、不同主題 ≤0.52；舊值 0.88 會把改寫版全擋掉。
-  換 embedding 模型要重新量測。改門檻改 config（兩個 store 都讀 `settings`）；不要為了讓 PF-2 過關而調低（第 8 節）。
+  寫入門檻見第 9 節。維度不是 `VECTOR_DIMENSION` 的向量不參與比對（本機只比同維度；雲端存成 NULL；資料庫欄位維度和設定不同時，
+  `pg_store` 直接略過向量查詢與寫入，不報錯、照樣存列，啟動 log 會警告）。
+- Layer 2 門檻 `SIMILARITY_THRESHOLD`：**實測校準**，換 embedding 模型一定要重量（`scripts/embedding_calibration.py`）。
+  - `text-embedding-3-small`（2026-07）：0.75。改寫版同一謠言 0.79~0.82、不同支謠言 ≤0.68、不同主題 ≤0.52；舊值 0.88 會把改寫版全擋掉。
+  - `bge-m3`（2026-11-06，`docs/test/results/bge_m3_calibration_2026-11-06.md`，負責人同意）：**0.84**。規則是「噪音帶上緣（安全題最近鄰最高、
+    不同謠言對 99 百分位）與改寫帶中位數的中點」；同一規則用舊模型算出 0.76，對得上 0.75。0.84 時 PF-2 40 句命中 28 句（舊模型 0.75 是 27 句）、
+    安全題誤命中 0／50。bge-m3 的相似度整體比舊模型高約 0.08，舊數字不能沿用。
+  改門檻改 config（兩個 store 都讀 `settings`；上線值寫在 `render.yaml`）；不要為了讓 PF-2 過關而調低（第 8 節）。
 - 回應帶 `cached` / `cache_layer`（url/hash/vector）：結果頁顯示「快取命中・相同網址／相同內容／語意相似」chip。
   快取命中不呼叫 AI、不耗每日 AI 次數。
 - 實測：L1 命中 p50 213 ms、L2 向量命中 p50 3.06 s（2026-09-16 本機，測試計畫書 6.4）；
@@ -213,6 +220,10 @@ L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向�
   AI 判無法查證→低（`ai_unverifiable`，近鄰是不實內容時同樣提醒）；其餘→低）。近鄰查詢 `nearest_verified` 與 AI 判讀同時跑，結果存進 `ai_analysis.evidence` 供快取命中沿用；回應多
   `confidence_basis`、`evidence`，`similar_news` 列出最多 3 筆 ≥0.60 的已證實近鄰（連到查核機構原文）。燈號規則不變
   （綠燈仍讀 `confidence_score`）。說明文件 `docs/rebuild/信心程度的產生方式.md`；舊結果沒有 `confidence_basis`，前端沿用舊說明。
+  0.65／0.10／0.60（相似查證下限）與話術原型檔都是設定（`EVIDENCE_MID_SIMILARITY`、`EVIDENCE_PATTERN_MARGIN`、`SIMILAR_NEWS_MIN`、
+  `CLAIM_PROTOTYPES_FILE`）。**bge-m3 用 0.74／0.055／0.69 與 `data/claim_prototypes_bge-m3.npz`**（分位數換算，
+  `docs/test/results/bge_m3_calibration_2026-11-06.md`；原型由 `evidence_confidence_study.py` 以 bge-m3 重產，
+  報告 `evidence_confidence_bge-m3_2026-11-06.md`），上線後用每週評測驗證。
 
 ---
 
@@ -285,7 +296,16 @@ code/backend/
 │   │                            --commit 推回研究分支；--short-cofacts 30＝報告另附「排除 Cofacts 短訊息」參考表
 │   ├── rotate_cgu_key.py       學校重置 CGU 金鑰時一行換好：試新金鑰 → 換本機 .env → （有 RENDER_API_KEY 時）換 Render 並重新部署
 │   ├── create_vector_index.py  建知識庫的向量索引（票 B-50）：預設只看，--apply 才建（CONCURRENTLY，約多 150 MB），--drop 拿掉
-│   ├── mercury_check.py        學校新的向量服務 Mercury（`https://air.cgu.edu.tw/mercuryapi/v1`）能不能直接接上：模型清單、各 embedding 模型的維度（只讀、金鑰不印）
+│   │                            （2026-11-06 換 bge-m3 後資料庫 321 MB，建了會超過 90% 護欄，腳本會拒絕；要先清掉舊向量欄位）
+│   ├── mercury_check.py        學校新的向量服務 Mercury（`https://air.cgu.edu.tw/mercuryapi/v1`）能不能直接接上：從 .env 讀金鑰（兩把都試、不印）、
+│   │                            模型清單、各 embedding 模型的維度、批次耗時
+│   ├── migrate_vector_dim.py   換 embedding 模型時改 pgvector 欄位維度（票 B-52）：預設只看；--apply 舊欄位改名 content_vector_te3s 保留、
+│   │                            新增空的新維度欄位；--rollback 退回。2026-11-06 已套用（1536 → 1024）
+│   ├── reembed_vectors.py      重算知識庫向量（DEF-05 維度不對的列；換模型時整庫）：--target local／cloud／both，預設只看，
+│   │                            --embed 只算進本機快取，--apply 寫入；批次、可續跑、每 20 批檢查資料庫大小
+│   ├── embed_cache.py          上面與校準共用的本機向量快取 data/embed_cache/<模型>.parquet（只存雜湊與向量，gitignored）
+│   ├── embedding_calibration.py  換模型時重新校準語意門檻與證據信心數字（改寫帶 vs 噪音帶、分位數換算；只讀、不寫資料庫）
+│   │                            → docs/test/results/<模型>_calibration_<日期>.md
 │   ├── cgu_diagnose.py         CGU 閘道診斷：/models、/me/usage、embedding（兩把金鑰各試）、短判讀的狀態碼與閘道訊息（不印金鑰）
 │   ├── research_env_check.py   研究批次的環境檢查（只用標準函式庫）：secret 有沒有設、四個網域、CGU 剩餘額度與模型清單
 │   ├── audit_cofacts_sources.py  盤點以 Cofacts 當 Tier 1 來源的已證實列（有無判定、方向是否一致；預設只讀）
@@ -393,6 +413,7 @@ curl.exe -s https://fakenewsverify.vercel.app/api/health
 .\venv\Scripts\python scripts\evaluate.py --report-only               # 只重算評測報告（不呼叫 AI、零點數）
 .\venv\Scripts\python scripts\evaluate.py --timing --delay 0       # 150 筆＋逐筆延遲（PF-1／QA-2；約 13 分鐘、約 USD 1）
 .\venv\Scripts\python scripts\reembed_vectors.py                     # 列出維度不對的向量；--apply [--target both] 才重算（DEF-05）
+.\venv\Scripts\python scripts\reembed_vectors.py --target cloud      # 正式庫還缺幾列向量（只看；--apply 要負責人同意，票 B-52）
 .\venv\Scripts\python scripts\evaluate.py --delay 0                   # 重跑 150 筆評測（約 USD 1）；加 --seed-db 會把判對的寫進知識庫
 .\venv\Scripts\python scripts\clean_sources_2026_09.py                # 資料清洗 dry-run（預設）；--apply 要負責人核准
 .\venv\Scripts\python scripts\recheck_unverified.py                   # 未證實資料能否由查核結果回補（唯讀；--cloud 讀正式資料）

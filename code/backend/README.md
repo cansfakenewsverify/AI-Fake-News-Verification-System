@@ -12,7 +12,7 @@
 ```
 https://fakenewsverify.vercel.app/api/*  ──(code/frontend/vercel.json rewrite)──►  Render web service（本目錄）
                                                                                    ├─ Supabase Postgres 17 + pgvector
-                                                                                   └─ 學校 CGU AIR 閘道（gpt-5.6-luna、text-embedding-3-small）
+                                                                                   └─ 學校 CGU AIR 閘道（gpt-5.6-luna）＋ Mercury（bge-m3）
 ```
 
 | 項目 | 內容 |
@@ -148,13 +148,15 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 | `CGU_MODEL` | `gpt-5.6-luna` | 分析用模型（2026-09-30 閘道下架 `gpt-5.4-mini` 後改用；可用清單 `GET {CGU_BASE_URL}/models`） |
 | `CGU_FALLBACK_MODEL` | `gpt-6-luna` | 主模型被閘道下架（HTTP 404 `model_not_found`）時改用的模型；空字串＝不備援 |
 | `CGU_REASONING_EFFORT` | `medium` | 推理強度 |
-| `EMBED_RELAY_URL` | `https://air.cgu.edu.tw/cgullmapi/v1` | embedding 端點 |
+| `EMBED_RELAY_URL` | `https://air.cgu.edu.tw/cgullmapi/v1` | embedding 端點（舊閘道 2026-11-03 起關了 `/embeddings`；正式站與 `.env.example` 用 Mercury `https://air.cgu.edu.tw/mercuryapi/v1`，票 B-52） |
 | `EMBED_API_KEY` | 空（機密） | embedding 金鑰；空的時候退用 `CGU_API_KEY`（建議留空，金鑰重置時只要換一把），都沒有則向量層自動停用 |
-| `EMBED_MODEL` | `text-embedding-3-small` | 1536 維（`VECTOR_DIMENSION=1536`） |
+| `EMBED_MODEL` | `text-embedding-3-small` | 正式站用 `bge-m3`（`VECTOR_DIMENSION=1024`）；換模型要改資料庫欄位（`scripts/migrate_vector_dim.py`）、重算向量（`scripts/reembed_vectors.py`）、重新校準 |
+| `VECTOR_DIMENSION` | `1536` | 向量維度，要和 `EMBED_MODEL` 及 Supabase 欄位一致；不同維度的向量不參與比對 |
 | `AI_TIMEOUT_SECONDS` | `60` | 一次分析（含備援鏈）的總時限 |
 | `USE_WEB_SEARCH` | `true` | 分析時是否帶 web_search；每次呼叫貴 3–7 倍，雲端與高量任務設 `false` |
 | `WEB_SEARCH_ALLOWED_DOMAINS` | 空 | web_search 限定網域（逗號分隔） |
-| `SIMILARITY_THRESHOLD` | `0.75` | 向量快取命中門檻 |
+| `SIMILARITY_THRESHOLD` | `0.75` | 向量快取命中門檻（舊模型的值；bge-m3 用 `0.84`） |
+| `EVIDENCE_MID_SIMILARITY`／`EVIDENCE_PATTERN_MARGIN`／`SIMILAR_NEWS_MIN`／`CLAIM_PROTOTYPES_FILE` | `0.65`／`0.10`／`0.60`／`claim_prototypes.npz` | 證據信心的數字與話術原型檔；bge-m3 用 `0.74`／`0.055`／`0.69`／`claim_prototypes_bge-m3.npz` |
 | `WEEKLY_EVAL_MAX_USD` | `6` | 每週新查核自動評測一次最多花多少（USD） |
 | `WEEKLY_EVAL_RESERVE_USD` | `3` | 評測時 CGU 剩餘額度至少留多少給網站使用者（USD） |
 
@@ -209,7 +211,7 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 
 | 資料 | 本機（`local`） | 雲端（`supabase`） |
 |------|-----------------|--------------------|
-| 三層快取知識庫（含向量） | `data/knowledge_base.parquet`（repo 內附種子：218 筆，其中 128 筆已證實） | `knowledge_base` 表（`vector(1536)`） |
+| 三層快取知識庫（含向量） | `data/knowledge_base.parquet`（repo 內附種子：218 筆，其中 128 筆已證實） | `knowledge_base` 表（`vector(1024)`，bge-m3；舊的 1536 維向量保留在 `content_vector_te3s`） |
 | 查證任務與結果頁資料 | `data/tasks.parquet`（上限 5,000 筆，只修剪最舊的已完成／失敗任務） | `tasks` 表 |
 | 管理者覆寫、使用者回饋 | `data/admin_overrides.parquet`、`data/user_feedback.parquet` | `admin_overrides`、`user_feedback` 表 |
 | 熱門記錄 | `data/factcheck.db`（SQLite）的 `fact_check_records` | `fact_check_records` 表 |
@@ -233,7 +235,7 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 ```
 
 - **文字輸入不爬網頁、不送任何搜尋引擎**，AI 分析的對象一律是使用者原文。
-- L2 門檻 `SIMILARITY_THRESHOLD=0.75` 是實測校準值（text-embedding-3-small、繁中：改寫版的同一則謠言 0.79–0.82，不同謠言 ≤0.68）。換 embedding 模型要重新量測。
+- L2 門檻 `SIMILARITY_THRESHOLD` 是實測校準值：text-embedding-3-small 0.75（改寫版的同一則謠言 0.79–0.82，不同謠言 ≤0.68）；bge-m3 0.84（`docs/test/results/bge_m3_calibration_2026-11-06.md`，`scripts/embedding_calibration.py`）。換 embedding 模型要重新量測。
 - **只有 `verified=true` 的資料列能在向量層命中**；網址層與 hash 層不過濾。
 - 網址抓不到內文或平台不支援 → 直接回 `UNVERIFIABLE`，不呼叫 AI、不寫知識庫。圖片分析沒有快取層，也不寫知識庫。
 - AI 失敗的 fallback 結果不寫進知識庫，也不會被當成快取命中。
@@ -359,7 +361,9 @@ Fallback 契約：AI 失敗時 `summary` 以「AI 分析暫時無法使用」開
 | `clean_sources_2026_09.py` | 2026-09 來源清洗（一次性、冪等，預設 dry-run；已於 2026-09-16 套用） |
 | `fix_factcheck_labels.py` | 一次性修復：查核報導錯標與 RSS 殘留的 HTML entities（冪等，支援 `--dry-run`） |
 | `llm_second_opinion.py` | 清洗審閱輔助：用閘道的本地模型挑出「不是可查核主張」的資料列（只讀資料檔） |
-| `reembed_vectors.py` | 列出維度不是 1536 的向量；`--apply [--target both]` 才以現行模型重算（DEF-05，2026-09-19 已套用） |
+| `reembed_vectors.py` | 重算向量：維度不對的列（DEF-05）或換模型時整庫（票 B-52）；`--target local／cloud／both`，預設只看，`--embed` 只算進本機快取，`--apply` 寫入 |
+| `migrate_vector_dim.py` | 換模型時改 Supabase 向量欄位維度：預設只看；`--apply` 舊欄位改名保留、新增新維度欄位；`--rollback` 退回（2026-11-06 已套用 1536 → 1024） |
+| `embedding_calibration.py` | 換模型時重新校準語意門檻與證據信心數字（只讀，報告不放原文） |
 | `run_pf2.py` | PF-2 量測：對本機後端送出組員審定的改寫句，記錄命中層與延遲（執行前自動備份資料檔） |
 | `pf2_similarity.py` | PF-2 診斷：算出每一句改寫句與知識庫的實際相似度（唯讀，不呼叫判讀模型） |
 | `recheck_unverified.py` | 查核結果回補盤點：未證實列能否由已證實列、最新查核文章或 Cofacts 新回覆補上（唯讀；`--cloud` 讀正式資料；輸出含使用者原文，已 gitignore） |

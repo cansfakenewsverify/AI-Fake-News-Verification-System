@@ -17,7 +17,7 @@
 | `source_url` | string \| None | 原始 URL（**Layer 0** 快取查詢用） |
 | `raw_content` | string | 文字模式存**使用者原文**（與向量語意一致）；URL 模式存爬取後的文章內容 |
 | `data_hash` | string | SHA-256（**Layer 1** 完全比對用，對原始輸入計算） |
-| `content_vector` | list[float] (1536) | Embedding 向量（**Layer 2** 語義比對用；text-embedding-3-small） |
+| `content_vector` | list[float] (1536) | Embedding 向量（**Layer 2** 語義比對用；本機種子是 text-embedding-3-small 1536 維；正式站 2026-11-06 起是 bge-m3 1024 維，維度看 `VECTOR_DIMENSION`） |
 | `is_risk` | bool | 是否為風險訊息 |
 | `risk_type` | string | `SCAM` / `MISINFO` / `SAFE` / `UNKNOWN` |
 | `category` | string | 細分類，例：`Investment`、`Health_Rumor` |
@@ -40,7 +40,7 @@
 文字輸入 ──► Layer 1: data_hash 比對 ──► 命中？回傳（命中未證實列時先做「查核結果回補」）
                         │ miss
                         ▼
-            Layer 2: 原文向量相似度比對（只比 verified 列，門檻 0.75 實測校準）──► 命中？回傳
+            Layer 2: 原文向量相似度比對（只比 verified 列，門檻實測校準：舊模型 0.75、bge-m3 0.84）──► 命中？回傳
                         │ miss
                         ▼
             Layer 3: AI 分析使用者原文，存入快取
@@ -156,6 +156,6 @@ db.close()
 |--------|------|
 | 為什麼快取用 Parquet，趨勢用 SQLite？ | Parquet 適合大量向量 + numpy 批次運算；SQLite 適合結構化查詢 / 排序 |
 | 為什麼不全部用 PostgreSQL + pgvector？ | 零安裝門檻，學生專題不用裝 Docker；資料量（數百~數千筆）遠未達需要專用向量資料庫的規模 |
-| 為什麼 Embedding 用 1536 維？ | `text-embedding-3-small`（CGU AIR Gateway）原生維度；現行程式只產生 1536 維（沒有其他 embedding 備援）；知識庫裡早期留下的 768／3072 維舊向量不會被比對（測試計畫 DEF-05，待重算） |
-| 相似度門檻為什麼是 0.75？ | 實測校準：改寫版同一謠言 0.79~0.82、不同支謠言 ≤0.68、不同主題 ≤0.52（詳見 CLAUDE.md 第 3 節） |
+| 為什麼 Embedding 用 1536 維？ | 2026-11-06 起正式站改用學校 Mercury 的 `bge-m3`（1024 維，票 B-52）；本機種子仍是 `text-embedding-3-small`（CGU AIR Gateway）原生維度 1536；現行程式只產生 1536 維（沒有其他 embedding 備援）；知識庫裡早期留下的 768／3072 維舊向量不會被比對（測試計畫 DEF-05，待重算） |
+| 相似度門檻為什麼是 0.75？ | 實測校準：改寫版同一謠言 0.79~0.82、不同支謠言 ≤0.68、不同主題 ≤0.52（詳見 CLAUDE.md 第 3 節）。bge-m3 的相似度整體較高，重新校準為 0.84 |
 | 單機單寫者假設 | Parquet/SQLite 無跨行程鎖：**不要同時**跑 batch_verify_pending.py 與大量寫入的 API 請求（讀取不受影響） |

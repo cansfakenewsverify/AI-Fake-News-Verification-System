@@ -3006,7 +3006,9 @@ flowchart LR
   `pandas_task_processor._row_vector` 每次都重新呼叫 embedding
 - 範圍：回補與證據重新比對時讀資料庫存的向量；需要時才載入，不要讓所有查詢都多讀 1536 維
 - 驗收：`pytest` 全過；重測 PF-7，兩類 p50 都 ≤ 5 s，並回填測試計畫書 6.10
-- 狀態：**未達驗收**。讀存著的向量已上線（`stored_vector`，2026-11-03），但 PF-7 未證實列 p50 只從 14.28 s 降到 12.61 s，所以 DEF-11 的原因不只重算 embedding。2026-11-04 查到真正的原因：`knowledge_base` 沒有向量索引，一次向量查詢全表掃描 18,681 筆，正式資料庫實測 10～14 秒（EXPLAIN ANALYZE）。`scripts/create_vector_index.py` 已備好（預設只看；`--apply` 才用 CONCURRENTLY 建 HNSW，資料庫約從 225 MB 變 373 MB，免費上限 500 MB；`--drop` 拿掉），暫存表驗證過現行查詢的排序用得上索引。**還沒建**：會寫正式資料庫，要負責人同意，也要避開報告時段；建好後重測 PF-7
+- 狀態：**未達驗收**。讀存著的向量已上線（`stored_vector`，2026-11-03），但 PF-7 未證實列 p50 只從 14.28 s 降到 12.61 s，所以 DEF-11 的原因不只重算 embedding。2026-11-04 查到真正的原因：`knowledge_base` 沒有向量索引，一次向量查詢全表掃描 18,681 筆，正式資料庫實測 10～14 秒（EXPLAIN ANALYZE）。`scripts/create_vector_index.py` 已備好（預設只看；`--apply` 才用 CONCURRENTLY 建 HNSW，資料庫約從 225 MB 變 373 MB，免費上限 500 MB；`--drop` 拿掉），暫存表驗證過現行查詢的排序用得上索引。**還沒建**：會寫正式資料庫，要負責人同意，也要避開報告時段；建好後重測 PF-7。
+  2026-11-06 換成 bge-m3（B-52）後：索引要建在新的 1024 維欄位上；資料庫已 321 MB（舊向量欄位 `content_vector_te3s` 還在），
+  再建索引約多 150 MB 會超過腳本的 90% 護欄，要先決定清不清掉舊向量。抽查時 1024 維全表查詢一次約 0.3～1.2 秒（第一次冷啟動 10 秒），比 1536 維快
 
 ### B-51 DEF-14：關鍵字比對的誤命中
 - 優先級：P1
@@ -3031,6 +3033,7 @@ flowchart LR
   選定後要一起改：`AGENTS.md`「CGU 是唯一的 AI」、`scripts/rotate_cgu_key.py`（目前會清空 `EMBED_API_KEY`）、`scripts/cgu_diagnose.py` 對 404 的提示（目前寫「閘道沒有這個模型」，這次其實是整條路徑被關）
 - 狀態：待負責人決定。負責人 2026-11-03 先選 B-48
   2026-11-05：學校改由新服務 Mercury 提供向量，只有 `bge-m3`（1024 維，本地模型、免費、不計額度）→ 走做法 2，見票 B-52。
+  2026-11-06：**定案 bge-m3**。同一把 `CGU_API_KEY` 就能用 Mercury，`rotate_cgu_key.py` 照舊清空 `EMBED_API_KEY`；`AGENTS.md` 與 `cgu_diagnose.py` 的 404 提示已改。正式資料庫已重算，程式上線見 B-52。
 
 ### O-39 補完第二次簡報留下的測試與真畫面
 - 優先級：P1
@@ -3053,5 +3056,14 @@ flowchart LR
 - 依賴：B-48、B-49
 - 驗收：pytest 與 Postgres 契約測試全過；校準報告經負責人同意；正式站 `/api/health` 的 `embedding.ok` 為 true、改寫句命中 `vector` 層、
   `factcheck-sync` 轉綠；舊向量保留可退回
-- 狀態：2026-11-05 開票；`scripts/mercury_check.py`（只讀檢查）已寫好；其餘待負責人電腦上的 session 執行
+- 狀態：**程式與正式資料庫完成，程式待上線**（2026-11-06，負責人電腦）。
+  - 步驟 0：`mercury_check.py` 實測現在的 `CGU_API_KEY` 就能用 Mercury（只要一把金鑰，`rotate_cgu_key.py` 不用改）；只有 `bge-m3`（1024 維、已正規化），`text-embedding-3-small` 回 404。
+  - 步驟 1：維度改讀 `VECTOR_DIMENSION`（欄位維度不符時 pg_store 略過向量、不報錯）；證據信心數字與原型檔改成設定；`generate_embedding` 只送前 2000 字；
+    `migrate_vector_dim.py`、`reembed_vectors.py`（批次、可續跑、本機快取）、`embed_cache.py`、`embedding_calibration.py`。pytest 1005 過；Postgres 契約測試 1536 與 1024 各 36 過。
+  - 步驟 2：校準報告 `docs/test/results/bge_m3_calibration_2026-11-06.md`、`evidence_confidence_bge-m3_2026-11-06.md`。負責人同意：門檻 **0.84**、
+    信心「中」0.74、相似查證下限 0.69、話術差距 0.055、原型 `data/claim_prototypes_bge-m3.npz`。同一套規則用舊模型算出 0.76（實際 0.75）。
+  - 步驟 3：負責人同意後 `--apply`：欄位換成 vector(1024)、舊向量保留在 `content_vector_te3s`（18,891 列）、寫入 bge-m3 向量 18,922 列；資料庫 225 → 321 MB。
+    抽 PF-2 5 句查正式庫，最近鄰 5／5 是要命中的那一列、4 句 ≥ 0.84。
+  - 待做：負責人說「推」→ Render 刪掉 `EMBED_API_KEY` 那一列 → 推 main（`render.yaml` 已改好網址、模型、維度與數字）→ 驗證 `/api/health` 的 embedding、改寫句命中 `vector` 層、`factcheck-sync` 轉綠。
+  - 之後：舊向量欄位要不要清掉（清掉才放得下 B-50 的向量索引，見 B-50）
 
