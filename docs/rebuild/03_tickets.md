@@ -3015,7 +3015,7 @@ flowchart LR
 - 驗收：PF-2 題組與 12 句不該命中的訊息都沒有錯誤命中；結果照實回填，不為了過關調門檻
 - 狀態：**程式完成但未達驗收，還沒上線**（2026-11-04，研究分支）。關鍵字改用 `gemma-4-26b-a4b-it`、比對改用 `gpt-oss-120b`（學校本地模型，免費、不計額度，不扣每日上限）；比對提示改嚴，要引用候選裡的句子；長篇候選送對上關鍵字的那一段。離線 3 輪：10 句負例 0／30 錯，一次約 8.5 s（上一版 11～35 s）；但 PF-2 60 次還有錯誤 2 次（#4、#13）、只是相關 3 次（#14），預估正確 45～50%，未達 70%。紀錄在 `docs/test/results/b51_keyword_2026-11-04.md`。上線後要在正式站重測 PF-2，並回填測試計畫書 DEF-14
 
-### B-52 金鑰失效或 embedding 卡住時，查證不要跟著卡
+### B-53 金鑰失效或 embedding 卡住時，查證不要跟著卡（原本地編號 B-52，2026-11-06 與 Mercury 的 B-52 撞號改號）
 - 優先級：P0
 - 對應：2026-11-03 深夜學校刪掉舊金鑰，正式站新訊息都是「AI 分析暫時無法使用」，但 `/api/health` 的 `ai_available` 還是 true。換好金鑰後 `/embeddings` 在正式站逾時，實測新訊息 57 秒，另一則 120 秒回 502
 - 範圍：`generate_embedding` 逾時 60 s 改 10 s，失敗一次後 5 分鐘內不呼叫，過了再試，恢復後自動回到語意比對（`EMBED_TIMEOUT_SECONDS`、`EMBED_RETRY_AFTER_SECONDS`）；`/api/health` 加 `ai_last_call`（最近一次判讀的實際結果，錯誤只留狀態碼）；`rotate_cgu_key.py` 改試判讀，embedding 不通只提醒，不然學校關著 embedding 時新金鑰換不上去；領新金鑰的網址改成 `mercuryapi/me`
@@ -3030,6 +3030,7 @@ flowchart LR
   2. 改用其他模型：向量維度可能不同，全部要重算。
   選定後要一起改：`AGENTS.md`「CGU 是唯一的 AI」、`scripts/rotate_cgu_key.py`（目前會清空 `EMBED_API_KEY`）、`scripts/cgu_diagnose.py` 對 404 的提示（目前寫「閘道沒有這個模型」，這次其實是整條路徑被關）
 - 狀態：待負責人決定。負責人 2026-11-03 先選 B-48
+  2026-11-05：學校改由新服務 Mercury 提供向量，只有 `bge-m3`（1024 維，本地模型、免費、不計額度）→ 走做法 2，見票 B-52。
 
 ### O-39 補完第二次簡報留下的測試與真畫面
 - 優先級：P1
@@ -3042,3 +3043,15 @@ flowchart LR
   - 情境劇的段落卡「家族群組的煮蛋小知識」和實拍台詞「網路上說」要不要統一。
 - 驗收：結果回填測試計畫書與短版報告書，重出兩份 PDF
 - 狀態：未開始
+
+### B-52 向量改用 Mercury 的 bge-m3
+- 優先級：P0（語意比對、語意快取、相似查證、信心「中」自 2026-11-03 起停用，DEF-13）
+- 對應：O-38 做法 2；交接文件 `docs/rebuild/mercury_bge_m3_交接.md`（在負責人電腦上的 Claude Code 照它做）
+- 範圍：向量維度改由 `VECTOR_DIMENSION` 設定（pg_store、pandas_store、processor、reembed）；Postgres 遷移（舊欄位改名保留、新增 1024 維欄位，
+  預設 dry-run）；`reembed_vectors.py` 支援 bge-m3 批次重算；`rotate_cgu_key.py` 不再清空 `EMBED_API_KEY`（若 Mercury 要另一把金鑰）；
+  bge-m3 的門檻與信心數字重新校準（報告 `docs/test/results/bge_m3_calibration_2026-11-05.md`）；`render.yaml` 改網址、模型、維度、門檻
+- 依賴：B-48、B-49
+- 驗收：pytest 與 Postgres 契約測試全過；校準報告經負責人同意；正式站 `/api/health` 的 `embedding.ok` 為 true、改寫句命中 `vector` 層、
+  `factcheck-sync` 轉綠；舊向量保留可退回
+- 狀態：2026-11-05 開票；`scripts/mercury_check.py`（只讀檢查）已寫好；其餘待負責人電腦上的 session 執行
+

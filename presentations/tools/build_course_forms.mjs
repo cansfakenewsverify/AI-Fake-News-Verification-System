@@ -2,8 +2,9 @@
 // out in the same format as each other and as the originals.
 //
 // Usage:
-//   node presentations/tools/build_course_forms.mjs        (writes the two .html next to the report)
-//   then the two html_to_pdf commands this script prints   (writes the PDFs into docs/)
+//   node presentations/tools/build_course_forms.mjs                  (2026-09 進度報告，原版)
+//   node presentations/tools/build_course_forms.mjs --round 2026-11  (2026-11 第二次簡報：自評等級與說明換成 ROUNDS 裡的版本)
+//   then the two html_to_pdf commands this script prints              (writes the PDFs into docs/)
 //
 // 繳出去的表單放在 docs/，檔名沿用 2026.4.19 那份的格式：
 //   docs/<日期> forIEET_軟硬體專題學生自評表_20230317_1.pdf
@@ -24,7 +25,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const DIR = path.join(REPO, "presentations", "2026-09_進度報告");
+const ROUND = (() => {
+  const i = process.argv.indexOf("--round");
+  return i > 0 ? process.argv[i + 1] : "2026-09";
+})();
 
 const HEAD = {
   team: "廖晢勛、石岱勳、姚睿、張宇宏、廖育翔",
@@ -155,6 +159,38 @@ const ITEMS = [
   },
 ];
 
+// 每一輪報告自評的等級與說明（未列的題目沿用上面 ITEMS 的 2026-09 版）。表單本身的題目、等級描述、SDG 清單不動。
+const ROUNDS = {
+  "2026-09": { folder: "2026-09_進度報告", self: "09_學生自評表_已填.html", score: "11_評分表_已填表頭.html", date: "2026.9.21", items: {} },
+  "2026-11": {
+    folder: "2026-11_第二次簡報", self: "05_學生自評表_已填.html", score: "06_評分表_已填表頭.html", date: "2026.11.4",
+    items: {
+      1: { level: 4, note:
+        "本專題整合 React 前端、FastAPI 後端、PostgreSQL 與 pgvector 向量檢索及大型語言模型，完成可公開使用的假訊息與詐騙查證網站，2026 年 9 月起在雲端運作。三層判讀流程先比對相同內容、再以向量比對語意相近的說法，兩層都沒命中才呼叫 AI；相似度門檻 0.75 為實測校準。本輪新增：每天自動同步台灣事實查核中心、MyGoPen 與 Cofacts 的查核結論，知識庫已證實資料約 1.86 萬筆；Threads 查核機器人 10 月起在雲端運作，使用者在貼文底下標記即可取得燈號與查核來源；信心程度改依「與查核機構已證實內容的相似度」判定，不再採用 AI 自評分數。11 月學校關閉外部模型的 embedding 後，第二層改以關鍵字比對暫代，查證服務照常提供。" },
+      2: { level: 3, note:
+        "假訊息與詐騙查證是重要的社會議題。本輪從實際運作中發現並處理了多個問題：學校模型閘道無預警下架模型，改為自動切換備援模型並每日檢查模型清單；金鑰兩度被學校重置，新增一行換金鑰的工具，並在健康檢查中顯示語意比對是否正常；每週評測發現系統常把真的內容判成假，調整判讀規則後，歷史風險題的漏判率由 12.8% 降到 2.0%；11 月學校因資安考量關閉 embedding，當天改上線關鍵字比對備援，查核資料同步照常寫入。仍有可持續改進之處：語意快取命中率 65% 未達自訂的 70%；關鍵字比對有少數誤命中；信心驗證四項標準有一項未過，原因是查核來源互相矛盾。都已列為下一步工作，不以調低標準的方式過關。" },
+      3: { level: 4, note:
+        "本輪的實驗都先寫好計畫與過關標準再執行：以 2,000 題凍結題庫比較 8 種模型，主要指標為「把有風險內容判成安全」的漏判數，並以 Wilson 信賴區間與 McNemar 檢定逐題比較，結果現行模型漏判最少，完整系統比只用 AI 多判對 12 題（p = 0.017）。另以時間切分驗證信心程度，計算可靠度、ECE 與 Brier 分數，四項標準過三項；未過的一項逐題追查，原因是查核來源互相矛盾。每週日系統也會自動用當週新出現的查核報告做準確率測驗，報告自動存檔，避免只用模型可能看過的舊題庫。" },
+      4: { level: 4, note:
+        "團隊以 Git 進行版本控制，持續整合服務在每次提交時自動執行約 1,300 項離線測試（後端 933 項、前端 409 項）；部署結合雲端主機、靜態網站平台與向量資料庫，查核資料同步與每週評測由排程工作自動執行。AI 透過學校的模型閘道呼叫。本輪的情境劇影片也以程式產生：由分鏡檔組合實拍鏡頭、講解動畫與正式站自動錄製的畫面，素材與步驟都能重現。" },
+      5: { level: 3, note:
+        "測試計畫書已擴充為 v2.1 完整版，另附短版測試報告書：第一輪 46 項之外新增第二輪 16 項，共 62 個案例，附需求追溯矩陣，每項需求都能對應到測試與結果；未通過的項目與缺陷逐項記錄原因、影響與處理方式。實作拆成可追蹤的工作票管理進度。仍有不足之處：語意快取命中率未達準則；正式站命中「未證實」資料時回應約 13 秒，未達 5 秒準則；Threads 實測與第三方使用者測試尚未執行。第二輪整體判定為未達成，照實寫在測試計畫書。" },
+      6: { level: 4, note:
+        "本專題留下完整且可回溯的文件鏈：共識文件、功能與介面規格書、介面設計稿、實作工作票、測試計畫書 v2.1（含需求追溯矩陣與短版測試報告書）與雲端部署手冊，每項實作與測試都能對應到文件條目。本輪另撰寫模型比較計畫與信心程度驗證計畫，先寫好方法與過關標準再執行，結果報告也存進專案。情境劇的劇本、拍攝劇本與出片步驟同樣整理成文件，專案說明隨程式同步維護。" },
+      7: { level: 4, note:
+        "五人團隊職責分明，分別負責系統實作與部署、介面測試、效能與品質數據、文件與審查、影片與簡報。本輪情境劇由組員與同學演出，講解動畫與網站畫面由程式產生；第三方實測由組員負責主持與記錄，作業包已備妥。專案進度與技術決策定期向指導教授匯報，遇到學校模型閘道維修等突發狀況時，即時調整拍攝與錄製順序，先完成不受影響的部分。" },
+      8: { level: 4, note:
+        "本專題的核心精神是維護網路資訊的正確性並落實社會責任。倫理要求都寫成具體規則：不引用未經查核的來源、沒有查核來源就不給安全判定、每個判讀都標示由 AI 自動產生僅供參考；系統不需登入，查詢紀錄只存在使用者自己的瀏覽器。研究資料只保存查核網址、雜湊與判定，不保存可能含個資的訊息原文；情境劇刻意避免族群與宗教的刻板印象，影片中他人的帳號一律遮蔽。資訊安全方面有對外連線防護、連線頻率與大小限制、每日運算上限與管理功能的權杖驗證。" },
+      9: { level: 4, note:
+        "系統結合 AI 與軟體工程技術，建立防禦假訊息的數位基礎設施（SDG 9），並以即時、有來源依據且中立的查證服務阻斷假訊息傳播，促進社會互信與健全的資訊環境（SDG 16）。本輪團隊自學了模型評測的統計方法（信賴區間、McNemar 檢定、可靠度與 ECE）、Threads 平台的串接與審核規範，以及以程式產生影片的流程，持續學習的成果都反映在系統與文件中。" },
+    },
+  },
+};
+const R = ROUNDS[ROUND];
+if (!R) throw new Error(`unknown --round ${ROUND}; known: ${Object.keys(ROUNDS).join(", ")}`);
+const DIR = path.join(REPO, "presentations", R.folder);
+for (const it of ITEMS) Object.assign(it, R.items[it.n] ?? {});
+
 const SDGS = [
   "無相關",
   "SDG 1 終結貧窮：消除各地一切形式的貧窮",
@@ -183,7 +219,7 @@ const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const CSS = `
   @page { size: A4; margin: 14mm 13mm 13mm 13mm; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+  body { margin: 0; font-family: "Microsoft JhengHei", "Noto Sans TC", "WenQuanYi Zen Hei", sans-serif;
          color: #000; font-size: 10pt; line-height: 1.45; }
   h1 { font-size: 15pt; text-align: center; margin: 0 0 3mm; letter-spacing: 0.04em; }
   table { width: 100%; border-collapse: collapse; }
@@ -296,13 +332,13 @@ ${sdgBlock(self ? SDG_TICKED : [])}${advisory}
 }
 
 const outputs = [
-  ["09_學生自評表_已填.html", build("self")],
-  ["11_評分表_已填表頭.html", build("score")],
+  [R.self, build("self")],
+  [R.score, build("score")],
 ];
-const DATE = "2026.9.21";
+const DATE = R.date;
 const PDF = {
-  "09_學生自評表_已填.html": `docs/${DATE} forIEET_軟硬體專題學生自評表_20230317_1.pdf`,
-  "11_評分表_已填表頭.html": `docs/${DATE} forIEET_軟硬體專題評分表_20230317_1.pdf`,
+  [R.self]: `docs/${DATE} forIEET_軟硬體專題學生自評表_20230317_1.pdf`,
+  [R.score]: `docs/${DATE} forIEET_軟硬體專題評分表_20230317_1.pdf`,
 };
 for (const [name, html] of outputs) {
   fs.writeFileSync(path.join(DIR, name), html, "utf8");
@@ -310,5 +346,5 @@ for (const [name, html] of outputs) {
 }
 console.log("\n接著產生 PDF（放到 docs/，檔名沿用 2026.4.19 那份）：");
 for (const [name, out] of Object.entries(PDF)) {
-  console.log(`  node code/frontend/tools/html_to_pdf.mjs "presentations/2026-09_進度報告/${name}" "${out}"`);
+  console.log(`  node code/frontend/tools/html_to_pdf.mjs "presentations/${R.folder}/${name}" "${out}"`);
 }
