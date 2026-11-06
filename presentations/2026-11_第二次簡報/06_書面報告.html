@@ -1,0 +1,379 @@
+<!doctype html>
+<!--
+  第四次進度報告（軟硬體專題（三）第二次簡報，使用情境文）的書面報告，A4。
+  版面、章節沿用 presentations/2026-09_進度報告/10_書面報告_草稿.html。
+  產生 PDF（macOS，用 Chrome 無頭模式）：
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --no-pdf-header-footer \
+      --print-to-pdf="presentations/2026-11_第二次簡報/06_書面報告.pdf" "file://$PWD/presentations/2026-11_第二次簡報/06_書面報告.html"
+  （Windows 用 node code/frontend/tools/html_to_pdf.mjs <html> <pdf>）
+
+  所有數字都出自：docs/test/TP-FNV-2026-01.md（v2.1，2026-11-03）、docs/test/TP-FNV-2026-01_v2.1_報告版.md、
+  docs/test/results/（含 weekly/、embedding_closed_2026-11-03.md、regression_2026-11-03.txt）、CLAUDE.md、
+  docs/rebuild/03_tickets.md，另有兩個是對正式站的即時查詢（不在文件裡）：2026-11-04 的 /api/knowledge/stats（18,825 筆已證實）、
+  2026-11-06 15:08 UTC 的 /api/health（向量檢查 ReadTimeout）。沒有把握的數字一律沒有寫進來。
+  2026-11-07 依三位獨立驗收員（數字、進度時序、誠實與格式）的互相批判修訂。
+-->
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AI 為核心的假訊息驗證系統 — 第四次進度報告</title>
+    <style>
+      @page { size: A4; margin: 16mm 16mm 16mm 16mm; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+        color: #000;
+        font-size: 10.5pt;
+        line-height: 1.6;
+      }
+      .cover { text-align: center; padding-top: 22mm; page-break-after: always; }
+      .cover .school { font-size: 13pt; letter-spacing: 0.1em; }
+      .cover h1 { font-size: 24pt; line-height: 1.35; margin: 14mm 0 3mm; letter-spacing: 0.03em; }
+      .cover .sysname { font-size: 15pt; color: #333; margin-bottom: 16mm; }
+      .cover table { width: 118mm; margin: 0 auto; border-collapse: collapse; text-align: left; }
+      .cover td { padding: 2.4mm 3mm; border-bottom: 0.3mm solid #999; font-size: 11pt; }
+      .cover td.k { width: 30mm; font-weight: 700; }
+      .signbox { width: 118mm; margin: 14mm auto 0; border: 0.4mm solid #000; padding: 5mm; text-align: left; }
+      .signbox .t { font-weight: 700; margin-bottom: 6mm; }
+      .signline { display: inline-block; border-bottom: 0.35mm solid #000; min-width: 58mm; }
+
+      h2 { font-size: 13pt; margin: 7mm 0 2.5mm; padding-bottom: 1.2mm; border-bottom: 0.5mm solid #000; }
+      h3 { font-size: 11pt; margin: 4.5mm 0 1.5mm; }
+      p { margin: 0 0 2.4mm; text-align: justify; }
+      ul, ol { margin: 0 0 2.6mm; padding-left: 6mm; }
+      li { margin-bottom: 1mm; }
+      table.d { width: 100%; border-collapse: collapse; margin: 2mm 0 3.5mm; font-size: 9.5pt; }
+      table.d th, table.d td { border: 0.3mm solid #444; padding: 1.4mm 2mm; vertical-align: top; }
+      table.d th { background: #ececec; font-weight: 700; }
+      table.d td.num, table.d th.num { text-align: right; white-space: nowrap; }
+      .flow {
+        border: 0.35mm solid #444; padding: 3mm 4mm; margin: 2mm 0 3.5mm;
+        font-family: "Menlo", "Consolas", "PingFang TC", "Microsoft JhengHei", monospace; font-size: 9pt; line-height: 1.7;
+        white-space: pre-wrap; background: #fafafa;
+      }
+      .note { font-size: 9.5pt; color: #333; border-left: 1mm solid #666; padding: 1mm 0 1mm 3mm; margin: 2mm 0 3mm; }
+      .foot { margin-top: 8mm; font-size: 9pt; color: #555; border-top: 0.3mm solid #999; padding-top: 2mm; }
+      h2, h3 { break-after: avoid; }
+      table.d, .flow { break-inside: avoid; }
+    </style>
+  </head>
+  <body>
+    <!-- ────────────────────────── 封面 ────────────────────────── -->
+    <div class="cover">
+      <div class="school">長庚大學　資訊工程學系　軟硬體專題</div>
+      <h1>AI 為核心的<br />假訊息驗證系統</h1>
+      <div class="sysname">系統名稱：全民查證公社</div>
+
+      <table>
+        <tr><td class="k">報告別</td><td>第四次進度報告（第二次簡報：使用情境文）</td></tr>
+        <tr><td class="k">報告日期</td><td>2026 年 11 月</td></tr>
+        <tr><td class="k">團隊成員</td><td>廖晢勛、石岱勳、姚睿、張宇宏、廖育翔</td></tr>
+        <tr><td class="k">指導教授</td><td>黃崇源</td></tr>
+        <tr><td class="k">系統網址</td><td>https://fakenewsverify.vercel.app</td></tr>
+        <tr><td class="k">原始碼</td><td>github.com/cansfakenewsverify/AI-Fake-News-Verification-System</td></tr>
+      </table>
+
+      <div class="signbox">
+        <div class="t">指導教授簽名</div>
+        <div>簽名：<span class="signline"></span>　　日期：<span class="signline" style="min-width:32mm"></span></div>
+      </div>
+    </div>
+
+    <!-- ────────────────────────── 內文 ────────────────────────── -->
+    <h2>一、這一期做了什麼</h2>
+    <p>
+      上次報告（2026 年 9 月）時，系統剛上線。這一期的重點不是再加新畫面，而是回答一個問題：
+      <strong>系統上線之後，怎麼維持準確、怎麼自動更新、外部服務出狀況時怎麼辦？</strong>
+      這一期遇到兩次來自學校 AI 閘道的突發狀況（模型下架、向量服務關閉），兩次都是上線後才發現的，
+      處理經過與尚未解決的部分都照實寫在本報告中。
+    </p>
+    <p>這一期完成的項目：</p>
+    <ol>
+      <li><strong>換模型救急（9 月 30 日）</strong>：學校閘道無預警下架原本使用的模型，正式站所有沒查過的內容都顯示
+        「AI 分析暫時無法使用」，卻沒有人發現。改用新模型 <code>gpt-5.6-luna</code>，並加上備援模型與「模型清單檢查」，
+        下架時 GitHub Actions 會變紅並寄信通知。</li>
+      <li><strong>知識庫自動成長</strong>：每天兩次自動同步 MyGoPen、台灣事實查核中心、Cofacts 的新查核結論。
+        已證實的知識庫資料從上次報告時的 128 筆，成長到約 1.88 萬筆（2026 年 11 月 4 日查正式站為 18,825 筆已證實；後文向量重算的 18,922 列還包含未證實的列）。</li>
+      <li><strong>每週自動評測</strong>：每週日用學校每週剩下的額度，拿「模型推出後才發布的新查核」測驗系統，
+        報告自動存回版本庫。目前已累積五次（10 月 5 日～11 月 2 日）。</li>
+      <li><strong>判定校準</strong>：每週評測發現系統常把真的內容判成假的。調整後，AI 在查不到可以確認的資料時改回答
+        「無法查證」（黃燈），歷史風險題被判成安全的比例從 10.4% 降到 2～5%（10-19、10-26 約 2%；11-02 閘道不穩，為 4.7%），
+        代價是一部分謠言改判「無法查證」，與固定答案的一致率下降（見第四節）。</li>
+      <li><strong>證據信心</strong>：信心程度不再由 AI 自評，改依規則表決定（有沒有查核機構已證實的相似內容等），
+        結果頁並列出「知識庫中的相似查證」。</li>
+      <li><strong>Threads 機器人實機串接並搬上雲端（10 月 1 日）</strong>：機器人帳號可以真的回覆貼文，每 30 秒檢查一次提及，
+        狀態存在資料庫、重啟不會重複回覆。仍是 Meta 開發模式，只回覆測試人員。</li>
+      <li><strong>影片與文件</strong>：開箱簡報影片改為男聲口語版並加上配樂與音效（v1.3）；
+        完成第二次簡報的情境劇《轉傳之前》（3 分 36 秒）；測試計畫書升為 v2.1（完整版）並另出短版測試報告書；
+        完成兩張 A1 專題介紹海報。</li>
+      <li><strong>外部事件：學校關閉向量服務（11 月 3 日）</strong>：語意比對停用。當天上線關鍵字比對作為備援，
+        但備援有誤命中（見第六節）。</li>
+      <li><strong>改用新的向量模型 bge-m3（11 月 5～6 日）</strong>：學校改由新服務提供向量，只有 <code>bge-m3</code>（1024 維），
+        和原本的 1536 維不能互比。已改程式（<strong>已合併進主線，但尚未推上線</strong>）、重新校準相似度門檻（0.75 → 0.84），並把正式資料庫
+        18,922 列全部重新算過向量（舊向量保留，可退回）。<strong>所以正式站目前語意比對仍停用，驗證尚未完成</strong>
+        （見第六節）。</li>
+    </ol>
+
+    <h2>二、系統在做什麼</h2>
+    <p>
+      使用者把收到的可疑訊息（文字或網址）貼到網站上，系統判定它是<strong>詐騙</strong>、<strong>假訊息</strong>、
+      還是<strong>查無異常</strong>，以紅黃綠燈呈現，並附上已經做出判定的查核來源。判不出來的內容標為
+      「無法查證」（黃燈）。每一筆結果都有自己的網址，可以複製連結或分享到 Threads。
+    </p>
+    <p>
+      這一期的第二次簡報要求「使用情境文」：情境劇《轉傳之前》用兩個日常情境——家族群組轉傳的冷水煮蛋小知識
+      （貼文字查證）、Threads 上流傳的法國暴動「唯獨豬肉沒人搶」AI 圖（標記機器人）——呈現使用系統前的困擾與使用後的好處。
+      影片的網站畫面全部是正式站實錄；Threads 段因機器人實機錄影沒有進行，畫面是片中標明的示意畫面。
+    </p>
+    <p>除了單筆查證之外，網站還有三個部分：</p>
+    <ul>
+      <li><strong>熱門牆</strong>：「查核機構最新」彙整 MyGoPen、台灣事實查核中心與 Cofacts 的查核結果；
+        「本站熱門查證」列出最近 7 天大家查最多的已證實內容。</li>
+      <li><strong>知識庫</strong>：所有查證過而且有來源佐證的內容，可以搜尋與依判定篩選。</li>
+      <li><strong>Threads 查核機器人</strong>（<code>@factcheck_tw_bot</code>）：在可疑貼文底下標記機器人，
+        它會回覆判定、來源與結果頁連結。目前是測試版，只有被加入測試名單的帳號收得到回覆
+        （2026 年 10 月 3 日決定先不送 Meta App Review）。</li>
+    </ul>
+
+    <h2>三、系統架構</h2>
+    <div class="flow">瀏覽器
+  └─ Vercel（前端：React 靜態檔；/api/* 同源代理）
+       └─ Render（後端：FastAPI）
+            ├─ Supabase PostgreSQL ＋ pgvector（知識庫、結果、熱門、用量、Threads 機器人狀態）
+            ├─ 長庚 CGU AIR 閘道（判讀模型 gpt-5.6-luna，備援 gpt-6-luna）
+            │     向量模型：text-embedding-3-small 於 2026-11-03 停供，改用 bge-m3（1024 維；資料庫 11-06 已換，程式待上線）
+            └─ Threads API（機器人每 30 秒檢查提及）
+GitHub Actions：ci（每次提交）／factcheck-sync（每天兩次）／weekly-eval（每週日）／keepalive（每 10 分鐘）</div>
+    <p>
+      金鑰只存在三個地方：負責人本機的設定檔、Render 後台，以及 GitHub 的加密 secret。
+      版本庫是公開的，裡面不含任何金鑰。
+    </p>
+
+    <h3>判讀流程：先找答案，找不到才問 AI</h3>
+    <p>
+      呼叫大型語言模型是整個系統最貴的一步，所以設計了多層比對，前面的層命中時就不呼叫 AI：
+    </p>
+    <table class="d">
+      <thead>
+        <tr><th style="width:18mm">層</th><th style="width:30mm">比對方式</th><th>說明</th><th style="width:38mm" class="num">實測延遲</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>L1</td><td>內容雜湊</td><td>完全相同的內容直接沿用先前的判定。</td><td class="num">213 ms（9/16）</td></tr>
+        <tr><td>L2</td><td>向量語意相似</td><td>換句話說也認得。只比對已經證實的資料列。舊模型的門檻 0.75；
+            <strong>11-03 起停用</strong>（學校關閉向量服務，DEF-13），11-06 改用 bge-m3 並重新校準，門檻改為 <strong>0.84</strong>（資料庫已重算；程式尚未上線，所以正式站目前仍停用）。</td>
+            <td class="num">約 3.1 秒（9/16，舊模型）</td></tr>
+        <tr><td>L2 備援</td><td>關鍵字比對</td><td>11-03 上線：算不出向量時改用關鍵字找查核報告。結果頁標「關鍵字比對」，不假裝是語意比對。
+            有誤命中（DEF-14）。</td><td class="num">11～35 秒（11-03）</td></tr>
+        <tr><td>L3</td><td>AI 判讀</td><td>前面都沒中才呼叫一次模型；判讀對象一律是使用者的原文。4.8 秒是語意比對正常時的 150 題數字；
+            向量停用期間未命中的查證實測約 28 秒（11-03，11 句），未達 15 秒的準則。</td><td class="num">p50 4.8 秒（10/15）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>上線護欄與額度</h3>
+    <table class="d">
+      <thead><tr><th style="width:52mm">項目</th><th style="width:36mm" class="num">設定值</th><th>目的</th></tr></thead>
+      <tbody>
+        <tr><td>每日 AI 呼叫上限</td><td class="num">300 次／日</td><td>控制學校提供的額度；達上限後仍可回覆快取命中的內容。</td></tr>
+        <tr><td>每個 IP 的頻率限制</td><td class="num">30 次／分、200 次／時</td><td>避免單一來源大量佔用。</td></tr>
+        <tr><td>請求與上傳大小</td><td class="num">1 MB／圖片 10 MB</td><td>避免超大請求拖垮免費主機。</td></tr>
+        <tr><td>每週評測的額度</td><td class="num">最多 USD 6，保留 USD 3</td><td>學校每週額度為 USD 10；先留 3 美元給網站使用者，評測只用剩下的。</td></tr>
+      </tbody>
+    </table>
+
+    <h2>四、評測結果</h2>
+    <h3>150 筆固定題庫</h3>
+    <p>
+      自建 150 筆已標註的訊息資料集（詐騙、假訊息、安全各 50 筆），其中刻意放入「看起來像詐騙的合法官方訊息」
+      作為難題。每次換模型或調整判定規則就重跑一次：
+    </p>
+    <p class="note">
+      名詞：<strong>漏判</strong>＝有風險的內容被判成安全；<strong>誤報</strong>＝安全的內容被判成有風險；
+      <strong>p50</strong>＝一半的查詢在這個秒數內完成；<strong>P0／P1</strong>＝必過項目／重要項目。
+    </p>
+    <table class="d">
+      <thead>
+        <tr><th style="width:24mm">日期</th><th style="width:36mm">判讀模型／設定</th><th style="width:22mm" class="num">準確率</th>
+            <th style="width:14mm" class="num">漏判</th><th style="width:14mm" class="num">誤報</th><th>說明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>2026-06</td><td>gpt-5-mini</td><td class="num">96.0%</td><td class="num">0</td><td class="num">5</td><td>誤報全是把反詐宣導、政府補助公告判成詐騙。</td></tr>
+        <tr><td>2026-09-16</td><td>gpt-5.4-mini</td><td class="num">100%</td><td class="num">0</td><td class="num">0</td><td>上次報告的數字；該模型 9/30 被閘道下架。</td></tr>
+        <tr><td>2026-09-30</td><td>gpt-5.6-luna</td><td class="num">96.7%</td><td class="num">0</td><td class="num">5</td><td>換模型後；5 筆誤報都是官方公告被判成假訊息。</td></tr>
+        <tr><td>2026-10-15</td><td>gpt-5.6-luna＋判定校準 v4</td><td class="num">78.7%＊</td><td class="num">0</td><td class="num">0</td><td>風險題 100 題全判對；安全題 50 題中 18 題判安全、32 題判「無法查證」（全是官方公告類）。</td></tr>
+      </tbody>
+    </table>
+    <p>＊「無法查證」算答錯的嚴格算法。換成「作答率」看：作答 118／150（78.7%），作答的全部判對。依原準則（準確率 ≥ 93%）嚴格算法未達標，準則是否修訂待審查者裁定。</p>
+    <p>
+      <strong>在這 150 題固定題庫上，四次評測都沒有把任何詐騙或假訊息判成安全</strong>（漏判為 0）；
+      但這組題庫已公開且飽和，不代表實際表現（見下一小節）。校準 v4 的取捨是：
+      把「查不到」的內容誠實標成「無法查證」，而不是硬猜安全或假訊息。
+    </p>
+
+    <h3>每週新查核自動評測（模型沒看過的題目）</h3>
+    <p>
+      固定題庫已經飽和，所以另外每週用「當週新發布的查核結論」測驗，最接近上線後的真實表現。
+      下表為五次評測的對照（「歷史抽樣」取自知識庫，可能出現在模型的訓練資料中，數字偏樂觀）：
+    </p>
+    <table class="d">
+      <thead>
+        <tr><th>指標</th><th class="num">10-05<br />校準前</th><th class="num">10-12<br />v2</th><th class="num">10-19<br />v4</th>
+            <th class="num">10-26<br />v4</th><th class="num">11-02<br />v4＊</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>歷史風險題被判安全（漏判）</td><td class="num">10.4%</td><td class="num">12.8%</td><td class="num"><strong>2.0%</strong></td><td class="num"><strong>2.1%</strong></td><td class="num">4.7%</td></tr>
+        <tr><td>歷史風險題判無法查證</td><td class="num">0%</td><td class="num">0%</td><td class="num">14.5%</td><td class="num">14.5%</td><td class="num">6.8%</td></tr>
+        <tr><td>歷史安全題被判紅燈（誤報）</td><td class="num">68.5%</td><td class="num">55.0%</td><td class="num">54.0%</td><td class="num">51.9%</td><td class="num">（無安全題）</td></tr>
+        <tr><td>本週新查核的漏判</td><td class="num">6／41</td><td class="num">4／24</td><td class="num">1／29</td><td class="num">1／32</td><td class="num">0／9</td></tr>
+        <tr><td>本週新查核風險判定一致率</td><td class="num">84.1%</td><td class="num">76.9%</td><td class="num">65.5%</td><td class="num">71.9%</td><td class="num">88.9%</td></tr>
+      </tbody>
+    </table>
+    <p>＊11 月 2 日那週學校閘道不穩：本週新查核 20 題只有 9 題有效，歷史抽樣 660 題只有 337 題有效，不能和前幾週直接比較。</p>
+    <div class="note">
+      <strong>如何解讀。</strong>校準 v4 之後，漏判大幅下降，代價是一部分謠言從紅燈變成黃燈「無法查證」，
+      所以「一致率」（無法查證算不一致）下降。<strong>安全題被判成紅燈的比例仍超過一半（51.9%）</strong>，
+      代表系統對「真的內容」仍偏保守，這是已知的研究限制，也是下一步要降低的指標。
+      本週新查核的風險題每週只有 9～41 題，信賴區間很寬（例如 10-26 為 54.6%～84.4%），只看趨勢，不當作精確數字。
+    </div>
+
+    <h2>五、測試與品質</h2>
+    <h3>自動化測試</h3>
+    <p>
+      2026 年 11 月 3 日重跑：後端 970 項通過（另有 36 項需要真的資料庫的契約測試，在拋棄式的測試資料庫中全數通過），
+      前端 410 項通過，前端檢查與建置無錯誤，正式站版本的 GitHub Actions 兩個工作都是綠燈。
+      這些測試全部離線執行、不消耗 AI 額度。<strong>但離線測試發現不了「外部服務被關掉」這類問題</strong>——
+      模型下架與向量服務關閉都是這樣漏過去的，所以新增了模型清單檢查、<code>/health</code> 的向量狀態欄位，
+      以及同步時的向量檢查。
+    </p>
+
+    <h3>測試計畫書 TP-FNV-2026-01（v2.1）</h3>
+    <p>
+      依課程格式撰寫，目前共 62 個測試項目：通過 38、通過（待補驗）3、未通過 4、未執行 4、待審查裁定 1、報告後執行 12。
+      第二次簡報輪次新增的 16 項（P0 共 4 項、P1 共 12 項）結果如下：
+    </p>
+    <table class="d">
+      <thead><tr><th style="width:24mm">範圍</th><th style="width:30mm">結果</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td>P0（4 項）</td><td>通過 3、未執行 1</td>
+            <td>通過：FN-20（無法查證的契約）、QA-6（歷史漏判率 ≤ 10.4%）、QA-7（回歸全綠）。
+                未執行：OP-10（Threads 機器人實機回覆的正式驗證），負責人 11 月 3 日決定不錄 Threads 實機畫面，沒有排定執行。</td></tr>
+        <tr><td>P1（12 項）</td><td>通過 8、未通過 3、未執行 1</td>
+            <td>通過率 66.7%，<strong>未達 80% 的準則</strong>（未執行算未通過）。</td></tr>
+        <tr><td>整體判定</td><td><strong>本輪未達通過條件</strong></td>
+            <td>P0 未全數通過，P1 通過率不足；回歸條件（測試與建置全綠）達成。</td></tr>
+      </tbody>
+    </table>
+    <p>未通過與未執行的項目，原因都寫明，沒有為了讓它通過而調整準則或門檻：</p>
+    <table class="d">
+      <thead><tr><th style="width:18mm">項目</th><th style="width:22mm">狀態</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td>OP-11</td><td>未通過</td>
+            <td>查核同步最近 30 次成功 25 次（83.3%），未達 90%。10 月 31 日起因向量服務關閉連續失敗 5 次；
+                11 月 2 日深夜（UTC；台灣時間 11 月 3 日凌晨）備援上線後恢復成功。窗口中的失敗要約 2 週才會移出。</td></tr>
+        <tr><td>PF-7</td><td>未通過</td>
+            <td>快取命中延遲：命中「已證實」列 p50 1.22 秒（達標）；命中「未證實」列 p50 12.61 秒（準則 5 秒）。
+                已改成不再重新算向量，但只快了一點，真正耗時的步驟還沒查明（DEF-11）。</td></tr>
+        <tr><td>UX-2</td><td>未通過</td>
+            <td>情境訊息的判定與查核來源一致（原文 1、2 各查兩次，皆為假訊息並附查核中心報告）；
+                未達的部分是影片的 Threads 段不是全部實錄。</td></tr>
+        <tr><td>UX-1</td><td>未執行</td>
+            <td>第三方實測（5～8 位非組員）原排 10 月 27～29 日，沒有進行；作業包（說明、題卡、記錄表、問卷）已備妥。</td></tr>
+        <tr><td>PF-2</td><td>未通過<br />（第一輪遺留）</td>
+            <td>語意快取命中率 50%（9 月 21 日以組員審定的 20 句重測），低於 70%。<strong>沒有為了通過而調低 0.75 的門檻</strong>。
+                11 月 3 日以關鍵字備援再量一次：正確 10 句（50%）、相關但不算同一則 2 句、錯誤 2 句，同樣未達。</td></tr>
+        <tr><td>UI-1、UI-6</td><td>未執行<br />（第一輪遺留）</td>
+            <td>介面逐格檢核需非實作組員勾核；簡繁與英文字檢查需先界定允許清單。均非測試失敗，依原準則追蹤。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>缺陷與處置</h3>
+    <table class="d">
+      <thead><tr><th style="width:18mm">編號</th><th style="width:22mm">狀態</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td>DEF-10</td><td>已修正</td><td>閘道下架模型，正式站所有新內容判讀失效（9/30）。改用新模型＋備援＋模型清單檢查，並在正式站實測確認。</td></tr>
+        <tr><td>DEF-12</td><td>已修正</td><td>結果頁分類命中查核機構資料時一律顯示「其他」，已改為顯示「已查核假訊息」等（10/26 上線）。</td></tr>
+        <tr><td>DEF-11</td><td>未修復</td><td>命中未證實列時要 12～16 秒（見上表 PF-7）。</td></tr>
+        <tr><td>DEF-13</td><td>處理中<br />（外部原因）</td><td>學校 2026-11-03 起關閉 embedding：呼叫回 404。不是本系統的程式錯誤，但使用者看到的結果受影響。
+            11-03 先上線緩解（關鍵字備援）；11-05 學校改由新服務提供 bge-m3，11-06 完成程式修改、門檻重新校準（0.84：
+            40 句改寫句有 28 句命中原文，50 題安全訊息誤命中 0 題）與整庫重算（18,922 筆）。
+            <strong>正式站驗證未完成</strong>：11-06 查正式站健康檢查，向量仍是逾時（ReadTimeout），因為程式尚未上線、正式站還是舊程式。
+            待推上線並刪除 Render 的 <code>EMBED_API_KEY</code> 後，重測 PF-2、OP-11、UX-2，才能關閉。</td></tr>
+        <tr><td>DEF-08</td><td>待審查裁定</td><td>錯誤橫幅與輸入驗證的紅字用了判定色，與「紅黃綠只用於判定」的規格文字衝突（規格文字問題，非實作缺陷），待審查者擇一。</td></tr>
+        <tr><td>DEF-14</td><td>未修復</td><td>關鍵字備援會誤命中：PF-2 的 10 筆命中人工看過，6 筆正確、2 筆相關、2 筆錯誤（很短的詐騙話術配到別的詐騙訊息）。
+            判定多半仍是紅燈，但附的來源是錯的。已開票修正（B-51）；備援可由設定值一鍵關閉。</td></tr>
+        <tr><td>DEF-03、04</td><td>未處理</td><td>知識庫頁同一主張出現兩張卡且標籤不同；少數已證實列的「主張」其實是查核文章標題。待負責人逐筆人工確認。</td></tr>
+      </tbody>
+    </table>
+
+    <h2>六、誠實交代的限制</h2>
+    <ol>
+      <li><strong>語意比對剛換模型，正式站尚未驗證完。</strong>學校 2026-11-03 停供向量服務，11-05 改由新服務提供
+        <code>bge-m3</code>。資料庫（18,922 列）已換好、相似度門檻已重新校準為 0.84，程式已合併但<strong>尚未推上線</strong>（還要刪除雲端的舊向量金鑰設定）、
+        上線後的重測（PF-2、OP-11、UX-2）尚未做，所以<strong>本報告的測試結果仍是 11 月 3 日、語意比對停用期間的數字</strong>。
+        在驗證完成前，換句話說的謠言可能查不到查核來源，備援的關鍵字比對也有誤命中（DEF-14）。
+        新門檻是用既有的 40 句改寫句與 150 題校準，樣本小，仍需線上資料檢驗。</li>
+      <li><strong>系統依賴學校閘道，這一期發生兩次無預警變動。</strong>9 月 30 日模型下架、11 月 3 日向量服務關閉，
+        都是上線後才發現。已加上偵測，但閘道是唯一的 AI 來源，沒有第二個供應商可以自動切換。</li>
+      <li><strong>固定題庫已飽和且公開</strong>，100% 或 0 漏判不能解讀成「系統不會出錯」。
+        可信的指標是每週新查核評測，而它每週樣本只有 9～41 題。</li>
+      <li><strong>對「真的內容」仍偏保守</strong>：歷史安全題被判紅燈的比例是 51.9%（10 月 26 日），降低誤報是下一步。</li>
+      <li><strong>尚未做使用者實測</strong>（UX-1）。系統的可用性目前只有團隊內部的操作紀錄，沒有非團隊使用者的達成率與問卷數據。</li>
+      <li><strong>Threads 機器人仍是測試版</strong>：只回覆測試人員；影片中的 Threads 段是示意畫面；
+        10 月 1 日機器人已有實機回覆的紀錄，但這一期沒有做實機的正式驗證項目（OP-10）。授權約 2026 年 12 月 29 日到期，屆時要重新授權。</li>
+      <li><strong>免費雲端方案的限制</strong>：後端 15 分鐘沒有流量會休眠，喚醒約需 1 分鐘（已用定時叫醒降低影響）；
+        每週自動評測的排程在 GitHub 上常比設定的時間晚 3～5 小時才開始。</li>
+      <li><strong>AI 判讀僅供參考</strong>：網站每一頁都標示判讀由 AI 自動產生、可能有誤，請使用者自行查證，
+        並提供隱私政策與資料刪除說明。</li>
+    </ol>
+
+    <h2>七、下一步</h2>
+    <ol>
+      <li>完成 bge-m3 上線：推上線並刪除 Render 的舊向量金鑰設定、確認向量檢查正常，並在正式站重測 PF-2、OP-11、UX-2，結果回填測試計畫書；
+        之後決定舊向量欄位何時清掉，並處理關鍵字備援的誤命中（B-51）。</li>
+      <li>查明「命中未證實列」仍要 12 秒的真正原因（DEF-11），重測 PF-7。</li>
+      <li>執行第三方實測（5～8 位非組員），把達成率與問卷結果回填測試計畫書。</li>
+      <li>補做 UI-1（深色版全套截圖與非實作組員勾核）、UI-6（簡繁與英文字檢查）；處理 DEF-03、DEF-04；
+        請審查者裁定 QA-1b 的準則（校準 v4 之後「作答的全對」是否可取代嚴格準確率）與 DEF-08。</li>
+      <li>降低安全題的誤報（目前 51.9%），並累積更多週的新查核評測。</li>
+      <li>開放首頁的圖片上傳介面（後端端點已具備檔頭檢查與大小限制）。</li>
+      <li>2026 年 12 月 3 日期末成果展前，確認系統在學校閘道現況下的穩定度。</li>
+    </ol>
+
+    <h2>八、分工</h2>
+    <table class="d">
+      <thead><tr><th style="width:24mm">成員</th><th style="width:34mm">角色</th><th>這一期的工作與狀態</th></tr></thead>
+      <tbody>
+        <tr><td>廖晢勛</td><td>組員 A．測試負責人</td><td>系統實作、部署與維運（換模型、同步、備援比對）；測試執行與彙整；情境劇旁白；金鑰與資料管理。</td></tr>
+        <tr><td>石岱勳</td><td>組員 B．介面測試</td><td>預定主持第三方實測與介面檢核勾核；<strong>本期尚未進行</strong>。</td></tr>
+        <tr><td>姚睿</td><td>組員 C．績效與品質數據</td><td>9 月 21 日完成語意快取題組的審定與重測；預定記錄第三方實測；<strong>實測本期尚未進行</strong>。</td></tr>
+        <tr><td>張宇宏</td><td>組員 D．文件與審查</td><td>審閱測試計畫書。</td></tr>
+        <tr><td>廖育翔</td><td>組員 E．影片與簡報</td><td>簡報當天播放影片與回答提問。</td></tr>
+      </tbody>
+    </table>
+
+    <h2>九、附件與可查證的位置</h2>
+    <table class="d">
+      <thead><tr><th style="width:52mm">項目</th><th>位置</th></tr></thead>
+      <tbody>
+        <tr><td>線上系統</td><td>https://fakenewsverify.vercel.app</td></tr>
+        <tr><td>情境劇《轉傳之前》（3 分 36 秒）</td><td>https://fakenewsverify.vercel.app/demo/scenario_v1.mp4</td></tr>
+        <tr><td>開箱簡報影片 v1.3（4 分 41 秒）</td><td>https://fakenewsverify.vercel.app/demo/presentation_v1.mp4</td></tr>
+        <tr><td>原始碼</td><td>github.com/cansfakenewsverify/AI-Fake-News-Verification-System</td></tr>
+        <tr><td>測試計畫書（完整版）</td><td>docs/test/TP-FNV-2026-01.md（v2.1）；PDF 在 presentations/2026-11_第二次簡報/</td></tr>
+        <tr><td>測試報告書（短版，62 個案例總表）</td><td>docs/test/TP-FNV-2026-01_v2.1_報告版.md</td></tr>
+        <tr><td>每週評測報告</td><td>docs/test/results/weekly/</td></tr>
+        <tr><td>學校關閉向量服務的證據</td><td>docs/test/results/embedding_closed_2026-11-03.md</td></tr>
+        <tr><td>bge-m3 門檻校準報告</td><td>docs/test/results/bge_m3_calibration_2026-11-06.md</td></tr>
+        <tr><td>評測資料與結果</td><td>code/backend/data/eval_set.csv、eval_*.csv</td></tr>
+        <tr><td>規格與實作票</td><td>docs/rebuild/（共識、規格書、實作票、部署手冊）</td></tr>
+      </tbody>
+    </table>
+
+    <p class="foot">
+      本專題的程式實作與自動化測試執行，包括撰寫程式與測試碼、執行測試、評測與量測腳本、
+      以無頭瀏覽器擷取截圖與彙整紀錄檔，由 AI 程式開發助理 Claude Code（Anthropic）協助完成，
+      全程在負責人監督下進行。需要人工判斷的工作——介面勾核、資料清洗審閱、測試結論與簽核——由組員與審查者執行，
+      不由 AI 代為判定。此一說明同時記載於測試計畫書中。
+    </p>
+  </body>
+</html>

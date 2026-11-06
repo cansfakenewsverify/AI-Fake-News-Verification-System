@@ -19,6 +19,7 @@
 | 情境劇成片 | <https://fakenewsverify.vercel.app/demo/scenario_v1.mp4>（3 分 36 秒） | 2026-11-03 上線；Threads 段為標明的示意畫面（DEF-13），負責人同日決定不錄 T1 |
 | 測試計畫書完整版 | `docs/test/TP-FNV-2026-01.md` v2.1；PDF：`03_測試計畫書_TP-FNV-2026-01_v2.1_完整版.pdf`（以 `node presentations/tools/build_testplan_pdf.mjs --full` 產生） | v2.1 完成（2026-11-03）：6.10 整體判定未達成，學校關閉 embedding 登錄為 DEF-13，關鍵字比對的誤命中登錄為 DEF-14；OP-10、UX-1 未執行，做了再回填 |
 | 測試報告書（短版） | `docs/test/TP-FNV-2026-01_v2.1_報告版.md`；PDF：`03_測試報告書_TP-FNV-2026-01_v2.1.pdf`（`node presentations/tools/build_testplan_pdf.mjs --report`）：62 個案例總表、缺陷清單、需求追溯矩陣 | v2.1 完成（2026-11-03）；完整版留作詳細證據 |
+| 書面報告（第四次進度報告，A4） | `06_書面報告.html`、`06_書面報告.pdf`（8 頁，封面含指導教授簽名欄）；格式沿用上次 `2026-09_進度報告/10_書面報告_草稿.html` | 2026-11-07 依 v2.1 與 11-06 的 bge-m3 進度寫成，並經三位獨立驗收員互相批判後修訂；bge-m3 程式尚未上線，上線與重測後要回頭更新；列印前請負責人對一下版面 |
 | 根目錄 README.md | 更新最新成果、加上影片與測試計畫書連結 | 待更新 |
 | 第三方實測（選做，強烈建議） | 作業包在 `docs/test/第三方實測_說明.md`；找 5～8 位非組員實測，結果寫進測試計畫書 | 待組員執行 |
 

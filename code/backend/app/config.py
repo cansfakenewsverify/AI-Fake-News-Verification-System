@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     # 主模型被閘道下架（HTTP 404 model_not_found）時改用的模型；空字串 = 不備援
     CGU_FALLBACK_MODEL: str = "gpt-6-luna"
     CGU_REASONING_EFFORT: str = "medium"
+    # 判讀模型斷路器（app/services/model_breaker.py）：最近 WINDOW 秒內同一模型滿載失敗 THRESHOLD 次就先換備援，
+    # 斷路中的模型每隔 PROBE 秒放一個請求試探。只算逾時、429、502／503；額度用完、金鑰錯不算。
+    BREAKER_FAILURE_THRESHOLD: int = 3
+    BREAKER_WINDOW_SECONDS: int = 120
+    BREAKER_PROBE_SECONDS: int = 300
 
     # 向量 embedding：CGU LLM Gateway（OpenAI 相容，有 embeddings 端點，與 myai168 不同把金鑰）
     EMBED_RELAY_URL: str = "https://air.cgu.edu.tw/cgullmapi/v1"

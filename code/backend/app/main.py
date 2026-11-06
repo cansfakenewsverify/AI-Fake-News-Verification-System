@@ -22,6 +22,7 @@ from app.api import (
 )
 from app.database_sql import init_sql_db
 from app.services.ai_budget import ai_budget
+from app.services import model_breaker
 from app.services.ai_service import AIService, ai_call_status, embedding_status
 from app.services.store_factory import storage_backend
 from app.utils.admin_auth import AdminAuthError, admin_auth_error_handler
@@ -253,6 +254,8 @@ async def health_check():
         "ai_available": AIService().available,
         # 最近一次 AI 判讀的結果 {ok, checked_at, error}（不另外發請求；重啟後還沒判讀過時 ok=null）
         "ai_last_call": ai_call_status(),
+        # 判讀模型斷路器：哪個模型因閘道滿載被暫時跳過（open=true）、最近失敗次數與原因
+        "ai_model_breaker": model_breaker.status([m for m in (settings.CGU_MODEL, settings.CGU_FALLBACK_MODEL) if m]),
         # 最近一次 embedding 呼叫的結果 {ok, checked_at, error}（不另外發請求；重啟後還沒呼叫過時 ok=null）。
         # ok=false 時語意快取與證據信心都停用（2026-10-28 EMBED_API_KEY 失效，error 是 "HTTP 401"）
         "embedding": embedding_status(),
