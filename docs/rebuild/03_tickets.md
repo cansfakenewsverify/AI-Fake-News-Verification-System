@@ -3064,6 +3064,11 @@ flowchart LR
     信心「中」0.74、相似查證下限 0.69、話術差距 0.055、原型 `data/claim_prototypes_bge-m3.npz`。同一套規則用舊模型算出 0.76（實際 0.75）。
   - 步驟 3：負責人同意後 `--apply`：欄位換成 vector(1024)、舊向量保留在 `content_vector_te3s`（18,891 列）、寫入 bge-m3 向量 18,922 列；資料庫 225 → 321 MB。
     抽 PF-2 5 句查正式庫，最近鄰 5／5 是要命中的那一列、4 句 ≥ 0.84。
-  - 待做：負責人說「推」→ Render 刪掉 `EMBED_API_KEY` 那一列 → 推 main（`render.yaml` 已改好網址、模型、維度與數字）→ 驗證 `/api/health` 的 embedding、改寫句命中 `vector` 層、`factcheck-sync` 轉綠。
+  - 步驟 4（2026-11-06 23:00）：負責人說「推」、決定不刪 Render 的 `EMBED_API_KEY`，推 main（6b2e4cb）。第一次部署還是舊設定（embedding 404），
+    Blueprint 同步再部署一次後設定生效，但正式站呼叫 Mercury **10 秒逾時（ReadTimeout）**，語意比對仍停用，改寫句走 AI 判讀。
+    GitHub 機房（美國）不帶金鑰連 Mercury：同一分鐘內 2 次 0.5～0.9 秒回 401、1 次 40 秒連不上；舊閘道 `/me/usage` 也一樣時好時壞；
+    台灣本機一句 0.4 秒。判斷是學校主機對校外連線偶爾卡住。修正（研究分支，待「推」）：連線最多等 3 秒、回應最多 6 秒，
+    連線失敗或逾時換新連線重試 1 次才進冷卻（`EMBED_CONNECT_TIMEOUT_SECONDS`、`EMBED_NETWORK_RETRIES`）；同步的批次 embedding 連線也改成最多等 5 秒。
+  - 待做：推上修正 → 驗證 `/api/health` 的 embedding、改寫句命中 `vector` 層、`factcheck-sync` 轉綠（手動觸發要負責人按或同意）。
   - 之後：舊向量欄位要不要清掉（清掉才放得下 B-50 的向量索引，見 B-50）
 

@@ -142,6 +142,9 @@ API 金鑰，請至 https://air.cgu.edu.tw/workspace4/LLMAPI/index.php 複製新
 **2026-11-05 學校說向量回來了，但是換成新的服務 Mercury**（`https://air.cgu.edu.tw/mercuryapi/v1`）；同日正式站的 embedding 從 404 變成 401（Render 上舊的 `EMBED_API_KEY`）。
 2026-11-06 `scripts/mercury_check.py` 實測：**現在的 `CGU_API_KEY` 就能用 Mercury**（不用另一把），向量模型只有 `bge-m3`（1024 維、已正規化，一句 0.2 秒、一批 8 筆 3 秒），沒有 `text-embedding-3-small`（404）。
 所以整庫重算（票 B-52）：`scripts/migrate_vector_dim.py --dim 1024 --apply`（舊欄位改名 `content_vector_te3s` 保留、新增 1024 維欄位，可 `--rollback`）→ `scripts/reembed_vectors.py --target cloud --apply`（18,922 列，資料庫 225 → 321 MB）。上線時 Render 的 `EMBED_API_KEY` 那一列要刪掉（不然會拿舊金鑰打 Mercury，回 401）。
+**學校主機對校外連線偶爾卡住**（2026-11-06 實測：GitHub 機房同一分鐘內有的 0.5 秒回、有的 40 秒連不上；正式站 ReadTimeout；台灣本機 0.4 秒）：
+`generate_embedding` 連線最多等 `EMBED_CONNECT_TIMEOUT_SECONDS`（3）、回應最多 `EMBED_TIMEOUT_SECONDS`（6），卡住就換新連線重試
+`EMBED_NETWORK_RETRIES`（1）次，都失敗才冷卻 5 分鐘。`/health` 的 embedding 是 `ReadTimeout`／`ConnectTimeout` 就是這個情況。
 **2026-11-02 起只剩一把金鑰**：`EMBED_API_KEY` 不設（空的時候 embedding 用 `CGU_API_KEY`），`render.yaml` 也拿掉了這一項。
 換新金鑰只要一行：本機 `code\backend` 執行 `.\venv\Scripts\python scripts\rotate_cgu_key.py`，貼上新金鑰（不顯示）→ 先試新金鑰能不能用（模型清單與判讀；embedding 不通只提醒，學校關著也換得上去），
 再換本機 `.env` 的 `CGU_API_KEY`、清空 `EMBED_API_KEY`；`.env` 有 `RENDER_API_KEY`（Render → Account Settings → API Keys，只放本機）時

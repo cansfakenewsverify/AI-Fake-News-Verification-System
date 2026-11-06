@@ -355,8 +355,9 @@ def embed_batch(texts: List[str]) -> Tuple[list, int]:
     body = None
     for attempt in range(4):
         try:
+            # 連線最多等 5 秒：學校主機對校外偶爾卡住（2026-11-06），卡住就快點重試，不要一等就是 120 秒
             r = requests.post(f"{base}/embeddings", headers={"Authorization": f"Bearer {key}"},
-                              json=payload, timeout=120)
+                              json=payload, timeout=(5, 120))
             r.raise_for_status()
             body = r.json()
             break

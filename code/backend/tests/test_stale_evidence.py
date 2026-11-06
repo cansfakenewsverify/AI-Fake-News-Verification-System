@@ -185,7 +185,8 @@ def test_embedding_failure_skips_calls_during_the_cooldown(monkeypatch, embed_se
     service = ai_service.AIService()
     assert service.generate_embedding("測試") == []
     assert service.generate_embedding("測試") == []
-    assert calls == [settings.EMBED_TIMEOUT_SECONDS]
+    # HTTP 錯誤不重試；連線最多等 EMBED_CONNECT_TIMEOUT_SECONDS、回應最多等 EMBED_TIMEOUT_SECONDS
+    assert calls == [(float(settings.EMBED_CONNECT_TIMEOUT_SECONDS), float(settings.EMBED_TIMEOUT_SECONDS))]
     assert ai_service.embedding_status()["error"] == "HTTP 404"
 
     monkeypatch.setattr(ai_service, "_embed_retry_at", 0.0)   # 冷卻時間過了
@@ -193,3 +194,37 @@ def test_embedding_failure_skips_calls_during_the_cooldown(monkeypatch, embed_se
     assert service.generate_embedding("測試") == [0.1, 0.2]
     assert ai_service.embedding_status()["ok"] is True
     assert ai_service._embed_retry_at == 0.0
+
+
+def test_embedding_retries_once_when_the_connection_hangs(monkeypatch, embed_settings):
+    """學校主機對校外偶爾卡住（2026-11-06 正式站 ReadTimeout）：換新連線重試一次就通，不進冷卻。"""
+    monkeypatch.setattr(settings, "EMBED_NETWORK_RETRIES", 1)
+    monkeypatch.setattr(ai_service, "_embed_retry_at", 0.0)
+    replies = [requests.ConnectTimeout("connect timed out"), _Resp(200, {"data": [{"embedding": [0.3, 0.4]}]})]
+
+    def flaky(*args, **kwargs):
+        reply = replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    monkeypatch.setattr(ai_service.requests, "post", flaky)
+    assert ai_service.AIService().generate_embedding("測試") == [0.3, 0.4]
+    assert replies == [] and ai_service.embedding_status()["ok"] is True and ai_service._embed_retry_at == 0.0
+
+
+def test_embedding_gives_up_after_the_retry_and_cools_down(monkeypatch, embed_settings):
+    monkeypatch.setattr(settings, "EMBED_NETWORK_RETRIES", 1)
+    monkeypatch.setattr(settings, "EMBED_RETRY_AFTER_SECONDS", 300)
+    monkeypatch.setattr(ai_service, "_embed_retry_at", 0.0)
+    calls = []
+
+    def hang(*args, **kwargs):
+        calls.append(1)
+        raise requests.ReadTimeout("read timed out")
+
+    monkeypatch.setattr(ai_service.requests, "post", hang)
+    service = ai_service.AIService()
+    assert service.generate_embedding("測試") == []
+    assert service.generate_embedding("測試") == []           # 冷卻中：不再呼叫
+    assert len(calls) == 2 and ai_service.embedding_status()["error"] == "ReadTimeout"

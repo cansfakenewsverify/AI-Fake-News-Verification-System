@@ -48,7 +48,12 @@ class Settings(BaseSettings):
     EMBED_MODEL: str = "text-embedding-3-small"
     # 閘道 2026-11-03 起關閉 /embeddings，有時回 404、有時卡到逾時，每則查證都等它（2026-11-04 實測 57～120 秒）。
     # 失敗一次後這段時間內不再呼叫，過了再試一次；恢復後自動回到語意比對
-    EMBED_TIMEOUT_SECONDS: int = 10
+    # 2026-11-06 學校主機對校外（Render 新加坡、GitHub 美國）的連線偶爾卡住：同一分鐘內有的 0.5 秒就回、有的 40 秒連不上
+    # （台灣本機一句 0.4 秒）。所以連線最多等 EMBED_CONNECT_TIMEOUT_SECONDS、回應最多等 EMBED_TIMEOUT_SECONDS，
+    # 連線失敗或逾時就馬上換新連線重試 EMBED_NETWORK_RETRIES 次，都失敗才進冷卻。最壞約 2 ×（3 + 6）= 18 秒
+    EMBED_CONNECT_TIMEOUT_SECONDS: float = 3.0
+    EMBED_TIMEOUT_SECONDS: int = 6
+    EMBED_NETWORK_RETRIES: int = 1
     EMBED_RETRY_AFTER_SECONDS: int = 300
 
     # AI 呼叫逾時（秒）：spec §9 可靠性 60 s（舊值 150 s 會讓使用者等太久）
