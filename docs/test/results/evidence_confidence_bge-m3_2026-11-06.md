@@ -17,49 +17,28 @@
 
 ## 1. 誤命中檢查：評測 150 題對可入庫列的最近相似度
 
-語意快取門檻 0.75（夾角 41.4°）。可入庫列全是詐騙或假訊息，所以**安全題的最近鄰 ≥ 門檻，就代表入庫後這題會被語意快取誤判**。
+語意快取門檻 0.84（夾角 32.9°）。可入庫列全是詐騙或假訊息，所以**安全題的最近鄰 ≥ 門檻，就代表入庫後這題會被語意快取誤判**。
 
-| 正確答案 | 題數 | 最近鄰相似度 中位數 | ≥ 0.75 | 0.7～0.75 | 0.65～0.7 |
+| 正確答案 | 題數 | 最近鄰相似度 中位數 | ≥ 0.84 | 0.79～0.84 | 0.74～0.79 |
 |----------|------|---------------------|--------|------------|------------|
-| SCAM | 50 | 0.711 | 12 | 18 | 18 |
-| MISINFO | 50 | 0.696 | 11 | 13 | 16 |
-| SAFE | 50 | 0.644 | 1 | 5 | 17 |
+| SCAM | 50 | 0.711 | 2 | 5 | 10 |
+| MISINFO | 50 | 0.696 | 1 | 2 | 9 |
+| SAFE | 50 | 0.644 | 0 | 0 | 1 |
 
-≥ 門檻的題目共 24 題：
+≥ 門檻的題目共 3 題：
 
 | 題號 | 正確答案 | 相似度 | 夾角 | 題目（前 40 字） | 最近鄰（前 60 字） | 最近鄰網址 |
 |------|----------|--------|------|------------------|--------------------|------------|
 | 62 | MISINFO | 0.865 | 30.1° | （不放原文） | （不放原文） | https://www.mygopen.com/2017/05/n.html |
 | 27 | SCAM | 0.849 | 31.9° | （不放原文） | （不放原文） | https://cofacts.tw/article/1h8oygcqmrq9f |
 | 24 | SCAM | 0.841 | 32.8° | （不放原文） | （不放原文） | https://tfc-taiwan.org.tw/fact-check-reports/migration-9161/ |
-| 26 | SCAM | 0.836 | 33.3° | （不放原文） | （不放原文） | https://tfc-taiwan.org.tw/fact-check-reports/fake-esun-bank-sms-phishing-scam/ |
-| 21 | SCAM | 0.813 | 35.6° | （不放原文） | （不放原文） | https://cofacts.tw/article/1j7lr1320j2cc |
-| 55 | MISINFO | 0.810 | 35.9° | （不放原文） | （不放原文） | https://tfc-taiwan.org.tw/fact-check-reports/migration-4016/ |
-| 86 | MISINFO | 0.809 | 36.0° | （不放原文） | （不放原文） | https://www.mygopen.com/2020/06/cooking-with-aluminum.html |
-| 17 | SCAM | 0.803 | 36.5° | （不放原文） | （不放原文） | https://cofacts.tw/article/28d8x1cb0flz1 |
-| 1 | SCAM | 0.801 | 36.8° | （不放原文） | （不放原文） | https://cofacts.tw/article/5861y9oejsol |
-| 6 | SCAM | 0.799 | 37.0° | （不放原文） | （不放原文） | https://cofacts.tw/article/AVxzfeBXyCdS-nWhuZ5n |
-| 107 | SAFE | 0.787 | 38.1° | （不放原文） | （不放原文） | https://tfc-taiwan.org.tw/fact-check-reports/165-hotline-did-not-cohost-anti-fraud-survey/ |
-| 33 | SCAM | 0.785 | 38.3° | （不放原文） | （不放原文） | https://cofacts.tw/article/fcin9xjorkl9 |
-| 9 | SCAM | 0.781 | 38.6° | （不放原文） | （不放原文） | https://www.mygopen.com/2021/01/fake-ebank.html |
-| 73 | MISINFO | 0.777 | 39.0° | （不放原文） | （不放原文） | https://cofacts.tw/article/5483025407563-rumor |
-| 57 | MISINFO | 0.773 | 39.3° | （不放原文） | （不放原文） | https://cofacts.tw/article/bjdjnlfnh404 |
-| 7 | SCAM | 0.772 | 39.4° | （不放原文） | （不放原文） | https://tfc-taiwan.org.tw/fact-check-reports/migration-10406/ |
-| 97 | MISINFO | 0.768 | 39.9° | （不放原文） | （不放原文） | https://www.mygopen.com/2020/05/instant-noodles-32.html |
-| 51 | MISINFO | 0.766 | 40.0° | （不放原文） | （不放原文） | https://cofacts.tw/article/12v08cdgv9y84 |
-| 23 | SCAM | 0.762 | 40.4° | （不放原文） | （不放原文） | https://tfc-taiwan.org.tw/fact-check-reports/migration-8229/ |
-| 40 | SCAM | 0.760 | 40.6° | （不放原文） | （不放原文） | https://cofacts.tw/article/1kllzwi40lyat |
-| 67 | MISINFO | 0.759 | 40.6° | （不放原文） | （不放原文） | https://tfc-taiwan.org.tw/fact-check-reports/migration-5161/ |
-| 87 | MISINFO | 0.758 | 40.7° | （不放原文） | （不放原文） | https://www.mygopen.com/2024/04/Artificial.html |
-| 68 | MISINFO | 0.757 | 40.8° | （不放原文） | （不放原文） | https://tfc-taiwan.org.tw/fact-check-reports/migration-5749/ |
-| 99 | MISINFO | 0.754 | 41.0° | （不放原文） | （不放原文） | https://cofacts.tw/article/i4d2biaztm2i |
 
 ## 2. 同一則謠言的改寫句夾角（PF-2 題組）
 
-| 題組 | 句數 | 相似度 中位數 | 最小 | 最大 | ≥ 0.75 |
+| 題組 | 句數 | 相似度 中位數 | 最小 | 最大 | ≥ 0.84 |
 |------|------|------|------|------|------|
-| pf2_paraphrases | 20 | 0.887 | 0.803 | 0.962 | 20 |
-| pf2_rerun_2026-09-21 | 20 | 0.919 | 0.606 | 1.000 | 18 |
+| pf2_paraphrases | 20 | 0.887 | 0.803 | 0.962 | 15 |
+| pf2_rerun_2026-09-21 | 20 | 0.919 | 0.606 | 1.000 | 12 |
 
 ## 3. 夾角分段校準：最近鄰相似度 → 題目真的有風險的比例
 

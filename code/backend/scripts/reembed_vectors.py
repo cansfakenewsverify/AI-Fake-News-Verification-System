@@ -13,7 +13,8 @@ r"""
 哪些列要算：
 - local：有向量、但維度不是 VECTOR_DIMENSION 的列（沒有向量的列不動：非主張、刻意不建向量）。
 - cloud：content_vector 是空的，而且換模型前有向量（content_vector_te3s，scripts/migrate_vector_dim.py 留下的）
-  或是已證實的查核資料列（embedding 停用期間寫入、向量待補，票 B-49）。資料庫欄位維度和設定不同時不做，先跑遷移。
+  或是已證實的查核資料列（embedding 停用期間寫入、向量待補，票 B-49）。資料庫欄位維度和設定不同（還沒遷移）時，
+  只能看或 --embed 先把遷移後要用的向量算進本機快取，--apply 要等遷移完；這樣遷移後寫入只要幾分鐘。
 送去算的文字和當初寫入時一樣：網站與 Threads 的文字查證列用 matching_text（去掉「網傳」「是真的嗎」，票 B-45），
 其他列用原文；一律截到前 2000 字（factcheck_corpus.EMBED_MAX_CHARS）。
 
@@ -162,14 +163,18 @@ def cloud_state(conn: Any) -> Dict[str, Any]:
     }
 
 
-def cloud_rows(conn: Any, has_old: bool) -> List[Dict[str, Any]]:
+def cloud_rows(conn: Any, has_old: bool, before_migration: bool = False) -> List[Dict[str, Any]]:
+    """要補向量的列。before_migration：欄位還是舊維度，列出「遷移後會要新向量」的列（只供先算快取）。"""
     from sqlalchemy import text
 
-    had_vector = f"{OLD_COLUMN} IS NOT NULL OR " if has_old else ""
+    if before_migration:
+        where = "content_vector IS NOT NULL OR (verified AND origin = :origin)"
+    else:
+        had_vector = f"{OLD_COLUMN} IS NOT NULL OR " if has_old else ""
+        where = f"content_vector IS NULL AND ({had_vector}(verified AND origin = :origin))"
     statement = text(
         "SELECT id, raw_content, data_type, origin, label_source FROM knowledge_base"
-        f" WHERE content_vector IS NULL AND ({had_vector}(verified AND origin = :origin))"
-        " ORDER BY seq"
+        f" WHERE {where} ORDER BY seq"
     )
     return [dict(r) for r in conn.execute(statement, {"origin": FACTCHECK_ORIGIN}).mappings().all()]
 
@@ -225,11 +230,15 @@ def main(argv: Optional[List[str]] = None) -> int:
             state = cloud_state(conn)
             say(f"Supabase：content_vector 是 vector({state['column_dim']})，"
                 f"{'有' if state['has_old'] else '沒有'} {OLD_COLUMN}；資料庫 {state['db_bytes'] / 1024 / 1024:.0f} MB")
-            if state["column_dim"] != want_dim:
+            before_migration = state["column_dim"] != want_dim
+            if before_migration and (args.apply or state["has_old"]):
                 say(f"資料庫欄位不是 {want_dim} 維：先跑 scripts/migrate_vector_dim.py --dim {want_dim}（經負責人同意）。什麼都沒做。")
                 return 1
-            cloud_todo = cloud_rows(conn, state["has_old"])
-        say(f"Supabase 要補向量的列 {len(cloud_todo)} 列")
+            cloud_todo = cloud_rows(conn, state["has_old"], before_migration=before_migration)
+        if before_migration:
+            say(f"還沒遷移：遷移後要算新向量的列 {len(cloud_todo)} 列（現在只能看或 --embed 先算進本機快取，不能 --apply）")
+        else:
+            say(f"Supabase 要補向量的列 {len(cloud_todo)} 列")
 
     all_rows = local_rows + cloud_todo
     texts = [embed_text(r) for r in all_rows]
