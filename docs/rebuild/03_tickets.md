@@ -3056,7 +3056,7 @@ flowchart LR
 - 依賴：B-48、B-49
 - 驗收：pytest 與 Postgres 契約測試全過；校準報告經負責人同意；正式站 `/api/health` 的 `embedding.ok` 為 true、改寫句命中 `vector` 層、
   `factcheck-sync` 轉綠；舊向量保留可退回
-- 狀態：**程式與正式資料庫完成，程式待上線**（2026-11-06，負責人電腦）。
+- 狀態：**已上線（2026-11-07，main 2ee9977）**；`factcheck-sync` 轉綠待確認（見最後一點）。2026-11-06～07 在負責人電腦執行。
   - 步驟 0：`mercury_check.py` 實測現在的 `CGU_API_KEY` 就能用 Mercury（只要一把金鑰，`rotate_cgu_key.py` 不用改）；只有 `bge-m3`（1024 維、已正規化），`text-embedding-3-small` 回 404。
   - 步驟 1：維度改讀 `VECTOR_DIMENSION`（欄位維度不符時 pg_store 略過向量、不報錯）；證據信心數字與原型檔改成設定；`generate_embedding` 只送前 2000 字；
     `migrate_vector_dim.py`、`reembed_vectors.py`（批次、可續跑、本機快取）、`embed_cache.py`、`embedding_calibration.py`。pytest 1005 過；Postgres 契約測試 1536 與 1024 各 36 過。
@@ -3069,6 +3069,9 @@ flowchart LR
     GitHub 機房（美國）不帶金鑰連 Mercury：同一分鐘內 2 次 0.5～0.9 秒回 401、1 次 40 秒連不上；舊閘道 `/me/usage` 也一樣時好時壞；
     台灣本機一句 0.4 秒。判斷是學校主機對校外連線偶爾卡住。修正（研究分支，待「推」）：連線最多等 3 秒、回應最多 6 秒，
     連線失敗或逾時換新連線重試 1 次才進冷卻（`EMBED_CONNECT_TIMEOUT_SECONDS`、`EMBED_NETWORK_RETRIES`）；同步的批次 embedding 連線也改成最多等 5 秒。
-  - 待做：推上修正 → 驗證 `/api/health` 的 embedding、改寫句命中 `vector` 層、`factcheck-sync` 轉綠（手動觸發要負責人按或同意）。
+  - 2026-11-07：負責人說「合併並推」，修正與 Ray 的判讀模型斷路器（c5d80c5）合併推 main（2ee9977）；斷路器的一個測試在 Windows 必定失敗
+    （monotonic 解析度約 15 ms），只改測試寫法。部署後 PF-2 #3 改寫句查正式站：`cache_layer=vector`、命中要命中的那一列、沒有呼叫判讀模型；
+    `/api/health` 的 embedding `ok:true`。
+  - 待確認：`factcheck-sync`（台灣 08:07 排程）轉綠。
   - 之後：舊向量欄位要不要清掉（清掉才放得下 B-50 的向量索引，見 B-50）
 
