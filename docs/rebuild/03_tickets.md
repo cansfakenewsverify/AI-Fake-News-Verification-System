@@ -3074,6 +3074,8 @@ flowchart LR
     `/api/health` 的 embedding `ok:true`。
   - `factcheck-sync`：11-07 03:17（重試修正上線前）因 embedding ReadTimeout 變紅，4 筆寫入但沒有向量；負責人要 Claude 手動觸發，
     13:18 那次**轉綠**（run 42342123597）：embed_check ok、補上 4 筆向量（vectors_backfilled 4）、來源都抓得到。驗收全部達成。
+  - 2026-11-08 正式站重測 PF-2 40 句、OP-11、UX-2（`docs/test/results/cloud_retest_2026-11-08.md`）：三項仍未通過。PF-2 A 組 vector 13／20；
+    以前送過的改寫句先命中 hash 層的舊結果，回補只找 rule／gold／admin，不會換成 AI 判定＋來源的原文列。
   - 之後：舊向量欄位要不要清掉（清掉才放得下 B-50 的向量索引，見 B-50）
 
 ### B-54 判讀呼叫連線卡住時不要等滿 60 秒

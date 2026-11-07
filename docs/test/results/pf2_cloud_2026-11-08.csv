@@ -1,0 +1,41 @@
+﻿set,no,expected_kb_id,paraphrase,http,cache_layer,cached,risk_type,kb_id,matched_expected,source_tier,ai_unavailable,elapsed_s
+A,1,53f3c784-93d9-4eab-96f6-d7ac7df272f6,網傳影片：一台要價80萬元的無人機，才剛升空不到20秒就摔下來了,200,,False,UNVERIFIABLE,f5ac5318-0256-43f6-881e-2aec4a0b9cf1,False,,False,30.6
+A,2,80bd7c12-5e92-4a99-9368-3e9bd5b8a06e,聽說台灣要求加入日本和菲律賓的海域協商，結果被日本一口回絕,200,vector,True,MISINFO,80bd7c12-5e92-4a99-9368-3e9bd5b8a06e,True,1,False,4.6
+A,3,cc4e8761-d0ba-4741-95a9-f5c51ea632ca,南韓地方選舉才到上午10點，投票所的選票就已經不夠用了,200,vector,True,MISINFO,cc4e8761-d0ba-4741-95a9-f5c51ea632ca,True,1,False,3.1
+A,4,45fef7ed-aedd-4acd-a1ab-6b19c067a69e,日本跟菲律賓聯手把台灣的專屬經濟海域全部瓜分掉了,200,hash,True,MISINFO,f64a7d9e-6981-4b8d-9cb9-4765845252e2,False,,False,8.8
+A,5,38b588a4-b86d-44bb-8ed8-475bdd0536b7,這支影片是南韓民眾上街抗議李在明政府選舉作弊,200,hash,True,MISINFO,f0446d8d-c398-48a1-91fd-1da574fadea8,False,,False,3.2
+A,6,63d2f99f-fc9e-40c4-afdb-e814fa1d268c,有中國人假扮成南韓的警察,200,vector,True,MISINFO,a2f886bd-05e4-4117-8cb8-a7c1de5ce1dd,False,1,False,2.8
+A,7,0cbf6ef0-401c-4c36-8adb-1158fcdd26b6,影片拍到巴威颱風把關島摧毀得很嚴重,200,,False,MISINFO,3411da17-d049-40f6-9977-9bc0ad80bb30,False,,False,24.4
+A,8,01d0c472-3139-49e2-a0e3-d541518bb53f,有人坐飛機時從窗外拍到巴威颱風的颱風眼,200,vector,True,MISINFO,01d0c472-3139-49e2-a0e3-d541518bb53f,True,1,False,3.0
+A,9,b3d0e8b7-3290-409a-879e-c2403c66d33c,這是美國NASA網站發布的巴威颱風衛星空拍圖,200,vector,True,MISINFO,b3d0e8b7-3290-409a-879e-c2403c66d33c,True,1,False,2.8
+A,10,16695de0-ce81-4304-abe9-a9c34be0b38a,歐洲高溫太誇張，義大利和德國街頭的紅綠燈都被熱到融化了,200,vector,True,MISINFO,16695de0-ce81-4304-abe9-a9c34be0b38a,True,1,False,2.6
+A,11,23f7c8e7-2b79-4c56-89a6-661e40658e41,聽說最近又要開始限電了,200,,False,MISINFO,1714a507-6237-4ab6-b8c3-d5cd8ddd1c22,False,,False,22.0
+A,12,8c22b309-7045-4091-a9e2-6a171d321a20,輝達創辦人黃仁勳站上世界舞台中心，身價不斷往上衝,200,vector,True,MISINFO,8c22b309-7045-4091-a9e2-6a171d321a20,True,1,False,3.9
+A,13,e0114d6c-afa4-48b7-b138-0f2766b8ab2c,要辦成功才會收錢，沒辦下來的話我們一毛都不會跟您收,200,vector,True,MISINFO,e0114d6c-afa4-48b7-b138-0f2766b8ab2c,True,1,False,2.6
+A,14,2ac98c6c-d71d-46ea-b669-f970a0253193,會計通知：您在平台綁定的銀行帳戶撥款好幾次都失敗，核對後發現身分和帳號對不上，系統懷疑您冒用別人身分借款、有騙貸嫌疑，為了資金安全已把這筆貸款凍結,200,vector,True,MISINFO,2ac98c6c-d71d-46ea-b669-f970a0253193,True,1,False,2.6
+A,15,5cd9b90c-02ff-46f7-8ac4-74d7029b5f5c,風控系統判定您的身分或帳戶資料可能被他人冒用，涉嫌惡意騙貸，因此為保障資金安全暫時凍結您的貸款,200,vector,True,MISINFO,5cd9b90c-02ff-46f7-8ac4-74d7029b5f5c,True,1,False,3.1
+A,16,df05e77f-de1e-4264-a856-0323539ee6d8,等貸款撥下來之後，我們再跟您收一成的手續費,200,,False,SCAM,88fcefc2-b8bb-46a3-9f42-a2ac0d88bd52,False,,False,22.4
+A,17,cc1384f7-ffc7-4023-9fa8-98b494219ba4,這筆政府補助金我們會用投資名義幫您申請，您自己完全不用出任何投資的錢,200,vector,True,MISINFO,cc1384f7-ffc7-4023-9fa8-98b494219ba4,True,1,False,2.9
+A,18,a32d7096-d985-4b69-9255-4855d2f8576b,整個申辦流程您都不用付半毛錢,200,vector,True,MISINFO,a32d7096-d985-4b69-9255-4855d2f8576b,True,1,False,2.7
+A,19,1e826832-37c5-4a6b-b3e2-f19fc4fff8e2,計畫書這些需要的文件，我們都會幫您準備好,200,vector,True,MISINFO,1e826832-37c5-4a6b-b3e2-f19fc4fff8e2,True,1,False,2.5
+A,20,57a2ff57-ad4d-4434-bbf5-156f829e39a8,不管申請什麼都一定要先提供個人資料才能辦喔,200,,False,UNVERIFIABLE,ab90f65a-ce84-4ffd-bbbc-3fa685e3f88b,False,,False,16.9
+B,1,53f3c784-93d9-4eab-96f6-d7ac7df272f6,網傳：一台要價80萬的無人機，才剛升空不到20秒就摔下來了,200,hash,True,MISINFO,d16c4fbd-68bc-44cf-ad65-7e1efb3aa033,False,,False,4.9
+B,2,80bd7c12-5e92-4a99-9368-3e9bd5b8a06e,台灣爭取加入日菲海域對話機制，日方現階段未予同意,200,hash,True,UNVERIFIABLE,965c5256-76f3-47d6-9308-185bd986dbfe,False,,False,6.7
+B,3,cc4e8761-d0ba-4741-95a9-f5c51ea632ca,投票所上午傳選票告罄，選務機關緊急調度查明,200,hash,True,UNVERIFIABLE,0f735fa0-94b0-4d53-8410-0501eeb36683,False,,False,4.6
+B,4,45fef7ed-aedd-4acd-a1ab-6b19c067a69e,日菲重疊海域劃界引發台灣專屬經濟海域權益之關注,200,hash,True,UNVERIFIABLE,d21a0711-362a-42b8-bdbb-8d571227bec7,False,,False,3.8
+B,5,38b588a4-b86d-44bb-8ed8-475bdd0536b7,網傳韓國民眾針對選舉公正性發起抗議集會之影像,200,hash,True,UNVERIFIABLE,4b6a9da2-cb82-4c7c-91b3-bbeaad549257,False,,False,3.1
+B,6,63d2f99f-fc9e-40c4-afdb-e814fa1d268c,中國人假扮韓國警察,200,vector,True,MISINFO,a2f886bd-05e4-4117-8cb8-a7c1de5ce1dd,False,1,False,2.7
+B,7,0cbf6ef0-401c-4c36-8adb-1158fcdd26b6,巴威颱風嚴重影響關島,200,,False,UNVERIFIABLE,847ac4b7-899a-46c0-b6d2-ca90e23980ad,False,,False,21.9
+B,8,01d0c472-3139-49e2-a0e3-d541518bb53f,有人搭機時拍到巴威颱風眼,200,vector,True,MISINFO,01d0c472-3139-49e2-a0e3-d541518bb53f,True,1,False,5.9
+B,9,b3d0e8b7-3290-409a-879e-c2403c66d33c,NASA官網公布的巴威颱風衛星照片,200,hash,True,MISINFO,b3d0e8b7-3290-409a-879e-c2403c66d33c,True,1,False,2.1
+B,10,16695de0-ce81-4304-abe9-a9c34be0b38a,歐洲熱浪導致義大利、德國的紅綠燈開始融化的影片,200,hash,True,MISINFO,16695de0-ce81-4304-abe9-a9c34be0b38a,True,1,False,2.1
+B,11,23f7c8e7-2b79-4c56-89a6-661e40658e41,台電說有限電計畫,200,hash,True,UNVERIFIABLE,ae7262e1-ab06-44dc-a568-82d17f2b3ee0,False,,False,5.4
+B,12,8c22b309-7045-4091-a9e2-6a171d321a20,輝達創辦人，身價飆升,200,,False,UNVERIFIABLE,2a2152bc-5e61-4951-9ba1-6c68bdf16e76,False,,False,17.4
+B,13,e0114d6c-afa4-48b7-b138-0f2766b8ab2c,這個是辦理一下才收取您的費用  沒有辦理不收取您的任何費用,200,hash,True,UNVERIFIABLE,b0e8c2a7-8132-48f7-9a72-19fd28cf8db7,False,,False,6.3
+B,14,2ac98c6c-d71d-46ea-b669-f970a0253193,會計說因為您綁定在平台這張銀行帳戶放款多次轉不進去  經核實身分信息和帳號不符合 懷疑您存在盜用他人身分信息辦理貸款的風險  涉及到惡意騙貸行為  系統為了保證資金安全所以凍結了這筆貸款,200,hash,True,SCAM,912d36cf-c7f7-4739-95db-3e2a1ccfa3e8,False,,False,7.3
+B,15,5cd9b90c-02ff-46f7-8ac4-74d7029b5f5c,懷疑您的身份信息或者帳戶信息存在被它人盜用的風險  涉及到惡意騙貸行為  風控局係統為了保證資金安全所以凍結了這筆貸款,200,hash,True,MISINFO,5cd9b90c-02ff-46f7-8ac4-74d7029b5f5c,True,1,False,2.0
+B,16,df05e77f-de1e-4264-a856-0323539ee6d8,成功撥款後收10%服務費,200,hash,True,SCAM,b627cea8-9edc-4626-9fb0-8299bfad4269,False,,False,3.9
+B,17,cc1384f7-ffc7-4023-9fa8-98b494219ba4,我們會以投資的方式去和政府申請這筆輔助金 不需要您花一分錢的,200,hash,True,SCAM,b230dcc7-eb90-4e3f-8539-6c395fb1a339,False,,False,3.6
+B,18,a32d7096-d985-4b69-9255-4855d2f8576b,辦理過程中不會讓您出一分錢,200,hash,True,MISINFO,a32d7096-d985-4b69-9255-4855d2f8576b,True,1,False,1.7
+B,19,1e826832-37c5-4a6b-b3e2-f19fc4fff8e2,計劃書等所用的資料我們都會辦理好的,200,hash,True,SAFE,85624549-b774-4873-b8f3-661d973fd131,False,,False,3.3
+B,20,57a2ff57-ad4d-4434-bbf5-156f829e39a8,您辦理任何的的申請都需要我們跟你核對個資才可以申請,200,hash,True,SCAM,4ca11543-a189-4190-b5ed-b2c5d46beed6,False,,False,3.1
