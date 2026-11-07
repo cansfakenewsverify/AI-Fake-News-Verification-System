@@ -103,6 +103,8 @@
   CGU 讀的是 `CGU_REASONING_EFFORT`；`OPENAI_REASONING_EFFORT` 只影響已停用的 myai168 OpenAI provider。
   第 6 節的評測數字是在 `medium` 量到的，改推理強度要重跑評測。
 - 一次分析（含重試）共用 `AI_TIMEOUT_SECONDS=60` 的 wall-clock 預算（`ai_service._run_analysis`）。
+  判讀呼叫的連線另外最多等 `AI_CONNECT_TIMEOUT_SECONDS`（5），連線卡住換新連線重試 `AI_CONNECT_RETRIES`（1）次，
+  再不行才算這個模型失敗、換備援模型（票 B-54）；讀取逾時不重試。
 - **每日 AI 次數上限** `DAILY_AI_CALL_CAP=300`（`app/services/ai_budget.py`；台灣時間 00:00 歸零）：達上限後沒查過的內容回
   429 `daily_cap_reached`，快取命中照常。評測與批次腳本不經過這個計數。
 - 排程預設關閉（`ENABLE_SCHEDULER=false`，雲端也關），避免背景持續燒額度。`scripts/batch_verify_pending.py` 的 `--budget-cap`

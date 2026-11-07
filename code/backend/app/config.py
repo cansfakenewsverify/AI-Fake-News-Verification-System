@@ -63,6 +63,12 @@ class Settings(BaseSettings):
 
     # AI 呼叫逾時（秒）：spec §9 可靠性 60 s（舊值 150 s 會讓使用者等太久）
     AI_TIMEOUT_SECONDS: int = 60
+    # 判讀呼叫的連線上限（秒）：學校主機對校外偶爾連不上（同上面 embedding 2026-11-06 的記錄），
+    # 只有一個 60 秒逾時時，連線卡住會整整等滿、來不及換備援模型。所以連線最多等 AI_CONNECT_TIMEOUT_SECONDS，
+    # 連不上就換新連線重試 AI_CONNECT_RETRIES 次（請求還沒送出，不會多扣額度），再不行才算這個模型失敗、換備援。
+    # 回應（讀取）仍是 AI_TIMEOUT_SECONDS 內的剩餘時間；讀取逾時不重試（已經等滿，閘道也可能已經在算）
+    AI_CONNECT_TIMEOUT_SECONDS: float = 5.0
+    AI_CONNECT_RETRIES: int = 1
 
     # FR-19（P1，B-24 使用）：web_search 限定網域，逗號分隔；空字串 = 不帶 filters
     WEB_SEARCH_ALLOWED_DOMAINS: str = ""

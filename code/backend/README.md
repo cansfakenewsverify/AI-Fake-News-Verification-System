@@ -153,6 +153,7 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 | `EMBED_MODEL` | `text-embedding-3-small` | 正式站用 `bge-m3`（`VECTOR_DIMENSION=1024`）；換模型要改資料庫欄位（`scripts/migrate_vector_dim.py`）、重算向量（`scripts/reembed_vectors.py`）、重新校準 |
 | `VECTOR_DIMENSION` | `1536` | 向量維度，要和 `EMBED_MODEL` 及 Supabase 欄位一致；不同維度的向量不參與比對 |
 | `AI_TIMEOUT_SECONDS` | `60` | 一次分析（含備援鏈）的總時限 |
+| `AI_CONNECT_TIMEOUT_SECONDS`／`AI_CONNECT_RETRIES` | `5`／`1` | 判讀呼叫的連線上限與連線卡住時換新連線重試幾次（學校主機對校外偶爾連不上，票 B-54） |
 | `USE_WEB_SEARCH` | `true` | 分析時是否帶 web_search；每次呼叫貴 3–7 倍，雲端與高量任務設 `false` |
 | `WEB_SEARCH_ALLOWED_DOMAINS` | 空 | web_search 限定網域（逗號分隔） |
 | `SIMILARITY_THRESHOLD` | `0.75` | 向量快取命中門檻（舊模型的值；bge-m3 用 `0.84`） |

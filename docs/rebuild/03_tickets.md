@@ -3076,3 +3076,13 @@ flowchart LR
     13:18 那次**轉綠**（run 42342123597）：embed_check ok、補上 4 筆向量（vectors_backfilled 4）、來源都抓得到。驗收全部達成。
   - 之後：舊向量欄位要不要清掉（清掉才放得下 B-50 的向量索引，見 B-50）
 
+### B-54 判讀呼叫連線卡住時不要等滿 60 秒
+- 優先級：P1
+- 對應：2026-11-06 學校主機對校外連線偶爾卡住（B-52 步驟 4）；Ray 的判讀模型斷路器（`model_breaker.py`）只在失敗後才換模型，
+  判讀呼叫只有一個逾時（`_request_timeout`，最長 60 秒），連線卡住時第一次就等滿整段預算，來不及換備援
+- 範圍：`_request_timeout` 改回（連線, 讀取）兩個數字，連線最多 `AI_CONNECT_TIMEOUT_SECONDS`（5）；判讀呼叫（`_claude_analyze`、
+  `_responses_analyze`）連線逾時換新連線重試 `AI_CONNECT_RETRIES`（1）次，請求還沒送出不會多扣額度；再失敗才記斷路器、換備援模型。
+  讀取逾時不重試（已經等滿，閘道也可能已經在算）。`complete_json`（關鍵字備援）連線逾時也再試一次
+- 驗收：`tests/test_ai_connect_timeout.py`；連線卡住時最多約 10 秒換到備援模型；pytest 全過
+- 狀態：程式完成（2026-11-07，研究分支，pytest 1022 過），待負責人說「推」
+

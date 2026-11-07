@@ -34,13 +34,38 @@ logger = logging.getLogger(__name__)
 _deadline_local = threading.local()
 
 
-def _request_timeout() -> float:
-    """目前這個執行緒的單次請求 timeout（秒）：不超過 AI_TIMEOUT_SECONDS 與剩餘預算。"""
-    limit = float(settings.AI_TIMEOUT_SECONDS)
+def _request_timeout(limit: Optional[float] = None) -> Tuple[float, float]:
+    """
+    目前這個執行緒的單次請求 timeout（連線, 讀取）秒數。
+    讀取不超過 limit（預設 AI_TIMEOUT_SECONDS）與剩餘預算；連線另外不超過 AI_CONNECT_TIMEOUT_SECONDS，
+    學校主機連不上時不會把整段預算耗在連線上。
+    """
+    read = float(settings.AI_TIMEOUT_SECONDS if limit is None else limit)
     deadline = getattr(_deadline_local, "deadline", None)
-    if deadline is None:
-        return limit
-    return max(1.0, min(limit, deadline - time.monotonic()))
+    if deadline is not None:
+        read = max(1.0, min(read, deadline - time.monotonic()))
+    return min(float(settings.AI_CONNECT_TIMEOUT_SECONDS), read), read
+
+
+def _budget_left() -> bool:
+    deadline = getattr(_deadline_local, "deadline", None)
+    return deadline is None or time.monotonic() < deadline
+
+
+def _post_ai(url: str, headers: Dict[str, str], body: Dict[str, Any]) -> requests.Response:
+    """
+    判讀呼叫的 POST。連線階段逾時（ConnectTimeout）換新連線重試 AI_CONNECT_RETRIES 次：
+    請求還沒送到閘道，不會多扣額度。讀取逾時與其他錯誤照原樣往外丟（斷路器與備援模型由呼叫端處理）。
+    """
+    attempts = 1 + max(int(settings.AI_CONNECT_RETRIES), 0)
+    for attempt in range(attempts):
+        try:
+            return requests.post(url, headers=headers, json=body, timeout=_request_timeout())
+        except requests.exceptions.ConnectTimeout:
+            if attempt + 1 >= attempts or not _budget_left():
+                raise
+            print("[AI] 判讀連線逾時，換新連線重試", flush=True)
+    raise AssertionError("unreachable")
 
 
 # V4.1 System Prompt（嚴格版本）
@@ -286,7 +311,7 @@ class AIService:
         # openai 引擎的 web_search 仍照常（見 _responses_analyze）。use_web_search 參數保留以維持簽名。
         _ = use_web_search
         headers = {"x-api-key": self.myai_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
-        r = requests.post(f"{self.claude_base}/messages", headers=headers, json=body, timeout=_request_timeout())
+        r = _post_ai(f"{self.claude_base}/messages", headers, body)
         r.raise_for_status()
         data = r.json()
         text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
@@ -368,7 +393,7 @@ class AIService:
         if use_web_search and effort != "minimal":
             body["tools"] = [{"type": "web_search"}]
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        r = requests.post(f"{base_url}/responses", headers=headers, json=body, timeout=_request_timeout())
+        r = _post_ai(f"{base_url}/responses", headers, body)
         r.raise_for_status()
         data = r.json()
         text = self._openai_output_text(data)
@@ -483,8 +508,7 @@ class AIService:
 
     @staticmethod
     def _budget_left() -> bool:
-        deadline = getattr(_deadline_local, "deadline", None)
-        return deadline is None or time.monotonic() < deadline
+        return _budget_left()
 
     def _run_analysis_chain(self, prompt_text: str, image: Optional[dict], use_web_search: bool) -> Dict[str, Any]:
         last_err = ""
@@ -613,11 +637,14 @@ class AIService:
         for attempt in (1, 2):
             try:
                 r = requests.post(
-                    f"{self.cgu_base}/responses", headers=headers, json=body, timeout=timeout or _request_timeout(),
+                    f"{self.cgu_base}/responses", headers=headers, json=body, timeout=_request_timeout(timeout),
                 )
                 r.raise_for_status()
                 parsed = self._parse_json_loose(self._openai_output_text(r.json()))
                 return parsed if isinstance(parsed, dict) else None
+            except requests.exceptions.ConnectTimeout:
+                # 連線就卡住（學校主機對校外偶爾不回）：請求沒送出，換新連線再試
+                print(f"[AI] complete_json attempt {attempt} connect timed out")
             except requests.Timeout:
                 # 已經等滿逾時了，再試只會讓使用者多等一輪
                 print(f"[AI] complete_json attempt {attempt} timed out")

@@ -23,7 +23,9 @@ def test_request_timeout_never_exceeds_setting(monkeypatch):
     monkeypatch.setattr(ai_mod.requests, "post", _fake_post)
     result = _svc()._run_analysis("prompt", use_web_search=False)
     assert result["summary"].startswith("AI 分析暫時無法使用")
-    assert seen and all(0 < t <= 60 for t in seen)
+    # (連線, 讀取)：連線另有較短上限，兩者都不超過 60 秒
+    assert seen and all(0 < connect <= read <= 60 for connect, read in seen)
+    assert all(connect <= ai_mod.settings.AI_CONNECT_TIMEOUT_SECONDS for connect, _ in seen)
     assert getattr(ai_mod._deadline_local, "deadline", None) is None
 
 
@@ -41,5 +43,5 @@ def test_chain_stops_when_total_budget_spent(monkeypatch):
     monkeypatch.setattr(ai_mod.requests, "post", _fake_post)
     result = _svc()._run_analysis("prompt", use_web_search=True)
     assert len(calls) == 1  # 不再嘗試 openai / claude / no-search 重試
-    assert calls[0][1] == 60
+    assert calls[0][1][1] == 60
     assert result["summary"].startswith("AI 分析暫時無法使用")

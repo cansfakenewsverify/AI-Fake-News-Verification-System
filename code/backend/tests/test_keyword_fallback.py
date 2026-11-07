@@ -312,7 +312,7 @@ def test_complete_json_picks_the_model_and_does_not_retry_a_timeout(monkeypatch)
     service.cgu_base, service.cgu_key = "https://gateway.example/v1", "dummy"
     assert service.complete_json("提示", model="gemma-4-26b-a4b-it", timeout=7) is None
     assert len(seen) == 1, "等滿逾時就不要再等一輪"
-    assert seen[0][0]["model"] == "gemma-4-26b-a4b-it" and "reasoning" not in seen[0][0] and seen[0][1] == 7
+    assert seen[0][0]["model"] == "gemma-4-26b-a4b-it" and "reasoning" not in seen[0][0] and seen[0][1][1] == 7
     seen.clear()
     service.complete_json("提示", model="gpt-oss-120b", timeout=7)
     assert seen[0][0]["reasoning"] == {"effort": "low"}
