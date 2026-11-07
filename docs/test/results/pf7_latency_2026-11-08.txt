@@ -1,0 +1,16 @@
+verified     2.36s  layer=hash  frame=假訊息  task=9e69b352-c58b-4d5a-9615-dfa803099af4
+verified     2.03s  layer=hash  frame=假訊息  task=796d13df-a7c9-4f1c-a7a3-7f0176ecfc28
+verified     1.97s  layer=hash  frame=假訊息  task=c71bcf5f-9f9d-4cfb-8300-6444e3407485
+verified     2.09s  layer=hash  frame=假訊息  task=a3da54cc-6ac1-4f03-9ff2-e17f0c631aaf
+verified     1.98s  layer=hash  frame=假訊息  task=5c557572-f747-469c-b63e-697fb8d092fb
+verified     2.09s  layer=hash  frame=假訊息  task=493e5bc7-2fce-47cb-bf3b-f25f340c2186
+verified     2.03s  layer=hash  frame=假訊息  task=471eed0c-e540-41ed-b0ef-0987b221cbf8
+verified     2.22s  layer=hash  frame=假訊息  task=e63b37a0-590a-4b7d-9af6-63dc43d2aee8
+verified     1.98s  layer=hash  frame=假訊息  task=7babfded-7f66-44c7-9054-05f60e8be75c
+verified     2.08s  layer=hash  frame=假訊息  task=ea42e74c-f0d0-4cc0-a57f-d1792b68f82c
+unverified  12.52s  layer=hash  frame=無法查證  task=58cb933a-38d3-40f6-8aa6-6ed22ada39e1
+unverified   5.81s  layer=hash  frame=無法查證  task=ffc73b09-1eef-4d0c-9af0-28e3cf1711ad
+unverified   5.44s  layer=hash  frame=無法查證  task=658493e1-bbd6-4f31-b8ff-9fc46a30543e
+
+p50 verified 2.06s max 2.36s (n=10); p50 unverified 5.81s max 12.52s (n=3)
+measured at 2026-11-08 03:25:50 (Taiwan)

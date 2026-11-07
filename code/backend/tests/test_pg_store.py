@@ -290,6 +290,47 @@ def test_vector_label_sources_filter(kb):
     assert kb.find_similar_by_vector(base, threshold=0.75, label_sources=("gold",)) is None
 
 
+def test_half_precision_index_keeps_the_same_answers(kb):
+    """建了半精度索引（scripts/create_vector_index.py 同一句 SQL）：偵測得到、查詢會用、結果和全表掃描一樣（票 B-50）。"""
+    from app.services import pg_store
+    from app.services.pg_store import ensure_pg_schema
+
+    spec = importlib.util.spec_from_file_location("cvi", ROOT / "scripts" / "create_vector_index.py")
+    cvi = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cvi)
+
+    base = _vec(30)
+    far, _ = _save(kb, "較遠", ai_result=AI_RESULT, vector=_mix(base, _vec(31), 0.80))
+    near, _ = _save(kb, "較近", ai_result=AI_RESULT, vector=_mix(base, _vec(32), 0.95))
+    _save(kb, "未證實", [{"title": "部落格", "url": "https://blog.example.com/p"}], vector=base)
+    engine = kb._engine
+    assert pg_store._HALF_INDEX.get(engine) is False
+    with kb._connect() as conn:
+        conn.exec_driver_sql(cvi.create_sql(DIM).replace(" CONCURRENTLY", ""))
+    try:
+        ensure_pg_schema(engine, force=True)
+        assert pg_store._HALF_INDEX[engine] is True
+        assert kb.find_similar_by_vector(base, threshold=0.75)["id"] == near["id"]
+        assert kb.find_similar_by_vector(base, threshold=0.96) is None
+        neighbours = kb.nearest_verified(base, k=5)
+        assert [n["id"] for n in neighbours] == [near["id"], far["id"]]
+        assert abs(neighbours[0]["similarity"] - 0.95) < 1e-4                    # 相似度仍是完整精度
+        with kb._connect() as conn:
+            conn.exec_driver_sql("SET enable_seqscan = off")                     # 幾筆資料時規劃器本來就偏好全表掃描
+            plan = "\n".join(r[0] for r in conn.execute(
+                text("EXPLAIN SELECT id FROM knowledge_base WHERE verified AND content_vector IS NOT NULL"
+                     f" ORDER BY {pg_store.distance_sql(DIM, True)}, seq LIMIT 1"),
+                {"q": pg_store.vector_literal(base)},
+            ))
+            conn.exec_driver_sql("RESET enable_seqscan")
+        assert pg_store.VECTOR_INDEX_NAME in plan
+    finally:
+        with kb._connect() as conn:
+            conn.exec_driver_sql(f"DROP INDEX IF EXISTS {pg_store.VECTOR_INDEX_NAME}")
+        ensure_pg_schema(engine, force=True)
+    assert pg_store._HALF_INDEX[engine] is False
+
+
 def test_vector_guards_never_raise(kb):
     vec = _vec(7)
     _save(kb, "守門", ai_result=AI_RESULT, vector=vec)

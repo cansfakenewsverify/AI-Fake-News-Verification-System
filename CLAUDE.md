@@ -301,7 +301,7 @@ code/backend/
 │   ├── research_run.py         一鍵執行（負責人電腦）：confidence／benchmark／update（每三天重抓查核資料＋補向量）／report（只重算報告、不花錢）；
 │   │                            --commit 推回研究分支；--short-cofacts 30＝報告另附「排除 Cofacts 短訊息」參考表
 │   ├── rotate_cgu_key.py       學校重置 CGU 金鑰時一行換好：試新金鑰 → 換本機 .env → （有 RENDER_API_KEY 時）換 Render 並重新部署
-│   ├── create_vector_index.py  建知識庫的向量索引（票 B-50）：預設只看，--apply 才建（CONCURRENTLY，約多 150 MB），--drop 拿掉
+│   ├── create_vector_index.py  建知識庫的向量索引（票 B-50）：半精度 HNSW、只收已證實列（約多 50 MB）；預設只看，--apply 才建（CONCURRENTLY），--drop 拿掉；建好後重新部署一次
 │   │                            （2026-11-06 換 bge-m3 後資料庫 321 MB，建了會超過 90% 護欄，腳本會拒絕；要先清掉舊向量欄位）
 │   ├── mercury_check.py        學校新的向量服務 Mercury（`https://air.cgu.edu.tw/mercuryapi/v1`）能不能直接接上：從 .env 讀金鑰（兩把都試、不印）、
 │   │                            模型清單、各 embedding 模型的維度、批次耗時
@@ -820,8 +820,10 @@ GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ 
   Supabase pg_cron 每 5 分鐘叫醒（`scripts/supabase_keepalive.py`），不再依賴 GitHub Actions keepalive 的時間。
 - 只有 `code/backend` 底下的變更會觸發 Render 自動部署（`rootDir`）。
 - **知識庫規模**：`/api/knowledge`、`/stats`、`/hot` 由 store 在資料庫裡篩選、計數與分頁（`list_verified`、`verified_counts`、
-  `get_verified_by_ids`），不要改回 `get_all_records()` 整表載入。語意比對沒有向量索引：2026-09-23 以 1.9 萬筆隨機向量在拋棄式
-  schema 實測，最近鄰查詢 0.2～0.5 秒；HNSW 索引約再多 150 MB，且在免費方案建立時逾時，所以不建。
+  `get_verified_by_ids`），不要改回 `get_all_records()` 整表載入。語意比對目前沒有向量索引（全表掃描）：完整精度的 HNSW
+  索引約多 150 MB，會超過免費方案 500 MB 的 90% 護欄。2026-11-08 改成半精度（halfvec）、只收已證實列的索引，約 50 MB
+  （`scripts/create_vector_index.py`，--apply 待負責人同意）；`pg_store` 啟動時偵測到索引才改用索引的排序式（`distance_sql`），
+  相似度仍用完整精度算。PF-7 未證實列 2026-11-08 p50 5.81 秒（準則 5 秒），就差這一步。
 - Render 出問題時的退路：負責人電腦 + cloudflared tunnel，見 `docs/rebuild/runbook_tunnel.md` 與雲端 runbook 的 C2。
 
 ---

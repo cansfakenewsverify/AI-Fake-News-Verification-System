@@ -790,11 +790,16 @@ class _FakeCursor:
 class _FakeConn:
     """記下每條 SQL；索引狀態依序取自 states，建好後的查詢計畫固定有用到索引。"""
 
-    def __init__(self, db_bytes=225 * 1024 * 1024, vectors=18891, states=(None,)):
+    def __init__(self, db_bytes=225 * 1024 * 1024, vectors=18891, states=(None,), pgvector="0.8.2", column=None):
         self.sql, self.db_bytes, self.vectors, self.states = [], db_bytes, vectors, list(states)
+        self.pgvector, self.column = pgvector, column
 
     def execute(self, sql, params=None):
         self.sql.append(sql)
+        if "extversion" in sql:
+            return _FakeCursor((self.pgvector,))
+        if "format_type" in sql:
+            return _FakeCursor((self.column,) if self.column else None)
         if "pg_database_size" in sql:
             return _FakeCursor((self.db_bytes,))
         if "count(content_vector)" in sql:
@@ -822,7 +827,8 @@ def test_vector_index_default_only_looks(capsys):
 def test_vector_index_apply_is_concurrent_and_reports_the_plan(capsys):
     conn = _FakeConn(states=(None, True))
     assert vi.main(["--apply"], connect=lambda: conn) == 0
-    assert conn.writes() == [vi.CREATE_SQL] and "CONCURRENTLY" in vi.CREATE_SQL
+    sql = vi.create_sql(vi.settings.VECTOR_DIMENSION)
+    assert conn.writes() == [sql] and "CONCURRENTLY" in sql
     assert "有用到索引" in capsys.readouterr().out
 
 
@@ -845,3 +851,47 @@ def test_vector_index_already_there_changes_nothing():
     conn = _FakeConn(states=(True,))
     assert vi.main(["--apply"], connect=lambda: conn) == 0
     assert conn.writes() == []
+
+
+def test_vector_index_is_half_precision_on_verified_rows_only():
+    """半精度（halfvec）每筆約 2 KB，一頁放得下 3 筆；只收已證實列（向量查詢只比對這些）。"""
+    from app.services import pg_store
+
+    sql = vi.create_sql(1024)
+    assert sql.startswith("CREATE INDEX CONCURRENTLY") and vi.INDEX_NAME == pg_store.VECTOR_INDEX_NAME
+    assert f"({pg_store.half_index_expression(1024)}) halfvec_cosine_ops" in sql
+    assert sql.endswith("WHERE verified")
+
+
+def test_vector_index_fits_under_the_guard_at_the_current_size(monkeypatch, capsys):
+    """2026-11-08 正式站：322 MB、已證實且有向量 18,827 筆、1024 維。舊的 vector 索引估 148 MB 會超過 90% 護欄。"""
+    monkeypatch.setattr(vi.settings, "VECTOR_DIMENSION", 1024)
+    conn = _FakeConn(db_bytes=322 * 1024 * 1024, vectors=18827, states=(None, True))
+    assert vi.main(["--apply"], connect=lambda: conn) == 0
+    assert conn.writes() == [vi.create_sql(1024)]
+    assert 40 * 1024 * 1024 < vi.estimate_bytes(18827, 1024) < 60 * 1024 * 1024
+    assert "重新部署" in capsys.readouterr().out
+
+
+def test_vector_index_follows_the_database_column_not_the_local_setting(monkeypatch, capsys):
+    """本機 .env 是 1536 維、正式站欄位是 1024 維時，索引照資料庫欄位建（不然建索引會報維度不符）。"""
+    monkeypatch.setattr(vi.settings, "VECTOR_DIMENSION", 1536)
+    conn = _FakeConn(db_bytes=322 * 1024 * 1024, vectors=18827, states=(None, True), column="vector(1024)")
+    assert vi.main(["--apply"], connect=lambda: conn) == 0
+    assert conn.writes() == [vi.create_sql(1024)]
+    assert "資料庫欄位是 1024 維" in capsys.readouterr().out
+
+
+def test_vector_index_needs_halfvec_support(capsys):
+    conn = _FakeConn(pgvector="0.6.2")
+    assert vi.main(["--apply"], connect=lambda: conn) == 1
+    assert conn.writes() == [] and "0.7" in capsys.readouterr().out
+
+
+def test_query_distance_uses_the_index_expression_only_when_the_index_exists():
+    """查詢的排序式要和索引一字不差，Postgres 才會用索引；沒有索引時照舊用完整精度全表掃描。"""
+    from app.services import pg_store
+
+    with_index = pg_store.distance_sql(1024, half_index=True)
+    assert with_index == f"{pg_store.half_index_expression(1024)} <=> CAST(:q AS halfvec(1024))"
+    assert pg_store.distance_sql(1024, half_index=False) == "content_vector <=> CAST(:q AS vector)"

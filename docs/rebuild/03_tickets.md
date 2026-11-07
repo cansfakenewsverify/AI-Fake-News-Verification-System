@@ -3009,6 +3009,12 @@ flowchart LR
 - 狀態：**未達驗收**。讀存著的向量已上線（`stored_vector`，2026-11-03），但 PF-7 未證實列 p50 只從 14.28 s 降到 12.61 s，所以 DEF-11 的原因不只重算 embedding。2026-11-04 查到真正的原因：`knowledge_base` 沒有向量索引，一次向量查詢全表掃描 18,681 筆，正式資料庫實測 10～14 秒（EXPLAIN ANALYZE）。`scripts/create_vector_index.py` 已備好（預設只看；`--apply` 才用 CONCURRENTLY 建 HNSW，資料庫約從 225 MB 變 373 MB，免費上限 500 MB；`--drop` 拿掉），暫存表驗證過現行查詢的排序用得上索引。**還沒建**：會寫正式資料庫，要負責人同意，也要避開報告時段；建好後重測 PF-7。
   2026-11-06 換成 bge-m3（B-52）後：索引要建在新的 1024 維欄位上；資料庫已 321 MB（舊向量欄位 `content_vector_te3s` 還在），
   再建索引約多 150 MB 會超過腳本的 90% 護欄，要先決定清不清掉舊向量。抽查時 1024 維全表查詢一次約 0.3～1.2 秒（第一次冷啟動 10 秒），比 1536 維快
+  2026-11-08：PF-7 重測（`docs/test/results/pf7_latency_2026-11-08.txt`）已證實列 p50 2.06 s，未證實列 p50 5.81 s（12.52／5.81／5.44），仍未達 5 s。
+  改成**半精度（halfvec）HNSW、只收已證實列**：一頁放 3 筆，估約 49 MB（322 → 371 MB，在護欄內），**不用清掉舊向量**。
+  `create_vector_index.py` 改建這個索引（維度照資料庫欄位、要 pgvector 0.7 以上，正式站 0.8.2）；`pg_store` 啟動時偵測到索引
+  （`_has_half_index`）才改用索引的排序式（`distance_sql`），相似度仍用完整精度；另外限定 label_source 的查詢照舊全表掃描。
+  pytest 1028 過；Postgres 契約測試（含新的 `test_half_precision_index_keeps_the_same_answers`）還沒跑，要在正式資料庫的拋棄式 schema 跑。
+  下一步（都要負責人同意）：契約測試 → 推 main → `create_vector_index.py --apply` → 重新部署 → 重測 PF-7
 
 ### B-51 DEF-14：關鍵字比對的誤命中
 - 優先級：P1

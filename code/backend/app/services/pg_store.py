@@ -45,6 +45,25 @@ def vector_dim() -> int:
     return int(settings.VECTOR_DIMENSION)
 
 
+# ── 向量索引（scripts/create_vector_index.py 建，票 B-50）──────────────────────
+# 半精度（halfvec）HNSW、只收已證實列：完整精度的索引一筆要佔一頁（1.9 萬筆約 148 MB），
+# 會超過 Supabase 免費方案 500 MB 的 90% 護欄；半精度一頁放 3 筆，約 50 MB。
+# 查詢的排序式要和索引的運算式一字不差 Postgres 才會用索引，所以兩邊都用 half_index_expression。
+# 偵測到索引才改用這個排序式；沒建（本機、契約測試、還沒同意建）照舊用完整精度全表掃描。
+VECTOR_INDEX_NAME = "ix_knowledge_base_vector_hnsw"
+
+
+def half_index_expression(dim: int) -> str:
+    return f"CAST(content_vector AS halfvec({int(dim)}))"
+
+
+def distance_sql(dim: int, half_index: bool) -> str:
+    """向量查詢 ORDER BY 用的距離（查詢向量的參數名是 :q）。相似度另外用完整精度算。"""
+    if half_index:
+        return f"{half_index_expression(dim)} <=> CAST(:q AS halfvec({int(dim)}))"
+    return "content_vector <=> CAST(:q AS vector)"
+
+
 # ── 資料表定義（全部 idempotent；{vector_dim} 在 ensure_pg_schema 換成 vector_dim()）─────────
 _DDL_STATEMENTS = (
     """
@@ -189,6 +208,8 @@ _ENSURED: "weakref.WeakSet[Engine]" = weakref.WeakSet()
 _ENSURE_LOCK = threading.Lock()
 # ensure_pg_schema 當時讀到的 content_vector 維度；和設定不同時向量查詢與寫入直接略過（不送進資料庫報錯）
 _COLUMN_DIM: "weakref.WeakKeyDictionary[Engine, Optional[int]]" = weakref.WeakKeyDictionary()
+# ensure_pg_schema 當時目前 schema 有沒有可用的半精度向量索引（行程啟動後才建的，重新部署後才會用）
+_HALF_INDEX: "weakref.WeakKeyDictionary[Engine, bool]" = weakref.WeakKeyDictionary()
 
 
 def ensure_pg_schema(engine: Engine, force: bool = False) -> None:
@@ -221,6 +242,7 @@ def ensure_pg_schema(engine: Engine, force: bool = False) -> None:
                 conn.exec_driver_sql(statement.replace("{vector_dim}", str(dim)))
             column_dim = _content_vector_dim(conn)
             _COLUMN_DIM[engine] = column_dim
+            _HALF_INDEX[engine] = _has_half_index(conn, dim)
             if column_dim is not None and column_dim != dim:
                 # 既有表不會自動改維度：這段期間所有新向量都存成 NULL、語意比對停用（先跑 scripts/migrate_vector_dim.py）
                 logger.warning("knowledge_base.content_vector is vector(%s) but VECTOR_DIMENSION=%s", column_dim, dim)
@@ -252,6 +274,17 @@ def _content_vector_dim(conn: Any) -> Optional[int]:
     ).scalar()
     match = re.search(r"vector\((\d+)\)", str(declared or ""))
     return int(match.group(1)) if match else None
+
+
+def _has_half_index(conn: Any, dim: int) -> bool:
+    """目前 schema 有建好、可用、維度相同的半精度向量索引（CONCURRENTLY 中途失敗的不能用，不算）。"""
+    row = conn.exec_driver_sql(
+        "SELECT i.indisvalid, pg_get_indexdef(i.indexrelid) FROM pg_index i"
+        " JOIN pg_class c ON c.oid = i.indexrelid JOIN pg_namespace n ON n.oid = c.relnamespace"
+        " WHERE c.relname = %s AND n.nspname = current_schema()",
+        (VECTOR_INDEX_NAME,),
+    ).first()
+    return bool(row and row[0] and f"halfvec({int(dim)})" in str(row[1]))
 
 
 # ── 值的正規化（numpy／pandas → Python 原生型別；Postgres 不收 NUL 與 NaN）──────────
@@ -519,6 +552,14 @@ class _PgStoreBase:
         column_dim = _COLUMN_DIM.get(self._engine) if self._engine is not None else None
         return column_dim is None or column_dim == vector_dim()
 
+    def _distance_sql(self, exact: bool = False) -> str:
+        """
+        向量查詢的排序式：有半精度索引就用索引的寫法。要先 _connect() 過才準。
+        exact=True（另外限定 label_source 時）照舊全表掃描：HNSW 先取一批近鄰再過濾，限定條件會漏掉符合的列。
+        """
+        half = bool(_HALF_INDEX.get(self._engine)) if self._engine is not None else False
+        return distance_sql(vector_dim(), half and not exact)
+
 
 # ── 知識庫（三層快取）─────────────────────────────────────────────────────
 def _like_literal(value: str) -> str:
@@ -606,29 +647,29 @@ class PgKnowledgeStore(_PgStoreBase):
 
         label_filter = "" if label_sources is None else "  AND label_source = ANY(:labels)"
         returning = ", ".join(f"kb.{c}" for c in _KB_READ_COLUMNS)
-        statement = text(
-            "WITH best AS ("
-            "  SELECT id, 1 - (content_vector <=> CAST(:q AS vector)) AS similarity"
-            "  FROM knowledge_base"
-            "  WHERE verified AND content_vector IS NOT NULL"
-            f"{label_filter}"
-            "  ORDER BY content_vector <=> CAST(:q AS vector), seq"
-            "  LIMIT 1"
-            ") "
-            "UPDATE knowledge_base AS kb"
-            " SET hit_count = kb.hit_count + 1, last_accessed_at = :now"
-            " FROM best"
-            # 零向量列的 cosine distance 是 NaN；Postgres 視 NaN 大於任何數，要另外擋掉
-            " WHERE kb.id = best.id AND best.similarity >= :threshold"
-            "   AND best.similarity <> CAST('NaN' AS double precision)"
-            f" RETURNING {returning}, best.similarity"
-        )
         params = {"q": literal, "now": datetime.now(), "threshold": float(threshold)}
         if label_sources is not None:
             params["labels"] = [str(label) for label in label_sources]
         with self._connect() as conn:
             if not self._vector_column_matches():
                 return None
+            statement = text(
+                "WITH best AS ("
+                "  SELECT id, 1 - (content_vector <=> CAST(:q AS vector)) AS similarity"
+                "  FROM knowledge_base"
+                "  WHERE verified AND content_vector IS NOT NULL"
+                f"{label_filter}"
+                f"  ORDER BY {self._distance_sql(exact=label_sources is not None)}, seq"
+                "  LIMIT 1"
+                ") "
+                "UPDATE knowledge_base AS kb"
+                " SET hit_count = kb.hit_count + 1, last_accessed_at = :now"
+                " FROM best"
+                # 零向量列的 cosine distance 是 NaN；Postgres 視 NaN 大於任何數，要另外擋掉
+                " WHERE kb.id = best.id AND best.similarity >= :threshold"
+                "   AND best.similarity <> CAST('NaN' AS double precision)"
+                f" RETURNING {returning}, best.similarity"
+            )
             row = conn.execute(statement, params).mappings().first()
         return _kb_row(row) if row is not None else None
 
@@ -703,18 +744,18 @@ class PgKnowledgeStore(_PgStoreBase):
         if literal is None or not np.any(np.asarray(query_vector, dtype=np.float32)):
             return []
         label_filter = "" if label_sources is None else " AND label_source = ANY(:labels)"
-        statement = text(
-            f"SELECT {', '.join(NEIGHBOR_COLUMNS)}, 1 - (content_vector <=> CAST(:q AS vector)) AS similarity"
-            " FROM knowledge_base WHERE verified AND content_vector IS NOT NULL"
-            f"{label_filter}"
-            " ORDER BY content_vector <=> CAST(:q AS vector), seq LIMIT :k"
-        )
         params: Dict[str, Any] = {"q": literal, "k": int(k)}
         if label_sources is not None:
             params["labels"] = [str(label) for label in label_sources]
         with self._connect() as conn:
             if not self._vector_column_matches():
                 return []
+            statement = text(
+                f"SELECT {', '.join(NEIGHBOR_COLUMNS)}, 1 - (content_vector <=> CAST(:q AS vector)) AS similarity"
+                " FROM knowledge_base WHERE verified AND content_vector IS NOT NULL"
+                f"{label_filter}"
+                f" ORDER BY {self._distance_sql(exact=label_sources is not None)}, seq LIMIT :k"
+            )
             rows = conn.execute(statement, params).mappings().all()
         neighbours = []
         for row in rows:
