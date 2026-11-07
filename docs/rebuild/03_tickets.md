@@ -3084,5 +3084,6 @@ flowchart LR
   `_responses_analyze`）連線逾時換新連線重試 `AI_CONNECT_RETRIES`（1）次，請求還沒送出不會多扣額度；再失敗才記斷路器、換備援模型。
   讀取逾時不重試（已經等滿，閘道也可能已經在算）。`complete_json`（關鍵字備援）連線逾時也再試一次
 - 驗收：`tests/test_ai_connect_timeout.py`；連線卡住時最多約 10 秒換到備援模型；pytest 全過
-- 狀態：程式完成（2026-11-07，研究分支，pytest 1022 過），待負責人說「推」
+- 狀態：程式完成（2026-11-07，研究分支，pytest 1022 過）；2026-11-08 負責人說「推」，推 main。
+  上線後 `/api/health` 的 `ai_model_breaker` 看得到備援情況；連線卡住時 log 會有「判讀連線逾時，換新連線重試」
 
