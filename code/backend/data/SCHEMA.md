@@ -155,7 +155,7 @@ db.close()
 | 為什麼 | 答案 |
 |--------|------|
 | 為什麼快取用 Parquet，趨勢用 SQLite？ | Parquet 適合大量向量 + numpy 批次運算；SQLite 適合結構化查詢 / 排序 |
-| 為什麼不全部用 PostgreSQL + pgvector？ | 零安裝門檻，學生專題不用裝 Docker；資料量（數百~數千筆）遠未達需要專用向量資料庫的規模 |
-| 為什麼 Embedding 用 1536 維？ | 2026-11-06 起正式站改用學校 Mercury 的 `bge-m3`（1024 維，票 B-52）；本機種子仍是 `text-embedding-3-small`（CGU AIR Gateway）原生維度 1536；現行程式只產生 1536 維（沒有其他 embedding 備援）；知識庫裡早期留下的 768／3072 維舊向量不會被比對（測試計畫 DEF-05，待重算） |
+| 為什麼本機不用 PostgreSQL + pgvector？ | 本機零安裝門檻，學生專題不用裝 Docker，所以本機開發用 Parquet + SQLite。正式站（Render）用 Supabase Postgres + pgvector（`STORAGE_BACKEND=supabase`），兩邊由 store 工廠切換 |
+| Embedding 幾維？ | 維度看 `VECTOR_DIMENSION`，程式不寫死。正式站 2026-11-06 起是學校 Mercury 的 `bge-m3`（1024 維，票 B-52）；本機種子仍是 `text-embedding-3-small` 的 1536 維；維度和資料庫欄位不符的向量不會拿去比對。知識庫裡早期留下的 768／3072 維舊向量也不會被比對（測試計畫 DEF-05） |
 | 相似度門檻為什麼是 0.75？ | 實測校準：改寫版同一謠言 0.79~0.82、不同支謠言 ≤0.68、不同主題 ≤0.52（詳見 CLAUDE.md 第 3 節）。bge-m3 的相似度整體較高，重新校準為 0.84 |
 | 單機單寫者假設 | Parquet/SQLite 無跨行程鎖：**不要同時**跑 batch_verify_pending.py 與大量寫入的 API 請求（讀取不受影響） |
