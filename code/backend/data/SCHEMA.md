@@ -50,9 +50,10 @@
 ```
 
 **查核結果回補**：Layer 0／1 不過濾 `verified`，一字不差的重複查詢會拿到當初的結果。命中的是
-`verified=false` 列時，先以該列的向量（沒有就以 `raw_content` 算一次）到向量層**只比對
-`label_source` 為 rule／gold／admin 的列**；達門檻就改回那一筆（`cache_layer="vector"`）。
-查核機構之後發布的結論（熱門牆抓取時以 `rule` 寫入）因此不會被舊的「尚無查核機構證實」擋住。
+`verified=false` 列時，先以該列的向量（沒有就以 `raw_content` 算一次）到向量層**比對已證實的列**
+（和 Layer 2 同一套規則與門檻）；達門檻就改回那一筆（`cache_layer="vector"`）。
+查核機構之後發布的結論（查核同步以 `rule` 寫入），以及「AI 判定＋Tier 1／2 來源」的已證實列，因此不會被舊的
+「尚無查核機構證實」擋住。2026-11-08 以前只比對 rule／gold／admin 的列（票 B-55）。
 
 API 回應的 `cache_layer` 欄位（url / hash / vector / null）標示命中層。
 

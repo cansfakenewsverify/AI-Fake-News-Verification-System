@@ -271,11 +271,11 @@
 
 ### FR-20 查核結果回補（P1；2026-09-22 新增）
 - **描述**：FR-17 讓沒有 Tier 1／2 來源的判定以 `verified=false` 保存，而 URL／hash 層不過濾 `verified`，所以一字不差的重複查詢會一直拿到當初「尚無查核機構證實」的結果，即使查核機構之後已經發布查核。處理分三部分：
-  1. **快取層（自動）**：URL／hash 命中 `verified=false` 列時，以該列的向量（本機版列內已存；Postgres 版 `find_*` 不載入向量，改以 `raw_content` 算一次 embedding）到向量層**只比對確定性標記**（`label_source ∈ {rule, gold, admin}`，`find_similar_by_vector(..., label_sources=...)`），達 `SIMILARITY_THRESHOLD` 就改回那一筆，`cache_layer="vector"`。一般「AI 判定＋來源」的列不能取代舊結果：舊結果是針對這段原文判的，換掉它要有查核機構層級的證據，長得像的另一則訊息不夠。不呼叫判讀模型。
+  1. **快取層（自動）**：URL／hash 命中 `verified=false` 列時，以該列的向量（本機版列內已存；Postgres 版 `find_*` 不載入向量，改以 `raw_content` 算一次 embedding）到向量層比對**已證實列**（與 Layer 2 相同的規則與門檻），達 `SIMILARITY_THRESHOLD` 就改回那一筆，`cache_layer="vector"`。不呼叫判讀模型。2026-11-08 以前只比對確定性標記（`label_source ∈ {rule, gold, admin}`），理由是舊結果針對這段原文判的、換掉要有查核機構層級的證據；PF-2 正式站重測發現查過的改寫句（和已證實原文相似度 0.93～0.99）一直拿到舊的「安全」「無法查證」，第一次查的人卻會命中「AI 判定＋Tier 1 來源」的已證實原文，所以改成和 Layer 2 一致（票 B-55）。
   2. **查核文章進庫（不耗判讀模型）**：`POST /api/trending/refresh?analyze=false&per_feed=25&cofacts=false` 只做熱門牆第一階段——抓 MyGoPen／TFC RSS 與 Cofacts、確定性標記、把已判定不實的主張以 `label_source="rule"` 寫進知識庫（`_index_factcheck_claim`，標記規則不變）；只耗 embedding。預設 `analyze=true`、`per_feed=4`、`cofacts=true` 與排程行為相同。`cofacts=false` 只抓 MyGoPen／TFC：Cofacts 的 RUMOR 文章常是對話片段，寫進知識庫前需另外審閱。抓取時一律擋下徵才、闢謠 TOP10、小考題等非查核文章；`_cleanup_legacy_strings` 不再依標題把 Cofacts 已查核的謠言退回 PENDING（2026-09-22 盤點正式資料，原本會誤退 8 筆）。
   3. **唯讀盤點**：`scripts/recheck_unverified.py [--cloud] [--no-fetch]` 對每筆未證實列找最接近的已證實列、最新查核文章，以及該列引用過、現在已有回覆的 Cofacts 文章，依 `hit_count` 排序輸出 `data/recheck_unverified_*.csv`（內含使用者原文，gitignored）。不寫入任何資料。
 - **2026-09-22 盤點結果**：正式資料未證實 101 筆（有 1536 維向量 86 筆），對已證實列與 66 篇最新查核文章都沒有達 0.75 者；0.65～0.75 之間 8 筆，皆為同類詐騙話術而非同一則主張。本機資料 75 筆可比對，同樣 0 筆可回補。
-- **驗收**：`tests/test_factcheck_supersede.py`（確定性標記取代、AI 判定不取代、低於門檻不取代、已證實列不查向量層、無向量時以原文 embedding、embedding 不可用照舊、查詢出錯照舊回原列、store 標記過濾）；`tests/test_pg_store.py::test_vector_label_sources_filter`；`tests/test_news_fetcher_async.py::test_run_trending_fetch_without_analysis_skips_the_ai_step`。
+- **驗收**：`tests/test_factcheck_supersede.py`（確定性標記取代、AI 判定＋來源的已證實列取代、未證實列不取代、低於門檻不取代、已證實列不查向量層、無向量時以原文 embedding、embedding 不可用照舊、查詢出錯照舊回原列、store 標記過濾）；`tests/test_pg_store.py::test_vector_label_sources_filter`；`tests/test_news_fetcher_async.py::test_run_trending_fetch_without_analysis_skips_the_ai_step`。
 
 ### FR-21 本站熱門查證（P1；2026-09-22 新增）
 - **描述**：熱門頁（S3）分成兩個分頁：「查核機構最新」（原熱門牆，預設）與「本站熱門查證」（`?tab=hot`）。後者列出最近 7 天在本站被查證最多的**已證實**內容。每一次查證只要對應到知識庫某一列（快取命中或新寫入）即計一次；分數 = Σ 0.5^(距今小時數 ÷ 3)（半衰期 3 小時：剛發生算 1 次、3 小時前 0.5 次），同分時最近一次查證較新者在前（`app/services/hot_claims.py`）。卡片沿用知識庫頁，次數 chip 改為「近 24 小時 N 次・近 7 天 M 次」。

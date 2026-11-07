@@ -3075,7 +3075,7 @@ flowchart LR
   - `factcheck-sync`：11-07 03:17（重試修正上線前）因 embedding ReadTimeout 變紅，4 筆寫入但沒有向量；負責人要 Claude 手動觸發，
     13:18 那次**轉綠**（run 42342123597）：embed_check ok、補上 4 筆向量（vectors_backfilled 4）、來源都抓得到。驗收全部達成。
   - 2026-11-08 正式站重測 PF-2 40 句、OP-11、UX-2（`docs/test/results/cloud_retest_2026-11-08.md`）：三項仍未通過。PF-2 A 組 vector 13／20；
-    以前送過的改寫句先命中 hash 層的舊結果，回補只找 rule／gold／admin，不會換成 AI 判定＋來源的原文列。
+    以前送過的改寫句先命中 hash 層的舊結果，回補只找 rule／gold／admin，不會換成 AI 判定＋來源的原文列（改法見 B-55）。
   - 之後：舊向量欄位要不要清掉（清掉才放得下 B-50 的向量索引，見 B-50）
 
 ### B-54 判讀呼叫連線卡住時不要等滿 60 秒
@@ -3088,4 +3088,14 @@ flowchart LR
 - 驗收：`tests/test_ai_connect_timeout.py`；連線卡住時最多約 10 秒換到備援模型；pytest 全過
 - 狀態：程式完成（2026-11-07，研究分支，pytest 1022 過）；2026-11-08 負責人說「推」，推 main。
   上線後 `/api/health` 的 `ai_model_breaker` 看得到備援情況；連線卡住時 log 會有「判讀連線逾時，換新連線重試」
+
+### B-55 重查的人和第一次查的人拿到一樣的結果（查核結果回補放寬）
+- 優先級：P1
+- 對應：2026-11-08 PF-2 正式站重測（`docs/test/results/cloud_retest_2026-11-08.md`）：以前查過的改寫句命中 hash 層的未證實舊結果
+  （「安全」「無法查證」），和已證實原文的相似度 0.93～0.99 也換不掉；第一次查同一句的人卻會命中語意比對。原因是回補（FR-20）
+  只找 rule／gold／admin 的列，PF-2 原文是「AI 判定＋Tier 1 來源」的已證實列
+- 範圍：`pandas_task_processor._newer_factcheck` 改成和 Layer 2 一樣找已證實的列（同門檻），不再帶 `label_sources`。
+  未證實列仍不會取代；沒有向量時的關鍵字回補（`_keyword_supersede`）照舊只找確定性標記
+- 驗收：`tests/test_factcheck_supersede.py`（AI 判定＋來源的已證實列取代、未證實列不取代）；pytest 全過（1023）
+- 狀態：程式完成（2026-11-08，研究分支），待負責人說「推」。上線後 PF-2 B 組那些句子再查會改回原文那一列
 

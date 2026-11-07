@@ -167,7 +167,7 @@ API 金鑰，請至 https://air.cgu.edu.tw/workspace4/LLMAPI/index.php 複製新
 網址輸入 → L0: URL 快取 → L1: Hash → 爬蟲（爬不到 → UNVERIFIABLE，不呼叫 AI）→ L2: 向量（以爬到的內文比對）→ L3: AI
 圖片輸入 → 沒有快取層，直接 L3（不寫知識庫）
 L3 之後  → 剔除與被查網址同網域的來源 → 過濾死連結 → 來源分級 → 回填知識庫（AI 失敗的 fallback 不寫）
-L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向量層只找 rule／gold／admin 列，對得上就改回那一筆（spec FR-20）
+L0／L1 命中「未證實」列 → 查核結果回補：以該列向量到向量層找已證實列（和 Layer 2 同規則；2026-11-08 起不再只限 rule／gold／admin，票 B-55），對得上就改回那一筆（spec FR-20）
 ```
 - 實作：`app/workers/pandas_task_processor.py`（主流程）。快取存取經 `store_factory.get_knowledge_store()`：本機
   `pandas_store.PandasStore`（Parquet、numpy 矩陣化 cosine），雲端 `pg_store.PgKnowledgeStore.find_similar_by_vector`（pgvector）。

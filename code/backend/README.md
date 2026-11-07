@@ -242,7 +242,7 @@ async 端點裡不要直接呼叫 requests 或大型檔案 IO（會卡住整個 
 - AI 失敗的 fallback 結果不寫進知識庫，也不會被當成快取命中。
 - 回應的 `cached`／`cache_layer`（`url`／`hash`／`vector`）標示命中哪一層。快取命中不佔每日 AI 額度。線上實測：AI 判定約 9–27 秒，向量命中約 3 秒。
 - 沒有 embedding 金鑰時向量層自動停用，其餘兩層照常運作。
-- **查核結果回補**：網址層與 hash 層命中 `verified=false` 的列時，先以該列的向量到向量層只找 `label_source` 為 rule／gold／admin 的列（查核機構文章索引或人工確認）；對得上就改回那一筆（`cache_layer=vector`）。一般 AI 判定的列不能取代舊結果。查核機構的新結論由 `POST /api/trending/refresh?analyze=false` 寫入（只耗 embedding）；`scripts/recheck_unverified.py` 可唯讀盤點哪些未證實資料已有查核結果對得上。
+- **查核結果回補**：網址層與 hash 層命中 `verified=false` 的列時，先以該列的向量到向量層找已證實的列（和語意比對同一套規則與門檻）；對得上就改回那一筆（`cache_layer=vector`），重查的人和第一次查的人拿到一樣的結果。2026-11-08 以前只找 `label_source` 為 rule／gold／admin 的列（票 B-55）。查核機構的新結論由 `POST /api/trending/refresh?analyze=false` 寫入（只耗 embedding）；`scripts/recheck_unverified.py` 可唯讀盤點哪些未證實資料已有查核結果對得上。
 
 ---
 

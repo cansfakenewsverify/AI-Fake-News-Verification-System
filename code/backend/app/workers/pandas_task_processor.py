@@ -548,10 +548,11 @@ async def process_analysis_task_async(
     async def _newer_factcheck(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         查核結果回補：URL／hash 層不過濾 verified，所以一字不差的重複查詢會一直拿到當初
-        「尚無查核機構證實」的舊結果。命中的是未證實列時，先以它的內容到向量層只找確定性標記
-        （rule／gold／admin，即查核機構文章索引或人工確認的結論）；對得上就改回那一筆。
-        只限確定性標記：舊結果是針對這段原文判的，換掉它要有查核機構層級的證據，
-        一般 AI 判定＋來源的列不夠（可能只是長得像的另一則訊息）。
+        「尚無查核機構證實」的舊結果。命中的是未證實列時，先以它的內容到向量層找已證實的列
+        （和 Layer 2 同一套規則與門檻）；對得上就改回那一筆。
+        2026-11-08 以前只找確定性標記（rule／gold／admin）。PF-2 正式站重測發現，查過的改寫句
+        （和已證實原文相似度 0.93～0.99）一直拿到舊的「安全」「無法查證」，第一次查的人卻會命中
+        「AI 判定＋Tier 1 來源」的已證實原文；所以改成重查的人和第一次查的人拿到一樣的結果。
         已證實的列、embedding 不可用、沒有對上 → None，照舊回原列。不呼叫判讀模型。
         這一步是加分項：查詢出錯只記 log、照舊回原列，不讓原本會命中的快取變成失敗。
         """
@@ -561,11 +562,7 @@ async def process_analysis_task_async(
             vector = await _row_vector(row)
             if not vector:
                 return None
-            found = await asyncio.to_thread(
-                lambda: pandas_store.find_similar_by_vector(
-                    vector, label_sources=DETERMINISTIC_LABEL_SOURCES,
-                )
-            )
+            found = await asyncio.to_thread(pandas_store.find_similar_by_vector, vector)
         except Exception as e:
             logger.warning("fact-check supersede lookup failed for task %s: %s", task_id, e)
             return None

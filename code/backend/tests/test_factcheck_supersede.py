@@ -1,8 +1,9 @@
 """查核結果回補（pandas_task_processor._newer_factcheck）。
 
 URL／hash 層不過濾 verified：一字不差的重複查詢會一直拿到當初「尚無查核機構證實」的結果。
-命中的是未證實列時，改以它的內容到向量層只找確定性標記（rule／gold／admin）；對得上就回那一筆。
-全 mock、離線、零 AI。
+命中的是未證實列時，改以它的內容到向量層找已證實的列（和第一次查的人走的向量層同一套規則）；對得上就回那一筆。
+2026-11-08 起不再只限確定性標記（rule／gold／admin）：PF-2 重測時，查過的改寫句一直拿到舊的「安全」，
+第一次查的人卻會命中「AI 判定＋Tier 1 來源」的已證實原文。全 mock、離線、零 AI。
 """
 import asyncio
 
@@ -102,10 +103,23 @@ def test_unverified_hash_hit_is_replaced_by_a_matching_factcheck(env):
     assert CountingVector.calls == 0          # 本機列帶著向量，不必再算
 
 
-def test_ai_verified_rows_do_not_replace_an_unverified_hash_hit(env):
+def test_ai_verified_row_with_sources_replaces_an_unverified_hash_hit(env):
+    """重查的人要拿到和第一次查的人一樣的結果：向量層會回的已證實列，回補也要回。"""
     base = _vec(3)
     old = _save(env, USER_TEXT, _ai("SAFE"), base)
-    _save(env, "長得很像的另一則", _ai("SCAM", [MYGOPEN]), _mix(base, _vec(4), 0.95))
+    verified = _save(env, CLAIM, _ai("MISINFO", [MYGOPEN]), _mix(base, _vec(4), 0.93))
+    assert old["verified"] is False and verified["verified"] is True
+
+    result, task = _run(env)
+
+    assert result["cache_layer"] == "vector" and result["risk_type"] == "MISINFO"
+    assert task["kb_id"] == verified["id"]
+
+
+def test_unverified_rows_never_replace_a_hash_hit(env):
+    base = _vec(13)
+    old = _save(env, USER_TEXT, _ai("SAFE"), base)
+    _save(env, "長得很像的另一則", _ai("SCAM"), _mix(base, _vec(14), 0.95))   # 沒有來源 = 未證實
 
     result, task = _run(env)
 
