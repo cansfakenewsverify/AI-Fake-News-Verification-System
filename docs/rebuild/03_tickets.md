@@ -3056,7 +3056,7 @@ flowchart LR
 - 依賴：B-48、B-49
 - 驗收：pytest 與 Postgres 契約測試全過；校準報告經負責人同意；正式站 `/api/health` 的 `embedding.ok` 為 true、改寫句命中 `vector` 層、
   `factcheck-sync` 轉綠；舊向量保留可退回
-- 狀態：**已上線（2026-11-07，main 2ee9977）**；`factcheck-sync` 轉綠待確認（見最後一點）。2026-11-06～07 在負責人電腦執行。
+- 狀態：**完成（2026-11-07，main 2ee9977）**：正式站改寫句命中 `vector` 層、`/api/health` embedding ok、`factcheck-sync` 轉綠。2026-11-06～07 在負責人電腦執行。
   - 步驟 0：`mercury_check.py` 實測現在的 `CGU_API_KEY` 就能用 Mercury（只要一把金鑰，`rotate_cgu_key.py` 不用改）；只有 `bge-m3`（1024 維、已正規化），`text-embedding-3-small` 回 404。
   - 步驟 1：維度改讀 `VECTOR_DIMENSION`（欄位維度不符時 pg_store 略過向量、不報錯）；證據信心數字與原型檔改成設定；`generate_embedding` 只送前 2000 字；
     `migrate_vector_dim.py`、`reembed_vectors.py`（批次、可續跑、本機快取）、`embed_cache.py`、`embedding_calibration.py`。pytest 1005 過；Postgres 契約測試 1536 與 1024 各 36 過。
@@ -3072,6 +3072,7 @@ flowchart LR
   - 2026-11-07：負責人說「合併並推」，修正與 Ray 的判讀模型斷路器（c5d80c5）合併推 main（2ee9977）；斷路器的一個測試在 Windows 必定失敗
     （monotonic 解析度約 15 ms），只改測試寫法。部署後 PF-2 #3 改寫句查正式站：`cache_layer=vector`、命中要命中的那一列、沒有呼叫判讀模型；
     `/api/health` 的 embedding `ok:true`。
-  - 待確認：`factcheck-sync`（台灣 08:07 排程）轉綠。
+  - `factcheck-sync`：11-07 03:17（重試修正上線前）因 embedding ReadTimeout 變紅，4 筆寫入但沒有向量；負責人要 Claude 手動觸發，
+    13:18 那次**轉綠**（run 42342123597）：embed_check ok、補上 4 筆向量（vectors_backfilled 4）、來源都抓得到。驗收全部達成。
   - 之後：舊向量欄位要不要清掉（清掉才放得下 B-50 的向量索引，見 B-50）
 
