@@ -3097,5 +3097,6 @@ flowchart LR
 - 範圍：`pandas_task_processor._newer_factcheck` 改成和 Layer 2 一樣找已證實的列（同門檻），不再帶 `label_sources`。
   未證實列仍不會取代；沒有向量時的關鍵字回補（`_keyword_supersede`）照舊只找確定性標記
 - 驗收：`tests/test_factcheck_supersede.py`（AI 判定＋來源的已證實列取代、未證實列不取代）；pytest 全過（1023）
-- 狀態：程式完成（2026-11-08，研究分支），待負責人說「推」。上線後 PF-2 B 組那些句子再查會改回原文那一列
+- 狀態：**完成（2026-11-08，main 29c90ba）**。部署後 PF-2 B 組 #13、#19（上次回舊的「無法查證」「安全」）再查正式站：
+  都是 `cache_layer=vector`、假訊息、Tier 1 來源、命中要命中的那一列，沒有呼叫判讀模型
 
