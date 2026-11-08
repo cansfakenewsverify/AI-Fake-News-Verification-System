@@ -3013,8 +3013,9 @@ flowchart LR
   改成**半精度（halfvec）HNSW、只收已證實列**：一頁放 3 筆，估約 49 MB（322 → 371 MB，在護欄內），**不用清掉舊向量**。
   `create_vector_index.py` 改建這個索引（維度照資料庫欄位、要 pgvector 0.7 以上，正式站 0.8.2）；`pg_store` 啟動時偵測到索引
   （`_has_half_index`）才改用索引的排序式（`distance_sql`），相似度仍用完整精度；另外限定 label_source 的查詢照舊全表掃描。
-  pytest 1028 過；Postgres 契約測試（含新的 `test_half_precision_index_keeps_the_same_answers`）還沒跑，要在正式資料庫的拋棄式 schema 跑。
-  下一步（都要負責人同意）：契約測試 → 推 main → `create_vector_index.py --apply` → 重新部署 → 重測 PF-7
+  pytest 1028 過；Postgres 契約測試 37 項在正式資料庫的拋棄式 schema 全過（含新的 `test_half_precision_index_keeps_the_same_answers`：
+  建了半精度索引後查詢結果不變，EXPLAIN 用得到索引）。
+  下一步（都要負責人同意）：推 main → `create_vector_index.py --apply` → 重新部署 → 重測 PF-7
 
 ### B-51 DEF-14：關鍵字比對的誤命中
 - 優先級：P1
