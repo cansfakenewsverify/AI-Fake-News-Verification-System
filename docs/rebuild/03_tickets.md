@@ -3014,8 +3014,13 @@ flowchart LR
   `create_vector_index.py` 改建這個索引（維度照資料庫欄位、要 pgvector 0.7 以上，正式站 0.8.2）；`pg_store` 啟動時偵測到索引
   （`_has_half_index`）才改用索引的排序式（`distance_sql`），相似度仍用完整精度；另外限定 label_source 的查詢照舊全表掃描。
   pytest 1028 過；Postgres 契約測試 37 項在正式資料庫的拋棄式 schema 全過（含新的 `test_half_precision_index_keeps_the_same_answers`：
-  建了半精度索引後查詢結果不變，EXPLAIN 用得到索引）。
-  下一步（都要負責人同意）：推 main → `create_vector_index.py --apply` → 重新部署 → 重測 PF-7
+  建了半精度索引後查詢結果不變，EXPLAIN 用得到索引）。已推 main（a455cc1）。
+  第一次 `--apply`（2026-11-08）失敗：`OutOfMemory: could not resize shared memory segment ... to 131101280 bytes`。
+  平行建索引要向共享記憶體要一整塊 maintenance_work_mem（128 MB），正式站要不到；失敗後留下一個不能用的索引
+  （後端 `_has_half_index` 只認可用的，所以查詢照舊全表掃描，判斷不受影響）。
+  腳本改成 `max_parallel_maintenance_workers = 0`、`maintenance_work_mem = 64MB`（單一程序用自己的記憶體；圖放不下時 pgvector
+  改成邊建邊寫磁碟），建失敗時自己 `DROP INDEX CONCURRENTLY` 清掉半成品。pytest 1030 過。
+  下一步（都要負責人同意）：`--drop` 清掉上次的半成品 → 再 `--apply` → 重啟後端 → 重測 PF-7
 
 ### B-51 DEF-14：關鍵字比對的誤命中
 - 優先級：P1

@@ -790,12 +790,15 @@ class _FakeCursor:
 class _FakeConn:
     """記下每條 SQL；索引狀態依序取自 states，建好後的查詢計畫固定有用到索引。"""
 
-    def __init__(self, db_bytes=225 * 1024 * 1024, vectors=18891, states=(None,), pgvector="0.8.2", column=None):
+    def __init__(self, db_bytes=225 * 1024 * 1024, vectors=18891, states=(None,), pgvector="0.8.2", column=None,
+                 create_error=None):
         self.sql, self.db_bytes, self.vectors, self.states = [], db_bytes, vectors, list(states)
-        self.pgvector, self.column = pgvector, column
+        self.pgvector, self.column, self.create_error = pgvector, column, create_error
 
     def execute(self, sql, params=None):
         self.sql.append(sql)
+        if sql.startswith("CREATE") and self.create_error:
+            raise self.create_error
         if "extversion" in sql:
             return _FakeCursor((self.pgvector,))
         if "format_type" in sql:
@@ -880,6 +883,26 @@ def test_vector_index_follows_the_database_column_not_the_local_setting(monkeypa
     assert vi.main(["--apply"], connect=lambda: conn) == 0
     assert conn.writes() == [vi.create_sql(1024)]
     assert "資料庫欄位是 1024 維" in capsys.readouterr().out
+
+
+def test_vector_index_builds_without_parallel_workers_in_modest_memory():
+    """2026-11-08 正式站：平行建要 128 MB 共享記憶體，要不到就失敗；改成單一程序、64 MB。"""
+    conn = _FakeConn(states=(None, True))
+    assert vi.main(["--apply"], connect=lambda: conn) == 0
+    settings_sql = [s for s in conn.sql if s.startswith("SET")]
+    assert "SET max_parallel_maintenance_workers = 0" in settings_sql
+    assert "SET maintenance_work_mem = '64MB'" in settings_sql
+    assert conn.sql.index("SET max_parallel_maintenance_workers = 0") < conn.sql.index(conn.writes()[0])
+
+
+def test_vector_index_failed_build_cleans_up_after_itself(capsys):
+    """CONCURRENTLY 失敗會留下不能用的索引；腳本要自己拿掉，不要留著拖慢寫入。"""
+    error = RuntimeError('could not resize shared memory segment "/PostgreSQL.1" to 131101280 bytes')
+    conn = _FakeConn(states=(None,), create_error=error)
+    assert vi.main(["--apply"], connect=lambda: conn) == 1
+    assert conn.writes() == [vi.create_sql(vi.settings.VECTOR_DIMENSION), vi.DROP_SQL]
+    out = capsys.readouterr().out
+    assert "shared memory" in out and "已拿掉沒建完的索引" in out
 
 
 def test_vector_index_needs_halfvec_support(capsys):

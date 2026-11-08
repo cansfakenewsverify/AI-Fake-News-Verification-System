@@ -31,7 +31,9 @@ from app.services.pg_store import VECTOR_INDEX_NAME, distance_sql, half_index_ex
 
 INDEX_NAME = VECTOR_INDEX_NAME
 DROP_SQL = f"DROP INDEX CONCURRENTLY IF EXISTS {INDEX_NAME}"
-BUILD_MEMORY = "128MB"          # 預設 32 MB 放不下圖，會改用磁碟、慢很多；正式站 shared_buffers 224 MB，128 MB 還撐得住
+BUILD_MEMORY = "64MB"           # 圖約 50～60 MB；放不下時 pgvector 會改成邊建邊寫磁碟，慢一點但會建完
+BUILD_WORKERS = 0               # 不平行建：平行建要向共享記憶體要一整塊 maintenance_work_mem，
+                                # 2026-11-08 正式站要 128 MB 時失敗（could not resize shared memory segment）；單一程序用自己的記憶體
 PAGE_BYTES = 8192
 ELEMENT_OVERHEAD = 512          # 每筆除了向量本身（半精度 2 bytes／維）之外：tuple 標頭、heap 位置、近鄰清單（m=16）
 DB_LIMIT_BYTES = 500 * 1024 * 1024      # Supabase 免費方案的資料庫上限
@@ -163,8 +165,16 @@ def main(argv: Optional[List[str]] = None, connect: Callable[[], Any] = _connect
         return 0
     conn.execute("SET statement_timeout = 0")
     conn.execute(f"SET maintenance_work_mem = '{BUILD_MEMORY}'")
+    conn.execute(f"SET max_parallel_maintenance_workers = {BUILD_WORKERS}")
     say("開始建索引，不擋查詢與寫入，約數分鐘，這個視窗不要關……")
-    conn.execute(create_sql(dim))
+    try:
+        conn.execute(create_sql(dim))
+    except Exception as exc:  # noqa: BLE001 — 失敗原因照印，留下的半成品一定要清
+        say(f"建索引失敗：{type(exc).__name__}: {str(exc).strip()}")
+        # CONCURRENTLY 失敗會留下不能用的索引：查詢不會用它，但每次寫入都還要多更新它
+        conn.execute(DROP_SQL)
+        say("已拿掉沒建完的索引，資料庫回到原狀；後端照舊全表掃描，判斷不受影響。")
+        return 1
     if _index_state(conn) is not True:
         say("索引沒有建成。跑 --drop 清掉，再看訊息。")
         return 1
