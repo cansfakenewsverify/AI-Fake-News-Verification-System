@@ -3020,7 +3020,11 @@ flowchart LR
   （後端 `_has_half_index` 只認可用的，所以查詢照舊全表掃描，判斷不受影響）。
   腳本改成 `max_parallel_maintenance_workers = 0`、`maintenance_work_mem = 64MB`（單一程序用自己的記憶體；圖放不下時 pgvector
   改成邊建邊寫磁碟），建失敗時自己 `DROP INDEX CONCURRENTLY` 清掉半成品。pytest 1030 過。
-  下一步（都要負責人同意）：`--drop` 清掉上次的半成品 → 再 `--apply` → 重啟後端 → 重測 PF-7
+  同日 `--drop` 清掉半成品後再 `--apply`：**建好了**，資料庫 322 → 370 MB；EXPLAIN 用到索引，伺服器端 3.97 ms。
+  抽樣核對（`docs/test/results/index_recall_2026-11-08.txt`，只讀）：80 筆查詢（未證實列 40、已證實列 40）用索引找到的最近已證實列
+  和全表掃描 80/80 相同，0.84 門檻判斷 80/80 相同。從負責人電腦連線量的平均耗時：全表 347 ms、索引 204 ms（大部分是來回網路）。
+  下一步：推 main（Render 重新部署 = 後端重啟，偵測到索引才用）→ 重測 PF-7。
+  注意：暖機後全表查詢本來就只要約 0.35 秒，PF-7 未證實列 5.81 s 可能還有別的時間（例如 embedding 或冷啟動），要看重測結果
 
 ### B-51 DEF-14：關鍵字比對的誤命中
 - 優先級：P1

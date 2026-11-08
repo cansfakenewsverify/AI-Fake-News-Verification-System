@@ -820,10 +820,11 @@ GitHub Actions factcheck-sync（每天兩次）／weekly-eval（每週日）→ 
   Supabase pg_cron 每 5 分鐘叫醒（`scripts/supabase_keepalive.py`），不再依賴 GitHub Actions keepalive 的時間。
 - 只有 `code/backend` 底下的變更會觸發 Render 自動部署（`rootDir`）。
 - **知識庫規模**：`/api/knowledge`、`/stats`、`/hot` 由 store 在資料庫裡篩選、計數與分頁（`list_verified`、`verified_counts`、
-  `get_verified_by_ids`），不要改回 `get_all_records()` 整表載入。語意比對目前沒有向量索引（全表掃描）：完整精度的 HNSW
-  索引約多 150 MB，會超過免費方案 500 MB 的 90% 護欄。2026-11-08 改成半精度（halfvec）、只收已證實列的索引，約 50 MB
-  （`scripts/create_vector_index.py`，--apply 待負責人同意）；`pg_store` 啟動時偵測到索引才改用索引的排序式（`distance_sql`），
-  相似度仍用完整精度算。PF-7 未證實列 2026-11-08 p50 5.81 秒（準則 5 秒），就差這一步。
+  `get_verified_by_ids`），不要改回 `get_all_records()` 整表載入。語意比對的向量索引：完整精度的 HNSW 索引約多 150 MB，
+  會超過免費方案 500 MB 的 90% 護欄，所以用半精度（halfvec）、只收已證實列的索引（`ix_knowledge_base_vector_hnsw`），
+  2026-11-08 已在正式資料庫建好（322 → 370 MB；`scripts/create_vector_index.py`，建時不平行、64 MB，平行建會要不到共享記憶體）。
+  `pg_store` 啟動時偵測到可用的索引才改用索引的排序式（`distance_sql`），相似度仍用完整精度算；所以建好或拿掉索引後都要重新部署一次。
+  抽樣 80 筆查詢，索引和全表掃描找到的最近已證實列全部相同。PF-7 未證實列 2026-11-08 p50 5.81 秒（準則 5 秒），待重測。
 - Render 出問題時的退路：負責人電腦 + cloudflared tunnel，見 `docs/rebuild/runbook_tunnel.md` 與雲端 runbook 的 C2。
 
 ---
