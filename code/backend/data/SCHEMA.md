@@ -17,7 +17,7 @@
 | `source_url` | string \| None | 原始 URL（**Layer 0** 快取查詢用） |
 | `raw_content` | string | 文字模式存**使用者原文**（與向量語意一致）；URL 模式存爬取後的文章內容 |
 | `data_hash` | string | SHA-256（**Layer 1** 完全比對用，對原始輸入計算） |
-| `content_vector` | list[float] (1536) | Embedding 向量（**Layer 2** 語義比對用；本機種子是 text-embedding-3-small 1536 維；正式站 2026-11-06 起是 bge-m3 1024 維，維度看 `VECTOR_DIMENSION`） |
+| `content_vector` | list[float] (1536) | Embedding 向量（**Layer 2** 語義比對用；本機種子是 text-embedding-3-small 1536 維；正式站 2026-11-06 起是 bge-m3 1024 維，維度看 `VECTOR_DIMENSION`）。Postgres 上有半精度 HNSW 索引 `ix_knowledge_base_vector_hnsw`（只收已證實列，`scripts/create_vector_index.py` 建，2026-11-08） |
 | `is_risk` | bool | 是否為風險訊息 |
 | `risk_type` | string | `SCAM` / `MISINFO` / `SAFE` / `UNKNOWN` |
 | `category` | string | 細分類，例：`Investment`、`Health_Rumor` |
