@@ -328,15 +328,15 @@
   },
   "confidence_fetch": {
     "corpus_by": {
-      "Cofacts:MISINFO:kb": 7157,
-      "Cofacts:SAFE:analysis": 1763,
-      "MyGoPen:MISINFO:kb": 4195,
+      "Cofacts:MISINFO:kb": 7162,
+      "Cofacts:SAFE:analysis": 1764,
+      "MyGoPen:MISINFO:kb": 4201,
       "MyGoPen:SAFE:analysis": 61,
-      "MyGoPen:SCAM:kb": 167,
-      "TFC:MISINFO:kb": 7242,
+      "MyGoPen:SCAM:kb": 168,
+      "TFC:MISINFO:kb": 7246,
       "TFC:SAFE:analysis": 4
     },
-    "corpus_rows": 20589,
+    "corpus_rows": 20606,
     "dedupe": {
       "conflicting_gold": 0,
       "correctness_changed": 24,
@@ -360,7 +360,7 @@
       "no_date": 0
     },
     "since": "2026-10-19",
-    "updated_at": "2026-11-15T09:31:21+08:00"
+    "updated_at": "2026-11-21T09:31:30+08:00"
   },
   "embed_small": {
     "budget": {
@@ -407,6 +407,6 @@
       "text-embedding-3-large": 0,
       "text-embedding-3-small": 20581
     },
-    "updated_at": "2026-11-15T09:31:23+08:00"
+    "updated_at": "2026-11-21T09:32:04+08:00"
   }
 }
