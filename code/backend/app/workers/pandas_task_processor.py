@@ -393,6 +393,19 @@ def _drop_same_domain_sources(sources: List[Any], input_url: Optional[str]) -> L
     return kept
 
 
+def _drop_same_domain_keep_factcheck(sources: List[Any], input_url: Optional[str]) -> List[Any]:
+    """同上，但剔除後一個來源都不剩時，留回被剔除的 Tier 1 來源：
+    被查的網址本身就是查核機構報告時，它正是唯一的查核來源，不能讓已查核的結果沒有來源。"""
+    kept = _drop_same_domain_sources(sources, input_url)
+    if kept or not sources:
+        return kept
+    return [
+        s for s in sources
+        if tier_of((s or {}).get("url") or "" if isinstance(s, dict) else str(s or ""),
+                   (s or {}).get("title") or "" if isinstance(s, dict) else "", offline=True) == 1
+    ]
+
+
 async def _call_ai_within_budget(call, *args, **kwargs) -> Dict[str, Any]:
     """
     FR-14：真的要呼叫 AI 前先扣每日額度（原子操作）。今天已達 DAILY_AI_CALL_CAP → 不呼叫，
@@ -480,7 +493,7 @@ async def process_analysis_task_async(
         tiered, related = _normalize_cached_sources(row)
         # FR-02 驗收 6：快取命中（L0/L1/L2）也不得把被查網址的同站頁面當成查核來源
         for input_url in input_urls:
-            tiered = _drop_same_domain_sources(tiered, input_url)
+            tiered = _drop_same_domain_keep_factcheck(tiered, input_url)
             related = _drop_same_domain_sources(related, input_url)
         label_source = _safe_str(row.get("label_source")) or "ai"
         evidence, similar = None, []
@@ -777,7 +790,7 @@ async def _finish_ai(
     tier_ms: Optional[int] = None
 
     if not fallback:
-        sources = _drop_same_domain_sources(_safe_list(ai_result.get("sources")), input_url)
+        sources = _drop_same_domain_keep_factcheck(_safe_list(ai_result.get("sources")), input_url)
         if sources:
             # 過濾 AI 幻覺／死連結（FN-13 iv：Tier 1 來源被判死 → 不算證實）
             try:
