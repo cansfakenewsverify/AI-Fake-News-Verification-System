@@ -92,6 +92,8 @@ export const STRINGS = {
   toast_share: "已開啟 Threads，發佈前可自行修改文字",
   result_not_found_title: "找不到這筆查證",
   result_not_found_body: "連結可能已過期或輸入錯誤。你可以回首頁重新查證。",
+  route_not_found_title: "找不到這個頁面",
+  route_not_found_body: "這個網址不存在，可能是連結打錯或頁面已搬移。你可以回首頁開始查證。",
   btn_home: "回首頁",
   from_threads: "來自 Threads @{username}",
   label_source_ai: "AI 判定",

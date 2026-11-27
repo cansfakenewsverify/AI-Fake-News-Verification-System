@@ -1,14 +1,32 @@
+import { useNavigate } from "react-router-dom";
+import Button from "../components/Button.jsx";
+import EmptyState from "../components/EmptyState.jsx";
 import { t } from "../i18n.js";
 import { useDocumentTitle } from "../lib/useDocumentTitle.js";
+import { followSpaLink } from "./result/resultState.js";
 
-// 佔位頁（P-07）：正式畫面由 screens lane 實作。
+// 未知路由的 404（不是 /r/:id 找不到，那個是 ResultNotFound）。
 export default function NotFound() {
-  const title = t("result_not_found_title");
+  const navigate = useNavigate();
+  const title = t("route_not_found_title");
   useDocumentTitle(title);
   return (
-    <div style={{ padding: "24px 0" }}>
-      <h1>{title}</h1>
-      <p>此頁由 screens lane 實作</p>
-    </div>
+    <EmptyState
+      mark="question"
+      titleAs="h1"
+      title={title}
+      body={t("route_not_found_body")}
+      action={
+        <Button
+          as="a"
+          href="/"
+          onClick={(event) => followSpaLink(event, navigate, "/")}
+          fullWidth={false}
+          style={{ minWidth: 160 }}
+        >
+          {t("btn_home")}
+        </Button>
+      }
+    />
   );
 }

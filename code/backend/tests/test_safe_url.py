@@ -627,6 +627,55 @@ def test_same_domain_source_removed_on_cache_hit(monkeypatch, tmp_path, layer):
     assert result["verification_status"] == "verified"
 
 
+def test_factcheck_url_input_keeps_its_own_source_on_cache_hit(monkeypatch, tmp_path):
+    """輸入的就是查核機構報告：同站剔除後沒有別的來源時，要保留該報告當查核來源。"""
+    from app.services.pandas_store import PandasStore
+
+    input_url = "https://tfc-taiwan.org.tw/fact-check-reports/some-report/"
+    row = {
+        "id": "kb-tfc", "label_source": "rule",
+        "ai_analysis": {"is_risk": True, "risk_type": "MISINFO", "category": "Politics",
+                        "confidence_score": 0.9, "summary": "不實", "explanation": "見下方來源。"},
+        "sources": [{"title": "TFC 報告", "url": input_url, "tier": 1}],
+    }
+
+    class OkCrawler:
+        async def process_input(self, data, input_type):
+            return {"success": True, "url": data, "title": "t", "content": "內容" * 40}
+
+    class HitStore(PandasStore):
+        def find_by_url(self, url):
+            return dict(row)
+
+    proc = _proc_patch(monkeypatch, tmp_path, OkCrawler, _CountingAI())
+    monkeypatch.setattr(proc, "PandasStore", lambda: HitStore(data_dir=str(tmp_path)))
+    _, _, result = _run_url(proc, tmp_path, input_url)
+
+    assert result["cache_layer"] == "url"
+    assert [s["url"] for s in result["sources"]] == [input_url]
+    assert result["verification_status"] == "rule"
+    assert result["source_tier"] == 1
+
+
+def test_factcheck_url_input_keeps_its_own_source_on_l3(monkeypatch, tmp_path):
+    input_url = "https://tfc-taiwan.org.tw/fact-check-reports/some-report/"
+
+    class OkCrawler:
+        async def process_input(self, data, input_type):
+            return {"success": True, "url": data, "title": "t", "content": "網傳某說法不實，請查證。" * 10}
+
+    fake_ai = _CountingAI({
+        "is_risk": True, "risk_type": "MISINFO", "category": "Politics",
+        "confidence_score": 0.9, "summary": "不實", "explanation": "查核機構已澄清。",
+        "sources": [{"title": "TFC 報告", "url": input_url}],
+    })
+    proc = _proc_patch(monkeypatch, tmp_path, OkCrawler, fake_ai)
+    monkeypatch.setattr(proc, "filter_valid_sources", lambda sources: sources)
+    _, _, result = _run_url(proc, tmp_path, input_url)
+
+    assert [s["url"] for s in result["sources"]] == [input_url]
+
+
 def test_site_domain_helper():
     import app.workers.pandas_task_processor as proc
 
